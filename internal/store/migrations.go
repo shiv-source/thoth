@@ -47,14 +47,33 @@ func migrate(db *sql.DB) error {
 	return nil
 }
 
-// splitStatements splits a migration file into statements on ";".
-// Statements must not contain semicolons inside string literals or comments.
+// splitStatements splits a migration file into statements. A semicolon
+// terminates a statement only outside BEGIN...END blocks, so trigger bodies
+// may contain their own semicolons. BEGIN/END are recognized as whole words
+// (the migration files contain none inside string literals or comments).
 func splitStatements(raw string) []string {
 	var out []string
-	for s := range strings.SplitSeq(raw, ";") {
-		if s = strings.TrimSpace(s); s != "" {
-			out = append(out, s)
+	var cur strings.Builder
+	depth := 0
+	for line := range strings.SplitSeq(raw, "\n") {
+		upper := strings.ToUpper(strings.TrimSpace(line))
+		if upper == "BEGIN" || strings.HasSuffix(upper, " BEGIN") {
+			depth++
 		}
+		if upper == "END" || upper == "END;" {
+			depth--
+		}
+		cur.WriteString(line)
+		cur.WriteByte('\n')
+		if depth == 0 && strings.HasSuffix(strings.TrimSpace(line), ";") {
+			if s := strings.TrimSpace(cur.String()); s != "" {
+				out = append(out, s)
+			}
+			cur.Reset()
+		}
+	}
+	if s := strings.TrimSpace(cur.String()); s != "" {
+		out = append(out, s)
 	}
 	return out
 }

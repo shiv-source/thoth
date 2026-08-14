@@ -331,12 +331,23 @@ func TestDoctorDetectsMissingIndexTables(t *testing.T) {
 	if err := config.Save(filepath.Join(dir, "config.toml"), cfg); err != nil {
 		t.Fatal(err)
 	}
-	// store.Open creates conversations/messages but no notes tables.
+	// store.Open runs the migrations (the single schema source). Simulate a
+	// database that lost its index tables by dropping them afterwards.
 	st, err := store.Open(filepath.Join(dir, "thoth.db"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if err := st.Close(); err != nil {
+		t.Fatal(err)
+	}
+	db, err := sql.Open("sqlite", filepath.Join(dir, "thoth.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`DROP TABLE notes_fts; DROP TABLE notes;`); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Close(); err != nil {
 		t.Fatal(err)
 	}
 

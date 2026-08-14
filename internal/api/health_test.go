@@ -19,12 +19,15 @@ import (
 
 func testDeps(t *testing.T) Deps {
 	t.Helper()
-	st, err := store.Open(filepath.Join(t.TempDir(), "test.db"))
+	// The schema lives in the store's migrations; the index opens the same
+	// file afterwards and issues no DDL of its own.
+	dbPath := filepath.Join(t.TempDir(), "test.db")
+	st, err := store.Open(dbPath)
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = st.Close() })
-	ix, err := index.Open(filepath.Join(t.TempDir(), "test.db"))
+	ix, err := index.Open(dbPath)
 	if err != nil {
 		t.Fatal(err)
 	}

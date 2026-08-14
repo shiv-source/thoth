@@ -13,6 +13,7 @@ import (
 
 	"github.com/shiv-source/thoth/internal/config"
 	"github.com/shiv-source/thoth/internal/index"
+	"github.com/shiv-source/thoth/internal/store"
 	"github.com/shiv-source/thoth/internal/wiki"
 )
 
@@ -49,6 +50,13 @@ func healthyThothDir(t *testing.T) string {
 		t.Fatal(err)
 	}
 	dbPath := filepath.Join(dir, "thoth.db")
+	st, err := store.Open(dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := st.Close(); err != nil {
+		t.Fatal(err)
+	}
 	ix, err := index.Open(dbPath)
 	if err != nil {
 		t.Fatal(err)

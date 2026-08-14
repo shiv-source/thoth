@@ -1,7 +1,6 @@
 package store
 
 import (
-	"database/sql"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -189,155 +188,54 @@ func TestNewIDIsUUIDShaped(t *testing.T) {
 	}
 }
 
-// readConversationIDs returns title -> id for every conversation.
-func readConversationIDs(t *testing.T, s *Store) map[string]string {
-	t.Helper()
-	rows, err := s.db.Query(`SELECT title, id FROM conversations`)
+func TestEnsureMetadataSeedsOnce(t *testing.T) {
+	s, err := Open(filepath.Join(t.TempDir(), "test.db"))
 	if err != nil {
 		t.Fatal(err)
-	}
-	defer func() { _ = rows.Close() }()
-	m := map[string]string{}
-	for rows.Next() {
-		var title, id string
-		if err := rows.Scan(&title, &id); err != nil {
-			t.Fatal(err)
-		}
-		m[title] = id
-	}
-	if err := rows.Err(); err != nil {
-		t.Fatal(err)
-	}
-	return m
-}
-
-func TestMigrateConversationIDsToValidUUIDs(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "test.db")
-	s, err := Open(path)
-	if err != nil {
-		t.Fatalf("Open: %v", err)
-	}
-	if err := s.Close(); err != nil {
-		t.Fatalf("Close: %v", err)
-	}
-
-	// Rewind the version marker and seed rows the way a pre-v1 database
-	// would have them: UUID-shaped ids with random version/variant nibbles,
-	// plus one already-valid v4 that must survive untouched.
-	db, err := sql.Open("sqlite", path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := db.Exec(`PRAGMA user_version = 0`); err != nil {
-		t.Fatal(err)
-	}
-	seeded := map[string]string{ // title -> id
-		"legacy-1": "aaaaaaaa-aaaa-aaaa-3000-000000000000", // reserved variant nibble 3
-		"legacy-2": "bbbbbbbb-bbbb-bbbb-7000-000000000000", // reserved variant nibble 7
-		"legacy-3": "00000000-0000-0000-8000-000000000000", // version nibble 0
-		"legacy-4": "dddddddd-dddd-dddd-c000-000000000000", // Microsoft variant nibble c
-		"valid":    "123e4567-e89b-4122-a456-426614174000",
-	}
-	for title, id := range seeded {
-		if _, err := db.Exec(`INSERT INTO conversations (id, title, created_at) VALUES (?, ?, ?)`,
-			id, title, "2026-08-15T00:00:00Z"); err != nil {
-			t.Fatal(err)
-		}
-	}
-	for _, m := range [][2]string{
-		{seeded["legacy-1"], "user"},
-		{seeded["legacy-1"], "assistant"},
-		{seeded["valid"], "user"},
-	} {
-		if _, err := db.Exec(`INSERT INTO messages (conversation_id, role, content, created_at) VALUES (?, ?, ?, ?)`,
-			m[0], m[1], "hello", "2026-08-15T00:00:00Z"); err != nil {
-			t.Fatal(err)
-		}
-	}
-	if err := db.Close(); err != nil {
-		t.Fatal(err)
-	}
-
-	// Reopening runs migration 1.
-	s, err = Open(path)
-	if err != nil {
-		t.Fatalf("Open after seed: %v", err)
 	}
 	t.Cleanup(func() { _ = s.Close() })
 
-	var v int
-	if err := s.db.QueryRow(`PRAGMA user_version`).Scan(&v); err != nil {
-		t.Fatal(err)
-	}
-	if v != 1 {
-		t.Fatalf("user_version = %d, want 1", v)
-	}
-
-	got := readConversationIDs(t, s)
-	if len(got) != len(seeded) {
-		t.Fatalf("got %d conversations, want %d", len(got), len(seeded))
-	}
-	if got["valid"] != seeded["valid"] {
-		t.Fatalf("valid v4 id was rewritten: %q -> %q", seeded["valid"], got["valid"])
-	}
-	for title, old := range seeded {
-		if title == "valid" {
-			continue
-		}
-		id := got[title]
-		if id == old {
-			t.Fatalf("%s id %q was not rewritten", title, old)
-		}
-		u, err := uuid.Parse(id)
+	read := func() map[string]string {
+		t.Helper()
+		rows, err := s.db.Query(`SELECT key, value FROM app_metadata`)
 		if err != nil {
-			t.Fatalf("%s new id %q is not a valid UUID: %v", title, id, err)
-		}
-		if u.Version() != 4 || u.Variant() != uuid.RFC4122 {
-			t.Fatalf("%s new id %q is not v4 RFC4122 (version %v variant %v)", title, id, u.Version(), u.Variant())
-		}
-	}
-
-	// Messages must follow their conversation to the new id; the valid
-	// conversation's message stays put.
-	rows, err := s.db.Query(`SELECT conversation_id, role FROM messages ORDER BY id`)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() { _ = rows.Close() }()
-	var msgs [][2]string
-	for rows.Next() {
-		var convID, role string
-		if err := rows.Scan(&convID, &role); err != nil {
 			t.Fatal(err)
 		}
-		msgs = append(msgs, [2]string{convID, role})
-	}
-	if err := rows.Err(); err != nil {
-		t.Fatal(err)
-	}
-	if len(msgs) != 3 {
-		t.Fatalf("got %d messages, want 3", len(msgs))
-	}
-	if msgs[0][0] != got["legacy-1"] || msgs[1][0] != got["legacy-1"] {
-		t.Fatalf("legacy messages did not follow the rewrite: %v", msgs)
-	}
-	if msgs[2][0] != seeded["valid"] {
-		t.Fatalf("valid conversation's message was rewritten: %v", msgs[2])
+		defer func() { _ = rows.Close() }()
+		m := map[string]string{}
+		for rows.Next() {
+			var k, v string
+			if err := rows.Scan(&k, &v); err != nil {
+				t.Fatal(err)
+			}
+			m[k] = v
+		}
+		if err := rows.Err(); err != nil {
+			t.Fatal(err)
+		}
+		return m
 	}
 
-	// Idempotency: a second open must not rewrite again.
-	if err := s.Close(); err != nil {
+	if err := s.EnsureMetadata(); err != nil {
+		t.Fatalf("EnsureMetadata: %v", err)
+	}
+	m := read()
+	if len(m) != 2 {
+		t.Fatalf("metadata = %v, want installation_id + created_at", m)
+	}
+	u, err := uuid.Parse(m["installation_id"])
+	if err != nil || u.Version() != 4 || u.Variant() != uuid.RFC4122 {
+		t.Fatalf("installation_id %q is not a valid v4 UUID", m["installation_id"])
+	}
+	if !strings.HasSuffix(m["created_at"], "Z") {
+		t.Fatalf("created_at %q not UTC", m["created_at"])
+	}
+
+	// A second call must not reseed; reopening must keep the same values.
+	if err := s.EnsureMetadata(); err != nil {
 		t.Fatal(err)
 	}
-	s2, err := Open(path)
-	if err != nil {
-		t.Fatalf("reopen: %v", err)
-	}
-	defer func() { _ = s2.Close() }()
-	again := readConversationIDs(t, s2)
-	for title, id := range got {
-		if again[title] != id {
-			t.Fatalf("%s id changed on reopen: %q -> %q", title, id, again[title])
-		}
+	if again := read(); again["installation_id"] != m["installation_id"] || again["created_at"] != m["created_at"] {
+		t.Fatalf("metadata changed on second call: %v -> %v", m, again)
 	}
 }

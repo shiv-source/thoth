@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/shiv-source/thoth/internal/store"
 	_ "modernc.org/sqlite"
 )
 
@@ -30,8 +31,17 @@ type Index struct {
 	db *sql.DB
 }
 
-// Open opens (creating if needed) the index database and applies the schema.
+// Open opens the index database. The schema (notes, notes_fts, triggers)
+// lives in the store's SQL migrations, so a store open bootstraps it first;
+// Open itself issues no DDL.
 func Open(path string) (*Index, error) {
+	st, err := store.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	if err := st.Close(); err != nil {
+		return nil, err
+	}
 	db, err := sql.Open("sqlite", path)
 	if err != nil {
 		return nil, fmt.Errorf("open index: %w", err)
@@ -40,43 +50,7 @@ func Open(path string) (*Index, error) {
 		_ = db.Close()
 		return nil, fmt.Errorf("enable WAL: %w", err)
 	}
-	if err := migrate(db); err != nil {
-		_ = db.Close()
-		return nil, err
-	}
 	return &Index{db: db}, nil
-}
-
-func migrate(db *sql.DB) error {
-	stmts := []string{
-		`CREATE TABLE IF NOT EXISTS notes (
-			path TEXT PRIMARY KEY,
-			title TEXT NOT NULL,
-			kind TEXT NOT NULL DEFAULT 'note',
-			tags TEXT NOT NULL DEFAULT '',
-			body TEXT NOT NULL,
-			updated_at TEXT NOT NULL
-		);`,
-		`CREATE VIRTUAL TABLE IF NOT EXISTS notes_fts USING fts5(
-			path UNINDEXED, title, body, content='notes', content_rowid='rowid'
-		);`,
-		`CREATE TRIGGER IF NOT EXISTS notes_ai AFTER INSERT ON notes BEGIN
-			INSERT INTO notes_fts(rowid, path, title, body) VALUES (new.rowid, new.path, new.title, new.body);
-		END;`,
-		`CREATE TRIGGER IF NOT EXISTS notes_ad AFTER DELETE ON notes BEGIN
-			INSERT INTO notes_fts(notes_fts, rowid, path, title, body) VALUES ('delete', old.rowid, old.path, old.title, old.body);
-		END;`,
-		`CREATE TRIGGER IF NOT EXISTS notes_au AFTER UPDATE ON notes BEGIN
-			INSERT INTO notes_fts(notes_fts, rowid, path, title, body) VALUES ('delete', old.rowid, old.path, old.title, old.body);
-			INSERT INTO notes_fts(rowid, path, title, body) VALUES (new.rowid, new.path, new.title, new.body);
-		END;`,
-	}
-	for _, s := range stmts {
-		if _, err := db.Exec(s); err != nil {
-			return fmt.Errorf("migrate index: %w", err)
-		}
-	}
-	return nil
 }
 
 func (ix *Index) Upsert(n Note) error {

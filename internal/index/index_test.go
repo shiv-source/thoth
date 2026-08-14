@@ -7,18 +7,36 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/shiv-source/thoth/internal/store"
 )
+
+// openTest opens an index on a temp db whose schema was created by the
+// store's SQL migrations — index.Open issues no DDL of its own.
+func openTest(t *testing.T) *Index {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "test.db")
+	st, err := store.Open(path)
+	if err != nil {
+		t.Fatalf("store.Open: %v", err)
+	}
+	if err := st.Close(); err != nil {
+		t.Fatal(err)
+	}
+	ix, err := Open(path)
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	t.Cleanup(func() { _ = ix.Close() })
+	return ix
+}
 
 func discardLog() *slog.Logger {
 	return slog.New(slog.NewTextHandler(io.Discard, nil))
 }
 
 func TestUpsertSearchDelete(t *testing.T) {
-	ix, err := Open(filepath.Join(t.TempDir(), "test.db"))
-	if err != nil {
-		t.Fatalf("Open: %v", err)
-	}
-	t.Cleanup(func() { _ = ix.Close() })
+	ix := openTest(t)
 
 	n := Note{
 		Path: "meetings/2026-08-14-standup.md", Title: "Standup", Kind: "meeting",
@@ -50,11 +68,7 @@ func TestUpsertSearchDelete(t *testing.T) {
 }
 
 func TestSearchSnippetEscapesHTML(t *testing.T) {
-	ix, err := Open(filepath.Join(t.TempDir(), "test.db"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = ix.Close() })
+	ix := openTest(t)
 	// A note body containing markup must come back escaped in the snippet so
 	// the frontend's dangerouslySetInnerHTML cannot execute it.
 	n := Note{Path: "knowledge/xss.md", Title: "XSS",
@@ -84,11 +98,7 @@ func TestSearchSnippetEscapesHTML(t *testing.T) {
 }
 
 func TestDeletePrefixEscapesLIKEWildcards(t *testing.T) {
-	ix, err := Open(filepath.Join(t.TempDir(), "test.db"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = ix.Close() })
+	ix := openTest(t)
 	now := time.Now()
 	notes := []Note{
 		{Path: "dirs/50%/inside.md", Title: "Pct", Kind: "note", Body: "percent dir", UpdatedAt: now},
@@ -124,11 +134,7 @@ func TestDeletePrefixEscapesLIKEWildcards(t *testing.T) {
 }
 
 func TestDeletePrefixRemovesSubtree(t *testing.T) {
-	ix, err := Open(filepath.Join(t.TempDir(), "test.db"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = ix.Close() })
+	ix := openTest(t)
 	now := time.Now()
 	notes := []Note{
 		{Path: "projects/doomed/a.md", Title: "A", Kind: "project", Body: "doomed alpha", UpdatedAt: now},
@@ -166,11 +172,7 @@ func TestDeletePrefixRemovesSubtree(t *testing.T) {
 }
 
 func TestUpsertOverwrites(t *testing.T) {
-	ix, err := Open(filepath.Join(t.TempDir(), "test.db"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = ix.Close() })
+	ix := openTest(t)
 	n := Note{Path: "knowledge/go.md", Title: "Go", Kind: "knowledge", Body: "v1", UpdatedAt: time.Now()}
 	if err := ix.Upsert(n); err != nil {
 		t.Fatal(err)
@@ -186,11 +188,7 @@ func TestUpsertOverwrites(t *testing.T) {
 }
 
 func TestSearchLimitZeroReturnsNothing(t *testing.T) {
-	ix, err := Open(filepath.Join(t.TempDir(), "test.db"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = ix.Close() })
+	ix := openTest(t)
 	n := Note{Path: "knowledge/go.md", Title: "Go", Kind: "knowledge", Body: "goroutines are cheap", UpdatedAt: time.Now()}
 	if err := ix.Upsert(n); err != nil {
 		t.Fatal(err)
@@ -205,11 +203,7 @@ func TestSearchLimitZeroReturnsNothing(t *testing.T) {
 }
 
 func TestSearchMatchesTitleOnly(t *testing.T) {
-	ix, err := Open(filepath.Join(t.TempDir(), "test.db"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = ix.Close() })
+	ix := openTest(t)
 	// The query term appears only in the title, never the body: FTS5 must
 	// still match it (title carries the higher bm25 weight).
 	n := Note{Path: "knowledge/golang-patterns.md", Title: "Golang Patterns",
@@ -261,11 +255,7 @@ func TestClosedIndexErrors(t *testing.T) {
 }
 
 func TestSearchRejectsInvalidQuery(t *testing.T) {
-	ix, err := Open(filepath.Join(t.TempDir(), "test.db"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = ix.Close() })
+	ix := openTest(t)
 	// An unterminated phrase is a syntax error in FTS5's MATCH query.
 	if _, err := ix.Search(`"unterminated`, 10); err == nil {
 		t.Fatal("expected error for malformed FTS5 query")
