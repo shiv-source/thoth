@@ -23,17 +23,18 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           jobs=$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs" \
-            --jq '[.jobs[] | select(.name != "${{ github.job }}" and .name != "${{ inputs.wrapper }}") | {name: .name, conclusion: .conclusion}]')
+            --jq '[.jobs[] | select(.name != "${{ github.job }}" and .name != "${{ inputs.wrapper }}") | {name: (.name | split(" / ") | last), conclusion: .conclusion}]' \
+            | jq 'sort_by(.conclusion == "success")')
           failed=$(echo "$jobs" | jq '[.[] | select(.conclusion != "success")] | length')
           if [ "$failed" -gt 0 ]; then
-            echo "## CI failed ❌" >> "$GITHUB_STEP_SUMMARY"
+            echo "## CI failed ❌ — $failed job(s) failed" >> "$GITHUB_STEP_SUMMARY"
           else
             echo "## CI passed ✅" >> "$GITHUB_STEP_SUMMARY"
           fi
           echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "Run: [${{ github.repository }}#${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> "$GITHUB_STEP_SUMMARY"
+          echo "Run: [${{ github.repository }}#${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) · commit [\`${GITHUB_SHA:0:8}\`](${{ github.server_url }}/${{ github.repository }}/commit/$GITHUB_SHA)" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "| Job | Result |" >> "$GITHUB_STEP_SUMMARY"
           echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
-          echo "$jobs" | jq -r '.[] | "| \(.name) | \(.conclusion) |"' >> "$GITHUB_STEP_SUMMARY"
+          echo "$jobs" | jq -r '.[] | . as $j | "| \($j.name) | \((if $j.conclusion == "success" then "✅ success" elif $j.conclusion == "failure" then "❌ failure" elif $j.conclusion == "cancelled" then "🚫 cancelled" elif $j.conclusion == "skipped" then "⏭️ skipped" else "⏳ \($j.conclusion // "in progress")" end)) |"' >> "$GITHUB_STEP_SUMMARY"
           test "$failed" -eq 0
