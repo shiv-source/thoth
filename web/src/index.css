@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "@fontsource-variable/fraunces";
+@plugin "@tailwindcss/typography";
 
 @theme {
   --font-display: "Fraunces Variable", Georgia, serif;
