@@ -77,9 +77,12 @@ func (s *Store) CreateConversation(title string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	// created_at is stored as RFC3339 text and compared lexically by
+	// ORDER BY, so it must be UTC: local offsets would misorder rows
+	// written under different offsets.
 	_, err = s.db.Exec(
 		`INSERT INTO conversations(id, title, created_at) VALUES (?, ?, ?)`,
-		id, title, time.Now().Format(time.RFC3339))
+		id, title, time.Now().UTC().Format(time.RFC3339))
 	if err != nil {
 		return "", fmt.Errorf("create conversation: %w", err)
 	}
@@ -89,7 +92,7 @@ func (s *Store) CreateConversation(title string) (string, error) {
 func (s *Store) AddMessage(convID, role, content string) error {
 	_, err := s.db.Exec(
 		`INSERT INTO messages(conversation_id, role, content, created_at) VALUES (?, ?, ?, ?)`,
-		convID, role, content, time.Now().Format(time.RFC3339))
+		convID, role, content, time.Now().UTC().Format(time.RFC3339))
 	if err != nil {
 		return fmt.Errorf("add message: %w", err)
 	}

@@ -2,6 +2,7 @@ package store
 
 import (
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -101,6 +102,39 @@ func TestListConversationsOrderedNewestFirst(t *testing.T) {
 	}
 	if times["garbage"] || !times["newest"] {
 		t.Fatalf("created_at parsing wrong: %v", times)
+	}
+}
+
+func TestTimestampsStoredInUTC(t *testing.T) {
+	s, err := Open(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { s.Close() })
+
+	id, err := s.CreateConversation("utc check")
+	if err != nil {
+		t.Fatalf("CreateConversation: %v", err)
+	}
+	if err := s.AddMessage(id, "user", "hi"); err != nil {
+		t.Fatalf("AddMessage: %v", err)
+	}
+
+	// created_at is compared lexically by ORDER BY, so it must carry a fixed
+	// offset: a local-offset RFC3339 string would sort against UTC rows wrong.
+	var convCreated string
+	if err := s.db.QueryRow(`SELECT created_at FROM conversations WHERE id = ?`, id).Scan(&convCreated); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasSuffix(convCreated, "Z") {
+		t.Fatalf("conversation created_at %q not UTC (want Z suffix)", convCreated)
+	}
+	var msgCreated string
+	if err := s.db.QueryRow(`SELECT created_at FROM messages WHERE conversation_id = ?`, id).Scan(&msgCreated); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasSuffix(msgCreated, "Z") {
+		t.Fatalf("message created_at %q not UTC (want Z suffix)", msgCreated)
 	}
 }
 
