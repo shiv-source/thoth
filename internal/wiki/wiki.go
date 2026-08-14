@@ -18,7 +18,7 @@ type Wiki struct {
 	Root string
 }
 
-func Open(root string) *Wiki { return &Wiki{Root: root} }
+func New(root string) *Wiki { return &Wiki{Root: root} }
 
 func (w *Wiki) Exists() bool {
 	fi, err := os.Stat(w.Root)

@@ -177,7 +177,7 @@ func TestNoteEndpointMissingNote(t *testing.T) {
 
 func TestTreeEndpointMissingRoot(t *testing.T) {
 	d := testDeps(t)
-	d.Wiki = wiki.Open(filepath.Join(t.TempDir(), "missing"))
+	d.Wiki = wiki.New(filepath.Join(t.TempDir(), "missing"))
 	e := New(d)
 	req := httptest.NewRequest(http.MethodGet, "/api/wiki/tree", nil)
 	rec := httptest.NewRecorder()

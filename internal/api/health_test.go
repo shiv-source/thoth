@@ -33,7 +33,7 @@ func testDeps(t *testing.T) Deps {
 		Config: func() *config.Config { c := config.Default(); return &c }(),
 		Store:  st,
 		Claude: &claude.FakeClient{},
-		Wiki:   wiki.Open(t.TempDir()),
+		Wiki:   wiki.New(t.TempDir()),
 		Index:  ix,
 	}
 }
