@@ -98,24 +98,7 @@ func (h *Hub) chat(c echo.Context) error {
 	// Turns run in their own goroutines (the read loop must stay free to
 	// receive cancel frames), so every socket write funnels through one
 	// writer goroutine to stay race-free.
-	out := make(chan serverMsg, 64)
-	quit := make(chan struct{})
-	go func() {
-		for {
-			select {
-			case m := <-out:
-				_ = ws.WriteJSON(m) // keep draining on write errors; the read loop notices the dead conn
-			case <-quit:
-				return
-			}
-		}
-	}()
-	write := func(m serverMsg) {
-		select {
-		case out <- m:
-		case <-quit:
-		}
-	}
+	write, quit := writeLoop(ws)
 
 	convID := ""
 	for {
@@ -126,37 +109,75 @@ func (h *Hub) chat(c echo.Context) error {
 		}
 		switch msg.Type {
 		case "send":
-			if convID == "" {
-				title := msg.Text
-				if len(title) > 60 {
-					title = title[:60]
-				}
-				id, err := h.store.CreateConversation(title)
-				if err != nil {
-					write(serverMsg{Type: "error", Message: err.Error()})
-					continue
-				}
-				convID = id
-			}
-			if err := h.store.AddMessage(convID, "user", msg.Text); err != nil {
-				write(serverMsg{Type: "error", Message: err.Error()})
-				continue
-			}
-			go h.runTurn(convID, msg.Text, write)
+			h.handleSend(&convID, msg.Text, write)
 		case "cancel":
 			h.cancelTurn(convID)
 		case "resume":
-			if buf := h.replay(msg.ConversationID); len(buf) > 0 {
-				for _, m := range buf {
-					write(m)
-				}
-			} else {
-				write(serverMsg{Type: "error", Message: "unknown conversation"})
-			}
+			h.handleResume(msg.ConversationID, write)
 		default:
 			write(serverMsg{Type: "error", Message: "unknown message type: " + msg.Type})
 		}
 	}
+}
+
+// writeLoop owns the socket: every write goes through it so concurrent turn
+// goroutines never race on the connection. The returned write blocks until
+// the message is handed off (or the loop has quit).
+func writeLoop(ws *websocket.Conn) (write func(serverMsg), quit chan struct{}) {
+	out := make(chan serverMsg, 64)
+	quit = make(chan struct{})
+	go func() {
+		for {
+			select {
+			case m := <-out:
+				_ = ws.WriteJSON(m) // keep draining on write errors; the read loop notices the dead conn
+			case <-quit:
+				return
+			}
+		}
+	}()
+	write = func(m serverMsg) {
+		select {
+		case out <- m:
+		case <-quit:
+		}
+	}
+	return write, quit
+}
+
+// handleSend persists the user message and starts a turn, creating the
+// conversation on first send. On any error it reports over the socket and
+// leaves the conversation untouched for the next message.
+func (h *Hub) handleSend(convID *string, text string, write func(serverMsg)) {
+	if *convID == "" {
+		title := text
+		if len(title) > 60 {
+			title = title[:60]
+		}
+		id, err := h.store.CreateConversation(title)
+		if err != nil {
+			write(serverMsg{Type: "error", Message: err.Error()})
+			return
+		}
+		*convID = id
+	}
+	if err := h.store.AddMessage(*convID, "user", text); err != nil {
+		write(serverMsg{Type: "error", Message: err.Error()})
+		return
+	}
+	go h.runTurn(*convID, text, write)
+}
+
+// handleResume replays the latest turn of a conversation so a reconnect can
+// re-sync the UI.
+func (h *Hub) handleResume(convID string, write func(serverMsg)) {
+	if buf := h.replay(convID); len(buf) > 0 {
+		for _, m := range buf {
+			write(m)
+		}
+		return
+	}
+	write(serverMsg{Type: "error", Message: "unknown conversation"})
 }
 
 // runTurn runs one Claude turn. A new send supersedes an in-flight turn for
@@ -179,7 +200,19 @@ func (h *Hub) runTurn(convID, prompt string, write func(serverMsg)) {
 
 	write(serverMsg{Type: "assistant_start"})
 	var sb strings.Builder
-	w := claude.WriterFunc(func(ev claude.Event) error {
+	err := h.claude.Start(ctx, convID, prompt, h.turnWriter(&sb, write, convID))
+	if h.finishTurn(convID, err, write) {
+		return
+	}
+	h.persistTurn(convID, sb.String())
+	m := serverMsg{Type: "turn_done"}
+	write(m)
+	h.record(convID, m)
+}
+
+// turnWriter bridges Claude events to the socket and the replay buffer.
+func (h *Hub) turnWriter(sb *strings.Builder, write func(serverMsg), convID string) claude.WriterFunc {
+	return claude.WriterFunc(func(ev claude.Event) error {
 		switch ev.Type {
 		case claude.EventDelta:
 			sb.WriteString(ev.Text)
@@ -194,22 +227,30 @@ func (h *Hub) runTurn(convID, prompt string, write func(serverMsg)) {
 		}
 		return nil
 	})
-	err := h.claude.Start(ctx, convID, prompt, w)
+}
+
+// finishTurn reports a cancelled or failed turn and reports whether the turn
+// ended prematurely (and must not persist output).
+func (h *Hub) finishTurn(convID string, err error, write func(serverMsg)) bool {
 	switch {
 	case errors.Is(err, context.Canceled):
 		write(serverMsg{Type: "error", Message: "cancelled"})
-		return
+		return true
 	case err != nil:
 		write(serverMsg{Type: "error", Message: err.Error()})
 		h.record(convID, serverMsg{Type: "error", Message: err.Error()})
+		return true
+	}
+	return false
+}
+
+// persistTurn stores a completed assistant answer (no-op when the turn
+// produced no text).
+func (h *Hub) persistTurn(convID, text string) {
+	if text == "" {
 		return
 	}
-	if sb.Len() > 0 {
-		if err := h.store.AddMessage(convID, "assistant", sb.String()); err != nil {
-			h.log.Warn("persist assistant message", "err", err)
-		}
+	if err := h.store.AddMessage(convID, "assistant", text); err != nil {
+		h.log.Warn("persist assistant message", "err", err)
 	}
-	m := serverMsg{Type: "turn_done"}
-	write(m)
-	h.record(convID, m)
 }

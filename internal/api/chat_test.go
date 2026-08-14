@@ -81,6 +81,44 @@ func TestChatSendStreamsAndPersists(t *testing.T) {
 	}
 }
 
+func TestChatStreamsToolActivity(t *testing.T) {
+	d := testDeps(t)
+	d.Claude = &claude.FakeClient{Script: []claude.Event{
+		{Type: claude.EventTool, Tool: "Read", Detail: "note.md"},
+		{Type: claude.EventDelta, Text: "answer"},
+		{Type: claude.EventDone},
+	}}
+	e := New(d)
+
+	conn, _, err := websocket.DefaultDialer.Dial(wsURL(t, e), nil)
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	defer conn.Close()
+
+	if err := conn.WriteJSON(map[string]string{"type": "send", "text": "look at my notes"}); err != nil {
+		t.Fatal(err)
+	}
+	var gotTool, gotDone bool
+	for !gotDone {
+		m := readMsg(t, conn)
+		switch m["type"] {
+		case "tool_activity":
+			if m["tool"] != "Read" || m["detail"] != "note.md" {
+				t.Fatalf("unexpected tool frame: %+v", m)
+			}
+			gotTool = true
+		case "turn_done":
+			gotDone = true
+		case "error":
+			t.Fatalf("unexpected error event: %+v", m)
+		}
+	}
+	if !gotTool {
+		t.Fatal("no tool_activity received")
+	}
+}
+
 func TestChatResumeReplays(t *testing.T) {
 	d := testDeps(t)
 	d.Claude = &claude.FakeClient{Script: []claude.Event{
