@@ -13,6 +13,10 @@ directory any time you like.
 - [Claude Code](https://claude.com/claude-code) installed, logged in, on your PATH
 - Go 1.2x+ (to build from source) or a released binary
 
+## Documentation
+
+Full documentation: [docs/index.md](docs/index.md) — architecture, API, CLI, indexing, frontend, security, and development guides.
+
 ## Quick start
 
 ```sh
