@@ -14,6 +14,7 @@ export class ChatSocket {
   private conversationId: string | null = null
   private retried = false
   private closed = false
+  private resumePending = false
   private retryTimer: ReturnType<typeof setTimeout> | null = null
 
   constructor(private readonly url: string) {}
@@ -29,19 +30,28 @@ export class ChatSocket {
         this.handler(m)
       } catch { /* ignore */ }
     }
-    ws.onopen = () => this.statusHandler('connected')
+    ws.onopen = () => {
+      this.statusHandler('connected')
+      // A freshly reconnected socket is CONNECTING: sending a resume frame
+      // before it opens throws InvalidStateError, so resume from onopen.
+      if (this.resumePending) {
+        this.resumePending = false
+        if (this.conversationId) this.resume(this.conversationId)
+      }
+    }
     ws.onclose = () => {
       if (this.closed) return
       // Auto-reconnect exactly once, then stay disconnected.
       if (this.retried) {
+        this.resumePending = false
         this.statusHandler('disconnected')
         return
       }
       this.retried = true
       this.statusHandler('reconnecting')
       this.retryTimer = setTimeout(() => {
+        this.resumePending = Boolean(this.conversationId)
         this.connect()
-        if (this.conversationId) this.resume(this.conversationId)
       }, 1000)
     }
   }

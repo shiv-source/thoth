@@ -12,10 +12,11 @@ describe('ChatSocket', () => {
     socket.connect()
     const received: unknown[] = []
     socket.onMessage((m) => received.push(m))
+    const ws = FakeWS.instances[0]!
+    ws.open() // the handshake must complete before frames can be sent
     socket.send('hello')
     socket.cancel()
 
-    const ws = FakeWS.instances[0]!
     expect(ws.sent[0]).toBe(JSON.stringify({ type: 'send', text: 'hello' }))
     expect(ws.sent[1]).toBe(JSON.stringify({ type: 'cancel' }))
 
@@ -40,7 +41,12 @@ describe('ChatSocket', () => {
 
       vi.advanceTimersByTime(1000)
       expect(FakeWS.instances).toHaveLength(2)
-      // The reconnect re-opens the socket and resumes the conversation.
+      // The fresh socket is still CONNECTING: no frame may be sent yet
+      // (real WebSockets throw InvalidStateError on send()).
+      expect(FakeWS.instances[1]!.sent).toEqual([])
+
+      // Once the handshake completes, the reconnect resumes the conversation.
+      FakeWS.instances[1]!.open()
       expect(FakeWS.instances[1]!.sent).toEqual([JSON.stringify({ type: 'resume', conversation_id: 'conv-1' })])
 
       // A second drop stays disconnected: exactly one retry.

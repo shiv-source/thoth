@@ -10,6 +10,7 @@ globalThis.WebSocket = FakeWS as unknown as typeof WebSocket
 function freshSocket(): ChatSocket {
   const socket = new ChatSocket('ws://x/ws')
   socket.connect()
+  FakeWS.instances[0]!.open() // handshake completes so sends do not throw
   return socket
 }
 
