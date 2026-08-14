@@ -15,12 +15,15 @@ This file governs the app repo. Note-taking behavior is governed by the wiki's o
 ## Commands
 
 ```sh
-make web            # build frontend + sync into internal/webui/dist (REQUIRED before go build/test on fresh clone)
-make build          # bin/thoth
-go test -race ./... # full suite
-make lint           # golangci-lint + pnpm lint + tsc
-# coverage gate (CI-enforced floor):
-go test -coverprofile=coverage.out ./internal/... ./cmd/... && go tool cover -func=coverage.out | tail -1
+make help           # self-documenting target list — the authoritative reference
+make dev            # Vite HMR + Go server together
+make web            # frontend build + embed sync (REQUIRED before go build/test on fresh clone)
+make build          # bin/thoth (VERSION=v1.2.3 stamps it)
+make release        # all five cross-compile targets into dist/
+make install        # one command: deps + embed + binary into $(GOBIN)
+make check          # everything CI enforces, locally (fmt lint race cover build)
+make doctor         # diagnose the local setup
+# coverage gate (CI-enforced floor): make cover
 ```
 
 Frontend: `cd web && pnpm <cmd>` — **pnpm only**, never npm. Commits: `pnpm-lock.yaml` in, nothing else generated.

@@ -20,17 +20,21 @@ make build    # bin/thoth
 
 ## Commands
 
+Run `make help` for the full self-documenting list.
+
 | Command | Purpose |
 |---|---|
+| `make dev` | Vite (HMR) + Go server together; Ctrl+C stops both |
+| `make dev-web` / `make dev-server` | Frontend only / backend only |
 | `make web` | `pnpm install --frozen-lockfile` + build + sync into `internal/webui/dist` |
-| `make build` | web + `go build -o bin/thoth` |
-| `make run` | build + `thoth serve` |
-| `make test` | `go test ./...` |
-| `make race` | `go test -race ./...` |
-| `make lint` | golangci-lint + `pnpm lint` + `tsc --noEmit` |
-| `make clean` | remove `bin/` + embedded dist |
-
-Frontend day-to-day: `cd web && pnpm dev` (Vite proxies `/api` and `/ws` to the running server).
+| `make web-sync` | Fast path: ensure the embed exists without reinstalling |
+| `make build [VERSION=…]` | Release binary with version stamping |
+| `make release [VERSION=…]` | Cross-compile all five targets into `dist/` |
+| `make install` | Everything: frontend deps + build + binary into `$(GOBIN)` |
+| `make install-bin [PREFIX=…]` | Copy the binary system-wide (default `/usr/local/bin`) |
+| `make test` / `make race` / `make cover` / `make lint` / `make fmt` | Quality gates |
+| `make check` | Everything CI runs, locally |
+| `make doctor` / `make init` / `make run` / `make clean` | Ops |
 
 ## Gates (every commit must pass)
 
