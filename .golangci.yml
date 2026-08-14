@@ -1,4 +1,7 @@
+version: "2"
+
 linters:
+  default: none
   enable:
     - govet
     - staticcheck
@@ -7,5 +10,6 @@ linters:
     - unused
     - gofmt
     - goimports
+
 run:
   timeout: 5m

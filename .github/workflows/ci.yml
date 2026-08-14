@@ -28,7 +28,7 @@ jobs:
           go tool cover -func=coverage.out | awk -F'\t' '/^total:/ { gsub(/%/, "", $NF); if ($NF+0 < 80) { print "coverage", $NF "%", "below 80% floor"; exit 1 } }'
       - uses: golangci/golangci-lint-action@v6
         with:
-          version: latest
+          version: v2.12.2
       - name: cross-compile
         run: |
           GOOS=darwin GOARCH=amd64 go build -o /tmp/thoth-darwin-amd64 ./cmd/thoth
