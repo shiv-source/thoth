@@ -24,7 +24,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           jobs=$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs" \
-            --jq '[.jobs[] | select(.name != "${{ github.job }}" and .name != "${{ inputs.wrapper }}") | {name: (.name | split(" / ") | last), conclusion: .conclusion}]' \
+            --jq '[.jobs[] | select((.name | split(" / ") | last) != "${{ github.job }}" and (.name | split(" / ") | last) != "${{ inputs.wrapper }}") | {name: (.name | split(" / ") | last), conclusion: .conclusion}]' \
             | jq 'sort_by(.conclusion == "success")')
           failed=$(echo "$jobs" | jq '[.[] | select(.conclusion != "success")] | length')
           if [ "$failed" -gt 0 ]; then
