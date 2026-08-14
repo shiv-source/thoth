@@ -1,4 +1,4 @@
-package main
+package cli
 
 import (
 	"io"
@@ -48,6 +48,15 @@ func TestRootRejectsUnknownCommand(t *testing.T) {
 	root := newRootCmd()
 	root.SetArgs([]string{"bogus-command"})
 	if err := root.Execute(); err == nil {
+		t.Fatal("expected error for unknown subcommand")
+	}
+}
+
+func TestExecuteReturnsErrorForUnknownCommand(t *testing.T) {
+	old := os.Args
+	defer func() { os.Args = old }()
+	os.Args = []string{"thoth", "bogus"}
+	if err := Execute(); err == nil {
 		t.Fatal("expected error for unknown subcommand")
 	}
 }

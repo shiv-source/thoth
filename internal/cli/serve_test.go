@@ -1,4 +1,4 @@
-package main
+package cli
 
 import (
 	"os"
@@ -48,4 +48,3 @@ func TestServeErrorWhenWikiScaffoldFails(t *testing.T) {
 		t.Fatal("expected error when wiki scaffold fails")
 	}
 }
-
