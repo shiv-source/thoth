@@ -34,7 +34,7 @@ func Open(path string) (*Store, error) {
 		return nil, fmt.Errorf("open store: %w", err)
 	}
 	if _, err := db.Exec(`PRAGMA journal_mode=WAL;`); err != nil {
-		db.Close()
+		_ = db.Close()
 		return nil, fmt.Errorf("enable WAL: %w", err)
 	}
 	stmts := []string{
@@ -54,7 +54,7 @@ func Open(path string) (*Store, error) {
 	}
 	for _, s := range stmts {
 		if _, err := db.Exec(s); err != nil {
-			db.Close()
+			_ = db.Close()
 			return nil, fmt.Errorf("migrate store: %w", err)
 		}
 	}
@@ -104,7 +104,7 @@ func (s *Store) ListConversations() ([]Conversation, error) {
 	if err != nil {
 		return nil, fmt.Errorf("list conversations: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var out []Conversation
 	for rows.Next() {
 		var c Conversation
@@ -127,7 +127,7 @@ func (s *Store) Messages(convID string) ([]Message, error) {
 	if err != nil {
 		return nil, fmt.Errorf("list messages: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var out []Message
 	for rows.Next() {
 		var m Message

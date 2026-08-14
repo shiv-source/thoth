@@ -52,7 +52,7 @@ func runDoctor(dir string, fix bool) error {
 	d := &doctorRunner{log: slog.New(slog.NewTextHandler(os.Stderr, nil))}
 	checks := d.checks(dir, fix)
 	for _, f := range d.fixes {
-		fmt.Fprintf(os.Stdout, "fixed: %s\n", f)
+		_, _ = fmt.Fprintf(os.Stdout, "fixed: %s\n", f)
 	}
 	allOK := true
 	for _, c := range checks {
@@ -61,7 +61,7 @@ func runDoctor(dir string, fix bool) error {
 			mark = "✗ "
 			allOK = false
 		}
-		fmt.Fprintf(os.Stdout, "%s%s: %s\n", mark, c.Name, c.Message)
+		_, _ = fmt.Fprintf(os.Stdout, "%s%s: %s\n", mark, c.Name, c.Message)
 	}
 	if !allOK {
 		return errUnhealthy
@@ -150,7 +150,7 @@ func (d *doctorRunner) rebuildIndex() error {
 	if err != nil {
 		return err
 	}
-	defer ix.Close()
+	defer func() { _ = ix.Close() }()
 	return ix.Rebuild(d.wikiPath, d.log)
 }
 

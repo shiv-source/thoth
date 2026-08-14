@@ -27,7 +27,7 @@ func TestRebuild(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { ix.Close() })
+	t.Cleanup(func() { _ = ix.Close() })
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
 
 	if err := ix.Rebuild(root, log); err != nil {
@@ -60,7 +60,7 @@ func TestRebuildRemovesDeletedNotes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { ix.Close() })
+	t.Cleanup(func() { _ = ix.Close() })
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
 
 	if err := ix.Rebuild(root, log); err != nil {
@@ -94,7 +94,7 @@ func TestRebuildErrorOnMissingRoot(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { ix.Close() })
+	t.Cleanup(func() { _ = ix.Close() })
 	if err := ix.Rebuild(filepath.Join(t.TempDir(), "missing"), discardLog()); err == nil {
 		t.Fatal("expected error walking a missing root")
 	}
@@ -111,7 +111,7 @@ func TestRebuildSkipsUnreadableFile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { ix.Close() })
+	t.Cleanup(func() { _ = ix.Close() })
 	if err := ix.Rebuild(root, discardLog()); err != nil {
 		t.Fatalf("Rebuild must skip unreadable files, got %v", err)
 	}

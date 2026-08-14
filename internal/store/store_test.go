@@ -11,7 +11,7 @@ func TestConversationRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}
-	t.Cleanup(func() { s.Close() })
+	t.Cleanup(func() { _ = s.Close() })
 
 	id, err := s.CreateConversation("My first chat")
 	if err != nil {
@@ -45,7 +45,7 @@ func TestMessagesUnknownConversation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { s.Close() })
+	t.Cleanup(func() { _ = s.Close() })
 	msgs, err := s.Messages("nope")
 	if err != nil || len(msgs) != 0 {
 		t.Fatalf("expected empty, got %v %+v", err, msgs)
@@ -57,7 +57,7 @@ func TestListConversationsOrderedNewestFirst(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { s.Close() })
+	t.Cleanup(func() { _ = s.Close() })
 
 	// Insert with explicit timestamps so ordering is deterministic, including
 	// a row whose created_at does not parse (CreatedAt must be zero, not fatal).
@@ -110,7 +110,7 @@ func TestTimestampsStoredInUTC(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { s.Close() })
+	t.Cleanup(func() { _ = s.Close() })
 
 	id, err := s.CreateConversation("utc check")
 	if err != nil {
@@ -172,7 +172,7 @@ func TestNewIDIsUUIDShaped(t *testing.T) {
 			t.Fatalf("id %q is not UUID shaped", id)
 		}
 		for _, r := range id {
-			if !(r == '-' || (r >= '0' && r <= '9') || (r >= 'a' && r <= 'f')) {
+			if r != '-' && (r < '0' || r > '9') && (r < 'a' || r > 'f') {
 				t.Fatalf("id %q has invalid character %q", id, r)
 			}
 		}

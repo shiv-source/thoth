@@ -21,7 +21,7 @@ func Watch(ctx context.Context, root string, ix *Index, log *slog.Logger) error 
 	if err != nil {
 		return fmt.Errorf("create watcher: %w", err)
 	}
-	defer w.Close()
+	defer func() { _ = w.Close() }()
 
 	err = filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {

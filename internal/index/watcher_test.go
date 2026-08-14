@@ -16,7 +16,7 @@ func TestWatchPicksUpChanges(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { ix.Close() })
+	t.Cleanup(func() { _ = ix.Close() })
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -52,7 +52,7 @@ func TestWatchPicksUpNewDirectory(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { ix.Close() })
+	t.Cleanup(func() { _ = ix.Close() })
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -90,7 +90,7 @@ func TestWatchRemovedDirectoryClearsIndex(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { ix.Close() })
+	t.Cleanup(func() { _ = ix.Close() })
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
 
 	ctx, cancel := context.WithCancel(context.Background())

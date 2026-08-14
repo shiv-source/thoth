@@ -167,7 +167,7 @@ func checkDatabase(path string) Check {
 	if err != nil {
 		return Check{Name: "database", OK: false, Message: fmt.Sprintf("%s cannot be opened: %v", path, err)}
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 	var mode string
 	if err := db.QueryRow(`PRAGMA journal_mode;`).Scan(&mode); err != nil {
 		return Check{Name: "database", OK: false, Message: fmt.Sprintf("%s is not a usable sqlite database: %v", path, err)}
@@ -199,7 +199,7 @@ func checkIndex(dbPath, wikiRoot string) Check {
 	if err != nil {
 		return Check{Name: "index", OK: false, Message: fmt.Sprintf("cannot open %s: %v", dbPath, err)}
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 	var indexed int
 	if err := db.QueryRow(`SELECT COUNT(*) FROM notes`).Scan(&indexed); err != nil {
 		return Check{Name: "index", OK: false, Message: fmt.Sprintf("cannot read the index: %v — run thoth doctor --fix to rebuild it", err)}
@@ -247,7 +247,7 @@ func checkPort(cfg config.Config) Check {
 	addr := net.JoinHostPort(host, strconv.Itoa(port))
 	conn, err := net.DialTimeout("tcp", addr, portDialTimeout)
 	if err == nil {
-		conn.Close()
+		_ = conn.Close()
 		return Check{Name: "port", OK: false, Message: fmt.Sprintf("%s is already in use — stop the other process or change the port in the config", addr)}
 	}
 	return Check{Name: "port", OK: true, Message: fmt.Sprintf("%s is free", addr)}

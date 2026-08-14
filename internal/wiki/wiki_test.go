@@ -67,7 +67,7 @@ func TestWikiTreeErrorOnUnreadableSubdir(t *testing.T) {
 	if err := os.Chmod(locked, 0o000); err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { os.Chmod(locked, 0o755) })
+	t.Cleanup(func() { _ = os.Chmod(locked, 0o755) })
 
 	// tree() recurses into locked and its readdir fails: the recursion must
 	// surface the error instead of swallowing it.

@@ -73,8 +73,8 @@ func runServe(cmd *cobra.Command, _ []string) error {
 	if err != nil {
 		return err
 	}
-	defer st.Close()
-	defer ix.Close()
+	defer func() { _ = st.Close() }()
+	defer func() { _ = ix.Close() }()
 
 	ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -168,12 +168,12 @@ func openStores(dbPath, wikiPath string, log *slog.Logger) (*store.Store, *index
 	}
 	ix, err := index.Open(dbPath)
 	if err != nil {
-		st.Close()
+		_ = st.Close()
 		return nil, nil, err
 	}
 	if err := ix.Rebuild(wikiPath, log); err != nil {
-		ix.Close()
-		st.Close()
+		_ = ix.Close()
+		_ = st.Close()
 		return nil, nil, err
 	}
 	return st, ix, nil

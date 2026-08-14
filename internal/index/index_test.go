@@ -18,7 +18,7 @@ func TestUpsertSearchDelete(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}
-	t.Cleanup(func() { ix.Close() })
+	t.Cleanup(func() { _ = ix.Close() })
 
 	n := Note{
 		Path: "meetings/2026-08-14-standup.md", Title: "Standup", Kind: "meeting",
@@ -54,7 +54,7 @@ func TestSearchSnippetEscapesHTML(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { ix.Close() })
+	t.Cleanup(func() { _ = ix.Close() })
 	// A note body containing markup must come back escaped in the snippet so
 	// the frontend's dangerouslySetInnerHTML cannot execute it.
 	n := Note{Path: "knowledge/xss.md", Title: "XSS",
@@ -88,7 +88,7 @@ func TestDeletePrefixEscapesLIKEWildcards(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { ix.Close() })
+	t.Cleanup(func() { _ = ix.Close() })
 	now := time.Now()
 	notes := []Note{
 		{Path: "dirs/50%/inside.md", Title: "Pct", Kind: "note", Body: "percent dir", UpdatedAt: now},
@@ -128,7 +128,7 @@ func TestDeletePrefixRemovesSubtree(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { ix.Close() })
+	t.Cleanup(func() { _ = ix.Close() })
 	now := time.Now()
 	notes := []Note{
 		{Path: "projects/doomed/a.md", Title: "A", Kind: "project", Body: "doomed alpha", UpdatedAt: now},
@@ -170,7 +170,7 @@ func TestUpsertOverwrites(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { ix.Close() })
+	t.Cleanup(func() { _ = ix.Close() })
 	n := Note{Path: "knowledge/go.md", Title: "Go", Kind: "knowledge", Body: "v1", UpdatedAt: time.Now()}
 	if err := ix.Upsert(n); err != nil {
 		t.Fatal(err)
@@ -190,7 +190,7 @@ func TestSearchLimitZeroReturnsNothing(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { ix.Close() })
+	t.Cleanup(func() { _ = ix.Close() })
 	n := Note{Path: "knowledge/go.md", Title: "Go", Kind: "knowledge", Body: "goroutines are cheap", UpdatedAt: time.Now()}
 	if err := ix.Upsert(n); err != nil {
 		t.Fatal(err)
@@ -209,7 +209,7 @@ func TestSearchMatchesTitleOnly(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { ix.Close() })
+	t.Cleanup(func() { _ = ix.Close() })
 	// The query term appears only in the title, never the body: FTS5 must
 	// still match it (title carries the higher bm25 weight).
 	n := Note{Path: "knowledge/golang-patterns.md", Title: "Golang Patterns",
@@ -265,7 +265,7 @@ func TestSearchRejectsInvalidQuery(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { ix.Close() })
+	t.Cleanup(func() { _ = ix.Close() })
 	// An unterminated phrase is a syntax error in FTS5's MATCH query.
 	if _, err := ix.Search(`"unterminated`, 10); err == nil {
 		t.Fatal("expected error for malformed FTS5 query")

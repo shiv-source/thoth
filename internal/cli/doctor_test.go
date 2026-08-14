@@ -43,7 +43,7 @@ func freePort(t *testing.T) int {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer ln.Close()
+	defer func() { _ = ln.Close() }()
 	return ln.Addr().(*net.TCPAddr).Port
 }
 
@@ -273,7 +273,7 @@ func TestDoctorDetectsBusyPort(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer ln.Close()
+	defer func() { _ = ln.Close() }()
 	cfg, err := config.Load(filepath.Join(dir, "config.toml"))
 	if err != nil {
 		t.Fatal(err)

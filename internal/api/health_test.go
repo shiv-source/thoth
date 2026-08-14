@@ -23,12 +23,12 @@ func testDeps(t *testing.T) Deps {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { st.Close() })
+	t.Cleanup(func() { _ = st.Close() })
 	ix, err := index.Open(filepath.Join(t.TempDir(), "test.db"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { ix.Close() })
+	t.Cleanup(func() { _ = ix.Close() })
 	return Deps{
 		Log:      slog.New(slog.NewTextHandler(io.Discard, nil)),
 		Config:   func() *config.Config { c := config.Default(); return &c }(),

@@ -32,7 +32,7 @@ func newInitCmd() *cobra.Command {
 			if err := wiki.Scaffold(expanded); err != nil {
 				return err
 			}
-			fmt.Fprintf(os.Stdout, "wiki scaffolded at %s\n", expanded)
+			_, _ = fmt.Fprintf(os.Stdout, "wiki scaffolded at %s\n", expanded)
 			return nil
 		},
 	}

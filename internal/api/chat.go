@@ -125,7 +125,7 @@ func (h *Hub) chat(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	defer ws.Close()
+	defer func() { _ = ws.Close() }()
 
 	// Turns run in their own goroutines (the read loop must stay free to
 	// receive cancel frames), so every socket write funnels through one

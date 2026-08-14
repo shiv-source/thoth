@@ -16,7 +16,7 @@ func TestApply(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { ix.Close() })
+	t.Cleanup(func() { _ = ix.Close() })
 	log := discardLog()
 
 	write := func(rel, content string) {
@@ -66,7 +66,7 @@ func TestApplyUnreadablePath(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { ix.Close() })
+	t.Cleanup(func() { _ = ix.Close() })
 
 	// A directory named like a note: ReadFile fails, apply must not panic.
 	dir := filepath.Join(root, "weird.md")
@@ -87,7 +87,7 @@ func TestApplyPathOutsideRoot(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { ix.Close() })
+	t.Cleanup(func() { _ = ix.Close() })
 	// filepath.Rel(root, p) fails for unrelated roots; apply must return.
 	apply(ix, root, p, discardLog())
 }
@@ -115,7 +115,7 @@ func TestWatchErrorOnMissingRoot(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { ix.Close() })
+	t.Cleanup(func() { _ = ix.Close() })
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	if err := Watch(ctx, filepath.Join(t.TempDir(), "missing"), ix, discardLog()); err == nil {
@@ -128,7 +128,7 @@ func TestWatchReturnsOnCancel(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { ix.Close() })
+	t.Cleanup(func() { _ = ix.Close() })
 
 	root := t.TempDir()
 	ctx, cancel := context.WithCancel(context.Background())

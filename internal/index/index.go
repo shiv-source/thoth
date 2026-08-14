@@ -37,11 +37,11 @@ func Open(path string) (*Index, error) {
 		return nil, fmt.Errorf("open index: %w", err)
 	}
 	if _, err := db.Exec(`PRAGMA journal_mode=WAL;`); err != nil {
-		db.Close()
+		_ = db.Close()
 		return nil, fmt.Errorf("enable WAL: %w", err)
 	}
 	if err := migrate(db); err != nil {
-		db.Close()
+		_ = db.Close()
 		return nil, err
 	}
 	return &Index{db: db}, nil
@@ -130,7 +130,7 @@ func (ix *Index) Search(q string, limit int) ([]Result, error) {
 	if err != nil {
 		return nil, fmt.Errorf("search %q: %w", q, err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var out []Result
 	for rows.Next() {
 		var r Result

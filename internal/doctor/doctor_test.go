@@ -30,7 +30,7 @@ func freePort(t *testing.T) int {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer ln.Close()
+	defer func() { _ = ln.Close() }()
 	return ln.Addr().(*net.TCPAddr).Port
 }
 
@@ -227,7 +227,7 @@ func TestRunBusyPort(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer ln.Close()
+	defer func() { _ = ln.Close() }()
 	port := ln.Addr().(*net.TCPAddr).Port
 
 	cfg := configLoad(t, filepath.Join(dir, "config.toml"))
@@ -251,7 +251,7 @@ func TestRunNonWALDatabase(t *testing.T) {
 	if _, err := db.Exec(`PRAGMA journal_mode=DELETE`); err != nil {
 		t.Fatal(err)
 	}
-	db.Close()
+	_ = db.Close()
 
 	cfg := config.Default()
 	cfg.WikiPath = filepath.Join(dir, "wiki")
@@ -274,7 +274,7 @@ func TestRunDatabaseMissingTables(t *testing.T) {
 	if _, err := db.Exec(`PRAGMA journal_mode=WAL`); err != nil {
 		t.Fatal(err)
 	}
-	db.Close()
+	_ = db.Close()
 
 	cfg := config.Default()
 	cfg.WikiPath = filepath.Join(dir, "wiki")

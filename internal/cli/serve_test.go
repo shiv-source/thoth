@@ -19,7 +19,7 @@ func TestOnSettingsSavedSwitchesRootAndRestartsWatcher(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { ix.Close() })
+	t.Cleanup(func() { _ = ix.Close() })
 
 	oldRoot := filepath.Join(t.TempDir(), "old")
 	newRoot := filepath.Join(t.TempDir(), "new")
@@ -67,7 +67,7 @@ func TestOnSettingsSavedFailureLeavesRootUntouched(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { ix.Close() })
+	t.Cleanup(func() { _ = ix.Close() })
 
 	oldRoot := filepath.Join(t.TempDir(), "old")
 	if err := wiki.Scaffold(oldRoot); err != nil {

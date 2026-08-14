@@ -23,7 +23,9 @@ func wsURL(t *testing.T, e http.Handler) string {
 
 func readMsg(t *testing.T, conn *websocket.Conn) map[string]any {
 	t.Helper()
-	conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+	if err := conn.SetReadDeadline(time.Now().Add(5 * time.Second)); err != nil {
+		t.Fatalf("set read deadline: %v", err)
+	}
 	_, raw, err := conn.ReadMessage()
 	if err != nil {
 		t.Fatalf("read: %v", err)
@@ -49,7 +51,7 @@ func TestChatSendStreamsAndPersists(t *testing.T) {
 	if err != nil {
 		t.Fatalf("dial: %v", err)
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	if err := conn.WriteJSON(map[string]string{"type": "send", "text": "what is in my wiki?"}); err != nil {
 		t.Fatal(err)
@@ -94,7 +96,7 @@ func TestChatStreamsToolActivity(t *testing.T) {
 	if err != nil {
 		t.Fatalf("dial: %v", err)
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	if err := conn.WriteJSON(map[string]string{"type": "send", "text": "look at my notes"}); err != nil {
 		t.Fatal(err)
@@ -134,12 +136,9 @@ func TestChatResumeReplays(t *testing.T) {
 	if err := conn1.WriteJSON(map[string]string{"type": "send", "text": "hello"}); err != nil {
 		t.Fatal(err)
 	}
-	for {
-		if readMsg(t, conn1)["type"] == "turn_done" {
-			break
-		}
+	for readMsg(t, conn1)["type"] != "turn_done" {
 	}
-	conn1.Close()
+	_ = conn1.Close()
 
 	convs, err := d.Store.ListConversations()
 	if err != nil || len(convs) != 1 {
@@ -150,7 +149,7 @@ func TestChatResumeReplays(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer conn2.Close()
+	defer func() { _ = conn2.Close() }()
 	if err := conn2.WriteJSON(map[string]string{"type": "resume", "conversation_id": convs[0].ID}); err != nil {
 		t.Fatal(err)
 	}
@@ -181,7 +180,7 @@ func TestChatUnknownMessageType(t *testing.T) {
 	if err != nil {
 		t.Fatalf("dial: %v", err)
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	if err := conn.WriteJSON(map[string]string{"type": "bogus"}); err != nil {
 		t.Fatal(err)
@@ -200,7 +199,7 @@ func TestChatResumeUnknownConversation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("dial: %v", err)
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	if err := conn.WriteJSON(map[string]string{"type": "resume", "conversation_id": "no-such-conv"}); err != nil {
 		t.Fatal(err)
@@ -222,7 +221,7 @@ func TestChatSendStoreError(t *testing.T) {
 	if err != nil {
 		t.Fatalf("dial: %v", err)
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	// With the store closed, the conversation cannot be created: the socket
 	// must receive an error frame and stay alive for the next message.
@@ -249,7 +248,7 @@ func TestChatTurnErrorFromClient(t *testing.T) {
 	if err != nil {
 		t.Fatalf("dial: %v", err)
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	if err := conn.WriteJSON(map[string]string{"type": "send", "text": "hello"}); err != nil {
 		t.Fatal(err)
@@ -274,16 +273,13 @@ func TestChatTruncatesLongTitle(t *testing.T) {
 	if err != nil {
 		t.Fatalf("dial: %v", err)
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	long := strings.Repeat("x", 100)
 	if err := conn.WriteJSON(map[string]string{"type": "send", "text": long}); err != nil {
 		t.Fatal(err)
 	}
-	for {
-		if readMsg(t, conn)["type"] == "turn_done" {
-			break
-		}
+	for readMsg(t, conn)["type"] != "turn_done" {
 	}
 	convs, err := d.Store.ListConversations()
 	if err != nil || len(convs) != 1 {
@@ -302,7 +298,7 @@ func TestChatCancelBeforeSendIsNoop(t *testing.T) {
 	if err != nil {
 		t.Fatalf("dial: %v", err)
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	// Cancelling without a conversation must not kill the connection: the
 	// following unknown-type frame still gets an error reply.
@@ -334,14 +330,14 @@ func TestChatOriginCheck(t *testing.T) {
 	if err != nil {
 		t.Fatalf("dial with localhost origin: %v", err)
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	// And so is an origin-less (non-browser) client.
 	conn2, _, err := websocket.DefaultDialer.Dial(u, nil)
 	if err != nil {
 		t.Fatalf("dial without origin: %v", err)
 	}
-	defer conn2.Close()
+	defer func() { _ = conn2.Close() }()
 
 	// IPv6 loopback on any port too.
 	hdr6 := http.Header{"Origin": []string{"http://[::1]:8080"}}
@@ -349,7 +345,7 @@ func TestChatOriginCheck(t *testing.T) {
 	if err != nil {
 		t.Fatalf("dial with [::1] origin: %v", err)
 	}
-	defer conn3.Close()
+	defer func() { _ = conn3.Close() }()
 }
 
 func TestChatTurnDoneCarriesConversationID(t *testing.T) {
@@ -361,7 +357,7 @@ func TestChatTurnDoneCarriesConversationID(t *testing.T) {
 	if err != nil {
 		t.Fatalf("dial: %v", err)
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	if err := conn.WriteJSON(map[string]string{"type": "send", "text": "hello"}); err != nil {
 		t.Fatal(err)
@@ -394,7 +390,7 @@ func TestChatOpenPinsConnectionForNextSend(t *testing.T) {
 	if err != nil {
 		t.Fatalf("dial: %v", err)
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	if err := conn.WriteJSON(map[string]string{"type": "open", "conversation_id": id}); err != nil {
 		t.Fatal(err)
@@ -402,10 +398,7 @@ func TestChatOpenPinsConnectionForNextSend(t *testing.T) {
 	if err := conn.WriteJSON(map[string]string{"type": "send", "text": "follow up"}); err != nil {
 		t.Fatal(err)
 	}
-	for {
-		if readMsg(t, conn)["type"] == "turn_done" {
-			break
-		}
+	for readMsg(t, conn)["type"] != "turn_done" {
 	}
 
 	// The turn ran against the opened conversation's id, and no new
@@ -428,7 +421,7 @@ func TestChatOpenUnknownConversation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("dial: %v", err)
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	if err := conn.WriteJSON(map[string]string{"type": "open", "conversation_id": "no-such-conv"}); err != nil {
 		t.Fatal(err)
@@ -442,10 +435,7 @@ func TestChatOpenUnknownConversation(t *testing.T) {
 	if err := conn.WriteJSON(map[string]string{"type": "send", "text": "hello"}); err != nil {
 		t.Fatal(err)
 	}
-	for {
-		if readMsg(t, conn)["type"] == "turn_done" {
-			break
-		}
+	for readMsg(t, conn)["type"] != "turn_done" {
 	}
 	convs, err := d.Store.ListConversations()
 	if err != nil || len(convs) != 1 {
@@ -469,12 +459,9 @@ func TestChatResumePinsConnectionForNextSend(t *testing.T) {
 	if err := conn1.WriteJSON(map[string]string{"type": "send", "text": "hello"}); err != nil {
 		t.Fatal(err)
 	}
-	for {
-		if readMsg(t, conn1)["type"] == "turn_done" {
-			break
-		}
+	for readMsg(t, conn1)["type"] != "turn_done" {
 	}
-	conn1.Close()
+	_ = conn1.Close()
 
 	convs, err := d.Store.ListConversations()
 	if err != nil || len(convs) != 1 {
@@ -487,22 +474,16 @@ func TestChatResumePinsConnectionForNextSend(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer conn2.Close()
+	defer func() { _ = conn2.Close() }()
 	if err := conn2.WriteJSON(map[string]string{"type": "resume", "conversation_id": convs[0].ID}); err != nil {
 		t.Fatal(err)
 	}
-	for {
-		if readMsg(t, conn2)["type"] == "turn_done" {
-			break
-		}
+	for readMsg(t, conn2)["type"] != "turn_done" {
 	}
 	if err := conn2.WriteJSON(map[string]string{"type": "send", "text": "follow up"}); err != nil {
 		t.Fatal(err)
 	}
-	for {
-		if readMsg(t, conn2)["type"] == "turn_done" {
-			break
-		}
+	for readMsg(t, conn2)["type"] != "turn_done" {
 	}
 	convs, err = d.Store.ListConversations()
 	if err != nil || len(convs) != 1 {
@@ -535,7 +516,7 @@ func TestChatHubCancellationEndsTurns(t *testing.T) {
 	if err != nil {
 		t.Fatalf("dial: %v", err)
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	if err := conn.WriteJSON(map[string]string{"type": "send", "text": "long task"}); err != nil {
 		t.Fatal(err)
@@ -560,7 +541,7 @@ func TestChatSupersededTurnDoesNotDeleteNewTurn(t *testing.T) {
 	if err != nil {
 		t.Fatalf("dial: %v", err)
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	if err := conn.WriteJSON(map[string]string{"type": "send", "text": "first"}); err != nil {
 		t.Fatal(err)
@@ -621,7 +602,7 @@ func TestChatTruncatesTitleRuneSafe(t *testing.T) {
 	if err != nil {
 		t.Fatalf("dial: %v", err)
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	// 70 CJK runes are 210 bytes: a byte-sliced truncation would cut a rune
 	// in half and corrupt the title. The title must be exactly 60 runes.
@@ -629,10 +610,7 @@ func TestChatTruncatesTitleRuneSafe(t *testing.T) {
 	if err := conn.WriteJSON(map[string]string{"type": "send", "text": long}); err != nil {
 		t.Fatal(err)
 	}
-	for {
-		if readMsg(t, conn)["type"] == "turn_done" {
-			break
-		}
+	for readMsg(t, conn)["type"] != "turn_done" {
 	}
 	convs, err := d.Store.ListConversations()
 	if err != nil || len(convs) != 1 {
@@ -652,7 +630,7 @@ func TestChatCancelStopsInFlightTurn(t *testing.T) {
 	if err != nil {
 		t.Fatalf("dial: %v", err)
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	if err := conn.WriteJSON(map[string]string{"type": "send", "text": "long task"}); err != nil {
 		t.Fatal(err)
