@@ -109,7 +109,7 @@ func (ix *Index) Search(q string, limit int) ([]Result, error) {
 		FROM notes_fts
 		JOIN notes n ON n.rowid = notes_fts.rowid
 		WHERE notes_fts MATCH ?
-		ORDER BY bm25(notes_fts, 8.0, 1.0)
+		ORDER BY bm25(notes_fts, 0.0, 8.0, 1.0)
 		LIMIT ?`, q, limit)
 	if err != nil {
 		return nil, fmt.Errorf("search %q: %w", q, err)
