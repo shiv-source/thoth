@@ -150,6 +150,14 @@ func (h *Hub) chat(c echo.Context) error {
 			if h.handleResume(msg.ConversationID, write) {
 				convID = msg.ConversationID
 			}
+		case "open":
+			// Pin the connection to an existing conversation so the next send
+			// continues it — no replay, no other effect (unlike resume).
+			if h.conversationExists(msg.ConversationID) {
+				convID = msg.ConversationID
+			} else {
+				write(serverMsg{Type: "error", Message: "unknown conversation"})
+			}
 		default:
 			write(serverMsg{Type: "error", Message: "unknown message type: " + msg.Type})
 		}
@@ -210,6 +218,21 @@ func (h *Hub) handleResume(convID string, write func(serverMsg)) bool {
 		return true
 	}
 	write(serverMsg{Type: "error", Message: "unknown conversation"})
+	return false
+}
+
+// conversationExists reports whether the store knows the conversation. The
+// local app keeps conversations in a list query, so a scan is plenty.
+func (h *Hub) conversationExists(convID string) bool {
+	convs, err := h.store.ListConversations()
+	if err != nil {
+		return false
+	}
+	for _, c := range convs {
+		if c.ID == convID {
+			return true
+		}
+	}
 	return false
 }
 

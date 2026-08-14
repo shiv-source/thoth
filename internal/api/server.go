@@ -51,6 +51,8 @@ func newServer(d Deps) (*echo.Echo, *Hub) {
 	e.HidePort = true
 
 	e.GET("/api/health", func(c echo.Context) error { return health(c, d) })
+	e.GET("/api/doctor", func(c echo.Context) error { return doctorHandler(c, d) })
+	e.POST("/api/git/setup", func(c echo.Context) error { return gitSetup(c, d) })
 	e.GET("/api/search", func(c echo.Context) error { return search(c, d) })
 	e.GET("/api/notes", func(c echo.Context) error { return note(c, d) })
 	e.GET("/api/wiki/tree", func(c echo.Context) error { return tree(c, d) })

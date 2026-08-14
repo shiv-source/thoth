@@ -80,6 +80,18 @@ export function useChat(socket: ChatSocket | null) {
     }
   }, [appendAssistant, push])
 
+  // load replaces the whole conversation with history fetched from the server.
+  // Local only — the caller pins the server side via socket.open(conversationId).
+  const load = useCallback((msgs: ChatMessage[], convId: string) => {
+    messagesRef.current = msgs
+    setMessages(msgs)
+    streamingRef.current = false
+    setStreaming(false)
+    conversationIdRef.current = convId
+    setConversationId(convId)
+    setLastTool(null)
+  }, [])
+
   const reset = useCallback(() => {
     // Local only — no frame goes to the server; it creates a fresh
     // conversation on the next send anyway.
@@ -96,7 +108,7 @@ export function useChat(socket: ChatSocket | null) {
     if (socket) socket.onMessage(handle)
   }, [socket, handle])
 
-  return { messages, streaming, conversationId, lastTool, send, cancel, reset }
+  return { messages, streaming, conversationId, lastTool, send, cancel, load, reset }
 }
 
 /** Pick the label for the tool status line: a path from the input JSON when

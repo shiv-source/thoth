@@ -95,6 +95,27 @@ describe('useChat', () => {
     expect(result.current.lastTool).toBeNull()
   })
 
+  it('load() replaces messages and the conversation id, resetting streaming state', () => {
+    const socket = freshSocket()
+    const { result } = renderHook(() => useChat(socket))
+
+    act(() => result.current.send('hello'))
+    act(() => result.current.load([
+      { role: 'user', content: 'old question' },
+      { role: 'assistant', content: 'old answer' },
+    ], 'conv-7'))
+
+    expect(result.current.messages).toEqual([
+      { role: 'user', content: 'old question' },
+      { role: 'assistant', content: 'old answer' },
+    ])
+    expect(result.current.conversationId).toBe('conv-7')
+    expect(result.current.streaming).toBe(false)
+    expect(result.current.lastTool).toBeNull()
+    // load is local-only: no frame left the socket
+    expect(FakeWS.instances[0]!.sent).toEqual([JSON.stringify({ type: 'send', text: 'hello' })])
+  })
+
   it('reset() clears everything locally without talking to the server', () => {
     const socket = freshSocket()
     const { result } = renderHook(() => useChat(socket))

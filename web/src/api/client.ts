@@ -20,11 +20,31 @@ export const Settings = z.object({
   claude_bin: z.string(),
   permission_mode: z.string(),
   model: z.string(),
+  git_remote_url: z.string(),
 })
 export type Settings = z.infer<typeof Settings>
 
 const Conversation = z.object({ id: z.string(), title: z.string(), created_at: z.string() })
 export type Conversation = z.infer<typeof Conversation>
+
+const Message = z.object({
+  id: z.number(),
+  conversation_id: z.string(),
+  role: z.enum(['user', 'assistant']),
+  content: z.string(),
+  created_at: z.string(),
+})
+export type Message = z.infer<typeof Message>
+
+export const Health = z.object({
+  status: z.string(),
+  claude: z.object({ found: z.boolean(), path: z.string() }),
+  wiki: z.object({ path: z.string(), exists: z.boolean() }),
+})
+export type Health = z.infer<typeof Health>
+
+export const DoctorCheck = z.object({ name: z.string(), ok: z.boolean(), message: z.string() })
+export type DoctorCheck = z.infer<typeof DoctorCheck>
 
 async function get<T>(url: string, schema: z.ZodType<T>): Promise<T> {
   const res = await fetch(url)
@@ -42,5 +62,13 @@ export const api = {
     if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
     return Settings.parse(await res.json())
   },
+  health: () => get('/api/health', Health),
+  doctor: () => get('/api/doctor', z.object({ checks: z.array(DoctorCheck) })),
   listConversations: () => get('/api/conversations', z.object({ conversations: z.array(Conversation) })),
+  getConversation: (id: string) => get(`/api/conversations/${encodeURIComponent(id)}`, z.object({ conversation: Conversation, messages: z.array(Message) })),
+  gitSetup: async (url: string): Promise<{ ok: boolean; error?: string }> => {
+    const res = await fetch('/api/git/setup', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ url }) })
+    if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
+    return z.object({ ok: z.boolean(), error: z.string().optional() }).parse(await res.json())
+  },
 }

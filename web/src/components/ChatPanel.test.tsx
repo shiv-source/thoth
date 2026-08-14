@@ -2,16 +2,21 @@ import { act, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterAll, afterEach, describe, expect, it } from 'vitest'
 import { ChatPanel } from './ChatPanel'
+import { ToastProvider } from './Toast'
 import { FakeWS } from '../test/fakeWS'
 
 const original = globalThis.WebSocket
 globalThis.WebSocket = FakeWS as unknown as typeof WebSocket
 
+function renderPanel() {
+  return render(<ToastProvider><ChatPanel /></ToastProvider>)
+}
+
 describe('ChatPanel', () => {
   afterEach(() => { FakeWS.instances = [] })
 
   it('renders the empty state and sends a message', async () => {
-    render(<ChatPanel />)
+    renderPanel()
     // The panel creates its socket in an effect; complete the handshake so
     // the send does not throw (FakeWS models the CONNECTING state).
     act(() => FakeWS.instances[0]!.open())
@@ -23,7 +28,7 @@ describe('ChatPanel', () => {
   })
 
   it('shows the tool status line while a tool runs and hides it on turn_done', () => {
-    render(<ChatPanel />)
+    renderPanel()
     act(() => FakeWS.instances[0]!.open())
     const emit = (frame: string) =>
       act(() => FakeWS.instances[0]!.onmessage?.({ data: frame }))
@@ -36,7 +41,7 @@ describe('ChatPanel', () => {
   })
 
   it('New chat clears the conversation locally', async () => {
-    render(<ChatPanel />)
+    renderPanel()
     act(() => FakeWS.instances[0]!.open())
     await userEvent.type(screen.getByPlaceholderText(/Ask your wiki/), 'hello')
     await userEvent.click(screen.getByRole('button', { name: /Send/ }))

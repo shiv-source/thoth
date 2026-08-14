@@ -80,4 +80,13 @@ describe('ChatSocket', () => {
     FakeWS.instances[0]!.onopen!()
     expect(statuses).toEqual(['connected'])
   })
+
+  it('sends the open frame for a loaded conversation', () => {
+    const socket = new ChatSocket('ws://x/ws')
+    socket.connect()
+    const ws = FakeWS.instances[0]!
+    ws.open()
+    socket.open('conv-9')
+    expect(ws.sent).toEqual([JSON.stringify({ type: 'open', conversation_id: 'conv-9' })])
+  })
 })

@@ -378,6 +378,81 @@ func TestChatTurnDoneCarriesConversationID(t *testing.T) {
 	}
 }
 
+func TestChatOpenPinsConnectionForNextSend(t *testing.T) {
+	d := testDeps(t)
+	d.Claude = &claude.FakeClient{Script: []claude.Event{{Type: claude.EventDone}}}
+	e := New(d)
+
+	// The conversation exists before the socket connects (it was loaded from
+	// history, so nothing is replayed and nothing is created).
+	id, err := d.Store.CreateConversation("existing conversation")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	conn, _, err := websocket.DefaultDialer.Dial(wsURL(t, e), nil)
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	defer conn.Close()
+
+	if err := conn.WriteJSON(map[string]string{"type": "open", "conversation_id": id}); err != nil {
+		t.Fatal(err)
+	}
+	if err := conn.WriteJSON(map[string]string{"type": "send", "text": "follow up"}); err != nil {
+		t.Fatal(err)
+	}
+	for {
+		if readMsg(t, conn)["type"] == "turn_done" {
+			break
+		}
+	}
+
+	// The turn ran against the opened conversation's id, and no new
+	// conversation was created.
+	fake := d.Claude.(*claude.FakeClient)
+	if len(fake.Calls) != 1 || fake.Calls[0].SessionID != id {
+		t.Fatalf("send after open must use the opened conversation, got %+v", fake.Calls)
+	}
+	convs, err := d.Store.ListConversations()
+	if err != nil || len(convs) != 1 {
+		t.Fatalf("open must not create a conversation: %v %+v", err, convs)
+	}
+}
+
+func TestChatOpenUnknownConversation(t *testing.T) {
+	d := testDeps(t)
+	e := New(d)
+
+	conn, _, err := websocket.DefaultDialer.Dial(wsURL(t, e), nil)
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	defer conn.Close()
+
+	if err := conn.WriteJSON(map[string]string{"type": "open", "conversation_id": "no-such-conv"}); err != nil {
+		t.Fatal(err)
+	}
+	m := readMsg(t, conn)
+	if m["type"] != "error" || m["message"] != "unknown conversation" {
+		t.Fatalf("expected unknown-conversation error frame, got %+v", m)
+	}
+	// An unknown open must not pin the connection: the next send still
+	// creates a fresh conversation.
+	if err := conn.WriteJSON(map[string]string{"type": "send", "text": "hello"}); err != nil {
+		t.Fatal(err)
+	}
+	for {
+		if readMsg(t, conn)["type"] == "turn_done" {
+			break
+		}
+	}
+	convs, err := d.Store.ListConversations()
+	if err != nil || len(convs) != 1 {
+		t.Fatalf("expected one new conversation, got %v %+v", err, convs)
+	}
+}
+
 func TestChatResumePinsConnectionForNextSend(t *testing.T) {
 	d := testDeps(t)
 	d.Claude = &claude.FakeClient{Script: []claude.Event{

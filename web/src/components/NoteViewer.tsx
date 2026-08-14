@@ -2,12 +2,14 @@ import { useEffect, useRef, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { api } from '../api/client'
+import { useToast } from './Toast'
 
 export function NoteViewer({ path, onClose }: { path: string; onClose: () => void }) {
   const [content, setContent] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
   const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const { toast } = useToast()
 
   useEffect(() => {
     api.note(path).then((n) => setContent(n.content)).catch((e: Error) => setError(e.message))
@@ -26,6 +28,7 @@ export function NoteViewer({ path, onClose }: { path: string; onClose: () => voi
     try {
       await navigator.clipboard.writeText(content)
       setCopied(true)
+      toast('Note copied to clipboard', 'success')
       copyTimer.current = setTimeout(() => setCopied(false), 2000)
     } catch {
       // Clipboard unavailable (permissions, non-secure context) — leave state untouched.

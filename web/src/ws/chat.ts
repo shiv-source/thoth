@@ -65,6 +65,12 @@ export class ChatSocket {
     this.conversationId = conversationId
     this.ws?.send(JSON.stringify({ type: 'resume', conversation_id: conversationId }))
   }
+  // open pins the server-side conversation for the next send — unlike resume,
+  // it does NOT replay anything, so it must not become the reconnect-resume
+  // id (a reconnect would then replay the loaded history over the UI).
+  open(conversationId: string): void {
+    this.ws?.send(JSON.stringify({ type: 'open', conversation_id: conversationId }))
+  }
   close(): void {
     this.closed = true
     if (this.retryTimer !== null) clearTimeout(this.retryTimer)

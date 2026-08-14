@@ -16,6 +16,7 @@ type Config struct {
 	ClaudeBin      string `toml:"claude_bin" json:"claude_bin"`
 	PermissionMode string `toml:"permission_mode" json:"permission_mode"`
 	Model          string `toml:"model" json:"model"`
+	GitRemoteURL   string `toml:"git_remote_url" json:"git_remote_url"`
 }
 
 func Default() Config {

@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
-import { useChat } from '../hooks/useChat'
+import { useChat, type ChatMessage } from '../hooks/useChat'
 import { ChatSocket, type ConnectionStatus } from '../ws/chat'
 import { Composer } from './Composer'
 import { MessageItem } from './MessageItem'
 import { SettingsModal } from './SettingsModal'
 import { TopBar } from './TopBar'
+import { useToast } from './Toast'
 
 function createSocket(): ChatSocket {
   const socket = new ChatSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws`)
@@ -16,18 +17,28 @@ export function ChatPanel() {
   const [socket, setSocket] = useState<ChatSocket | null>(null)
   const [status, setStatus] = useState<ConnectionStatus>('connected')
   const [settingsOpen, setSettingsOpen] = useState(false)
-  const { messages, streaming, lastTool, send, cancel, reset } = useChat(socket)
+  const { messages, streaming, lastTool, send, cancel, load, reset } = useChat(socket)
+  const { toast } = useToast()
   const endRef = useRef<HTMLDivElement>(null)
 
   // The socket lives for the panel's lifetime: created on mount (StrictMode
   // remounts close the first one), closed on unmount so no orphan connection
-  // or reconnect timer outlives the panel.
+  // or reconnect timer outlives the panel. The retry-once logic fires
+  // 'disconnected' exactly once, so the toast can never pile up.
   useEffect(() => {
     const s = createSocket()
-    s.onStatusChange(setStatus)
+    s.onStatusChange((st) => {
+      setStatus(st)
+      if (st === 'disconnected') toast('Connection lost', 'error')
+    })
     setSocket(s)
     return () => s.close()
-  }, [])
+  }, [toast])
+
+  const openConversation = (msgs: ChatMessage[], id: string) => {
+    load(msgs, id)
+    socket?.open(id)
+  }
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -40,7 +51,8 @@ export function ChatPanel() {
 
   return (
     <div className="flex h-full flex-col">
-      <TopBar title={displayTitle} onNewChat={reset} onOpenSettings={() => setSettingsOpen(true)} />
+      <TopBar title={displayTitle} onNewChat={reset} onOpenSettings={() => setSettingsOpen(true)}
+        onOpenConversation={openConversation} />
       {status !== 'connected' && (
         <div className="flex h-7 shrink-0 items-center gap-2 border-b border-line bg-raised px-4 text-xs text-subtle">
           <span className="h-1.5 w-1.5 rounded-full bg-accent" aria-hidden="true" />
