@@ -14,8 +14,8 @@ func Execute() error {
 	return newRootCmd().Execute()
 }
 
-// newRootCmd wires the thoth CLI: the serve and init subcommands plus the
-// version command.
+// newRootCmd wires the thoth CLI: the serve, init and doctor subcommands plus
+// the version command.
 func newRootCmd() *cobra.Command {
 	root := &cobra.Command{
 		Use:           "thoth",
@@ -23,7 +23,7 @@ func newRootCmd() *cobra.Command {
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
-	root.AddCommand(newServeCmd(), newInitCmd())
+	root.AddCommand(newServeCmd(), newInitCmd(), newDoctorCmd())
 	root.AddCommand(newVersionCmd())
 	return root
 }

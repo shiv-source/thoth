@@ -11,6 +11,9 @@ var folders = []string{
 	"inbox", "meetings", "projects", "links", "setup", "knowledge", "todos", "daily",
 }
 
+// Folders returns the scaffold folder names.
+func Folders() []string { return append([]string(nil), folders...) }
+
 // Scaffold creates the wiki folder skeleton and CLAUDE.md under dir.
 // It never overwrites an existing CLAUDE.md.
 func Scaffold(dir string) error {
