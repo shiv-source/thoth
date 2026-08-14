@@ -5,8 +5,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
-	"syscall"
+	"sync"
 )
 
 // Client starts a Claude turn for a conversation and streams parsed events.
@@ -19,12 +20,29 @@ type CLIClient struct {
 	Dir            string // cwd for the CLI process — the wiki path
 	PermissionMode string
 	Model          string
+
+	dirProvider func() string // dynamic cwd (wiki path changes at runtime)
+
+	mu      sync.Mutex  // guards process for the cancel path
+	process *os.Process // windows: the running CLI, for cancels
 }
 
 type Option func(*CLIClient)
 
 func WithPermissionMode(m string) Option { return func(c *CLIClient) { c.PermissionMode = m } }
 func WithModel(m string) Option          { return func(c *CLIClient) { c.Model = m } }
+func WithDirProvider(p func() string) Option {
+	return func(c *CLIClient) { c.dirProvider = p }
+}
+
+// dir returns the cwd for the CLI process: the live provider value when set,
+// otherwise the static Dir.
+func (c *CLIClient) dir() string {
+	if c.dirProvider != nil {
+		return c.dirProvider()
+	}
+	return c.Dir
+}
 
 func New(bin, dir string, opts ...Option) *CLIClient {
 	c := &CLIClient{Bin: bin, Dir: dir}
@@ -49,18 +67,28 @@ func (c *CLIClient) args(sessionID, prompt string) []string {
 
 func (c *CLIClient) Start(ctx context.Context, sessionID, prompt string, w EventWriter) error {
 	cmd := exec.CommandContext(ctx, c.Bin, c.args(sessionID, prompt)...)
-	cmd.Dir = c.Dir
+	cmd.Dir = c.dir()
 	// Put the CLI in its own process group and kill the whole group on cancel:
 	// the CLI may spawn children that inherit stdout, and the stream reader
 	// below only sees EOF once every writer closes. Killing just the direct
 	// child can leave a grandchild holding the pipe open (seen with sh forking
 	// `sleep` on macOS), hanging Start until the child exits on its own.
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	// Windows has no killable process groups, so cancels kill the direct child.
+	setProcessGroup(cmd)
 	cmd.Cancel = func() error {
 		if cmd.Process == nil {
 			return nil
 		}
-		return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+		c.mu.Lock()
+		var pgid int
+		if c.process != nil {
+			pgid = c.process.Pid
+		}
+		c.mu.Unlock()
+		if pgid != 0 {
+			return c.killProcessGroup(pgid)
+		}
+		return cmd.Process.Kill()
 	}
 
 	stdout, err := cmd.StdoutPipe()
@@ -70,6 +98,9 @@ func (c *CLIClient) Start(ctx context.Context, sessionID, prompt string, w Event
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("start claude: %w", err)
 	}
+	c.mu.Lock()
+	c.process = cmd.Process
+	c.mu.Unlock()
 
 	streamDone := make(chan error, 1)
 	go func() {

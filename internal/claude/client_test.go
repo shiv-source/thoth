@@ -55,6 +55,38 @@ func TestStartStreamsEventsAndPassesFlags(t *testing.T) {
 	}
 }
 
+func TestDirProviderOverridesStaticDir(t *testing.T) {
+	dir := t.TempDir()
+	bin := filepath.Join(dir, "claude")
+	// The fake CLI emits its working directory as the assistant text, making
+	// the actual cwd observable.
+	script := `#!/bin/sh
+printf '{"type":"assistant","message":{"content":[{"type":"text","text":"'$PWD'"}]}}'
+printf '\n{"type":"result","subtype":"success","is_error":false,"result":"done"}'
+`
+	if err := os.WriteFile(bin, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	staticDir := t.TempDir()
+	newDir := t.TempDir()
+	c := New(bin, staticDir, WithDirProvider(func() string { return newDir }))
+
+	var got []Event
+	if err := c.Start(context.Background(), "s", "p", WriterFunc(func(e Event) error {
+		got = append(got, e)
+		return nil
+	})); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	if len(got) == 0 || got[0].Type != EventDelta {
+		t.Fatalf("no delta event: %+v", got)
+	}
+	if got[0].Text != newDir {
+		t.Fatalf("CLI ran in %q, want provider dir %q", got[0].Text, newDir)
+	}
+}
+
 func TestStartCancelKillsProcess(t *testing.T) {
 	dir := t.TempDir()
 	bin := filepath.Join(dir, "claude")
