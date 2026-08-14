@@ -23,7 +23,9 @@ CREATE INDEX IF NOT EXISTS messages_conv_idx ON messages(conversation_id, id);
 CREATE TABLE IF NOT EXISTS app_metadata (
     id INTEGER PRIMARY KEY DEFAULT 1 CHECK (id = 1),
     installation_id TEXT NOT NULL,
-    created_at TEXT NOT NULL
+    created_at TEXT NOT NULL,
+    last_synced_at TEXT,   -- last successful git sync (UTC RFC3339, NULL = never)
+    sync_error TEXT        -- last git sync error message (NULL = none)
 );
 
 CREATE TABLE IF NOT EXISTS notes (

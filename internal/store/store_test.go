@@ -1,6 +1,7 @@
 package store
 
 import (
+	"database/sql"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -227,5 +228,52 @@ func TestEnsureMetadataSeedsOnce(t *testing.T) {
 	// The CHECK (id = 1) constraint keeps the table to one row.
 	if _, err := s.db.Exec(`INSERT INTO app_metadata(id, installation_id, created_at) VALUES (2, 'x', 'y')`); err == nil {
 		t.Fatal("second app_metadata row must violate the id = 1 constraint")
+	}
+}
+
+func TestSetSyncResultRecordsOutcome(t *testing.T) {
+	s, err := Open(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = s.Close() })
+	if err := s.EnsureMetadata(); err != nil {
+		t.Fatal(err)
+	}
+
+	read := func() (last, syncErr string) {
+		t.Helper()
+		var l, e sql.NullString
+		if err := s.db.QueryRow(`SELECT last_synced_at, sync_error FROM app_metadata`).Scan(&l, &e); err != nil {
+			t.Fatal(err)
+		}
+		return l.String, e.String
+	}
+
+	// A failure records the error and leaves last_synced_at NULL.
+	if err := s.SetSyncResult(false, "push rejected"); err != nil {
+		t.Fatal(err)
+	}
+	last, syncErr := read()
+	if last != "" || syncErr != "push rejected" {
+		t.Fatalf("after failure: last=%q err=%q", last, syncErr)
+	}
+
+	// A success stamps last_synced_at and clears the error.
+	if err := s.SetSyncResult(true, ""); err != nil {
+		t.Fatal(err)
+	}
+	last, syncErr = read()
+	if last == "" || !strings.HasSuffix(last, "Z") || syncErr != "" {
+		t.Fatalf("after success: last=%q err=%q", last, syncErr)
+	}
+
+	// A later failure keeps the last successful timestamp.
+	first := last
+	if err := s.SetSyncResult(false, "offline"); err != nil {
+		t.Fatal(err)
+	}
+	if last, syncErr = read(); last != first || syncErr != "offline" {
+		t.Fatalf("after later failure: last=%q err=%q", last, syncErr)
 	}
 }
