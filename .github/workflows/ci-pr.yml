@@ -3,8 +3,19 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
 jobs:
   # Minimal pre-merge feedback: the same quality gates that run on main
-  # (via the shared workflow), without the OS builds or the final gate.
+  # (via the shared workflow), without the OS builds.
   quality:
     uses: ./.github/workflows/quality.yml
+
+  # Single required check for PRs — same gate as main (final-gate.yml).
+  final-gate:
+    needs: [quality]
+    if: always()
+    uses: ./.github/workflows/final-gate.yml
+    with:
+      wrapper: final-gate

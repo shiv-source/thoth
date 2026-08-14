@@ -3,6 +3,9 @@ on:
   push:
     branches: [main]
 
+permissions:
+  contents: read
+
 jobs:
   # All quality gates, shared verbatim with the PR workflow.
   quality:
@@ -58,34 +61,10 @@ jobs:
       - uses: ./.github/actions/setup-web
       - run: pnpm run build
 
-  # Single required check for branch protection: runs regardless of the
-  # other jobs' outcomes (if: always) so its step summary always renders the
-  # per-job report — then fails the job itself unless every job succeeded.
+  # Single required check for branch protection — see final-gate.yml.
   final-gate:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    permissions:
-      actions: read
     needs: [quality, frontend-build, build-linux, build-darwin, build-windows]
     if: always()
-    steps:
-      - name: summary + gate
-        if: always()
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          jobs=$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs" \
-            --jq '[.jobs[] | select(.name != "${{ github.job }}") | {name: .name, conclusion: .conclusion}]')
-          failed=$(echo "$jobs" | jq '[.[] | select(.conclusion != "success")] | length')
-          if [ "$failed" -gt 0 ]; then
-            echo "## CI failed ❌" >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo "## CI passed ✅" >> "$GITHUB_STEP_SUMMARY"
-          fi
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "Run: [${{ github.repository }}#${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Job | Result |" >> "$GITHUB_STEP_SUMMARY"
-          echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
-          echo "$jobs" | jq -r '.[] | "| \(.name) | \(.conclusion) |"' >> "$GITHUB_STEP_SUMMARY"
-          test "$failed" -eq 0
+    uses: ./.github/workflows/final-gate.yml
+    with:
+      wrapper: final-gate

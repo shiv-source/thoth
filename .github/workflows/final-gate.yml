@@ -1,0 +1,39 @@
+name: final-gate
+on:
+  workflow_call:
+    inputs:
+      wrapper:
+        description: caller job id — excluded from the report alongside this job
+        type: string
+        required: true
+
+permissions:
+  actions: read
+
+jobs:
+  # Single required check for branch protection: runs regardless of the
+  # other jobs' outcomes so its step summary always renders the per-job
+  # report — then fails unless every other job succeeded.
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: summary + gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          jobs=$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs" \
+            --jq '[.jobs[] | select(.name != "${{ github.job }}" and .name != "${{ inputs.wrapper }}") | {name: .name, conclusion: .conclusion}]')
+          failed=$(echo "$jobs" | jq '[.[] | select(.conclusion != "success")] | length')
+          if [ "$failed" -gt 0 ]; then
+            echo "## CI failed ❌" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "## CI passed ✅" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Run: [${{ github.repository }}#${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Job | Result |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
+          echo "$jobs" | jq -r '.[] | "| \(.name) | \(.conclusion) |"' >> "$GITHUB_STEP_SUMMARY"
+          test "$failed" -eq 0
