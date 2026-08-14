@@ -10,7 +10,7 @@ import (
 func listConversations(c echo.Context, d Deps) error {
 	convs, err := d.Store.ListConversations()
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return internalError(c, d, "list conversations", err)
 	}
 	return c.JSON(http.StatusOK, map[string]any{"conversations": convs})
 }
@@ -24,7 +24,7 @@ func createConversation(c echo.Context, d Deps) error {
 	}
 	id, err := d.Store.CreateConversation(body.Title)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return internalError(c, d, "create conversation", err)
 	}
 	return c.JSON(http.StatusOK, map[string]string{"id": id, "title": body.Title})
 }
@@ -32,7 +32,7 @@ func createConversation(c echo.Context, d Deps) error {
 func getConversation(c echo.Context, d Deps) error {
 	convs, err := d.Store.ListConversations()
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return internalError(c, d, "list conversations", err)
 	}
 	var conv *store.Conversation
 	for i := range convs {
@@ -46,7 +46,7 @@ func getConversation(c echo.Context, d Deps) error {
 	}
 	msgs, err := d.Store.Messages(conv.ID)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return internalError(c, d, "conversation messages", err)
 	}
 	return c.JSON(http.StatusOK, map[string]any{"conversation": conv, "messages": msgs})
 }

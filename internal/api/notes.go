@@ -24,7 +24,7 @@ func search(c echo.Context, d Deps) error {
 	cleaned := strings.ReplaceAll(q, `"`, "")
 	results, err := d.Index.Search(`"`+cleaned+`"`, limit)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return internalError(c, d, "search", err)
 	}
 	return c.JSON(http.StatusOK, map[string]any{"results": results})
 }
@@ -47,7 +47,16 @@ func note(c echo.Context, d Deps) error {
 func tree(c echo.Context, d Deps) error {
 	nodes, err := d.Wiki.Tree()
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return internalError(c, d, "tree", err)
 	}
 	return c.JSON(http.StatusOK, map[string]any{"nodes": nodes})
+}
+
+// internalError logs err and replies with a generic body so implementation
+// details never leak to clients.
+func internalError(c echo.Context, d Deps, op string, err error) error {
+	if d.Log != nil {
+		d.Log.Error(op, "err", err)
+	}
+	return c.JSON(http.StatusInternalServerError, map[string]string{"error": "internal error"})
 }
