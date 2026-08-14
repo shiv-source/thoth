@@ -258,6 +258,9 @@ func TestSetSyncResultRecordsOutcome(t *testing.T) {
 	if last != "" || syncErr != "push rejected" {
 		t.Fatalf("after failure: last=%q err=%q", last, syncErr)
 	}
+	if gotLast, gotErr, err := s.SyncState(); err != nil || gotLast != last || gotErr != syncErr {
+		t.Fatalf("SyncState = %q/%q/%v, want %q/%q", gotLast, gotErr, err, last, syncErr)
+	}
 
 	// A success stamps last_synced_at and clears the error.
 	if err := s.SetSyncResult(true, ""); err != nil {
@@ -275,5 +278,21 @@ func TestSetSyncResultRecordsOutcome(t *testing.T) {
 	}
 	if last, syncErr = read(); last != first || syncErr != "offline" {
 		t.Fatalf("after later failure: last=%q err=%q", last, syncErr)
+	}
+	if gotLast, gotErr, err := s.SyncState(); err != nil || gotLast != first || gotErr != "offline" {
+		t.Fatalf("SyncState = %q/%q/%v, want %q/offline", gotLast, gotErr, err, first)
+	}
+}
+
+func TestSyncStateWithoutMetadataRow(t *testing.T) {
+	s, err := Open(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = s.Close() })
+
+	last, syncErr, err := s.SyncState()
+	if err != nil || last != "" || syncErr != "" {
+		t.Fatalf("SyncState without a row = %q/%q/%v, want empty/empty/nil", last, syncErr, err)
 	}
 }

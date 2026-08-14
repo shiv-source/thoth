@@ -122,3 +122,23 @@ func TestSaveErrorWhenTargetIsDirectory(t *testing.T) {
 		t.Fatal("expected error writing over a directory")
 	}
 }
+
+func TestLoadIgnoresUnknownKeys(t *testing.T) {
+	// Configs written by older versions carry git_remote_url; the repo URL now
+	// lives in the github_auth table, so Load must silently ignore the key.
+	path := filepath.Join(t.TempDir(), "config.toml")
+	old := "wiki_path = '/tmp/wiki'\nhost = '127.0.0.1'\nport = 8123\ngit_remote_url = 'https://github.com/x/w.git'\n"
+	if err := os.WriteFile(path, []byte(old), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	c, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	want := Default()
+	want.WikiPath = "/tmp/wiki"
+	want.Port = 8123
+	if c != want {
+		t.Fatalf("loaded config = %+v, want %+v (git_remote_url ignored)", c, want)
+	}
+}

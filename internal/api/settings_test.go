@@ -8,9 +8,11 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/shiv-source/thoth/internal/config"
+	"github.com/shiv-source/thoth/internal/github"
 )
 
 func TestSettingsRoundTripAndCallback(t *testing.T) {
@@ -212,5 +214,104 @@ func TestConversationsEndpoints(t *testing.T) {
 	e.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK || !bytes.Contains(rec.Body.Bytes(), []byte(created.ID)) {
 		t.Fatalf("list missing conversation: %d %s", rec.Code, rec.Body.String())
+	}
+}
+
+func seedGitHubAuth(t *testing.T, d Deps, repoURL string) {
+	t.Helper()
+	if err := d.GitHub.Repo.Save(github.Auth{Token: "ghp_x", Username: "octo"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := d.GitHub.Repo.SetRepoURL(repoURL); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestSettingsRepoURLRoundTrip(t *testing.T) {
+	d := testDeps(t)
+	d.ConfigPath = filepath.Join(t.TempDir(), "config.toml")
+	seedGitHubAuth(t, d, "")
+	e := New(d)
+
+	// GET reads repo_url from the DB.
+	req := httptest.NewRequest(http.MethodGet, "/api/settings", nil)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	var got settingsDTO
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatal(err)
+	}
+	if got.RepoURL != "" {
+		t.Fatalf("repo_url = %q, want empty before save", got.RepoURL)
+	}
+
+	// PUT persists it to the DB — never to config.toml.
+	body := `{"wiki_path":"/tmp/wiki","host":"127.0.0.1","port":8333,"repo_url":"https://github.com/x/w.git"}`
+	req = httptest.NewRequest(http.MethodPut, "/api/settings", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec = httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("PUT status %d: %s", rec.Code, rec.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodGet, "/api/settings", nil)
+	rec = httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatal(err)
+	}
+	if got.RepoURL != "https://github.com/x/w.git" {
+		t.Fatalf("repo_url = %q after save", got.RepoURL)
+	}
+	raw, err := os.ReadFile(d.ConfigPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(raw), "repo_url") || strings.Contains(string(raw), "github.com") {
+		t.Fatalf("config.toml must not store the repo URL:\n%s", raw)
+	}
+}
+
+func TestSettingsRepoURLWithoutAuth(t *testing.T) {
+	d := testDeps(t)
+	e := New(d)
+	base := `{"wiki_path":"/tmp/wiki","host":"127.0.0.1","port":8333`
+
+	// An empty repo_url is nothing to store: ordinary saves keep working.
+	req := httptest.NewRequest(http.MethodPut, "/api/settings", strings.NewReader(base+`,"repo_url":""}`))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("empty repo_url without auth: status %d: %s", rec.Code, rec.Body.String())
+	}
+
+	// A non-empty repo_url without a connected account is a client error.
+	req = httptest.NewRequest(http.MethodPut, "/api/settings", strings.NewReader(base+`,"repo_url":"https://github.com/x/w.git"}`))
+	req.Header.Set("Content-Type", "application/json")
+	rec = httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	if rec.Code != http.StatusBadRequest || !strings.Contains(rec.Body.String(), "connect GitHub first") {
+		t.Fatalf("status %d body %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestSettingsRepoURLClears(t *testing.T) {
+	d := testDeps(t)
+	seedGitHubAuth(t, d, "https://github.com/x/w.git")
+	e := New(d)
+
+	body := `{"wiki_path":"/tmp/wiki","host":"127.0.0.1","port":8333,"repo_url":""}`
+	req := httptest.NewRequest(http.MethodPut, "/api/settings", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+	a, ok, err := d.GitHub.Repo.Get()
+	if err != nil || !ok || a.RepoURL != "" {
+		t.Fatalf("repo_url not cleared: %+v %v %v", a, ok, err)
 	}
 }

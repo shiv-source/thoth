@@ -30,23 +30,30 @@ func gitSetup(c echo.Context, d Deps) error {
 	}
 	root := d.Wiki.Root
 	if err := gitInit(root); err != nil {
-		return gitFailure(c, err)
+		return gitFailure(c, d, err)
 	}
 	if err := gitSetRemote(root, body.URL); err != nil {
-		return gitFailure(c, err)
+		return gitFailure(c, d, err)
 	}
 	if _, err := gitCommitAll(root); err != nil {
-		return gitFailure(c, err)
+		return gitFailure(c, d, err)
 	}
 	if err := gitPush(root); err != nil {
-		return gitFailure(c, err)
+		return gitFailure(c, d, err)
+	}
+	if d.Store != nil {
+		_ = d.Store.SetSyncResult(true, "")
 	}
 	return c.JSON(http.StatusOK, map[string]bool{"ok": true})
 }
 
 // gitFailure reports a failed step with a sanitized hint: the raw error may
 // echo credentials or the remote URL, so only a fixable summary goes out.
-func gitFailure(c echo.Context, err error) error {
+// The summary (not the raw error) is what gets recorded in the sync state.
+func gitFailure(c echo.Context, d Deps, err error) error {
+	if d.Store != nil {
+		_ = d.Store.SetSyncResult(false, err.Error())
+	}
 	return c.JSON(http.StatusOK, map[string]any{"ok": false, "error": err.Error()})
 }
 

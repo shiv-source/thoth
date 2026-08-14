@@ -2,6 +2,7 @@ package store
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
@@ -71,6 +72,20 @@ func (s *Store) EnsureMetadata() error {
 		return fmt.Errorf("seed metadata: %w", err)
 	}
 	return nil
+}
+
+// SyncState returns the recorded git sync outcome: the last successful sync
+// (empty when never) and the last error (empty when none).
+func (s *Store) SyncState() (lastSyncedAt, syncError string, err error) {
+	var l, e sql.NullString
+	err = s.db.QueryRow(`SELECT last_synced_at, sync_error FROM app_metadata`).Scan(&l, &e)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", "", nil
+	}
+	if err != nil {
+		return "", "", fmt.Errorf("read sync state: %w", err)
+	}
+	return l.String, e.String, nil
 }
 
 // SetSyncResult records the outcome of a git sync: success stamps

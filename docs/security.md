@@ -28,3 +28,4 @@ Thoth's security model is simple by design: **local-only, single-user, no authen
 - No authentication — correct for a localhost-bound single-user app; the origin check closes the realistic browser-based attack, not network access in general
 - `--permission-mode` (settings) governs how the spawned Claude CLI may edit files — pick a stricter mode in Settings if you want confirmation before writes
 - Conversation history lives in the same local SQLite file as the index; nothing leaves the machine
+- The GitHub PAT is stored plaintext in `thoth.db` (`github_auth`) — the same trust model as the `gh` CLI's own credentials file; the API never returns it and errors never echo it, and it is only ever sent to `api.github.com`
