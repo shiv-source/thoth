@@ -1,0 +1,10 @@
+name: ci-pr
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  # Minimal pre-merge feedback: the same quality gates that run on main
+  # (via the shared workflow), without the OS builds or the final gate.
+  quality:
+    uses: ./.github/workflows/quality.yml

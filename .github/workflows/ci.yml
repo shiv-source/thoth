@@ -2,44 +2,16 @@ name: ci
 on:
   push:
     branches: [main]
-  pull_request:
-    branches: [main]
 
 jobs:
-  backend-test:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/setup-go-web
-      - run: go vet ./...
-      - run: go test -race ./...
-      - name: coverage gate (>= 80% on internal/ and cmd/)
-        run: |
-          go test -coverprofile=coverage.out ./internal/... ./cmd/...
-          go tool cover -func=coverage.out | awk -F'\t' '/^total:/ { gsub(/%/, "", $NF); if ($NF+0 < 80) { print "coverage", $NF "%", "below 80% floor"; exit 1 } }'
-
-  backend-lint:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/setup-go-web
-      - name: golangci-lint v2.12.2 (direct binary)
-        env:
-          GOLANGCI_LINT_CACHE: ${{ runner.tool_cache }}/golangci-lint
-        run: |
-          mkdir -p "$HOME/.local/bin"
-          curl -sSL https://github.com/golangci/golangci-lint/releases/download/v2.12.2/golangci-lint-2.12.2-linux-amd64.tar.gz | tar xz -C "$HOME/.local/bin"
-          ln -sf "$HOME/.local/bin/golangci-lint-2.12.2-linux-amd64/golangci-lint" "$HOME/.local/bin/golangci-lint"
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-          golangci-lint --version
-          golangci-lint run --timeout 5m
+  # All quality gates, shared verbatim with the PR workflow.
+  quality:
+    uses: ./.github/workflows/quality.yml
 
   build-linux:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: [backend-test, backend-lint]
+    needs: [quality]
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-go-web
@@ -52,7 +24,7 @@ jobs:
   build-darwin:
     runs-on: macos-latest
     timeout-minutes: 10
-    needs: [backend-test, backend-lint]
+    needs: [quality]
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-go-web
@@ -65,7 +37,7 @@ jobs:
   build-windows:
     runs-on: windows-latest
     timeout-minutes: 10
-    needs: [backend-test, backend-lint]
+    needs: [quality]
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-go-web
@@ -74,43 +46,10 @@ jobs:
         run: |
           GOOS=windows GOARCH=amd64 go build -o /tmp/thoth-windows-amd64.exe ./cmd/thoth
 
-  frontend-test:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    defaults:
-      run:
-        working-directory: web
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/setup-web
-      - run: pnpm exec vitest run
-
-  frontend-lint:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    defaults:
-      run:
-        working-directory: web
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/setup-web
-      - run: pnpm run lint
-
-  frontend-typecheck:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    defaults:
-      run:
-        working-directory: web
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/setup-web
-      - run: pnpm exec tsc --noEmit
-
   frontend-build:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: [frontend-test, frontend-lint, frontend-typecheck]
+    needs: [quality]
     defaults:
       run:
         working-directory: web
@@ -127,7 +66,7 @@ jobs:
     timeout-minutes: 10
     permissions:
       actions: read
-    needs: [backend-test, backend-lint, build-linux, build-darwin, build-windows, frontend-build]
+    needs: [quality, frontend-build, build-linux, build-darwin, build-windows]
     if: always()
     steps:
       - name: summary + gate
