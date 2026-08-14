@@ -15,6 +15,7 @@ import (
 type Deps struct {
 	Log             *slog.Logger
 	Config          *config.Config
+	ConfigPath      string
 	Store           *store.Store
 	Claude          claude.Client
 	Wiki            *wiki.Wiki
@@ -33,7 +34,12 @@ func New(d Deps) *echo.Echo {
 	e.GET("/api/search", func(c echo.Context) error { return search(c, d) })
 	e.GET("/api/notes", func(c echo.Context) error { return note(c, d) })
 	e.GET("/api/wiki/tree", func(c echo.Context) error { return tree(c, d) })
-	// (settings, conversations, and /ws arrive in Tasks 13–15)
+	e.GET("/api/settings", func(c echo.Context) error { return getSettings(c, d) })
+	e.PUT("/api/settings", func(c echo.Context) error { return putSettings(c, d) })
+	e.GET("/api/conversations", func(c echo.Context) error { return listConversations(c, d) })
+	e.POST("/api/conversations", func(c echo.Context) error { return createConversation(c, d) })
+	e.GET("/api/conversations/:id", func(c echo.Context) error { return getConversation(c, d) })
+	// (/ws arrives in Task 13)
 
 	webui.Register(e, d.Log)
 	return e
