@@ -48,7 +48,7 @@ func TestStartStreamsEventsAndPassesFlags(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := string(argv)
-	for _, want := range []string{"-p", "--output-format", "stream-json", "--session-id", "sess-1", "--permission-mode", "acceptEdits", "--model", "claude-opus-5", "what is in my wiki?"} {
+	for _, want := range []string{"-p", "--output-format", "stream-json", "--verbose", "--session-id", "sess-1", "--permission-mode", "acceptEdits", "--model", "claude-opus-5", "what is in my wiki?"} {
 		if !strings.Contains(s, want) {
 			t.Fatalf("argv %q missing %q", s, want)
 		}
@@ -188,5 +188,56 @@ func TestStartReportsNonZeroExit(t *testing.T) {
 	err := c.Start(context.Background(), "s", "p", WriterFunc(func(Event) error { return nil }))
 	if err == nil || !strings.Contains(err.Error(), "claude exited") {
 		t.Fatalf("expected claude exited error, got %v", err)
+	}
+}
+
+func TestStartReportsStderrOnFailure(t *testing.T) {
+	dir := t.TempDir()
+	bin := filepath.Join(dir, "claude")
+	script := "#!/bin/sh\necho 'stream-json requires --verbose' >&2\nexit 1\n"
+	if err := os.WriteFile(bin, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	c := New(bin, dir)
+	err := c.Start(context.Background(), "s", "p", WriterFunc(func(Event) error { return nil }))
+	if err == nil || !strings.Contains(err.Error(), "claude exited") {
+		t.Fatalf("expected claude exited error, got %v", err)
+	}
+	if !strings.Contains(err.Error(), "stream-json requires --verbose") {
+		t.Fatalf("error must carry the CLI stderr, got %v", err)
+	}
+}
+
+func TestStartStderrTailTruncated(t *testing.T) {
+	dir := t.TempDir()
+	bin := filepath.Join(dir, "claude")
+	// One write larger than the cap (keeps only its tail) followed by many
+	// small writes (accumulated overflow): the error must show only the tail.
+	script := `#!/bin/sh
+echo 'HEAD-` + strings.Repeat("X", 5000) + `-TAIL' >&2
+i=0
+while [ $i -lt 300 ]; do
+  echo "line-$i-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+  i=$((i+1))
+done >&2
+exit 1
+`
+	if err := os.WriteFile(bin, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	c := New(bin, dir)
+	err := c.Start(context.Background(), "s", "p", WriterFunc(func(Event) error { return nil }))
+	if err == nil || !strings.Contains(err.Error(), "claude exited") {
+		t.Fatalf("expected claude exited error, got %v", err)
+	}
+	for _, want := range []string{"truncated", "line-299-"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Fatalf("error must contain %q (tail of stderr), got %v", want, err)
+		}
+	}
+	for _, drop := range []string{"HEAD-", "line-0-"} {
+		if strings.Contains(err.Error(), drop) {
+			t.Fatalf("error must not contain dropped stderr head %q, got %v", drop, err)
+		}
 	}
 }

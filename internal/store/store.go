@@ -1,12 +1,11 @@
 package store
 
 import (
-	"crypto/rand"
 	"database/sql"
-	"encoding/hex"
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
 	_ "modernc.org/sqlite"
 )
 
@@ -58,18 +57,22 @@ func Open(path string) (*Store, error) {
 			return nil, fmt.Errorf("migrate store: %w", err)
 		}
 	}
+	if err := migrate(db); err != nil {
+		_ = db.Close()
+		return nil, fmt.Errorf("migrate store: %w", err)
+	}
 	return &Store{db: db}, nil
 }
 
 func newID() (string, error) {
-	b := make([]byte, 16)
-	if _, err := rand.Read(b); err != nil {
+	// Valid RFC 4122 v4: the claude CLI rejects --session-id values that are
+	// not valid UUIDs. Legacy ids (random hex, unset version/variant bits)
+	// are rewritten by migration 1 — see migrations.go.
+	u, err := uuid.NewRandom()
+	if err != nil {
 		return "", fmt.Errorf("generate id: %w", err)
 	}
-	// UUID shape (8-4-4-4-12): the claude CLI rejects --session-id values
-	// that are not valid UUIDs.
-	hex := hex.EncodeToString(b)
-	return hex[0:8] + "-" + hex[8:12] + "-" + hex[12:16] + "-" + hex[16:20] + "-" + hex[20:32], nil
+	return u.String(), nil
 }
 
 func (s *Store) CreateConversation(title string) (string, error) {

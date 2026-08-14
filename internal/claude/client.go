@@ -53,9 +53,11 @@ func New(bin, dir string, opts ...Option) *CLIClient {
 }
 
 // args builds the CLI argument list. ALL flag knowledge lives here.
-// (Verified against `claude --help` at implementation time — see Task 10 step 1.)
+// Verified against `claude --help` v2.1.232: with --print, --output-format
+// stream-json requires --verbose (without it the CLI exits 1 before
+// streaming). The event parser tolerates the extra events --verbose emits.
 func (c *CLIClient) args(sessionID, prompt string) []string {
-	a := []string{"-p", "--output-format", "stream-json", "--session-id", sessionID}
+	a := []string{"-p", "--output-format", "stream-json", "--verbose", "--session-id", sessionID}
 	if c.PermissionMode != "" {
 		a = append(a, "--permission-mode", c.PermissionMode)
 	}
@@ -63,6 +65,38 @@ func (c *CLIClient) args(sessionID, prompt string) []string {
 		a = append(a, "--model", c.Model)
 	}
 	return append(a, prompt)
+}
+
+// stderrTail keeps the last max bytes of the CLI's stderr for error reports.
+// Write is only called by os/exec's internal copy goroutine; Cmd.Wait joins
+// that goroutine before returning, so reading after Wait is race-free without
+// a lock. Write always returns len(p): a short write would surface as a copy
+// error in Wait.
+type stderrTail struct {
+	max     int
+	dropped bool
+	buf     []byte
+}
+
+func (t *stderrTail) Write(p []byte) (int, error) {
+	if len(p) >= t.max { // single write overflows the cap: keep its tail
+		t.buf = append(t.buf[:0], p[len(p)-t.max:]...)
+		t.dropped = true
+		return len(p), nil
+	}
+	t.buf = append(t.buf, p...)
+	if len(t.buf) > t.max { // accumulated overflow: drop the head
+		t.buf = append(t.buf[:0], t.buf[len(t.buf)-t.max:]...)
+		t.dropped = true
+	}
+	return len(p), nil
+}
+
+func (t *stderrTail) String() string {
+	if t.dropped {
+		return "[stderr truncated, showing tail] " + string(t.buf)
+	}
+	return string(t.buf)
 }
 
 func (c *CLIClient) Start(ctx context.Context, sessionID, prompt string, w EventWriter) error {
@@ -95,6 +129,11 @@ func (c *CLIClient) Start(ctx context.Context, sessionID, prompt string, w Event
 	if err != nil {
 		return fmt.Errorf("claude stdout pipe: %w", err)
 	}
+	// Capture stderr so CLI failures explain themselves instead of surfacing
+	// as a bare "claude exited: exit status 1" (which previously went only to
+	// the server terminal).
+	tail := &stderrTail{max: 4 << 10}
+	cmd.Stderr = tail
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("start claude: %w", err)
 	}
@@ -129,6 +168,9 @@ func (c *CLIClient) Start(ctx context.Context, sessionID, prompt string, w Event
 		return ctx.Err() // cancelled: that is not a failure of the CLI
 	}
 	if waitErr != nil {
+		if s := tail.String(); s != "" {
+			return fmt.Errorf("claude exited: %w (stderr: %s)", waitErr, s)
+		}
 		return fmt.Errorf("claude exited: %w", waitErr)
 	}
 	if streamErr != nil {

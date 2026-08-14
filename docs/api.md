@@ -39,7 +39,7 @@ sequenceDiagram
     UI->>Go: send {text}
     Go->>Go: create/find conversation, persist user msg
     Go->>UI: assistant_start
-    Go->>CC: spawn claude -p (cwd=wiki, session-id)
+    Go->>CC: spawn claude -p --verbose (cwd=wiki, session-id)
     CC->>W: read CLAUDE.md + notes
     CC-->>Go: stream-json lines
     Go-->>UI: assistant_delta ×N (+ tool_activity)
