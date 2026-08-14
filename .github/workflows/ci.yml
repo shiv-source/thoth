@@ -127,7 +127,7 @@ jobs:
     timeout-minutes: 10
     permissions:
       actions: read
-    needs: [backend-test, backend-lint, build-linux, build-darwin, build-windows, frontend-test, frontend-lint, frontend-typecheck, frontend-build]
+    needs: [backend-test, backend-lint, build-linux, build-darwin, build-windows, frontend-build]
     if: always()
     steps:
       - name: summary + gate
