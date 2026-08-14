@@ -10,9 +10,13 @@ import (
 	"github.com/shiv-source/thoth/internal/wiki"
 )
 
-// Rebuild walks root and reindexes every .md file. Malformed notes are
-// skipped and logged — the index must never block on one bad file.
+// Rebuild clears the index, then walks root and reindexes every .md file so
+// the index always mirrors the tree. Malformed notes are skipped and logged —
+// the index must never block on one bad file.
 func (ix *Index) Rebuild(root string, log *slog.Logger) error {
+	if _, err := ix.db.Exec(`DELETE FROM notes;`); err != nil {
+		return fmt.Errorf("index: clear on rebuild: %w", err)
+	}
 	return filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
