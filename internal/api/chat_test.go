@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -132,6 +133,150 @@ type hangClient struct{}
 func (hangClient) Start(ctx context.Context, _, _ string, _ claude.EventWriter) error {
 	<-ctx.Done()
 	return ctx.Err()
+}
+
+func TestChatUnknownMessageType(t *testing.T) {
+	d := testDeps(t)
+	e := New(d)
+
+	conn, _, err := websocket.DefaultDialer.Dial(wsURL(t, e), nil)
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	defer conn.Close()
+
+	if err := conn.WriteJSON(map[string]string{"type": "bogus"}); err != nil {
+		t.Fatal(err)
+	}
+	m := readMsg(t, conn)
+	if m["type"] != "error" || m["message"] != "unknown message type: bogus" {
+		t.Fatalf("expected unknown-type error frame, got %+v", m)
+	}
+}
+
+func TestChatResumeUnknownConversation(t *testing.T) {
+	d := testDeps(t)
+	e := New(d)
+
+	conn, _, err := websocket.DefaultDialer.Dial(wsURL(t, e), nil)
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	defer conn.Close()
+
+	if err := conn.WriteJSON(map[string]string{"type": "resume", "conversation_id": "no-such-conv"}); err != nil {
+		t.Fatal(err)
+	}
+	m := readMsg(t, conn)
+	if m["type"] != "error" || m["message"] != "unknown conversation" {
+		t.Fatalf("expected unknown-conversation error frame, got %+v", m)
+	}
+}
+
+func TestChatSendStoreError(t *testing.T) {
+	d := testDeps(t)
+	if err := d.Store.Close(); err != nil {
+		t.Fatal(err)
+	}
+	e := New(d)
+
+	conn, _, err := websocket.DefaultDialer.Dial(wsURL(t, e), nil)
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	defer conn.Close()
+
+	// With the store closed, the conversation cannot be created: the socket
+	// must receive an error frame and stay alive for the next message.
+	if err := conn.WriteJSON(map[string]string{"type": "send", "text": "hello"}); err != nil {
+		t.Fatal(err)
+	}
+	if m := readMsg(t, conn); m["type"] != "error" {
+		t.Fatalf("expected error frame, got %+v", m)
+	}
+	if err := conn.WriteJSON(map[string]string{"type": "send", "text": "again"}); err != nil {
+		t.Fatal(err)
+	}
+	if m := readMsg(t, conn); m["type"] != "error" {
+		t.Fatalf("expected error frame on retry, got %+v", m)
+	}
+}
+
+func TestChatTurnErrorFromClient(t *testing.T) {
+	d := testDeps(t)
+	d.Claude = &claude.FakeClient{Err: errors.New("boom")}
+	e := New(d)
+
+	conn, _, err := websocket.DefaultDialer.Dial(wsURL(t, e), nil)
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	defer conn.Close()
+
+	if err := conn.WriteJSON(map[string]string{"type": "send", "text": "hello"}); err != nil {
+		t.Fatal(err)
+	}
+	// assistant_start arrives before the turn runs, then the error frame.
+	m := readMsg(t, conn)
+	if m["type"] != "assistant_start" {
+		t.Fatalf("expected assistant_start, got %+v", m)
+	}
+	m = readMsg(t, conn)
+	if m["type"] != "error" || m["message"] != "boom" {
+		t.Fatalf("expected boom error frame, got %+v", m)
+	}
+}
+
+func TestChatTruncatesLongTitle(t *testing.T) {
+	d := testDeps(t)
+	d.Claude = &claude.FakeClient{Script: []claude.Event{{Type: claude.EventDone}}}
+	e := New(d)
+
+	conn, _, err := websocket.DefaultDialer.Dial(wsURL(t, e), nil)
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	defer conn.Close()
+
+	long := strings.Repeat("x", 100)
+	if err := conn.WriteJSON(map[string]string{"type": "send", "text": long}); err != nil {
+		t.Fatal(err)
+	}
+	for {
+		if readMsg(t, conn)["type"] == "turn_done" {
+			break
+		}
+	}
+	convs, err := d.Store.ListConversations()
+	if err != nil || len(convs) != 1 {
+		t.Fatalf("conversation not persisted: %v %+v", err, convs)
+	}
+	if convs[0].Title != strings.Repeat("x", 60) {
+		t.Fatalf("title not truncated to 60 chars: %q", convs[0].Title)
+	}
+}
+
+func TestChatCancelBeforeSendIsNoop(t *testing.T) {
+	d := testDeps(t)
+	e := New(d)
+
+	conn, _, err := websocket.DefaultDialer.Dial(wsURL(t, e), nil)
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	defer conn.Close()
+
+	// Cancelling without a conversation must not kill the connection: the
+	// following unknown-type frame still gets an error reply.
+	if err := conn.WriteJSON(map[string]string{"type": "cancel"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := conn.WriteJSON(map[string]string{"type": "bogus"}); err != nil {
+		t.Fatal(err)
+	}
+	if m := readMsg(t, conn); m["type"] != "error" {
+		t.Fatalf("expected error frame, got %+v", m)
+	}
 }
 
 func TestChatCancelStopsInFlightTurn(t *testing.T) {

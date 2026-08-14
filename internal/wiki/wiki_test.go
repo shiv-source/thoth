@@ -50,3 +50,35 @@ func TestWikiNotExists(t *testing.T) {
 		t.Fatal("Exists() must be false for missing dir")
 	}
 }
+
+func TestWikiTreeErrorOnMissingRoot(t *testing.T) {
+	w := Open(filepath.Join(t.TempDir(), "missing"))
+	if _, err := w.Tree(); err == nil {
+		t.Fatal("expected error walking a missing root")
+	}
+}
+
+func TestWikiTreeErrorOnUnreadableSubdir(t *testing.T) {
+	dir := t.TempDir()
+	locked := filepath.Join(dir, "locked")
+	if err := os.MkdirAll(locked, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(locked, 0o000); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.Chmod(locked, 0o755) })
+
+	// tree() recurses into locked and its readdir fails: the recursion must
+	// surface the error instead of swallowing it.
+	if _, err := Open(dir).Tree(); err == nil {
+		t.Fatal("expected error reading an unreadable subdir")
+	}
+}
+
+func TestWikiReadMissingNote(t *testing.T) {
+	w := Open(t.TempDir())
+	if _, err := w.Read("meetings/nope.md"); err == nil {
+		t.Fatal("expected error reading a missing note")
+	}
+}

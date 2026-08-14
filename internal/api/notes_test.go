@@ -107,3 +107,82 @@ func TestTreeEndpoint(t *testing.T) {
 		t.Fatal("expected tree nodes")
 	}
 }
+
+func TestSearchEndpointRequiresQuery(t *testing.T) {
+	d := testDeps(t)
+	e := New(d)
+	req := httptest.NewRequest(http.MethodGet, "/api/search", nil)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 without q, got %d", rec.Code)
+	}
+}
+
+func TestSearchEndpointDefaultsBadLimit(t *testing.T) {
+	d := testDeps(t)
+	e := New(d)
+	// A non-numeric limit falls back to the default and still searches.
+	req := httptest.NewRequest(http.MethodGet, "/api/search?q=go&limit=abc", nil)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 with defaulted limit, got %d: %s", rec.Code, rec.Body.String())
+	}
+	// Out-of-range limits are clamped to the default as well.
+	req = httptest.NewRequest(http.MethodGet, "/api/search?q=go&limit=9999", nil)
+	rec = httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 with clamped limit, got %d", rec.Code)
+	}
+}
+
+func TestSearchEndpointIndexError(t *testing.T) {
+	d := testDeps(t)
+	if err := d.Index.Close(); err != nil {
+		t.Fatal(err)
+	}
+	e := New(d)
+	req := httptest.NewRequest(http.MethodGet, "/api/search?q=go", nil)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("expected 500 on closed index, got %d", rec.Code)
+	}
+}
+
+func TestNoteEndpointRequiresPath(t *testing.T) {
+	d := testDeps(t)
+	e := New(d)
+	req := httptest.NewRequest(http.MethodGet, "/api/notes", nil)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 without path, got %d", rec.Code)
+	}
+}
+
+func TestNoteEndpointMissingNote(t *testing.T) {
+	d := testDeps(t)
+	e := New(d)
+	// The path is safe but the file does not exist: 404.
+	req := httptest.NewRequest(http.MethodGet, "/api/notes?path=meetings/nope.md", nil)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("expected 404 for missing note, got %d", rec.Code)
+	}
+}
+
+func TestTreeEndpointMissingRoot(t *testing.T) {
+	d := testDeps(t)
+	d.Wiki = wiki.Open(filepath.Join(t.TempDir(), "missing"))
+	e := New(d)
+	req := httptest.NewRequest(http.MethodGet, "/api/wiki/tree", nil)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("expected 500 on missing root, got %d", rec.Code)
+	}
+}

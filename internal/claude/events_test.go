@@ -48,3 +48,35 @@ func TestParseLineRejectsGarbage(t *testing.T) {
 		t.Fatalf("expected a parse error, got %v", err)
 	}
 }
+
+func TestParseLineAssistantWithoutMessage(t *testing.T) {
+	// An assistant line with no message payload carries no event.
+	_, err := ParseLine([]byte(`{"type":"assistant"}`))
+	if !errors.Is(err, ErrIgnore) {
+		t.Fatalf("expected ErrIgnore, got %v", err)
+	}
+}
+
+func TestParseLineAssistantWithEmptyText(t *testing.T) {
+	// Empty text blocks and unknown block types are ignored.
+	_, err := ParseLine([]byte(`{"type":"assistant","message":{"content":[{"type":"text","text":""}]}}`))
+	if !errors.Is(err, ErrIgnore) {
+		t.Fatalf("expected ErrIgnore for empty text, got %v", err)
+	}
+	_, err = ParseLine([]byte(`{"type":"assistant","message":{"content":[{"type":"thinking","text":"hmm"}]}}`))
+	if !errors.Is(err, ErrIgnore) {
+		t.Fatalf("expected ErrIgnore for unknown block, got %v", err)
+	}
+	_, err = ParseLine([]byte(`{"type":"assistant","message":{"content":[]}}`))
+	if !errors.Is(err, ErrIgnore) {
+		t.Fatalf("expected ErrIgnore for empty content, got %v", err)
+	}
+}
+
+func TestWriterFuncAdapter(t *testing.T) {
+	var got Event
+	err := WriterFunc(func(e Event) error { got = e; return nil }).Write(Event{Type: EventDelta, Text: "x"})
+	if err != nil || got.Type != EventDelta || got.Text != "x" {
+		t.Fatalf("WriterFunc adapter broken: %v %+v", err, got)
+	}
+}

@@ -88,3 +88,31 @@ func TestRebuildRemovesDeletedNotes(t *testing.T) {
 		t.Fatalf("expected zero results after note deleted, got %+v", got)
 	}
 }
+
+func TestRebuildErrorOnMissingRoot(t *testing.T) {
+	ix, err := Open(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { ix.Close() })
+	if err := ix.Rebuild(filepath.Join(t.TempDir(), "missing"), discardLog()); err == nil {
+		t.Fatal("expected error walking a missing root")
+	}
+}
+
+func TestRebuildSkipsUnreadableFile(t *testing.T) {
+	root := t.TempDir()
+	// ReadFile on a directory errors, and the rebuild must log and skip it.
+	if err := os.MkdirAll(filepath.Join(root, "meetings", "weird.md"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	ix, err := Open(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { ix.Close() })
+	if err := ix.Rebuild(root, discardLog()); err != nil {
+		t.Fatalf("Rebuild must skip unreadable files, got %v", err)
+	}
+}

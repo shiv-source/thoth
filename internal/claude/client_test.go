@@ -91,3 +91,70 @@ func TestFakeClient(t *testing.T) {
 		t.Fatalf("fake client misuse: %v %+v", err, f.Calls)
 	}
 }
+
+func TestFakeClientPropagatesError(t *testing.T) {
+	f := &FakeClient{Err: errors.New("boom")}
+	err := f.Start(context.Background(), "sess", "prompt", WriterFunc(func(Event) error { return nil }))
+	if err == nil || err.Error() != "boom" {
+		t.Fatalf("expected boom, got %v", err)
+	}
+	if len(f.Calls) != 1 {
+		t.Fatalf("call must be recorded even on error, got %+v", f.Calls)
+	}
+}
+
+func TestFakeClientPropagatesWriterError(t *testing.T) {
+	f := &FakeClient{Script: []Event{{Type: EventDone}}}
+	err := f.Start(context.Background(), "s", "p", WriterFunc(func(Event) error { return errors.New("writer broke") }))
+	if err == nil || err.Error() != "writer broke" {
+		t.Fatalf("expected writer error, got %v", err)
+	}
+}
+
+// TestStartEmitsErrorEventForGarbageLine: a malformed stream line must be
+// converted into an EventError and the stream must keep going.
+func TestStartEmitsErrorEventForGarbageLine(t *testing.T) {
+	dir := t.TempDir()
+	bin := filepath.Join(dir, "claude")
+	script := `#!/bin/sh
+echo 'not json at all'
+echo '{"type":"result","subtype":"success","is_error":false,"result":"done"}'
+`
+	if err := os.WriteFile(bin, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	c := New(bin, dir)
+	var got []Event
+	err := c.Start(context.Background(), "s", "p", WriterFunc(func(e Event) error {
+		got = append(got, e)
+		return nil
+	}))
+	if err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	if len(got) != 2 || got[0].Type != EventError || got[1].Type != EventDone {
+		t.Fatalf("unexpected events: %+v", got)
+	}
+}
+
+func TestStartPropagatesWriterError(t *testing.T) {
+	bin := writeFakeCLI(t)
+	c := New(bin, t.TempDir())
+	err := c.Start(context.Background(), "s", "p", WriterFunc(func(Event) error { return errors.New("writer broke") }))
+	if err == nil || !strings.Contains(err.Error(), "claude stream") {
+		t.Fatalf("expected claude stream error, got %v", err)
+	}
+}
+
+func TestStartReportsNonZeroExit(t *testing.T) {
+	dir := t.TempDir()
+	bin := filepath.Join(dir, "claude")
+	if err := os.WriteFile(bin, []byte("#!/bin/sh\nexit 3\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	c := New(bin, dir)
+	err := c.Start(context.Background(), "s", "p", WriterFunc(func(Event) error { return nil }))
+	if err == nil || !strings.Contains(err.Error(), "claude exited") {
+		t.Fatalf("expected claude exited error, got %v", err)
+	}
+}

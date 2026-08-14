@@ -40,3 +40,33 @@ func TestParseNoteRejectsUnclosedFrontmatter(t *testing.T) {
 		t.Fatal("expected error for unclosed frontmatter")
 	}
 }
+
+func TestParseNoteRejectsMissingFrontmatter(t *testing.T) {
+	in := []byte("no frontmatter here\n")
+	if _, _, err := ParseNote(in); err == nil {
+		t.Fatal("expected error for note without frontmatter")
+	}
+}
+
+func TestParseNoteRejectsBadYAML(t *testing.T) {
+	in := []byte("---\n{{{\ntitle: x\n---\nbody\n")
+	if _, _, err := ParseNote(in); err == nil {
+		t.Fatal("expected error for malformed YAML frontmatter")
+	}
+}
+
+func TestParseNoteClosedAtEOF(t *testing.T) {
+	// A note whose closing --- lands exactly at EOF (no trailing newline)
+	// must parse, with an empty body.
+	in := []byte("---\ntitle: Terse\n---")
+	meta, body, err := ParseNote(in)
+	if err != nil {
+		t.Fatalf("ParseNote: %v", err)
+	}
+	if meta.Title != "Terse" {
+		t.Fatalf("meta mismatch: %+v", meta)
+	}
+	if len(body) != 0 {
+		t.Fatalf("expected empty body, got %q", body)
+	}
+}
