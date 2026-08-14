@@ -57,16 +57,16 @@ func newID() (string, error) {
 
 // EnsureMetadata seeds the single app_metadata row on first boot — a v4
 // installation_id and the UTC created_at — and is a no-op afterwards, so
-// every boot may call it. The INSERT OR IGNORE with id = 1 is the atomic
-// "create if absent": the CHECK (id = 1) constraint keeps the table to one
-// row.
+// every boot may call it. The id defaults to 1 and the CHECK (id = 1)
+// constraint keeps the table to one row, so INSERT OR IGNORE is the atomic
+// "create if absent".
 func (s *Store) EnsureMetadata() error {
 	id, err := newID()
 	if err != nil {
 		return err
 	}
 	if _, err := s.db.Exec(
-		`INSERT OR IGNORE INTO app_metadata(id, installation_id, created_at) VALUES (1, ?, ?)`,
+		`INSERT OR IGNORE INTO app_metadata(installation_id, created_at) VALUES (?, ?)`,
 		id, time.Now().UTC().Format(time.RFC3339)); err != nil {
 		return fmt.Errorf("seed metadata: %w", err)
 	}

@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS messages (
 CREATE INDEX IF NOT EXISTS messages_conv_idx ON messages(conversation_id, id);
 
 CREATE TABLE IF NOT EXISTS app_metadata (
-    id INTEGER PRIMARY KEY CHECK (id = 1),
+    id INTEGER PRIMARY KEY DEFAULT 1 CHECK (id = 1),
     installation_id TEXT NOT NULL,
     created_at TEXT NOT NULL
 );
