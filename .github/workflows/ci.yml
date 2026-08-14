@@ -25,7 +25,7 @@ jobs:
       - name: coverage gate (>= 80% on internal/ and cmd/)
         run: |
           go test -coverprofile=coverage.out ./internal/... ./cmd/...
-          go tool cover -func=coverage.out | awk -F'\t' '/^total:/ { gsub(/%/, "", $3); if ($3+0 < 80) { print "coverage", $3 "%", "below 80% floor"; exit 1 } }'
+          go tool cover -func=coverage.out | awk -F'\t' '/^total:/ { gsub(/%/, "", $NF); if ($NF+0 < 80) { print "coverage", $NF "%", "below 80% floor"; exit 1 } }'
       - uses: golangci/golangci-lint-action@v6
         with:
           version: latest
