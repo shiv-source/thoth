@@ -31,8 +31,10 @@ jobs:
           version: latest
       - name: cross-compile
         run: |
+          GOOS=darwin GOARCH=amd64 go build -o /tmp/thoth-darwin-amd64 ./cmd/thoth
           GOOS=darwin GOARCH=arm64 go build -o /tmp/thoth-darwin-arm64 ./cmd/thoth
           GOOS=linux GOARCH=amd64 go build -o /tmp/thoth-linux-amd64 ./cmd/thoth
+          GOOS=linux GOARCH=arm64 go build -o /tmp/thoth-linux-arm64 ./cmd/thoth
           GOOS=windows GOARCH=amd64 go build -o /tmp/thoth-windows-amd64.exe ./cmd/thoth
 
   frontend:
