@@ -1,31 +1,30 @@
 name: ci
 on:
   push:
+    branches: [main]
   pull_request:
+    branches: [main]
 
 jobs:
-  backend:
+  backend-test:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: go.mod
-      - uses: pnpm/action-setup@v4
-        with:
-          version: latest
-      - uses: actions/setup-node@v4
-        with:
-          node-version: lts/*
-          cache: pnpm
-          cache-dependency-path: web/pnpm-lock.yaml
-      - run: make web
+      - uses: ./.github/actions/setup-go-web
       - run: go vet ./...
       - run: go test -race ./...
       - name: coverage gate (>= 80% on internal/ and cmd/)
         run: |
           go test -coverprofile=coverage.out ./internal/... ./cmd/...
           go tool cover -func=coverage.out | awk -F'\t' '/^total:/ { gsub(/%/, "", $NF); if ($NF+0 < 80) { print "coverage", $NF "%", "below 80% floor"; exit 1 } }'
+
+  backend-lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-go-web
       - name: golangci-lint v2.12.2 (direct binary)
         env:
           GOLANGCI_LINT_CACHE: ${{ runner.tool_cache }}/golangci-lint
@@ -36,16 +35,48 @@ jobs:
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
           golangci-lint --version
           golangci-lint run --timeout 5m
-      - name: cross-compile
+
+  build-linux:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [backend-test, backend-lint]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-go-web
+      - name: build linux targets
+        shell: bash
+        run: |
+          GOOS=linux GOARCH=amd64 go build -o /tmp/thoth-linux-amd64 ./cmd/thoth
+          GOOS=linux GOARCH=arm64 go build -o /tmp/thoth-linux-arm64 ./cmd/thoth
+
+  build-darwin:
+    runs-on: macos-latest
+    timeout-minutes: 10
+    needs: [backend-test, backend-lint]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-go-web
+      - name: build darwin targets
+        shell: bash
         run: |
           GOOS=darwin GOARCH=amd64 go build -o /tmp/thoth-darwin-amd64 ./cmd/thoth
           GOOS=darwin GOARCH=arm64 go build -o /tmp/thoth-darwin-arm64 ./cmd/thoth
-          GOOS=linux GOARCH=amd64 go build -o /tmp/thoth-linux-amd64 ./cmd/thoth
-          GOOS=linux GOARCH=arm64 go build -o /tmp/thoth-linux-arm64 ./cmd/thoth
+
+  build-windows:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    needs: [backend-test, backend-lint]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-go-web
+      - name: build windows target
+        shell: bash
+        run: |
           GOOS=windows GOARCH=amd64 go build -o /tmp/thoth-windows-amd64.exe ./cmd/thoth
 
   frontend:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     defaults:
       run:
         working-directory: web
@@ -64,3 +95,27 @@ jobs:
       - run: pnpm run lint
       - run: pnpm exec vitest run
       - run: pnpm run build
+
+  # Single required check for branch protection: green only when every
+  # other job has passed (skipped if any of them fails or is skipped).
+  # Its step summary renders the per-job report for the whole run.
+  final-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      actions: read
+    needs: [backend-test, backend-lint, build-linux, build-darwin, build-windows, frontend]
+    steps:
+      - name: final gate summary
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "## CI passed ✅" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Run: [${{ github.repository }}#${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Job | Result |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
+          gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs" \
+            --jq '.jobs[] | "| \(.name) | \(.conclusion) |"' >> "$GITHUB_STEP_SUMMARY"
+          echo "all checks passed"

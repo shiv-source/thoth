@@ -48,14 +48,14 @@ dev: web-sync ## run Vite (HMR) and the Go server together; Ctrl+C stops both
 	$(GO) run ./cmd/thoth serve
 .PHONY: dev
 
-dev-web: ## Vite dev server only (proxies /api and /ws to 127.0.0.1:8333)
+## Vite dev server only (proxies /api and /ws to 127.0.0.1:8333)
 .PHONY: dev-web
 dev-web:
 	cd web && $(PNPM) dev
 
+.PHONY: dev-server
 dev-server: web ## Go server only, with the embedded frontend
 	$(GO) run ./cmd/thoth serve
-.PHONY: dev-server
 
 # -----------------------------------------------------------------------------
 # Build & release

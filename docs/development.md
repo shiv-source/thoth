@@ -52,7 +52,7 @@ go tool cover -func=coverage.out | tail -1
 
 ## CI
 
-`.github/workflows/ci.yml` — backend job (make web → vet → race → coverage gate → golangci-lint → cross-compile matrix) and frontend job (install → tsc → lint → vitest → build), both on every push and PR.
+`.github/workflows/ci.yml` — six jobs on pushes to `main` and PRs targeting `main`: `backend-test` (make web → vet → race → coverage gate), `backend-lint` (golangci-lint), `build-linux` / `build-darwin` / `build-windows` (the 5 targets, each built on its native OS — gated on test + lint passing), and `frontend` (install → tsc → lint → vitest → build), with a 10-minute timeout each; the Go jobs share the toolchain + embed preamble via the `.github/actions/setup-go-web` composite action (after checkout, since same-repo actions resolve only once checked out). `final-gate` waits on all of them and is the single required check for branch protection; it renders a per-job report into the Actions step summary.
 
 ## Rules that keep the codebase healthy
 

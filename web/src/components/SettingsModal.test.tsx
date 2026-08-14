@@ -31,6 +31,14 @@ describe('SettingsModal', () => {
     vi.unstubAllGlobals()
   })
 
+  it('keeps the dialog at a fixed width and height', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(settings), { status: 200 })))
+    renderModal()
+    const dialog = await screen.findByRole('dialog')
+    expect(dialog).toHaveClass('h-[36rem]', 'w-[36rem]')
+    vi.unstubAllGlobals()
+  })
+
   it('closes on escape and on backdrop click', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(settings), { status: 200 })))
     const onClose = vi.fn()

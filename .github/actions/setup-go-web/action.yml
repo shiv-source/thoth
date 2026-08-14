@@ -1,0 +1,19 @@
+name: setup-go-web
+description: Go/Node toolchain + frontend embed build (shared CI preamble for Go jobs; runs after checkout)
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-go@v5
+      with:
+        go-version-file: go.mod
+    - uses: pnpm/action-setup@v4
+      with:
+        version: latest
+    - uses: actions/setup-node@v4
+      with:
+        node-version: lts/*
+        cache: pnpm
+        cache-dependency-path: web/pnpm-lock.yaml
+    - run: make web
+      shell: bash
