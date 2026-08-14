@@ -30,7 +30,10 @@ func New(d Deps) *echo.Echo {
 	e.HidePort = true
 
 	e.GET("/api/health", func(c echo.Context) error { return health(c, d) })
-	// (search, notes, tree, settings, conversations, and /ws arrive in Tasks 13–15)
+	e.GET("/api/search", func(c echo.Context) error { return search(c, d) })
+	e.GET("/api/notes", func(c echo.Context) error { return note(c, d) })
+	e.GET("/api/wiki/tree", func(c echo.Context) error { return tree(c, d) })
+	// (settings, conversations, and /ws arrive in Tasks 13–15)
 
 	webui.Register(e, d.Log)
 	return e
