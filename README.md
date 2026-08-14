@@ -1,52 +1,68 @@
 # Thoth 🦉
 
-Your personal knowledge base, powered by the Claude Code CLI.
+**Your personal knowledge base, powered by the Claude Code CLI.**
 
-Thoth keeps everything you know as plain markdown in one wiki directory and
-gives you a chat interface to ask it questions and save new knowledge.
-Claude follows the wiki's rulebook (`CLAUDE.md`) so everything lands in the
-right place — and you can use Claude Code in the terminal on the same
-directory any time you like.
+Thoth keeps everything you know as plain markdown in one wiki directory and gives you a chat dashboard to ask questions and save new knowledge. Claude follows the wiki's rulebook so everything lands in the right place — and the same directory works directly from Claude Code in the terminal, anytime.
+
+Local-first. One binary. No cloud, no account, no data leaving your machine.
+
+## Why Thoth
+
+- **You own your knowledge** — plain markdown files, readable and diffable, in a directory you control
+- **Ask, don't search** — chat with your wiki in natural language, grounded in your notes
+- **Organized by default** — meeting notes, projects, links, setups, TODOs each have a home; the rulebook teaches Claude how to file them
+- **Two interfaces, one contract** — the dashboard and the terminal behave identically
+- **Fast, private, portable** — local SQLite full-text search, localhost-only, one static binary
 
 ## Requirements
 
-- [Claude Code](https://claude.com/claude-code) installed, logged in, on your PATH
-- Go 1.2x+ (to build from source) or a released binary
-
-## Documentation
-
-Full documentation: [docs/index.md](docs/index.md) — architecture, API, CLI, indexing, frontend, security, and development guides.
+- [Claude Code](https://claude.com/claude-code) installed and logged in (on your `PATH`)
+- Go 1.26+ and Node 24 + pnpm — only if building from source
 
 ## Quick start
 
 ```sh
 thoth init        # scaffold the default wiki at ~/.thoth/wiki
+thoth doctor      # verify everything is healthy
 thoth serve       # starts on http://127.0.0.1:8333
 ```
 
-Open the dashboard, ask "what did we decide in Tuesday's standup?", or say
-"save this: <anything>". Everything the app creates lives under `~/.thoth/`
-(config, SQLite index, default wiki). The wiki path is configurable in
-Settings.
+Open the dashboard and ask *"what did we decide in Tuesday's standup?"* — or say *"save this: <anything>"* and watch it get filed, searchable within seconds.
+
+## Install
+
+```sh
+git clone https://github.com/<you>/thoth
+cd thoth
+make install                  # everything: frontend deps → embed → binary into $(GOBIN)
+# or
+make install-bin PREFIX=/usr/local/bin
+# or build in place:
+make build                    # → bin/thoth
+```
+
+Release binaries: `make release` cross-compiles all five targets into `dist/` (darwin/linux × amd64/arm64, windows/amd64), stamped with `VERSION`.
+
+## Documentation
+
+Full documentation: **[docs/index.md](docs/index.md)** — architecture, API, CLI, indexing, frontend, security, and development guides, with diagrams.
 
 ## Development
 
 ```sh
-make web     # build the frontend (required before `go build`)
-make test    # go test ./...
-make race    # go test -race ./...
-make lint    # golangci-lint + frontend lint + typecheck
+make help     # self-documenting target list
+make dev      # Vite HMR + Go server together
+make check    # everything CI enforces: fmt, lint, race, coverage (≥80%), build
 ```
 
-- Backend: Go, Echo, SQLite (FTS5) — see `internal/`
-- Frontend: React + TypeScript + Tailwind — see `web/`
-- Design: `docs/superpowers/specs/2026-08-14-thoth-design.md`
+- Backend: Go 1.26 · Echo · Cobra · SQLite (FTS5) · fsnotify — `internal/`
+- Frontend: React 19 · TypeScript (strict) · Vite · Tailwind CSS v4 — `web/`
+- Repo rules, conventions, and invariants: [`CLAUDE.md`](CLAUDE.md)
 
 ## Security
 
-Local-only, no authentication. Never store secrets in the wiki — the rulebook
-enforces placeholders. By default the server binds to 127.0.0.1.
+Local-only by design: the server binds `127.0.0.1`, the WebSocket accepts only localhost origins, all filesystem access is path-traversal-safe, and search snippets are XSS-escaped. Secrets never belong in the wiki — the rulebook enforces placeholders. Details in [docs/security.md](docs/security.md).
 
 ## License
 
-MIT
+[MIT](LICENSE)
