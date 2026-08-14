@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 
@@ -22,18 +23,41 @@ type clientMsg struct {
 }
 
 type serverMsg struct {
-	Type    string `json:"type"`
-	Text    string `json:"text,omitempty"`
-	Tool    string `json:"tool,omitempty"`
-	Detail  string `json:"detail,omitempty"`
-	Message string `json:"message,omitempty"`
+	Type           string `json:"type"`
+	Text           string `json:"text,omitempty"`
+	Tool           string `json:"tool,omitempty"`
+	Detail         string `json:"detail,omitempty"`
+	Message        string `json:"message,omitempty"`
+	ConversationID string `json:"conversation_id,omitempty"`
 }
 
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
-	// local-only app; the Vite dev server origin must be allowed too
-	CheckOrigin: func(r *http.Request) bool { return true },
+	// Local-only app: allow browser connections from the Vite dev server and
+	// origin-less clients (curl, tests, the CLI); reject everything else so
+	// a random web page cannot drive the chat API.
+	CheckOrigin: allowLocalOrigin,
+}
+
+// allowLocalOrigin admits requests without an Origin header (non-browser
+// clients) and origins whose host is localhost, 127.0.0.1, or ::1 on any
+// port. Browsers always send Origin on cross-site requests; the Vite dev
+// server (http://localhost:5173) is the only origin a real browser needs.
+func allowLocalOrigin(r *http.Request) bool {
+	origin := r.Header.Get("Origin")
+	if origin == "" {
+		return true
+	}
+	u, err := url.Parse(origin)
+	if err != nil {
+		return false
+	}
+	switch u.Hostname() {
+	case "localhost", "127.0.0.1", "::1":
+		return true
+	}
+	return false
 }
 
 // Hub tracks one active turn per conversation and replays the latest turn's
@@ -42,6 +66,7 @@ type Hub struct {
 	claude claude.Client
 	store  *store.Store
 	log    *slog.Logger
+	ctx    context.Context // cancelled on server shutdown to reap in-flight turns
 
 	mu     sync.Mutex
 	turns  map[string]*turn
@@ -53,11 +78,18 @@ type turn struct {
 	busy   bool
 }
 
-func NewHub(c claude.Client, st *store.Store, log *slog.Logger) *Hub {
+// NewHub builds a Hub whose turns derive from ctx; cancelling ctx (the server
+// shutdown signal) cancels every in-flight turn, so SIGTERM reaps the CLI
+// process groups before the server exits. A nil ctx means background turns.
+func NewHub(c claude.Client, st *store.Store, log *slog.Logger, ctx context.Context) *Hub {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	return &Hub{
 		claude: c,
 		store:  st,
 		log:    log,
+		ctx:    ctx,
 		turns:  map[string]*turn{},
 		recent: map[string][]serverMsg{},
 	}
@@ -113,7 +145,11 @@ func (h *Hub) chat(c echo.Context) error {
 		case "cancel":
 			h.cancelTurn(convID)
 		case "resume":
-			h.handleResume(msg.ConversationID, write)
+			// A successful resume pins the connection to that conversation so
+			// a following send continues it instead of starting a new one.
+			if h.handleResume(msg.ConversationID, write) {
+				convID = msg.ConversationID
+			}
 		default:
 			write(serverMsg{Type: "error", Message: "unknown message type: " + msg.Type})
 		}
@@ -150,11 +186,7 @@ func writeLoop(ws *websocket.Conn) (write func(serverMsg), quit chan struct{}) {
 // leaves the conversation untouched for the next message.
 func (h *Hub) handleSend(convID *string, text string, write func(serverMsg)) {
 	if *convID == "" {
-		title := text
-		if len(title) > 60 {
-			title = title[:60]
-		}
-		id, err := h.store.CreateConversation(title)
+		id, err := h.store.CreateConversation(truncateTitle(text))
 		if err != nil {
 			write(serverMsg{Type: "error", Message: err.Error()})
 			return
@@ -169,32 +201,51 @@ func (h *Hub) handleSend(convID *string, text string, write func(serverMsg)) {
 }
 
 // handleResume replays the latest turn of a conversation so a reconnect can
-// re-sync the UI.
-func (h *Hub) handleResume(convID string, write func(serverMsg)) {
+// re-sync the UI. It reports whether the conversation existed.
+func (h *Hub) handleResume(convID string, write func(serverMsg)) bool {
 	if buf := h.replay(convID); len(buf) > 0 {
 		for _, m := range buf {
 			write(m)
 		}
-		return
+		return true
 	}
 	write(serverMsg{Type: "error", Message: "unknown conversation"})
+	return false
+}
+
+// truncateTitle caps a conversation title at 60 runes; slicing the raw
+// string would split a multi-byte UTF-8 sequence in half.
+func truncateTitle(s string) string {
+	r := []rune(s)
+	if len(r) > 60 {
+		return string(r[:60])
+	}
+	return s
 }
 
 // runTurn runs one Claude turn. A new send supersedes an in-flight turn for
 // the same conversation: the old context is cancelled and the replay buffer
-// resets so resume always reflects the latest turn only.
+// resets so resume always reflects the latest turn only. The turn context is
+// derived from the hub context, so server shutdown cancels in-flight turns
+// (and their CLI process groups) before the server exits.
 func (h *Hub) runTurn(convID, prompt string, write func(serverMsg)) {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(h.ctx)
+	t := &turn{cancel: cancel, busy: true}
 	h.mu.Lock()
-	if t, ok := h.turns[convID]; ok && t.busy {
-		t.cancel()
+	if prev, ok := h.turns[convID]; ok && prev.busy {
+		prev.cancel()
 	}
-	h.turns[convID] = &turn{cancel: cancel, busy: true}
+	h.turns[convID] = t
 	h.recent[convID] = nil
 	h.mu.Unlock()
+	// Delete only if this turn is still the registered one: a superseding
+	// turn replaces the map entry, and deleting here would wipe the new
+	// turn's slot.
 	defer func() {
 		h.mu.Lock()
-		delete(h.turns, convID)
+		if h.turns[convID] == t {
+			delete(h.turns, convID)
+		}
 		h.mu.Unlock()
 	}()
 
@@ -205,7 +256,7 @@ func (h *Hub) runTurn(convID, prompt string, write func(serverMsg)) {
 		return
 	}
 	h.persistTurn(convID, sb.String())
-	m := serverMsg{Type: "turn_done"}
+	m := serverMsg{Type: "turn_done", ConversationID: convID}
 	write(m)
 	h.record(convID, m)
 }
