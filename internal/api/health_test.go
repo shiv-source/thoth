@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"sync"
 	"testing"
 
 	"github.com/shiv-source/thoth/internal/claude"
@@ -29,12 +30,13 @@ func testDeps(t *testing.T) Deps {
 	}
 	t.Cleanup(func() { ix.Close() })
 	return Deps{
-		Log:    slog.New(slog.NewTextHandler(io.Discard, nil)),
-		Config: func() *config.Config { c := config.Default(); return &c }(),
-		Store:  st,
-		Claude: &claude.FakeClient{},
-		Wiki:   wiki.New(t.TempDir()),
-		Index:  ix,
+		Log:      slog.New(slog.NewTextHandler(io.Discard, nil)),
+		Config:   func() *config.Config { c := config.Default(); return &c }(),
+		ConfigMu: &sync.RWMutex{},
+		Store:    st,
+		Claude:   &claude.FakeClient{},
+		Wiki:     wiki.New(t.TempDir()),
+		Index:    ix,
 	}
 }
 

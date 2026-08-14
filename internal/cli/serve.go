@@ -10,6 +10,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"strconv"
+	"sync"
 	"syscall"
 
 	"github.com/labstack/echo/v4"
@@ -21,6 +22,28 @@ import (
 	"github.com/shiv-source/thoth/internal/wiki"
 	"github.com/spf13/cobra"
 )
+
+// rootHolder is the single source of truth for the current wiki path. The
+// claude client reads it on every Start and the settings callback writes it,
+// so a wiki-path change takes effect for new turns without restarting.
+type rootHolder struct {
+	mu   sync.RWMutex
+	root string
+}
+
+func newRootHolder(root string) *rootHolder { return &rootHolder{root: root} }
+
+func (r *rootHolder) get() string {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return r.root
+}
+
+func (r *rootHolder) set(root string) {
+	r.mu.Lock()
+	r.root = root
+	r.mu.Unlock()
+}
 
 func newServeCmd() *cobra.Command {
 	return &cobra.Command{
@@ -55,21 +78,39 @@ func runServe(cmd *cobra.Command, _ []string) error {
 
 	ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	go func() {
-		if err := index.Watch(ctx, w.Root, ix, log); err != nil {
-			log.Error("watcher stopped", "err", err)
-		}
-	}()
 
+	// The watcher tracks the current wiki root; a settings change cancels the
+	// old watcher and starts a fresh one under the new root.
+	var watcherMu sync.Mutex
+	var watcherCancel context.CancelFunc
+	startWatcher := func(root string) {
+		watcherMu.Lock()
+		if watcherCancel != nil {
+			watcherCancel()
+		}
+		wctx, cancel := context.WithCancel(ctx)
+		watcherCancel = cancel
+		watcherMu.Unlock()
+		go func() {
+			if err := index.Watch(wctx, root, ix, log); err != nil && wctx.Err() == nil {
+				log.Error("watcher stopped", "err", err)
+			}
+		}()
+	}
+	startWatcher(w.Root)
+
+	root := newRootHolder(w.Root)
 	e := api.New(api.Deps{
 		Log:             log,
 		Config:          &cfg,
 		ConfigPath:      cfgPath,
+		ConfigMu:        &sync.RWMutex{},
 		Store:           st,
-		Claude:          claude.New(resolveClaudeBin(cfg, log), w.Root, claude.WithPermissionMode(cfg.PermissionMode), claude.WithModel(cfg.Model)),
+		Claude:          claude.New(resolveClaudeBin(cfg, log), w.Root, claude.WithPermissionMode(cfg.PermissionMode), claude.WithModel(cfg.Model), claude.WithDirProvider(root.get)),
 		Wiki:            w,
 		Index:           ix,
-		OnSettingsSaved: onSettingsSaved(log, w, ix),
+		OnSettingsSaved: onSettingsSaved(log, root, w, ix, startWatcher),
+		Ctx:             ctx,
 	})
 
 	addr := net.JoinHostPort(cfg.Host, strconv.Itoa(cfg.Port))
@@ -152,24 +193,35 @@ func resolveClaudeBin(cfg config.Config, log *slog.Logger) string {
 	return "claude"
 }
 
-// onSettingsSaved rebuilds the index when the wiki path changes.
-func onSettingsSaved(log *slog.Logger, w *wiki.Wiki, ix *index.Index) func(config.Config) error {
+// onSettingsSaved rebuilds the index and switches the live wiki root when
+// the wiki path changes. Nothing is mutated until every step that can fail
+// has succeeded: scaffold, then rebuild, and only then the root swap and
+// watcher restart.
+func onSettingsSaved(log *slog.Logger, root *rootHolder, w *wiki.Wiki, ix *index.Index, startWatcher func(string)) func(config.Config) error {
 	return func(c config.Config) error {
 		newPath, err := config.ExpandHome(c.WikiPath)
 		if err != nil {
 			return err
 		}
-		if newPath == w.Root {
-			return nil
+		if newPath == root.get() {
+			return nil // already current (e.g. a retry after a failed save)
 		}
 		log.Info("wiki path changed, rebuilding index", "path", newPath)
-		w.Root = newPath
-		if !w.Exists() {
+		// Check the new path itself: w still points at the old root until
+		// every fallible step below has succeeded.
+		if !wiki.New(newPath).Exists() {
 			if err := wiki.Scaffold(newPath); err != nil {
 				return err
 			}
 		}
-		return ix.Rebuild(newPath, log)
+		if err := ix.Rebuild(newPath, log); err != nil {
+			return err
+		}
+		// All fallible steps done: commit the new root atomically-ish.
+		root.set(newPath)
+		w.Root = newPath
+		startWatcher(newPath)
+		return nil
 	}
 }
 

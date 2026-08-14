@@ -141,6 +141,40 @@ func TestSettingsCallbackError(t *testing.T) {
 	}
 }
 
+func TestSettingsCallbackRunsBeforeSave(t *testing.T) {
+	d := testDeps(t)
+	d.ConfigPath = filepath.Join(t.TempDir(), "config.toml")
+	// The save fails (parent path is a regular file) but the callback must
+	// still have run first, so a wiki-path change is applied even when the
+	// disk write fails; a retry then self-heals.
+	blocker := filepath.Join(t.TempDir(), "blocker")
+	if err := os.WriteFile(blocker, []byte("file"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	d.ConfigPath = filepath.Join(blocker, "config.toml")
+
+	called := false
+	d.OnSettingsSaved = func(c config.Config) error { called = true; return nil }
+
+	e := New(d)
+	body := `{"wiki_path":"/tmp/wiki","host":"127.0.0.1","port":8333}`
+	req := httptest.NewRequest(http.MethodPut, "/api/settings", bytes.NewReader([]byte(body)))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("expected 500 when save fails, got %d", rec.Code)
+	}
+	if !called {
+		t.Fatal("callback must run before the save")
+	}
+	// The in-memory config stays on the old value: the swap happens only
+	// after a successful save.
+	if got := d.Config.WikiPath; got != config.Default().WikiPath {
+		t.Fatalf("in-memory config mutated after failed save: wiki_path = %q", got)
+	}
+}
+
 func TestSettingsWithoutConfigPathSkipsSave(t *testing.T) {
 	d := testDeps(t) // ConfigPath is "" by default
 	e := New(d)
