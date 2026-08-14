@@ -1,7 +1,7 @@
 .PHONY: web build run test race lint clean
 
 web:
-	cd web && npm ci && npm run build
+	cd web && pnpm install --frozen-lockfile && pnpm run build
 	rm -rf internal/webui/dist
 	cp -r web/dist internal/webui/dist
 
@@ -19,7 +19,7 @@ race:
 
 lint:
 	golangci-lint run
-	cd web && npm run lint && npx tsc --noEmit
+	cd web && pnpm run lint && pnpm exec tsc --noEmit
 
 clean:
 	rm -rf bin

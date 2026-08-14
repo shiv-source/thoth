@@ -22,7 +22,7 @@ jobs:
           version: latest
       - name: cross-compile
         run: |
-          go build -o /tmp/thoth-darwin-arm64 ./cmd/thoth
+          GOOS=darwin GOARCH=arm64 go build -o /tmp/thoth-darwin-arm64 ./cmd/thoth
           GOOS=linux GOARCH=amd64 go build -o /tmp/thoth-linux-amd64 ./cmd/thoth
           GOOS=windows GOARCH=amd64 go build -o /tmp/thoth-windows-amd64.exe ./cmd/thoth
 
@@ -33,11 +33,16 @@ jobs:
         working-directory: web
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: latest
       - uses: actions/setup-node@v4
         with:
           node-version: lts/*
-      - run: npm ci
-      - run: npx tsc --noEmit
-      - run: npm run lint
-      - run: npx vitest run
-      - run: npm run build
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec tsc --noEmit
+      - run: pnpm run lint
+      - run: pnpm exec vitest run
+      - run: pnpm run build
