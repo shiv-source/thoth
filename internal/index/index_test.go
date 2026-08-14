@@ -49,6 +49,80 @@ func TestUpsertSearchDelete(t *testing.T) {
 	}
 }
 
+func TestSearchSnippetEscapesHTML(t *testing.T) {
+	ix, err := Open(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { ix.Close() })
+	// A note body containing markup must come back escaped in the snippet so
+	// the frontend's dangerouslySetInnerHTML cannot execute it.
+	n := Note{Path: "knowledge/xss.md", Title: "XSS",
+		Kind: "knowledge", Body: `payload <img src=x onerror=alert(1)> and <mark>fake</mark> injection`,
+		UpdatedAt: time.Now()}
+	if err := ix.Upsert(n); err != nil {
+		t.Fatal(err)
+	}
+	got, err := ix.Search("payload", 10)
+	if err != nil || len(got) != 1 {
+		t.Fatalf("Search: %v %+v", err, got)
+	}
+	s := got[0].Snippet
+	if strings.Contains(s, "<img") {
+		t.Fatalf("snippet contains unescaped markup: %q", s)
+	}
+	if !strings.Contains(s, "&lt;img") {
+		t.Fatalf("snippet did not escape <img: %q", s)
+	}
+	if strings.Contains(s, "<mark>fake</mark>") {
+		t.Fatalf("note's own <mark> must be escaped, not rendered: %q", s)
+	}
+	// The match markers are still converted to real tags.
+	if !strings.Contains(s, "<mark>payload</mark>") && !strings.Contains(s, "<mark>") {
+		t.Fatalf("snippet should mark matches: %q", s)
+	}
+}
+
+func TestDeletePrefixEscapesLIKEWildcards(t *testing.T) {
+	ix, err := Open(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { ix.Close() })
+	now := time.Now()
+	notes := []Note{
+		{Path: "dirs/50%/inside.md", Title: "Pct", Kind: "note", Body: "percent dir", UpdatedAt: now},
+		{Path: "dirs/50X/inside.md", Title: "Wild", Kind: "note", Body: "wild dir", UpdatedAt: now},
+		{Path: "dirs/a_b/inside.md", Title: "Underscore", Kind: "note", Body: "underscore dir", UpdatedAt: now},
+	}
+	for _, n := range notes {
+		if err := ix.Upsert(n); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// "50%" with a literal % must remove only the "50%" directory; without
+	// escaping, LIKE "50%/%" would also match "50X".
+	if err := ix.DeletePrefix("dirs/50%"); err != nil {
+		t.Fatalf("DeletePrefix: %v", err)
+	}
+	if got, err := ix.Search("percent", 10); err != nil || len(got) != 0 {
+		t.Fatalf("expected literal-percent dir removed: %v %+v", err, got)
+	}
+	if got, err := ix.Search("wild", 10); err != nil || len(got) != 1 {
+		t.Fatalf("wildcard dir must survive: %v %+v", err, got)
+	}
+	// "_" is likewise literal.
+	if err := ix.DeletePrefix("dirs/a_b"); err != nil {
+		t.Fatalf("DeletePrefix: %v", err)
+	}
+	if got, err := ix.Search("underscore", 10); err != nil || len(got) != 0 {
+		t.Fatalf("expected underscore dir removed: %v %+v", err, got)
+	}
+	if got, err := ix.Search("wild", 10); err != nil || len(got) != 1 {
+		t.Fatalf("wildcard dir must still survive: %v %+v", err, got)
+	}
+}
+
 func TestDeletePrefixRemovesSubtree(t *testing.T) {
 	ix, err := Open(filepath.Join(t.TempDir(), "test.db"))
 	if err != nil {

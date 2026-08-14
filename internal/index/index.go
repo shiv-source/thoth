@@ -3,6 +3,7 @@ package index
 import (
 	"database/sql"
 	"fmt"
+	"html"
 	"strings"
 	"time"
 
@@ -104,18 +105,23 @@ func (ix *Index) Delete(path string) error {
 
 // DeletePrefix removes the note at prefix and every note stored under it.
 // Removing a directory delivers no per-file events, so the watcher uses this
-// to clear a whole subtree at once.
+// to clear a whole subtree at once. LIKE wildcards in the prefix (a directory
+// named "50%" or "a_b") are escaped so only literal matches are removed.
 func (ix *Index) DeletePrefix(prefix string) error {
-	if _, err := ix.db.Exec(`DELETE FROM notes WHERE path = ? OR path LIKE ?`, prefix, prefix+"/%"); err != nil {
+	escaped := strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`).Replace(prefix)
+	if _, err := ix.db.Exec(`DELETE FROM notes WHERE path = ? OR path LIKE ? ESCAPE '\'`, prefix, escaped+"/%"); err != nil {
 		return fmt.Errorf("index delete prefix %s: %w", prefix, err)
 	}
 	return nil
 }
 
 func (ix *Index) Search(q string, limit int) ([]Result, error) {
+	// char(1)/char(2) are the match markers: FTS5's snippet returns them
+	// verbatim, so escaping can happen in Go instead of trusting the raw
+	// note text to flow through into HTML.
 	rows, err := ix.db.Query(`
 		SELECT n.path, n.title, n.kind,
-		       snippet(notes_fts, 2, '<mark>', '</mark>', '…', 12)
+		       snippet(notes_fts, 2, char(1), char(2), '…', 12)
 		FROM notes_fts
 		JOIN notes n ON n.rowid = notes_fts.rowid
 		WHERE notes_fts MATCH ?
@@ -131,6 +137,10 @@ func (ix *Index) Search(q string, limit int) ([]Result, error) {
 		if err := rows.Scan(&r.Path, &r.Title, &r.Kind, &r.Snippet); err != nil {
 			return nil, fmt.Errorf("scan search result: %w", err)
 		}
+		// Escape the note text first, then turn the markers into real tags:
+		// any <mark>/</mark> the note itself contains comes back escaped.
+		r.Snippet = strings.ReplaceAll(html.EscapeString(r.Snippet), "\x01", "<mark>")
+		r.Snippet = strings.ReplaceAll(r.Snippet, "\x02", "</mark>")
 		out = append(out, r)
 	}
 	return out, rows.Err()
