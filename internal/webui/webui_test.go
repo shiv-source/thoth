@@ -32,6 +32,21 @@ func TestRegisterServesIndexAtRoot(t *testing.T) {
 	}
 }
 
+func TestRegisterReturns404ForUnknownAPIPaths(t *testing.T) {
+	e := newTestEcho()
+	// Unknown API paths are a client bug or a stale URL — they must stay a
+	// JSON 404, never index.html.
+	req := httptest.NewRequest(http.MethodGet, "/api/nope", nil)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("status %d, want 404", rec.Code)
+	}
+	if strings.Contains(rec.Body.String(), "<!doctype html>") {
+		t.Fatalf("API 404 must not serve index.html, got %q", rec.Body.String())
+	}
+}
+
 func TestRegisterServesExistingAsset(t *testing.T) {
 	e := newTestEcho()
 	// index.html is a real embedded file; the asset dir holds real files.
@@ -46,7 +61,7 @@ func TestRegisterServesExistingAsset(t *testing.T) {
 func TestRegisterFallsBackToIndexForMissingPaths(t *testing.T) {
 	e := newTestEcho()
 	// Unknown deep links (client-side routes) must resolve to index.html.
-	for _, p := range []string{"/notes/some/note", "/assets/missing.js", "/api-adjacent-path"} {
+	for _, p := range []string{"/notes/some/note", "/assets/missing.js", "/api-adjacent-path", "/chat/123e4567-e89b-4122-a456-426614174000"} {
 		req := httptest.NewRequest(http.MethodGet, p, nil)
 		rec := httptest.NewRecorder()
 		e.ServeHTTP(rec, req)

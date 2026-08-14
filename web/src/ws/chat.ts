@@ -15,6 +15,7 @@ export class ChatSocket {
   private retried = false
   private closed = false
   private resumePending = false
+  private openPending: string | null = null
   private retryTimer: ReturnType<typeof setTimeout> | null = null
 
   constructor(private readonly url: string) {}
@@ -37,6 +38,11 @@ export class ChatSocket {
       if (this.resumePending) {
         this.resumePending = false
         if (this.conversationId) this.resume(this.conversationId)
+      }
+      if (this.openPending) {
+        const id = this.openPending
+        this.openPending = null
+        this.ws?.send(JSON.stringify({ type: 'open', conversation_id: id }))
       }
     }
     ws.onclose = () => {
@@ -68,11 +74,18 @@ export class ChatSocket {
   // open pins the server-side conversation for the next send — unlike resume,
   // it does NOT replay anything, so it must not become the reconnect-resume
   // id (a reconnect would then replay the loaded history over the UI).
+  // Frames sent before the handshake completes throw InvalidStateError, so
+  // defer until onopen (deep links call open() right after connect()).
   open(conversationId: string): void {
-    this.ws?.send(JSON.stringify({ type: 'open', conversation_id: conversationId }))
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.ws.send(JSON.stringify({ type: 'open', conversation_id: conversationId }))
+      return
+    }
+    this.openPending = conversationId
   }
   close(): void {
     this.closed = true
+    this.openPending = null
     if (this.retryTimer !== null) clearTimeout(this.retryTimer)
     this.ws?.close()
   }
