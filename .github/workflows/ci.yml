@@ -1,0 +1,43 @@
+name: ci
+on:
+  push:
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: go vet ./...
+      - run: go test -race ./...
+      - name: coverage gate (>= 80% on internal/ and cmd/)
+        run: |
+          go test -coverprofile=coverage.out ./internal/... ./cmd/...
+          go tool cover -func=coverage.out | awk -F'\t' '/^total:/ { gsub(/%/, "", $3); if ($3+0 < 80) { print "coverage", $3 "%", "below 80% floor"; exit 1 } }'
+      - uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
+      - name: cross-compile
+        run: |
+          go build -o /tmp/thoth-darwin-arm64 ./cmd/thoth
+          GOOS=linux GOARCH=amd64 go build -o /tmp/thoth-linux-amd64 ./cmd/thoth
+          GOOS=windows GOARCH=amd64 go build -o /tmp/thoth-windows-amd64.exe ./cmd/thoth
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - run: npm run lint
+      - run: npx vitest run
+      - run: npm run build
