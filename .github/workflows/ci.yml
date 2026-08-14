@@ -31,9 +31,9 @@ jobs:
           GOLANGCI_LINT_CACHE: ${{ runner.tool_cache }}/golangci-lint
         run: |
           set -euo pipefail
-          mkdir -p bin
-          curl -sSL https://github.com/golangci/golangci-lint/releases/download/v2.12.2/golangci-lint-2.12.2-linux-amd64.tar.gz | tar xz -C bin
-          ./bin/golangci-lint-2.12.2-linux-amd64/golangci-lint run --timeout 5m
+          mkdir -p "$HOME/.local/bin"
+          curl -sSL https://github.com/golangci/golangci-lint/releases/download/v2.12.2/golangci-lint-2.12.2-linux-amd64.tar.gz | tar xz -C "$HOME/.local/bin"
+          "$HOME/.local/bin/golangci-lint-2.12.2-linux-amd64/golangci-lint" run --timeout 5m
       - name: cross-compile
         run: |
           GOOS=darwin GOARCH=amd64 go build -o /tmp/thoth-darwin-amd64 ./cmd/thoth
