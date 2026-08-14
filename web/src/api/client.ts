@@ -36,6 +36,9 @@ export const GitHubIdentity = z.object({
 })
 export type GitHubIdentity = z.infer<typeof GitHubIdentity>
 
+export const GitHubRepo = z.object({ full_name: z.string(), clone_url: z.string() })
+export type GitHubRepo = z.infer<typeof GitHubRepo>
+
 const Conversation = z.object({ id: z.string(), title: z.string(), created_at: z.string() })
 export type Conversation = z.infer<typeof Conversation>
 
@@ -91,6 +94,7 @@ export const api = {
     return z.object({ ok: z.boolean(), error: z.string().optional() }).parse(await res.json())
   },
   githubAuth: () => get('/api/github/auth', GitHubIdentity),
+  githubRepos: () => get('/api/github/repos', z.object({ repos: z.array(GitHubRepo) })),
   connectGitHub: async (token: string): Promise<GitHubIdentity> => {
     const res = await fetch('/api/github/auth', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ token }) })
     if (!res.ok) throw new Error(await errorMessage(res))

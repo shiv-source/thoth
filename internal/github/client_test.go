@@ -188,6 +188,36 @@ func TestFetchProfileNetworkErrorIsSanitized(t *testing.T) {
 	}
 }
 
+func TestFetchReposSuccess(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/user/repos" {
+			http.NotFound(w, r)
+			return
+		}
+		_, _ = w.Write([]byte(`[{"full_name":"octo/wiki","clone_url":"https://github.com/octo/wiki.git"},{"full_name":"octo/other","clone_url":"https://github.com/octo/other.git"}]`))
+	}))
+	t.Cleanup(ts.Close)
+	c := New(ts.Client()).WithBaseURL(ts.URL)
+
+	repos, err := c.FetchRepos(context.Background(), "t")
+	if err != nil {
+		t.Fatalf("FetchRepos: %v", err)
+	}
+	if len(repos) != 2 || repos[0].FullName != "octo/wiki" || repos[0].CloneURL != "https://github.com/octo/wiki.git" {
+		t.Fatalf("repos = %+v", repos)
+	}
+}
+
+func TestFetchReposRejectsToken(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusUnauthorized)
+	}))
+	t.Cleanup(ts.Close)
+	if _, err := New(ts.Client()).WithBaseURL(ts.URL).FetchRepos(context.Background(), "t"); !errors.Is(err, ErrTokenRejected) {
+		t.Fatalf("err = %v, want ErrTokenRejected", err)
+	}
+}
+
 func TestFetchProfileContextDeadline(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		time.Sleep(200 * time.Millisecond)

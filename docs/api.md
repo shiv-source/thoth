@@ -16,6 +16,7 @@ The server exposes REST for everything except the live chat, which is a WebSocke
 | `POST /api/github/auth` | `{token}` | identity `{username, display_name, email, avatar_url, scopes}` — the token itself is never returned; 400 "token is required" / "github rejected the token" |
 | `GET /api/github/auth` | — | identity (all fields empty when not connected) |
 | `DELETE /api/github/auth` | — | `{ok:true}` (idempotent) |
+| `GET /api/github/repos` | — | `{repos:[{full_name, clone_url}]}` — the connected account's repos (fetched with the stored token; empty when not connected; 400 "github rejected the token" when revoked) |
 | `GET /api/conversations` | — | `{conversations:[{id,title,created_at}]}` |
 | `POST /api/conversations` | `{title}` | `{id,title}` |
 | `GET /api/conversations/:id` | — | `{conversation, messages:[…]}` |

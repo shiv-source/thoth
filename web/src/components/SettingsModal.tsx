@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
-import { api, type DoctorCheck, type GitHubIdentity, type Settings } from '../api/client'
+import { api, type DoctorCheck, type GitHubIdentity, type GitHubRepo, type Settings } from '../api/client'
 import { useToast } from './Toast'
 
 const blank: Settings = {
@@ -202,9 +202,17 @@ function GitTab({ form, set, save, github, setGitHub }: {
   const [pushing, setPushing] = useState(false)
   const [connecting, setConnecting] = useState(false)
   const [token, setToken] = useState('')
+  const [repos, setRepos] = useState<GitHubRepo[]>([])
   const [gitError, setGitError] = useState<string | null>(null)
 
   const connected = github.username !== ''
+
+  // Suggestions for the repo URL come from the connected account; a failed
+  // load just leaves the list empty — typing a URL always works.
+  useEffect(() => {
+    if (!connected) return
+    api.githubRepos().then((r) => setRepos(r.repos)).catch(() => setRepos([]))
+  }, [connected])
 
   const connect = async () => {
     if (!token) {
@@ -315,8 +323,11 @@ function GitTab({ form, set, save, github, setGitHub }: {
       </div>
       <div>
         <label className={label}>Git remote URL</label>
-        <input className={field} placeholder="https://github.com/you/wiki.git"
+        <input className={field} placeholder="https://github.com/you/wiki.git" list="repo-suggestions"
           value={form.repo_url} onChange={(e) => set('repo_url', e.target.value)} />
+        <datalist id="repo-suggestions">
+          {repos.map((r) => <option key={r.full_name} value={r.clone_url}>{r.full_name}</option>)}
+        </datalist>
       </div>
       <p className="text-xs text-subtle">
         Stores your wiki in a remote git repository. Thoth initializes the

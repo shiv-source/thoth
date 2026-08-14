@@ -163,3 +163,55 @@ func TestDisconnectGitHub(t *testing.T) {
 		t.Fatalf("second disconnect status %d", rec.Code)
 	}
 }
+
+func TestListGitHubRepos(t *testing.T) {
+	d := testDeps(t)
+	e := New(d)
+
+	// Not connected: an empty list.
+	rec := doJSON(t, e, http.MethodGet, "/api/github/repos", "")
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"repos":[]`) {
+		t.Fatalf("not connected: status %d body %s", rec.Code, rec.Body.String())
+	}
+
+	// Connected: repos are fetched with the stored token, never echoed back.
+	if err := d.GitHub.Repo.Save(github.Auth{Token: "ghp_x", Username: "octo"}); err != nil {
+		t.Fatal(err)
+	}
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/user/repos" {
+			http.NotFound(w, r)
+			return
+		}
+		if r.Header.Get("Authorization") != "Bearer ghp_x" {
+			t.Errorf("repos request must carry the stored token")
+		}
+		_, _ = w.Write([]byte(`[{"full_name":"octo/wiki","clone_url":"https://github.com/octo/wiki.git"}]`))
+	}))
+	t.Cleanup(ts.Close)
+	d.GitHub.Client = github.New(ts.Client()).WithBaseURL(ts.URL)
+
+	rec = doJSON(t, e, http.MethodGet, "/api/github/repos", "")
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "octo/wiki") ||
+		strings.Contains(rec.Body.String(), "ghp_x") {
+		t.Fatalf("connected: status %d body %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestListGitHubReposRejectedToken(t *testing.T) {
+	d := testDeps(t)
+	if err := d.GitHub.Repo.Save(github.Auth{Token: "ghp_x", Username: "octo"}); err != nil {
+		t.Fatal(err)
+	}
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusUnauthorized)
+	}))
+	t.Cleanup(ts.Close)
+	d.GitHub.Client = github.New(ts.Client()).WithBaseURL(ts.URL)
+	e := New(d)
+
+	rec := doJSON(t, e, http.MethodGet, "/api/github/repos", "")
+	if rec.Code != http.StatusBadRequest || !strings.Contains(rec.Body.String(), "github rejected the token") {
+		t.Fatalf("status %d body %s", rec.Code, rec.Body.String())
+	}
+}

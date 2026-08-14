@@ -76,6 +76,33 @@ func getGitHubAuth(c echo.Context, d Deps) error {
 	return c.JSON(http.StatusOK, identityFromAuth(a))
 }
 
+// listGitHubRepos suggests sync repos for the connected account, fetched
+// with the stored token (never echoed). Not connected → empty list; a token
+// rejected upstream surfaces as a client error so a revoked token is visible.
+func listGitHubRepos(c echo.Context, d Deps) error {
+	if d.GitHub == nil || d.GitHub.Repo == nil {
+		return internalError(c, d, "github not configured", errors.New("missing github service"))
+	}
+	a, ok, err := d.GitHub.Repo.Get()
+	if err != nil {
+		return internalError(c, d, "read github auth", err)
+	}
+	if !ok {
+		return c.JSON(http.StatusOK, map[string]any{"repos": []github.Repository{}})
+	}
+	if d.GitHub.Client == nil {
+		return internalError(c, d, "github client not configured", errors.New("missing github client"))
+	}
+	repos, err := d.GitHub.Client.FetchRepos(c.Request().Context(), a.Token)
+	if err != nil {
+		if errors.Is(err, github.ErrTokenRejected) {
+			return c.JSON(http.StatusBadRequest, map[string]string{"error": "github rejected the token"})
+		}
+		return internalError(c, d, "fetch github repos", err)
+	}
+	return c.JSON(http.StatusOK, map[string]any{"repos": repos})
+}
+
 func disconnectGitHub(c echo.Context, d Deps) error {
 	if err := d.GitHub.Repo.Clear(); err != nil {
 		return internalError(c, d, "clear github auth", err)

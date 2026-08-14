@@ -66,6 +66,7 @@ func newServer(d Deps) (*echo.Echo, *Hub) {
 	e.POST("/api/github/auth", func(c echo.Context) error { return connectGitHub(c, d) })
 	e.GET("/api/github/auth", func(c echo.Context) error { return getGitHubAuth(c, d) })
 	e.DELETE("/api/github/auth", func(c echo.Context) error { return disconnectGitHub(c, d) })
+	e.GET("/api/github/repos", func(c echo.Context) error { return listGitHubRepos(c, d) })
 
 	hub := NewHub(d.Claude, d.Store, d.Log, d.ctx())
 	e.GET("/ws", hub.chat)

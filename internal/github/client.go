@@ -31,6 +31,14 @@ type Profile struct {
 	AccountUpdatedAt string
 }
 
+// Repository is one repository from /user/repos, reduced to what the
+// settings UI needs: the full name to display and the clone URL to use as
+// the remote.
+type Repository struct {
+	FullName string `json:"full_name"`
+	CloneURL string `json:"clone_url"`
+}
+
 // Client fetches GitHub identity for a token. Errors are fixed messages:
 // raw transport errors embed the request URL and must never propagate.
 type Client struct {
@@ -92,6 +100,25 @@ func (c *Client) FetchProfile(ctx context.Context, token string) (Profile, error
 	}
 	p.Email = primaryEmail(emails.body)
 	return p, nil
+}
+
+// FetchRepos lists the user's repositories, most recently updated first.
+// The token's scopes decide which repos appear (private ones need "repo").
+func (c *Client) FetchRepos(ctx context.Context, token string) ([]Repository, error) {
+	if c.hc == nil {
+		return nil, errors.New("github client not configured")
+	}
+	ctx, cancel := context.WithTimeout(ctx, profileTimeout)
+	defer cancel()
+	res, err := c.get(ctx, "/user/repos?per_page=100&sort=updated", token)
+	if err != nil {
+		return nil, err
+	}
+	var repos []Repository
+	if err := json.Unmarshal(res.body, &repos); err != nil {
+		return nil, errors.New("fetch github repos: github returned an unexpected response")
+	}
+	return repos, nil
 }
 
 type getResult struct {

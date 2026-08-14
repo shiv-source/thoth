@@ -34,6 +34,9 @@ function stubAPI(handlers: Record<string, () => Response>) {
 
 const getSettings = () => new Response(JSON.stringify(settings), { status: 200 })
 const getEmptyGitHub = () => new Response(JSON.stringify(emptyGitHub), { status: 200 })
+const getRepos = () => new Response(JSON.stringify({
+  repos: [{ full_name: 'octo/wiki', clone_url: 'https://github.com/octo/wiki.git' }],
+}), { status: 200 })
 
 function renderModal() {
   return render(<ToastProvider><SettingsModal onClose={() => {}} /></ToastProvider>)
@@ -106,11 +109,17 @@ describe('SettingsModal', () => {
     const fetchMock = stubAPI({
       'GET /api/settings': getSettings,
       'GET /api/github/auth': () => new Response(JSON.stringify(connected), { status: 200 }),
+      'GET /api/github/repos': getRepos,
       'POST /api/git/setup': () => new Response(JSON.stringify({ ok: true }), { status: 200 }),
     })
 
     renderModal()
     await userEvent.click(await screen.findByRole('tab', { name: 'Git remote' }))
+    // The connected account's repos are offered as suggestions (datalist
+    // options are not in the accessibility tree in jsdom — check the DOM).
+    await waitFor(() => expect(document.getElementById('repo-suggestions')?.querySelectorAll('option')).toHaveLength(1))
+    expect(document.getElementById('repo-suggestions')?.querySelector('option')?.getAttribute('value'))
+      .toBe('https://github.com/octo/wiki.git')
     const url = await screen.findByPlaceholderText(/github\.com/)
     await userEvent.type(url, 'https://example.com/wiki.git')
     await userEvent.click(screen.getByRole('button', { name: 'Initialize & Push' }))
@@ -124,6 +133,7 @@ describe('SettingsModal', () => {
     const fetchMock = stubAPI({
       'GET /api/settings': getSettings,
       'GET /api/github/auth': getEmptyGitHub,
+      'GET /api/github/repos': getRepos,
       'POST /api/github/auth': () => new Response(JSON.stringify(connected), { status: 200 }),
     })
 
@@ -165,6 +175,7 @@ describe('SettingsModal', () => {
     const fetchMock = stubAPI({
       'GET /api/settings': getSettings,
       'GET /api/github/auth': () => new Response(JSON.stringify(connected), { status: 200 }),
+      'GET /api/github/repos': getRepos,
       'DELETE /api/github/auth': () => new Response(JSON.stringify({ ok: true }), { status: 200 }),
     })
 
