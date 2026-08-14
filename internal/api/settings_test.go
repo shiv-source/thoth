@@ -113,6 +113,10 @@ func TestSettingsSaveError(t *testing.T) {
 	if rec.Code != http.StatusInternalServerError {
 		t.Fatalf("expected 500 when save fails, got %d: %s", rec.Code, rec.Body.String())
 	}
+	// A failed save must not apply the new settings to the live config.
+	if got := d.Config.WikiPath; got != config.Default().WikiPath {
+		t.Fatalf("in-memory config mutated after failed save: wiki_path = %q", got)
+	}
 }
 
 func TestSettingsCallbackError(t *testing.T) {
@@ -127,6 +131,13 @@ func TestSettingsCallbackError(t *testing.T) {
 	e.ServeHTTP(rec, req)
 	if rec.Code != http.StatusInternalServerError {
 		t.Fatalf("expected 500 when callback fails, got %d: %s", rec.Code, rec.Body.String())
+	}
+	// A failed callback must not apply the new settings to the live config.
+	if got := d.Config.WikiPath; got != config.Default().WikiPath {
+		t.Fatalf("in-memory config mutated after failed callback: wiki_path = %q, want %q", got, config.Default().WikiPath)
+	}
+	if got := d.Config.Port; got != config.Default().Port {
+		t.Fatalf("in-memory config mutated after failed callback: port = %d", got)
 	}
 }
 

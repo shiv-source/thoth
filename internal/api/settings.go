@@ -22,7 +22,8 @@ func putSettings(c echo.Context, d Deps) error {
 	if next.Port < 1 || next.Port > 65535 {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "port must be 1-65535"})
 	}
-	*d.Config = next
+	// Persist and react to the new settings before mutating the in-memory
+	// config: a failed save or callback must leave the running config intact.
 	if d.ConfigPath != "" {
 		if err := config.Save(d.ConfigPath, next); err != nil {
 			return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
@@ -33,5 +34,6 @@ func putSettings(c echo.Context, d Deps) error {
 			return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		}
 	}
+	*d.Config = next
 	return c.JSON(http.StatusOK, next)
 }
