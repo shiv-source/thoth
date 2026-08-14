@@ -23,6 +23,8 @@ func doctorHandler(c echo.Context, d Deps) error {
 	}
 	ctx, cancel := context.WithTimeout(c.Request().Context(), doctorTimeout)
 	defer cancel()
-	checks := doctor.Run(ctx, dir, d.Log)
+	// The port check is pre-launch only: this handler runs inside the very
+	// process occupying the port, so it would always report a false positive.
+	checks := doctor.Run(ctx, dir, d.Log, doctor.SkipPort())
 	return c.JSON(http.StatusOK, map[string]any{"checks": checks})
 }

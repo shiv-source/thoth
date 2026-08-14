@@ -37,11 +37,27 @@ type Check struct {
 	Message string `json:"message"`
 }
 
+// RunOption tunes which checks Run performs.
+type RunOption func(*runOptions)
+
+type runOptions struct {
+	skipPort bool
+}
+
+// SkipPort drops the port check: the in-server doctor (GET /api/doctor) runs
+// inside the process that occupies the port, so the pre-launch port check
+// would always report a false positive there.
+func SkipPort() RunOption { return func(o *runOptions) { o.skipPort = true } }
+
 // Run probes the installation under dir ("" means ~/.thoth) and returns every
-// check, in order: config, wiki, claude, claude login, database, index, port.
-// Every check runs even when an earlier one fails. ctx bounds the claude
-// probes; log is reserved for future diagnostics.
-func Run(ctx context.Context, dir string, log *slog.Logger) []Check {
+// check, in order: config, wiki, claude, claude login, database, index, port
+// (unless skipped). Every check runs even when an earlier one fails. ctx
+// bounds the claude probes; log is reserved for future diagnostics.
+func Run(ctx context.Context, dir string, log *slog.Logger, opts ...RunOption) []Check {
+	var options runOptions
+	for _, opt := range opts {
+		opt(&options)
+	}
 	thDir := dir
 	if thDir == "" {
 		home, err := os.UserHomeDir()
@@ -76,8 +92,10 @@ func Run(ctx context.Context, dir string, log *slog.Logger) []Check {
 	// 5. index sync
 	results = append(results, checkIndex(dbPath, expanded))
 
-	// 6. port
-	results = append(results, checkPort(cfg))
+	// 6. port — pre-launch only: a running server always occupies its own.
+	if !options.skipPort {
+		results = append(results, checkPort(cfg))
+	}
 
 	return results
 }

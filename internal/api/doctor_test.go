@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"log/slog"
 	"net"
@@ -78,8 +79,22 @@ func healthyThothDir(t *testing.T) string {
 
 func TestDoctorEndpointHealthy(t *testing.T) {
 	d := testDeps(t)
-	d.ConfigPath = filepath.Join(healthyThothDir(t), "config.toml")
+	dir := healthyThothDir(t)
+	d.ConfigPath = filepath.Join(dir, "config.toml")
 	e := New(d)
+
+	// The server itself occupies the port the doctor would dial: the
+	// in-server doctor must not report it as in use (the port check is a
+	// pre-launch check only).
+	cfg, err := config.Load(d.ConfigPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ln, err := net.Listen("tcp", net.JoinHostPort("127.0.0.1", fmt.Sprintf("%d", cfg.Port)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = ln.Close() }()
 
 	req := httptest.NewRequest(http.MethodGet, "/api/doctor", nil)
 	rec := httptest.NewRecorder()
@@ -97,7 +112,7 @@ func TestDoctorEndpointHealthy(t *testing.T) {
 	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
 		t.Fatal(err)
 	}
-	want := []string{"config", "wiki", "claude", "claude login", "database", "index", "port"}
+	want := []string{"config", "wiki", "claude", "claude login", "database", "index"}
 	if len(body.Checks) != len(want) {
 		t.Fatalf("got %d checks, want %d: %+v", len(body.Checks), len(want), body.Checks)
 	}
