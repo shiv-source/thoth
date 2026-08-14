@@ -1,0 +1,64 @@
+package index
+
+import (
+	"path/filepath"
+	"strings"
+	"testing"
+	"time"
+)
+
+func TestUpsertSearchDelete(t *testing.T) {
+	ix, err := Open(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	t.Cleanup(func() { ix.Close() })
+
+	n := Note{
+		Path: "meetings/2026-08-14-standup.md", Title: "Standup", Kind: "meeting",
+		Tags: []string{"standup"}, Body: "Decided to ship the search index.",
+		UpdatedAt: time.Now(),
+	}
+	if err := ix.Upsert(n); err != nil {
+		t.Fatalf("Upsert: %v", err)
+	}
+
+	got, err := ix.Search("search index", 10)
+	if err != nil {
+		t.Fatalf("Search: %v", err)
+	}
+	if len(got) != 1 || got[0].Path != n.Path {
+		t.Fatalf("unexpected results: %+v", got)
+	}
+	if !strings.Contains(got[0].Snippet, "<mark>") {
+		t.Fatalf("snippet should mark matches: %q", got[0].Snippet)
+	}
+
+	if err := ix.Delete(n.Path); err != nil {
+		t.Fatalf("Delete: %v", err)
+	}
+	got, err = ix.Search("search index", 10)
+	if err != nil || len(got) != 0 {
+		t.Fatalf("expected empty results after delete: %v %+v", err, got)
+	}
+}
+
+func TestUpsertOverwrites(t *testing.T) {
+	ix, err := Open(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { ix.Close() })
+	n := Note{Path: "knowledge/go.md", Title: "Go", Kind: "knowledge", Body: "v1", UpdatedAt: time.Now()}
+	if err := ix.Upsert(n); err != nil {
+		t.Fatal(err)
+	}
+	n.Body = "v2 updated"
+	if err := ix.Upsert(n); err != nil {
+		t.Fatal(err)
+	}
+	got, err := ix.Search("updated", 10)
+	if err != nil || len(got) != 1 {
+		t.Fatalf("expected one result: %v %+v", err, got)
+	}
+}
