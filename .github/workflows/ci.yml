@@ -34,6 +34,7 @@ jobs:
           curl -sSL https://github.com/golangci/golangci-lint/releases/download/v2.12.2/golangci-lint-2.12.2-linux-amd64.tar.gz | tar xz -C "$HOME/.local/bin"
           ln -sf "$HOME/.local/bin/golangci-lint-2.12.2-linux-amd64/golangci-lint" "$HOME/.local/bin/golangci-lint"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          golangci-lint --version
           golangci-lint run --timeout 5m
       - name: cross-compile
         run: |
