@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { api } from '../api/client'
@@ -6,26 +6,53 @@ import { api } from '../api/client'
 export function NoteViewer({ path, onClose }: { path: string; onClose: () => void }) {
   const [content, setContent] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
+  const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     api.note(path).then((n) => setContent(n.content)).catch((e: Error) => setError(e.message))
+    setCopied(false)
+    return () => { if (copyTimer.current) clearTimeout(copyTimer.current) }
   }, [path])
 
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
+
+  const copy = async () => {
+    if (!content) return
+    try {
+      await navigator.clipboard.writeText(content)
+      setCopied(true)
+      copyTimer.current = setTimeout(() => setCopied(false), 2000)
+    } catch {
+      // Clipboard unavailable (permissions, non-secure context) — leave state untouched.
+    }
+  }
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink-900/40 p-6 backdrop-blur-sm" onClick={onClose}>
-      <div className="h-full max-h-[80vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-paper-200 bg-paper-50 p-6 shadow-2xl dark:border-night-700 dark:bg-night-950"
-        onClick={(e) => e.stopPropagation()}>
-        <div className="mb-4 flex items-center justify-between">
-          <span className="truncate font-mono text-xs text-ink-500">{path}</span>
-          <button onClick={onClose} className="rounded-lg px-2 py-1 text-sm text-ink-500 hover:bg-paper-200 dark:hover:bg-night-800">✕</button>
-        </div>
+    <aside className="fixed inset-y-0 right-0 z-40 flex w-[42rem] max-w-full animate-[slide-in-right_200ms_ease-out] flex-col border-l border-line bg-surface shadow-lg">
+      <header className="flex shrink-0 items-center justify-between gap-3 border-b border-line px-5 py-3">
+        <span className="truncate font-mono text-xs text-subtle">{path}</span>
+        <button onClick={onClose} aria-label="Close note"
+          className="rounded-lg p-1.5 text-subtle transition hover:bg-raised hover:text-ink">✕</button>
+      </header>
+      <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
         {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
         {content && (
-          <div className="prose prose-sm max-w-none prose-headings:font-display prose-headings:text-accent-700 dark:prose-invert dark:prose-headings:text-accent-500">
+          <div className="prose prose-sm max-w-none prose-headings:font-display prose-headings:text-heading prose-code:before:content-none prose-code:after:content-none prose-pre:rounded-lg dark:prose-invert">
             <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
           </div>
         )}
       </div>
-    </div>
+      <footer className="flex shrink-0 items-center justify-end border-t border-line px-5 py-3">
+        <button onClick={() => void copy()} disabled={!content}
+          className="rounded-lg border border-line px-3 py-1.5 text-xs font-medium text-ink transition hover:bg-raised disabled:cursor-not-allowed disabled:opacity-40">
+          {copied ? 'Copied' : 'Copy raw'}
+        </button>
+      </footer>
+    </aside>
   )
 }

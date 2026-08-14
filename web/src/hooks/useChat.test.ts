@@ -57,6 +57,62 @@ describe('useChat', () => {
     expect(result.current.messages.at(-1)).toEqual({ role: 'assistant', content: '⚠️ cancelled' })
     expect(result.current.streaming).toBe(false)
   })
+
+  it('tracks the tool in use and clears it when the turn ends', () => {
+    const socket = freshSocket()
+    const { result } = renderHook(() => useChat(socket))
+
+    const ws = FakeWS.instances[0]!
+    const emit = (frame: string) => act(() => ws?.onmessage?.({ data: frame }))
+
+    // The detail is raw tool-input JSON; the path it reads becomes the label.
+    emit(JSON.stringify({ type: 'tool_activity', tool: 'Read', detail: JSON.stringify({ path: 'meetings/standup.md' }) }))
+    expect(result.current.lastTool).toBe('meetings/standup.md')
+
+    emit(JSON.stringify({ type: 'turn_done' }))
+    expect(result.current.lastTool).toBeNull()
+  })
+
+  it('falls back to the tool name when the detail is not a path JSON', () => {
+    const socket = freshSocket()
+    const { result } = renderHook(() => useChat(socket))
+
+    const ws = FakeWS.instances[0]!
+    act(() => ws?.onmessage?.({ data: JSON.stringify({ type: 'tool_activity', tool: 'Bash', detail: 'not json' }) }))
+
+    expect(result.current.lastTool).toBe('Bash')
+  })
+
+  it('clears the tool on error frames', () => {
+    const socket = freshSocket()
+    const { result } = renderHook(() => useChat(socket))
+
+    const ws = FakeWS.instances[0]!
+    act(() => ws?.onmessage?.({ data: JSON.stringify({ type: 'tool_activity', tool: 'Read', detail: '{}' }) }))
+    expect(result.current.lastTool).toBe('Read')
+
+    act(() => ws?.onmessage?.({ data: JSON.stringify({ type: 'error', message: 'cancelled' }) }))
+    expect(result.current.lastTool).toBeNull()
+  })
+
+  it('reset() clears everything locally without talking to the server', () => {
+    const socket = freshSocket()
+    const { result } = renderHook(() => useChat(socket))
+
+    const ws = FakeWS.instances[0]!
+    act(() => result.current.send('hello'))
+    act(() => ws?.onmessage?.({ data: JSON.stringify({ type: 'turn_done', conversation_id: 'conv-9' }) }))
+    act(() => ws?.onmessage?.({ data: JSON.stringify({ type: 'tool_activity', tool: 'Read', detail: '{}' }) }))
+
+    act(() => result.current.reset())
+
+    expect(result.current.messages).toEqual([])
+    expect(result.current.streaming).toBe(false)
+    expect(result.current.conversationId).toBeNull()
+    expect(result.current.lastTool).toBeNull()
+    // No frames left the socket: the server creates a conversation on next send.
+    expect(ws.sent).toEqual([JSON.stringify({ type: 'send', text: 'hello' })])
+  })
 })
 
 afterAll(() => { globalThis.WebSocket = original })

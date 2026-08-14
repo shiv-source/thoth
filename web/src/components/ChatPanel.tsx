@@ -3,6 +3,8 @@ import { useChat } from '../hooks/useChat'
 import { ChatSocket, type ConnectionStatus } from '../ws/chat'
 import { Composer } from './Composer'
 import { MessageItem } from './MessageItem'
+import { SettingsModal } from './SettingsModal'
+import { TopBar } from './TopBar'
 
 function createSocket(): ChatSocket {
   const socket = new ChatSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws`)
@@ -13,7 +15,8 @@ function createSocket(): ChatSocket {
 export function ChatPanel() {
   const [socket, setSocket] = useState<ChatSocket | null>(null)
   const [status, setStatus] = useState<ConnectionStatus>('connected')
-  const { messages, streaming, send, cancel } = useChat(socket)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const { messages, streaming, lastTool, send, cancel, reset } = useChat(socket)
   const endRef = useRef<HTMLDivElement>(null)
 
   // The socket lives for the panel's lifetime: created on mount (StrictMode
@@ -30,22 +33,31 @@ export function ChatPanel() {
     endRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, streaming])
 
+  const title = messages.find((m) => m.role === 'user')?.content ?? ''
+  const displayTitle = title.length === 0
+    ? 'New conversation'
+    : title.length > 48 ? `${title.slice(0, 48).trimEnd()}…` : title
+
   return (
     <div className="flex h-full flex-col">
-      <header className="border-b border-paper-200 px-6 py-4 dark:border-night-800">
-        <h2 className="font-display text-lg font-semibold text-ink-900 dark:text-paper-100">Ask your knowledge</h2>
-        <p className="text-xs text-ink-500">Claude reads and writes your wiki through this chat</p>
-        {(status === 'reconnecting' || status === 'disconnected') && (
-          <p className="mt-1 text-xs text-accent-600 dark:text-accent-400">
-            {status === 'reconnecting' ? 'Connection lost — reconnecting…' : 'Connection lost.'}
-          </p>
-        )}
-      </header>
-      <div className="flex-1 space-y-4 overflow-y-auto px-6 py-5">
+      <TopBar title={displayTitle} onNewChat={reset} onOpenSettings={() => setSettingsOpen(true)} />
+      {status !== 'connected' && (
+        <div className="flex h-7 shrink-0 items-center gap-2 border-b border-line bg-raised px-4 text-xs text-subtle">
+          <span className="h-1.5 w-1.5 rounded-full bg-accent" aria-hidden="true" />
+          {status === 'reconnecting' ? 'Connection lost — reconnecting…' : 'Connection lost.'}
+        </div>
+      )}
+      {lastTool && (
+        <div className="flex h-7 shrink-0 items-center gap-2 border-b border-line bg-raised px-4 text-xs text-subtle">
+          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent" aria-hidden="true" />
+          Reading <code className="font-mono text-[11px]">{lastTool}</code>
+        </div>
+      )}
+      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 py-5">
         {messages.length === 0 && (
           <div className="flex h-full flex-col items-center justify-center text-center">
-            <div className="font-display text-3xl text-ink-900 dark:text-paper-100">Thoth</div>
-            <p className="mt-2 max-w-sm text-sm text-ink-500">
+            <div className="font-display text-3xl font-semibold text-heading">Thoth</div>
+            <p className="mt-2 max-w-sm text-sm text-subtle">
               Ask anything — “what did we decide in Tuesday's standup?” or
               “save this: the deploy uses port 9090”.
             </p>
@@ -57,6 +69,7 @@ export function ChatPanel() {
         <div ref={endRef} />
       </div>
       <Composer onSend={send} onCancel={cancel} streaming={streaming} />
+      {settingsOpen && <SettingsModal onClose={() => setSettingsOpen(false)} />}
     </div>
   )
 }

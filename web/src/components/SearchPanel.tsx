@@ -1,40 +1,80 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { useSearch } from '../hooks/useSearch'
-import { NoteViewer } from './NoteViewer'
 
-export function SearchPanel() {
+export function SearchPanel({ onOpen }: { onOpen: (path: string) => void }) {
   const [query, setQuery] = useState('')
-  const [open, setOpen] = useState<string | null>(null)
+  const [active, setActive] = useState(0)
   const { results, loading } = useSearch(query)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => { setActive(0) }, [results])
+
+  const open = (path: string) => {
+    onOpen(path)
+    setQuery('')
+  }
+
+  const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      setActive((a) => (results.length ? Math.min(a + 1, results.length - 1) : 0))
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setActive((a) => Math.max(a - 1, 0))
+    } else if (e.key === 'Enter') {
+      const r = results[active]
+      if (r) { e.preventDefault(); open(r.path) }
+    } else if (e.key === 'Escape') {
+      setQuery('')
+      inputRef.current?.blur()
+    }
+  }
 
   return (
-    <div className="space-y-2">
-      <input
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        placeholder="Search your wiki…"
-        className="w-full rounded-lg border border-paper-300 bg-white px-3 py-2 text-sm outline-none placeholder:text-ink-400 focus:border-accent-500 dark:border-night-700 dark:bg-night-900"
-      />
-      {loading && <p className="px-1 text-xs text-ink-500">Searching…</p>}
-      {!loading && query && results.length === 0 && (
-        <p className="px-1 text-xs text-ink-500">No notes match.</p>
+    <div>
+      <div className="relative">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"
+          className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-subtle">
+          <circle cx="7" cy="7" r="4.5" />
+          <path d="m10.5 10.5 3 3" strokeLinecap="round" />
+        </svg>
+        <input
+          ref={inputRef}
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={onKeyDown}
+          placeholder="Search your wiki…"
+          className="w-full rounded-lg border border-line bg-surface py-2 pl-8 pr-3 text-sm text-ink outline-none placeholder:text-subtle/70 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500"
+        />
+      </div>
+      {query && (
+        <div className="mt-1.5">
+          {loading && <p className="px-1 text-xs text-subtle">Searching…</p>}
+          {!loading && results.length === 0 && <p className="px-1 text-xs text-subtle">No notes match.</p>}
+          {results.length > 0 && (
+            <ul className="space-y-0.5">
+              {results.map((r, i) => (
+                <li key={r.path}>
+                  <button
+                    onClick={() => open(r.path)}
+                    onMouseEnter={() => setActive(i)}
+                    className={`w-full rounded-lg px-2 py-1.5 text-left transition ${
+                      i === active ? 'bg-accent-soft' : 'hover:bg-raised'
+                    }`}
+                  >
+                    <div className="truncate text-sm font-medium text-ink">{r.title}</div>
+                    <div className="truncate text-xs text-subtle">{r.path}</div>
+                    {/* Safe: the server escapes note text before building the
+                        snippet; only its <mark> markers survive as real tags. */}
+                    <div className="mt-0.5 line-clamp-2 text-xs text-ink/80"
+                      dangerouslySetInnerHTML={{ __html: r.snippet }} />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       )}
-      <ul className="space-y-1">
-        {results.map((r) => (
-          <li key={r.path}>
-            <button onClick={() => setOpen(r.path)}
-              className="w-full rounded-lg px-2 py-2 text-left transition hover:bg-paper-200 dark:hover:bg-night-800">
-              <div className="truncate text-sm font-medium text-ink-900 dark:text-paper-100">{r.title}</div>
-              <div className="truncate text-xs text-ink-500">{r.path}</div>
-              {/* Safe: the server escapes note text before building the
-                  snippet; only its <mark> markers survive as real tags. */}
-              <div className="mt-0.5 line-clamp-2 text-xs text-ink-700 dark:text-ink-400"
-                dangerouslySetInnerHTML={{ __html: r.snippet }} />
-            </button>
-          </li>
-        ))}
-      </ul>
-      {open && <NoteViewer path={open} onClose={() => setOpen(null)} />}
     </div>
   )
 }

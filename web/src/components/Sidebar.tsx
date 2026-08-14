@@ -1,59 +1,111 @@
 import { useEffect, useState } from 'react'
 import { api, type TreeNode } from '../api/client'
 import { SearchPanel } from './SearchPanel'
-import { SettingsPanel } from './SettingsPanel'
 
-export function Sidebar() {
+export function Sidebar({ openPath, onOpenNote }: {
+  openPath: string | null
+  onOpenNote: (path: string) => void
+}) {
   const [nodes, setNodes] = useState<TreeNode[]>([])
-  const [view, setView] = useState<'search' | 'tree' | 'settings'>('search')
 
   useEffect(() => {
     api.tree().then((r) => setNodes(r.nodes)).catch(() => setNodes([]))
   }, [])
 
   return (
-    <aside className="flex w-72 flex-col bg-paper-100 dark:bg-night-900">
-      <div className="flex items-center gap-2 border-b border-paper-200 px-5 py-4 dark:border-night-800">
-        <span className="text-xl">🦉</span>
-        <span className="font-display text-xl font-semibold text-ink-900 dark:text-paper-100">Thoth</span>
+    <aside className="flex w-72 shrink-0 flex-col border-r border-line bg-app">
+      <div className="flex h-14 shrink-0 items-center gap-2.5 px-4">
+        <span className="text-xl leading-none">🦉</span>
+        <span className="font-display text-lg font-semibold tracking-tight text-heading">Thoth</span>
+        <span className="ml-auto h-2 w-2 rounded-full bg-accent" aria-hidden="true" />
       </div>
-      <nav className="flex gap-1 px-3 py-2 text-sm">
-        {(['search', 'tree', 'settings'] as const).map((v) => (
-          <button key={v} onClick={() => setView(v)}
-            className={`rounded-lg px-3 py-1.5 capitalize transition ${view === v ? 'bg-ink-900 text-paper-100 dark:bg-paper-100 dark:text-ink-900' : 'text-ink-500 hover:text-ink-900 dark:hover:text-paper-100'}`}>
-            {v}
-          </button>
-        ))}
-      </nav>
-      <div className="flex-1 overflow-y-auto px-3 pb-3">
-        {view === 'search' && <SearchPanel />}
-        {view === 'tree' && <Tree nodes={nodes} />}
-        {view === 'settings' && <SettingsPanel />}
+      <div className="px-3">
+        <SearchPanel onOpen={onOpenNote} />
+      </div>
+      <div className="px-3 pb-1.5 pt-5 text-[11px] font-semibold uppercase tracking-wider text-subtle">
+        Wiki
+      </div>
+      <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-3">
+        {nodes.length === 0 ? (
+          <p className="px-1 text-sm text-subtle">No notes yet — your wiki is empty.</p>
+        ) : (
+          <Tree nodes={nodes} openPath={openPath} onOpen={onOpenNote} />
+        )}
       </div>
     </aside>
   )
 }
 
-function Tree({ nodes }: { nodes: TreeNode[] }) {
+function Tree({ nodes, openPath, onOpen }: {
+  nodes: TreeNode[]
+  openPath: string | null
+  onOpen: (path: string) => void
+}) {
   return (
-    <ul className="space-y-0.5 text-sm">
+    <ul className="space-y-px text-sm">
       {nodes.map((n) => (
-        <li key={n.path}>
-          <div className="flex items-center gap-1.5 rounded-md px-2 py-1 text-ink-700 hover:bg-paper-200 dark:text-paper-100 dark:hover:bg-night-800">
-            <span className="text-xs">{n.is_dir ? '▸' : '·'}</span>
-            <span className="truncate">{n.name}</span>
-          </div>
-          {n.children && n.children.length > 0 && (
-            <ul className="ml-4 border-l border-paper-300 pl-2 dark:border-night-700">
-              {n.children.map((c) => (
-                <li key={c.path} className="truncate rounded-md px-2 py-0.5 text-ink-500 hover:bg-paper-200 dark:hover:bg-night-800">
-                  {c.name}
-                </li>
-              ))}
-            </ul>
-          )}
-        </li>
+        <TreeRow key={n.path} node={n} depth={0} openPath={openPath} onOpen={onOpen} />
       ))}
     </ul>
+  )
+}
+
+function TreeRow({ node, depth, openPath, onOpen }: {
+  node: TreeNode
+  depth: number
+  openPath: string | null
+  onOpen: (path: string) => void
+}) {
+  const [expanded, setExpanded] = useState(node.is_dir && depth === 0)
+
+  if (node.is_dir) {
+    return (
+      <li>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => setExpanded((e) => !e)}
+            aria-label={`${expanded ? 'Collapse' : 'Expand'} ${node.name}`}
+            className="flex h-6 w-5 shrink-0 items-center justify-center rounded text-[10px] text-subtle transition hover:text-ink"
+          >
+            {expanded ? '▾' : '▸'}
+          </button>
+          <span className="truncate py-1 pr-1 font-medium text-ink">{node.name}</span>
+        </div>
+        {expanded && node.children && node.children.length > 0 && (
+          <ul className="ml-2 border-l border-line pl-2">
+            {node.children.map((c) => (
+              <TreeRow key={c.path} node={c} depth={depth + 1} openPath={openPath} onOpen={onOpen} />
+            ))}
+          </ul>
+        )}
+      </li>
+    )
+  }
+
+  const active = openPath === node.path
+  return (
+    <li>
+      <button
+        onClick={() => onOpen(node.path)}
+        className={`flex w-full items-center gap-1.5 rounded-md px-2 py-1 text-left transition ${
+          active ? 'bg-accent-soft font-medium text-accent' : 'text-ink hover:bg-raised'
+        }`}
+      >
+        <span className="flex w-5 shrink-0 items-center justify-center">
+          <DocIcon className={active ? 'text-accent' : 'text-subtle'} />
+        </span>
+        <span className="truncate">{node.name}</span>
+      </button>
+    </li>
+  )
+}
+
+function DocIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3" aria-hidden="true"
+      className={`h-3.5 w-3.5 shrink-0 ${className ?? ''}`}>
+      <path d="M4 1.8h5.2L12 4.6v9.6H4z" strokeLinejoin="round" />
+      <path d="M9.2 1.8v2.8H12" strokeLinejoin="round" />
+    </svg>
   )
 }

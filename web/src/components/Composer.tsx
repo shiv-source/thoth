@@ -18,23 +18,23 @@ export function Composer({ onSend, onCancel, streaming }: {
   }
 
   return (
-    <form onSubmit={submit} className="flex items-end gap-2 border-t border-paper-200 bg-paper-50 p-4 dark:border-night-800 dark:bg-night-950">
+    <form onSubmit={submit} className="flex shrink-0 items-end gap-2 border-t border-line bg-app px-4 py-4">
       <textarea
         value={text}
         onChange={(e) => setText(e.target.value)}
         onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit(e) } }}
         rows={2}
         placeholder="Ask your wiki anything — or tell Thoth to save something…"
-        className="flex-1 resize-none rounded-xl border border-paper-300 bg-white px-4 py-3 text-sm outline-none placeholder:text-ink-400 focus:border-accent-500 focus:ring-2 focus:ring-accent-100 dark:border-night-700 dark:bg-night-900 dark:placeholder:text-ink-500 dark:focus:ring-accent-700/20"
+        className="flex-1 resize-none rounded-xl border border-line bg-surface px-4 py-3 text-sm text-ink outline-none placeholder:text-subtle focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500"
       />
       {streaming ? (
         <button type="button" onClick={onCancel}
-          className="rounded-xl bg-accent-600 px-4 py-3 text-sm font-medium text-white transition hover:bg-accent-700">
+          className="shrink-0 rounded-xl border border-line px-4 py-3 text-sm font-medium text-ink transition hover:bg-raised">
           Stop
         </button>
       ) : (
         <button type="submit" disabled={!text.trim()}
-          className="rounded-xl bg-accent-600 px-4 py-3 text-sm font-medium text-white transition hover:bg-accent-700 disabled:cursor-not-allowed disabled:opacity-40">
+          className="shrink-0 rounded-xl bg-accent px-4 py-3 text-sm font-medium text-accent-ink transition hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-40">
           Send
         </button>
       )}

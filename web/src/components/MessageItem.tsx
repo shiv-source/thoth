@@ -9,16 +9,16 @@ export function MessageItem({ message, streaming }: { message: ChatMessage; stre
       <div
         className={
           isUser
-            ? 'max-w-[80%] rounded-2xl rounded-br-sm bg-ink-900 px-4 py-2.5 text-paper-100 dark:bg-paper-100 dark:text-ink-900'
-            : 'max-w-[85%] rounded-2xl rounded-bl-sm border border-paper-200 bg-paper-100 px-4 py-2.5 dark:border-night-700 dark:bg-night-900'
+            ? 'max-w-[80%] rounded-xl rounded-br-sm bg-accent px-4 py-2.5 text-accent-ink'
+            : 'max-w-[85%] rounded-xl rounded-bl-sm border border-line bg-surface px-4 py-2.5'
         }
       >
         {isUser ? (
           <p className="whitespace-pre-wrap text-sm leading-relaxed">{message.content}</p>
         ) : (
-          <div className="prose-sm max-w-none prose-headings:font-display prose-headings:text-accent-700 dark:prose-invert dark:prose-headings:text-accent-500">
+          <div className="prose prose-sm max-w-none prose-headings:font-display prose-headings:text-heading prose-code:before:content-none prose-code:after:content-none prose-pre:rounded-lg dark:prose-invert">
             <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
-            {streaming && <span className="ml-0.5 inline-block h-4 w-1.5 animate-pulse rounded bg-accent-600 align-text-bottom" />}
+            {streaming && <span className="ml-0.5 inline-block h-4 w-1.5 animate-pulse rounded bg-accent align-text-bottom" />}
           </div>
         )}
       </div>

@@ -1,13 +1,18 @@
+import { useState } from 'react'
 import { Sidebar } from './components/Sidebar'
 import { ChatPanel } from './components/ChatPanel'
+import { NoteViewer } from './components/NoteViewer'
 
 export default function App() {
+  const [openNote, setOpenNote] = useState<string | null>(null)
+
   return (
-    <div className="flex h-screen bg-paper-50 text-ink-900 dark:bg-night-950 dark:text-paper-100 font-sans">
-      <Sidebar />
-      <main className="flex-1 flex flex-col min-w-0 border-l border-paper-200 dark:border-night-800">
+    <div className="flex h-screen bg-app font-sans text-ink">
+      <Sidebar openPath={openNote} onOpenNote={setOpenNote} />
+      <main className="flex min-w-0 flex-1 flex-col">
         <ChatPanel />
       </main>
+      {openNote && <NoteViewer path={openNote} onClose={() => setOpenNote(null)} />}
     </div>
   )
 }

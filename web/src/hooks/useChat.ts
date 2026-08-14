@@ -7,6 +7,7 @@ export function useChat(socket: ChatSocket | null) {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [streaming, setStreaming] = useState(false)
   const [conversationId, setConversationId] = useState<string | null>(null)
+  const [lastTool, setLastTool] = useState<string | null>(null)
   const messagesRef = useRef<ChatMessage[]>([])
   const streamingRef = useRef(false)
   const conversationIdRef = useRef<string | null>(null)
@@ -50,6 +51,11 @@ export function useChat(socket: ChatSocket | null) {
       case 'assistant_delta':
         appendAssistant(m.text)
         break
+      case 'tool_activity':
+        // The detail carries the raw tool-input JSON; surface the path it
+        // reads/writes (e.g. "meetings/…") and fall back to the tool name.
+        setLastTool(toolLabel(m.tool, m.detail))
+        break
       case 'turn_done':
         // The server sends the conversation id on every finished turn; keep
         // it so a reconnect can resume this conversation.
@@ -59,6 +65,7 @@ export function useChat(socket: ChatSocket | null) {
         }
         streamingRef.current = false
         setStreaming(false)
+        setLastTool(null)
         break
       case 'error':
         // Surface cancelled/crash feedback as a visible assistant message so
@@ -66,15 +73,40 @@ export function useChat(socket: ChatSocket | null) {
         push({ role: 'assistant', content: `⚠️ ${m.message}` })
         streamingRef.current = false
         setStreaming(false)
+        setLastTool(null)
         break
       default:
         break
     }
   }, [appendAssistant, push])
 
+  const reset = useCallback(() => {
+    // Local only — no frame goes to the server; it creates a fresh
+    // conversation on the next send anyway.
+    messagesRef.current = []
+    setMessages([])
+    streamingRef.current = false
+    setStreaming(false)
+    conversationIdRef.current = null
+    setConversationId(null)
+    setLastTool(null)
+  }, [])
+
   useEffect(() => {
     if (socket) socket.onMessage(handle)
   }, [socket, handle])
 
-  return { messages, streaming, conversationId, send, cancel }
+  return { messages, streaming, conversationId, lastTool, send, cancel, reset }
+}
+
+/** Pick the label for the tool status line: a path from the input JSON when
+ *  present, otherwise the tool name itself. */
+function toolLabel(tool: string, detail: string): string {
+  try {
+    const input = JSON.parse(detail) as { path?: unknown }
+    if (typeof input.path === 'string' && input.path) return input.path
+  } catch {
+    // detail is not JSON — fall through to the tool name
+  }
+  return tool
 }
