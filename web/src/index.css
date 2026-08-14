@@ -1,0 +1,34 @@
+@import "tailwindcss";
+@import "@fontsource-variable/fraunces";
+
+@theme {
+  --font-display: "Fraunces Variable", Georgia, serif;
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  /* Light — warm paper */
+  --color-paper-50: #fbf8f1;
+  --color-paper-100: #f5efe2;
+  --color-paper-200: #e9ddc4;
+  --color-paper-300: #d9c8a4;
+
+  /* Ink (text on light) */
+  --color-ink-900: #1c1917;
+  --color-ink-700: #44403c;
+  --color-ink-500: #78716c;
+  --color-ink-400: #a8a29e;
+
+  /* Accent — amber (the moon god's gold) */
+  --color-accent-700: #b45309;
+  --color-accent-600: #d97706;
+  --color-accent-500: #f59e0b;
+  --color-accent-100: #fef3c7;
+
+  /* Dark — deep night */
+  --color-night-950: #12100e;
+  --color-night-900: #1c1917;
+  --color-night-800: #292524;
+  --color-night-700: #44403c;
+}
+
+html, body, #root { height: 100%; }
+body { @apply antialiased; }
