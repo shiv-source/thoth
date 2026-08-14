@@ -55,33 +55,22 @@ func newID() (string, error) {
 	return u.String(), nil
 }
 
-// EnsureMetadata seeds one-time app metadata — installation_id (a v4 UUID
-// identifying this installation) and created_at — and is a no-op once they
-// exist, so every boot may call it.
+// EnsureMetadata seeds the single app_metadata row on first boot — a v4
+// installation_id and the UTC created_at — and is a no-op afterwards, so
+// every boot may call it. The INSERT OR IGNORE with id = 1 is the atomic
+// "create if absent": the CHECK (id = 1) constraint keeps the table to one
+// row.
 func (s *Store) EnsureMetadata() error {
-	tx, err := s.db.Begin()
+	id, err := newID()
 	if err != nil {
-		return fmt.Errorf("begin metadata: %w", err)
+		return err
 	}
-	defer func() { _ = tx.Rollback() }() // no-op after Commit
-	var n int
-	if err := tx.QueryRow(`SELECT COUNT(*) FROM app_metadata WHERE key = 'installation_id'`).Scan(&n); err != nil {
-		return fmt.Errorf("check installation_id: %w", err)
+	if _, err := s.db.Exec(
+		`INSERT OR IGNORE INTO app_metadata(id, installation_id, created_at) VALUES (1, ?, ?)`,
+		id, time.Now().UTC().Format(time.RFC3339)); err != nil {
+		return fmt.Errorf("seed metadata: %w", err)
 	}
-	if n == 0 {
-		id, err := newID()
-		if err != nil {
-			return err
-		}
-		if _, err := tx.Exec(`INSERT INTO app_metadata(key, value) VALUES ('installation_id', ?)`, id); err != nil {
-			return fmt.Errorf("store installation_id: %w", err)
-		}
-		if _, err := tx.Exec(`INSERT INTO app_metadata(key, value) VALUES ('created_at', ?)`,
-			time.Now().UTC().Format(time.RFC3339)); err != nil {
-			return fmt.Errorf("store created_at: %w", err)
-		}
-	}
-	return tx.Commit()
+	return nil
 }
 
 func (s *Store) CreateConversation(title string) (string, error) {

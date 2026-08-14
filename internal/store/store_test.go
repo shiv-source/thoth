@@ -195,47 +195,37 @@ func TestEnsureMetadataSeedsOnce(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = s.Close() })
 
-	read := func() map[string]string {
+	read := func() (string, string) {
 		t.Helper()
-		rows, err := s.db.Query(`SELECT key, value FROM app_metadata`)
-		if err != nil {
+		var id, created string
+		if err := s.db.QueryRow(`SELECT installation_id, created_at FROM app_metadata`).Scan(&id, &created); err != nil {
 			t.Fatal(err)
 		}
-		defer func() { _ = rows.Close() }()
-		m := map[string]string{}
-		for rows.Next() {
-			var k, v string
-			if err := rows.Scan(&k, &v); err != nil {
-				t.Fatal(err)
-			}
-			m[k] = v
-		}
-		if err := rows.Err(); err != nil {
-			t.Fatal(err)
-		}
-		return m
+		return id, created
 	}
 
 	if err := s.EnsureMetadata(); err != nil {
 		t.Fatalf("EnsureMetadata: %v", err)
 	}
-	m := read()
-	if len(m) != 2 {
-		t.Fatalf("metadata = %v, want installation_id + created_at", m)
-	}
-	u, err := uuid.Parse(m["installation_id"])
+	id, created := read()
+	u, err := uuid.Parse(id)
 	if err != nil || u.Version() != 4 || u.Variant() != uuid.RFC4122 {
-		t.Fatalf("installation_id %q is not a valid v4 UUID", m["installation_id"])
+		t.Fatalf("installation_id %q is not a valid v4 UUID", id)
 	}
-	if !strings.HasSuffix(m["created_at"], "Z") {
-		t.Fatalf("created_at %q not UTC", m["created_at"])
+	if !strings.HasSuffix(created, "Z") {
+		t.Fatalf("created_at %q not UTC", created)
 	}
 
 	// A second call must not reseed; reopening must keep the same values.
 	if err := s.EnsureMetadata(); err != nil {
 		t.Fatal(err)
 	}
-	if again := read(); again["installation_id"] != m["installation_id"] || again["created_at"] != m["created_at"] {
-		t.Fatalf("metadata changed on second call: %v -> %v", m, again)
+	if againID, againCreated := read(); againID != id || againCreated != created {
+		t.Fatalf("metadata changed on second call: %q/%q -> %q/%q", id, created, againID, againCreated)
+	}
+
+	// The CHECK (id = 1) constraint keeps the table to one row.
+	if _, err := s.db.Exec(`INSERT INTO app_metadata(id, installation_id, created_at) VALUES (2, 'x', 'y')`); err == nil {
+		t.Fatal("second app_metadata row must violate the id = 1 constraint")
 	}
 }
