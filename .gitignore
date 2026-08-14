@@ -10,3 +10,5 @@ coverage.out
 docs/superpowers/
 .superpowers/
 internal/webui/dist/
+/thoth
+/thoth.exe
