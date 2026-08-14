@@ -49,6 +49,48 @@ func TestUpsertSearchDelete(t *testing.T) {
 	}
 }
 
+func TestDeletePrefixRemovesSubtree(t *testing.T) {
+	ix, err := Open(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { ix.Close() })
+	now := time.Now()
+	notes := []Note{
+		{Path: "projects/doomed/a.md", Title: "A", Kind: "project", Body: "doomed alpha", UpdatedAt: now},
+		{Path: "projects/doomed/sub/b.md", Title: "B", Kind: "project", Body: "doomed beta", UpdatedAt: now},
+		{Path: "projects/kept.md", Title: "Kept", Kind: "project", Body: "stays", UpdatedAt: now},
+	}
+	for _, n := range notes {
+		if err := ix.Upsert(n); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err := ix.DeletePrefix("projects/doomed"); err != nil {
+		t.Fatalf("DeletePrefix: %v", err)
+	}
+
+	// The whole subtree is gone, including nested directories...
+	got, err := ix.Search("doomed", 10)
+	if err != nil || len(got) != 0 {
+		t.Fatalf("expected no results after DeletePrefix: %v %+v", err, got)
+	}
+	// ...while the sibling path and the prefix path itself survive.
+	got, err = ix.Search("stays", 10)
+	if err != nil || len(got) != 1 || got[0].Path != "projects/kept.md" {
+		t.Fatalf("expected kept note to survive: %v %+v", err, got)
+	}
+	// DeletePrefix on a file path removes exactly that file (prefix match
+	// only), not the whole tree.
+	if err := ix.DeletePrefix("projects/kept.md"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ix.Search("stays", 10); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestUpsertOverwrites(t *testing.T) {
 	ix, err := Open(filepath.Join(t.TempDir(), "test.db"))
 	if err != nil {
@@ -132,6 +174,9 @@ func TestClosedIndexErrors(t *testing.T) {
 	}
 	if err := ix.Delete("x.md"); err == nil {
 		t.Fatal("Delete on closed index must error")
+	}
+	if err := ix.DeletePrefix("x"); err == nil {
+		t.Fatal("DeletePrefix on closed index must error")
 	}
 	if _, err := ix.Search("x", 10); err == nil {
 		t.Fatal("Search on closed index must error")

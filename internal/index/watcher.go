@@ -60,7 +60,15 @@ func Watch(ctx context.Context, root string, ix *Index, log *slog.Logger) error 
 			if err != nil {
 				return err
 			}
-			if d.IsDir() || filepath.Ext(q) != ".md" {
+			// Watch every directory in the new tree, not just the top one,
+			// or notes created later inside nested subdirs stay invisible.
+			if d.IsDir() {
+				if err := w.Add(q); err != nil {
+					log.Warn("index: cannot watch nested directory", "path", q, "err", err)
+				}
+				return nil
+			}
+			if filepath.Ext(q) != ".md" {
 				return nil
 			}
 			apply(ix, root, q, log)
@@ -97,6 +105,18 @@ func Watch(ctx context.Context, root string, ix *Index, log *slog.Logger) error 
 
 func apply(ix *Index, root, p string, log *slog.Logger) {
 	if filepath.Ext(p) != ".md" {
+		// Removing a directory delivers no per-file events, so a path that
+		// no longer exists and is not a note is a removed subtree: clear it
+		// from the index in one go.
+		if _, err := os.Stat(p); err != nil {
+			rel, rerr := filepath.Rel(root, p)
+			if rerr != nil {
+				return
+			}
+			if err := ix.DeletePrefix(filepath.ToSlash(rel)); err != nil {
+				log.Warn("index: delete prefix failed", "path", p, "err", err)
+			}
+		}
 		return
 	}
 	b, err := os.ReadFile(p)

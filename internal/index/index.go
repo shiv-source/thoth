@@ -102,6 +102,16 @@ func (ix *Index) Delete(path string) error {
 	return nil
 }
 
+// DeletePrefix removes the note at prefix and every note stored under it.
+// Removing a directory delivers no per-file events, so the watcher uses this
+// to clear a whole subtree at once.
+func (ix *Index) DeletePrefix(prefix string) error {
+	if _, err := ix.db.Exec(`DELETE FROM notes WHERE path = ? OR path LIKE ?`, prefix, prefix+"/%"); err != nil {
+		return fmt.Errorf("index delete prefix %s: %w", prefix, err)
+	}
+	return nil
+}
+
 func (ix *Index) Search(q string, limit int) ([]Result, error) {
 	rows, err := ix.db.Query(`
 		SELECT n.path, n.title, n.kind,
