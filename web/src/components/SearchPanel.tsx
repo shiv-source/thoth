@@ -26,6 +26,8 @@ export function SearchPanel() {
               className="w-full rounded-lg px-2 py-2 text-left transition hover:bg-paper-200 dark:hover:bg-night-800">
               <div className="truncate text-sm font-medium text-ink-900 dark:text-paper-100">{r.title}</div>
               <div className="truncate text-xs text-ink-500">{r.path}</div>
+              {/* Safe: the server escapes note text before building the
+                  snippet; only its <mark> markers survive as real tags. */}
               <div className="mt-0.5 line-clamp-2 text-xs text-ink-700 dark:text-ink-400"
                 dangerouslySetInnerHTML={{ __html: r.snippet }} />
             </button>

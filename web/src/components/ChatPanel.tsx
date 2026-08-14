@@ -1,6 +1,6 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useChat } from '../hooks/useChat'
-import { ChatSocket } from '../ws/chat'
+import { ChatSocket, type ConnectionStatus } from '../ws/chat'
 import { Composer } from './Composer'
 import { MessageItem } from './MessageItem'
 
@@ -11,10 +11,20 @@ function createSocket(): ChatSocket {
 }
 
 export function ChatPanel() {
-  const socketRef = useRef<ChatSocket | null>(null)
-  const socket = socketRef.current ?? (socketRef.current = createSocket())
+  const [socket, setSocket] = useState<ChatSocket | null>(null)
+  const [status, setStatus] = useState<ConnectionStatus>('connected')
   const { messages, streaming, send, cancel } = useChat(socket)
   const endRef = useRef<HTMLDivElement>(null)
+
+  // The socket lives for the panel's lifetime: created on mount (StrictMode
+  // remounts close the first one), closed on unmount so no orphan connection
+  // or reconnect timer outlives the panel.
+  useEffect(() => {
+    const s = createSocket()
+    s.onStatusChange(setStatus)
+    setSocket(s)
+    return () => s.close()
+  }, [])
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -25,6 +35,11 @@ export function ChatPanel() {
       <header className="border-b border-paper-200 px-6 py-4 dark:border-night-800">
         <h2 className="font-display text-lg font-semibold text-ink-900 dark:text-paper-100">Ask your knowledge</h2>
         <p className="text-xs text-ink-500">Claude reads and writes your wiki through this chat</p>
+        {(status === 'reconnecting' || status === 'disconnected') && (
+          <p className="mt-1 text-xs text-accent-600 dark:text-accent-400">
+            {status === 'reconnecting' ? 'Connection lost — reconnecting…' : 'Connection lost.'}
+          </p>
+        )}
       </header>
       <div className="flex-1 space-y-4 overflow-y-auto px-6 py-5">
         {messages.length === 0 && (

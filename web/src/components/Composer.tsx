@@ -10,7 +10,9 @@ export function Composer({ onSend, onCancel, streaming }: {
   const submit = (e: FormEvent) => {
     e.preventDefault()
     const t = text.trim()
-    if (!t || streaming) return
+    if (!t) return
+    // Sending while a turn streams is allowed: the server cancels the
+    // in-flight turn and starts the new one (supersede).
     setText('')
     onSend(t)
   }

@@ -1,10 +1,12 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ChatSocket } from './chat'
 import { FakeWS } from '../test/fakeWS'
 
 vi.stubGlobal('WebSocket', FakeWS)
 
 describe('ChatSocket', () => {
+  afterEach(() => { FakeWS.instances = [] })
+
   it('sends typed frames and forwards parsed messages', () => {
     const socket = new ChatSocket('ws://x/ws')
     socket.connect()
@@ -19,5 +21,57 @@ describe('ChatSocket', () => {
 
     ws.onmessage!({ data: JSON.stringify({ type: 'assistant_delta', text: 'hi' }) })
     expect(received).toEqual([{ type: 'assistant_delta', text: 'hi' }])
+  })
+
+  it('reconnects once after a drop and resumes the conversation', () => {
+    vi.useFakeTimers()
+    try {
+      const socket = new ChatSocket('ws://x/ws')
+      const statuses: string[] = []
+      socket.onStatusChange((s) => statuses.push(s))
+      socket.connect()
+      socket.onMessage(() => {})
+
+      // The first turn finishes and tells us the conversation id.
+      FakeWS.instances[0]!.onmessage!({ data: JSON.stringify({ type: 'turn_done', conversation_id: 'conv-1' }) })
+
+      FakeWS.instances[0]!.onclose!()
+      expect(statuses).toContain('reconnecting')
+
+      vi.advanceTimersByTime(1000)
+      expect(FakeWS.instances).toHaveLength(2)
+      // The reconnect re-opens the socket and resumes the conversation.
+      expect(FakeWS.instances[1]!.sent).toEqual([JSON.stringify({ type: 'resume', conversation_id: 'conv-1' })])
+
+      // A second drop stays disconnected: exactly one retry.
+      FakeWS.instances[1]!.onclose!()
+      expect(FakeWS.instances).toHaveLength(2)
+      expect(statuses).toContain('disconnected')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('does not reconnect after close()', () => {
+    vi.useFakeTimers()
+    try {
+      const socket = new ChatSocket('ws://x/ws')
+      socket.connect()
+      socket.close()
+      FakeWS.instances[0]!.onclose!()
+      vi.advanceTimersByTime(1000)
+      expect(FakeWS.instances).toHaveLength(1)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('reports connected on open', () => {
+    const socket = new ChatSocket('ws://x/ws')
+    const statuses: string[] = []
+    socket.onStatusChange((s) => statuses.push(s))
+    socket.connect()
+    FakeWS.instances[0]!.onopen!()
+    expect(statuses).toEqual(['connected'])
   })
 })

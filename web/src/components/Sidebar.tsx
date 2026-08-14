@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api, type TreeNode } from '../api/client'
+import { SearchPanel } from './SearchPanel'
+import { SettingsPanel } from './SettingsPanel'
 
 export function Sidebar() {
   const [nodes, setNodes] = useState<TreeNode[]>([])
@@ -55,6 +57,3 @@ function Tree({ nodes }: { nodes: TreeNode[] }) {
     </ul>
   )
 }
-
-import { SearchPanel } from './SearchPanel'
-import { SettingsPanel } from './SettingsPanel'
