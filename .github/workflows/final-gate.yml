@@ -9,6 +9,7 @@ on:
 
 permissions:
   actions: read
+  pull-requests: write
 
 jobs:
   # Single required check for branch protection: runs regardless of the
@@ -37,4 +38,20 @@ jobs:
           echo "| Job | Result |" >> "$GITHUB_STEP_SUMMARY"
           echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
           echo "$jobs" | jq -r '.[] | . as $j | "| \($j.name) | \((if $j.conclusion == "success" then "✅ success" elif $j.conclusion == "failure" then "❌ failure" elif $j.conclusion == "cancelled" then "🚫 cancelled" elif $j.conclusion == "skipped" then "⏭️ skipped" else "⏳ \($j.conclusion // "in progress")" end)) |"' >> "$GITHUB_STEP_SUMMARY"
+
+          # On PR-triggered runs, mirror the report onto the PR: create or
+          # update the bot's marker-tagged comment instead of stacking a new
+          # comment per run.
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            marker='<!-- thoth-ci-report -->'
+            body=$(printf '%s\n\n' "$marker"; cat "$GITHUB_STEP_SUMMARY")
+            pr="${{ github.event.pull_request.number }}"
+            existing=$(gh api "repos/${{ github.repository }}/issues/$pr/comments" \
+              --jq '.[] | select(.body | contains("<!-- thoth-ci-report -->")) | .id' | head -1)
+            if [ -n "$existing" ]; then
+              gh api --method PATCH "repos/${{ github.repository }}/issues/comments/$existing" -f body="$body" > /dev/null
+            else
+              gh api "repos/${{ github.repository }}/issues/$pr/comments" -f body="$body" > /dev/null
+            fi
+          fi
           test "$failed" -eq 0
