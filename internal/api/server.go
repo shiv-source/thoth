@@ -39,7 +39,9 @@ func New(d Deps) *echo.Echo {
 	e.GET("/api/conversations", func(c echo.Context) error { return listConversations(c, d) })
 	e.POST("/api/conversations", func(c echo.Context) error { return createConversation(c, d) })
 	e.GET("/api/conversations/:id", func(c echo.Context) error { return getConversation(c, d) })
-	// (/ws arrives in Task 13)
+
+	hub := NewHub(d.Claude, d.Store, d.Log)
+	e.GET("/ws", hub.chat)
 
 	webui.Register(e, d.Log)
 	return e

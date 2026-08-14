@@ -66,7 +66,10 @@ func newID() (string, error) {
 	if _, err := rand.Read(b); err != nil {
 		return "", fmt.Errorf("generate id: %w", err)
 	}
-	return hex.EncodeToString(b), nil
+	// UUID shape (8-4-4-4-12): the claude CLI rejects --session-id values
+	// that are not valid UUIDs.
+	hex := hex.EncodeToString(b)
+	return hex[0:8] + "-" + hex[8:12] + "-" + hex[12:16] + "-" + hex[16:20] + "-" + hex[20:32], nil
 }
 
 func (s *Store) CreateConversation(title string) (string, error) {
