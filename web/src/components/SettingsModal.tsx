@@ -63,7 +63,7 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
       onClick={onClose}>
       <div role="dialog" aria-modal="true" aria-label="Settings"
         onClick={(e) => e.stopPropagation()}
-        className="flex h-[36rem] max-h-full w-[36rem] max-w-full animate-[pop-in_150ms_ease-out] flex-col rounded-xl border border-line bg-surface shadow-lg">
+        className="flex h-[36rem] max-h-full w-[48rem] max-w-full animate-[pop-in_150ms_ease-out] flex-col rounded-xl border border-line bg-surface shadow-lg">
         <header className="shrink-0 border-b border-line px-5 pt-4">
           <div className="flex items-center justify-between">
             <h2 className="font-display text-lg font-semibold text-heading">Settings</h2>
@@ -227,7 +227,7 @@ function GitTab({ form, set, save }: {
         repo if needed, commits the current tree, and pushes the branch.
       </p>
       {gitError && <p className="text-sm text-red-600 dark:text-red-400">{gitError}</p>}
-      <div className="flex items-center gap-3 border-t border-line pt-4">
+      <div className="flex items-center justify-end gap-3 border-t border-line pt-4">
         <button onClick={() => void save()}
           className="rounded-lg border border-line px-4 py-2 text-sm font-medium text-ink transition hover:bg-raised">
           Save

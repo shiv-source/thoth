@@ -35,7 +35,7 @@ describe('SettingsModal', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(settings), { status: 200 })))
     renderModal()
     const dialog = await screen.findByRole('dialog')
-    expect(dialog).toHaveClass('h-[36rem]', 'w-[36rem]')
+    expect(dialog).toHaveClass('h-[36rem]', 'w-[48rem]')
     vi.unstubAllGlobals()
   })
 
