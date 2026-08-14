@@ -1,9 +1,13 @@
 package main
 
-import "fmt"
-
-var version = "dev"
+import (
+	"fmt"
+	"os"
+)
 
 func main() {
-	fmt.Println("thoth", version)
+	if err := newRootCmd().Execute(); err != nil {
+		fmt.Fprintln(os.Stderr, "thoth:", err)
+		os.Exit(1)
+	}
 }

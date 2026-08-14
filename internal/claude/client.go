@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os/exec"
+	"syscall"
 )
 
 // Client starts a Claude turn for a conversation and streams parsed events.
@@ -49,6 +50,18 @@ func (c *CLIClient) args(sessionID, prompt string) []string {
 func (c *CLIClient) Start(ctx context.Context, sessionID, prompt string, w EventWriter) error {
 	cmd := exec.CommandContext(ctx, c.Bin, c.args(sessionID, prompt)...)
 	cmd.Dir = c.Dir
+	// Put the CLI in its own process group and kill the whole group on cancel:
+	// the CLI may spawn children that inherit stdout, and the stream reader
+	// below only sees EOF once every writer closes. Killing just the direct
+	// child can leave a grandchild holding the pipe open (seen with sh forking
+	// `sleep` on macOS), hanging Start until the child exits on its own.
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	cmd.Cancel = func() error {
+		if cmd.Process == nil {
+			return nil
+		}
+		return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+	}
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
@@ -79,6 +92,7 @@ func (c *CLIClient) Start(ctx context.Context, sessionID, prompt string, w Event
 		streamDone <- sc.Err()
 	}()
 
+	streamErr := <-streamDone
 	waitErr := cmd.Wait()
 	if ctx.Err() != nil {
 		return ctx.Err() // cancelled: that is not a failure of the CLI
@@ -86,8 +100,8 @@ func (c *CLIClient) Start(ctx context.Context, sessionID, prompt string, w Event
 	if waitErr != nil {
 		return fmt.Errorf("claude exited: %w", waitErr)
 	}
-	if err := <-streamDone; err != nil {
-		return fmt.Errorf("claude stream: %w", err)
+	if streamErr != nil {
+		return fmt.Errorf("claude stream: %w", streamErr)
 	}
 	return nil
 }
