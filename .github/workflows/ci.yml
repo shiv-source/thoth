@@ -74,7 +74,7 @@ jobs:
         run: |
           GOOS=windows GOARCH=amd64 go build -o /tmp/thoth-windows-amd64.exe ./cmd/thoth
 
-  frontend:
+  frontend-test:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     defaults:
@@ -82,18 +82,41 @@ jobs:
         working-directory: web
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: latest
-      - uses: actions/setup-node@v4
-        with:
-          node-version: lts/*
-          cache: pnpm
-          cache-dependency-path: web/pnpm-lock.yaml
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm exec tsc --noEmit
-      - run: pnpm run lint
+      - uses: ./.github/actions/setup-web
       - run: pnpm exec vitest run
+
+  frontend-lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-web
+      - run: pnpm run lint
+
+  frontend-typecheck:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-web
+      - run: pnpm exec tsc --noEmit
+
+  frontend-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [frontend-test, frontend-lint, frontend-typecheck]
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-web
       - run: pnpm run build
 
   # Single required check for branch protection: runs regardless of the
@@ -104,7 +127,7 @@ jobs:
     timeout-minutes: 10
     permissions:
       actions: read
-    needs: [backend-test, backend-lint, build-linux, build-darwin, build-windows, frontend]
+    needs: [backend-test, backend-lint, build-linux, build-darwin, build-windows, frontend-test, frontend-lint, frontend-typecheck, frontend-build]
     if: always()
     steps:
       - name: summary + gate
@@ -113,7 +136,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           jobs=$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs" \
-            --jq '[.jobs[] | {name: .name, conclusion: .conclusion}]')
+            --jq '[.jobs[] | select(.name != "${{ github.job }}") | {name: .name, conclusion: .conclusion}]')
           failed=$(echo "$jobs" | jq '[.[] | select(.conclusion != "success")] | length')
           if [ "$failed" -gt 0 ]; then
             echo "## CI failed ❌" >> "$GITHUB_STEP_SUMMARY"
