@@ -5,6 +5,8 @@ on:
 
 permissions:
   contents: read
+  actions: read
+  pull-requests: write
 
 jobs:
   # All quality gates, shared verbatim with the PR workflow.

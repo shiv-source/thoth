@@ -5,6 +5,8 @@ on:
 
 permissions:
   contents: read
+  actions: read
+  pull-requests: write
 
 jobs:
   # Minimal pre-merge feedback: the same quality gates that run on main
