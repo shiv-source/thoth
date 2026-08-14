@@ -60,7 +60,8 @@ jobs:
               '' '<details>' '<summary>Job results</summary>' '' \
               '| Job | Result |' '|---|---|' "$rows" \
               '</details>' '' '---' \
-              '🤖 Updated automatically on every run by [final-gate](${{ github.server_url }}/${{ github.repository }}/actions/workflows/final-gate.yml) · this check must pass before merging' \
+              '🤖 Updated automatically on every run by [final-gate](${{ github.server_url }}/${{ github.repository }}/actions/workflows/final-gate.yml)' \
+              '⛔ This check must pass before merging' \
               > "$RUNNER_TEMP/pr-comment.md"
             pr_body=$(cat "$RUNNER_TEMP/pr-comment.md")
             existing=$(gh api "repos/${{ github.repository }}/issues/$pr/comments" \
