@@ -102,7 +102,7 @@ Apply the standard principles — modular, composable, boring code that's easy t
 
 ## Repo rules
 
-- Develop directly on `main`; conventional commits.
+- **Branch workflow** — `main` is always deployable; never commit to it directly. Start every change by syncing and branching: `git switch main && git pull --ff-only && git switch -c <type>/<slug>`, where `<type>` is a conventional-commit prefix (`feat`, `fix`, `ci`, `docs`, `refactor`, `test`, `chore`) and `<slug>` is short kebab-case (e.g. `fix/settings-modal-size`, `ci/parallel-pipeline`). Commit with conventional messages on the branch, then squash-merge back via PR — `ci-pr` gates every PR to `main`.
 - **No secrets in the repo** — never commit real credentials, tokens, or keys in code, configs, tests, or docs; env vars or placeholders only.
 - **Design authority** — specs live (untracked) in `docs/superpowers/specs/`; read the Thoth spec before large or cross-package changes.
 - **Project docs** — committed documentation lives in `docs/` (`index.md` is the hub: architecture, API, CLI, indexing, frontend, security, development). Update the relevant page when behavior changes.
