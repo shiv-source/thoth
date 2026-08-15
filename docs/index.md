@@ -16,6 +16,7 @@ One binary. One directory (`~/.thoth`). No cloud, no auth, localhost only.
 | Page | What it covers |
 |---|---|
 | [Architecture](architecture.md) | System design, the two layers, data contract, diagrams |
+| [Schema](schema.md) | Every thoth.db table, column, and settings key |
 | [Knowledge base](knowledge-base.md) | The wiki directory: layout, conventions, the rulebook |
 | [Components](components.md) | Deep dive into every Go package |
 | [CLI](cli.md) | `serve`, `init`, `version`, `doctor` — flags and behavior |
