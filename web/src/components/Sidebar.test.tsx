@@ -26,7 +26,7 @@ const conversations = {
 }
 
 function stubAPI(handlers: Record<string, () => Response>) {
-  const fetchMock = vi.fn((url: string) => {
+  const fetchMock = vi.fn((url: string, _init?: RequestInit) => {
     const make = handlers[url]
     if (make) return Promise.resolve(make())
     return Promise.resolve(new Response('not found', { status: 404 }))

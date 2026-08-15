@@ -29,7 +29,7 @@ import (
 )
 
 const (
-	claudeCheckTimeout = 2 * time.Second
+	claudeCheckTimeout = 5 * time.Second
 	apiCheckTimeout    = 2 * time.Second
 )
 

@@ -39,6 +39,8 @@ export function WikiTree({ openPath, onOpenNote }: { openPath: string | null; on
     return { allDirs: dirs, fileCounts: counts }
   }, [nodes])
 
+  const allExpanded = allDirs.size > 0 && expandedKeys.size >= allDirs.size
+
   if (error) {
     return <p className="px-1 text-sm text-red-600 dark:text-red-400">Could not load the wiki tree</p>
   }
@@ -51,24 +53,17 @@ export function WikiTree({ openPath, onOpenNote }: { openPath: string | null; on
 
   return (
     <div>
-      <div className="mb-1 flex items-center justify-end gap-1">
+      <div className="mb-1 flex items-center justify-end">
         <button
           type="button"
-          onClick={() => setExpandedKeys(new Set(allDirs))}
-          aria-label="Expand all folders"
-          title="Expand all"
+          onClick={() => setExpandedKeys(allExpanded ? new Set() : new Set(allDirs))}
+          aria-label={allExpanded ? 'Collapse all folders' : 'Expand all folders'}
+          title={allExpanded ? 'Collapse all' : 'Expand all'}
           className="rounded p-1 text-subtle transition hover:bg-raised hover:text-ink"
         >
-          <ChevronsUpDown className="h-4 w-4" />
-        </button>
-        <button
-          type="button"
-          onClick={() => setExpandedKeys(new Set())}
-          aria-label="Collapse all folders"
-          title="Collapse all"
-          className="rounded p-1 text-subtle transition hover:bg-raised hover:text-ink"
-        >
-          <ChevronsDownUp className="h-4 w-4" />
+          {allExpanded
+            ? <ChevronsDownUp className="h-4 w-4" />
+            : <ChevronsUpDown className="h-4 w-4" />}
         </button>
       </div>
       <Tree<TreeNode>

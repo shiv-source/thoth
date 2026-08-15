@@ -10,8 +10,8 @@ import (
 )
 
 // doctorTimeout bounds the whole check suite; the claude probes inside already
-// carry their own 2s timeouts, so this is a backstop for a wedged exec.
-const doctorTimeout = 10 * time.Second
+// carry their own 5s timeouts, so this is a backstop for a wedged exec.
+const doctorTimeout = 15 * time.Second
 
 // doctorHandler runs the shared installation checks against the thoth dir the
 // server runs from.

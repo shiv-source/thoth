@@ -67,9 +67,12 @@ describe('WikiTree controls', () => {
     // Badges: one file under each folder (recursive counts).
     expect((await screen.findByText('meetings')).parentElement?.textContent).toContain('1')
 
-    await userEvent.click(screen.getByRole('button', { name: 'Expand all folders' }))
+    const toggle = screen.getByRole('button', { name: 'Expand all folders' })
+    await userEvent.click(toggle)
     expect(screen.getByText('standup.md')).toBeInTheDocument()
     expect(screen.getByText('TODO.md')).toBeInTheDocument()
+    // The same button flips to collapse-all.
+    expect(screen.getByRole('button', { name: 'Collapse all folders' })).toBeInTheDocument()
 
     await userEvent.click(screen.getByRole('button', { name: 'Collapse all folders' }))
     expect(screen.queryByText('standup.md')).not.toBeInTheDocument()
