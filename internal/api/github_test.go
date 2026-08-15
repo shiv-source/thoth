@@ -186,7 +186,7 @@ func TestListGitHubRepos(t *testing.T) {
 		if r.Header.Get("Authorization") != "Bearer ghp_x" {
 			t.Errorf("repos request must carry the stored token")
 		}
-		_, _ = w.Write([]byte(`[{"full_name":"octo/wiki","clone_url":"https://github.com/octo/wiki.git"}]`))
+		_, _ = w.Write([]byte(`[{"full_name":"octo/wiki","clone_url":"https://github.com/octo/wiki.git","private":true}]`))
 	}))
 	t.Cleanup(ts.Close)
 	d.GitHub.Client = github.New(ts.Client()).WithBaseURL(ts.URL)

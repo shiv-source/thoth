@@ -194,7 +194,7 @@ func TestFetchReposSuccess(t *testing.T) {
 			http.NotFound(w, r)
 			return
 		}
-		_, _ = w.Write([]byte(`[{"full_name":"octo/wiki","clone_url":"https://github.com/octo/wiki.git"},{"full_name":"octo/other","clone_url":"https://github.com/octo/other.git"}]`))
+		_, _ = w.Write([]byte(`[{"full_name":"octo/wiki","clone_url":"https://github.com/octo/wiki.git","private":true},{"full_name":"octo/other","clone_url":"https://github.com/octo/other.git","private":false}]`))
 	}))
 	t.Cleanup(ts.Close)
 	c := New(ts.Client()).WithBaseURL(ts.URL)
@@ -203,7 +203,7 @@ func TestFetchReposSuccess(t *testing.T) {
 	if err != nil {
 		t.Fatalf("FetchRepos: %v", err)
 	}
-	if len(repos) != 2 || repos[0].FullName != "octo/wiki" || repos[0].CloneURL != "https://github.com/octo/wiki.git" {
+	if len(repos) != 2 || repos[0].FullName != "octo/wiki" || repos[0].CloneURL != "https://github.com/octo/wiki.git" || !repos[0].Private || repos[1].Private {
 		t.Fatalf("repos = %+v", repos)
 	}
 }

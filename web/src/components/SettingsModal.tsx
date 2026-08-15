@@ -182,8 +182,25 @@ function GitTab({ form, set, save, github, setGitHub }: {
   const [token, setToken] = useState('')
   const [repos, setRepos] = useState<GitHubRepo[]>([])
   const [gitError, setGitError] = useState<string | null>(null)
+  const [repoOpen, setRepoOpen] = useState(false)
+  const [selectedRepo, setSelectedRepo] = useState<GitHubRepo | null>(null)
 
   const connected = github.username !== ''
+
+  // Repos matching the typed URL prefix, shown in a dropdown the same width
+  // as the input.
+  const query = form.repo_url.trim().toLowerCase()
+  const filteredRepos = repos.filter((r) =>
+    r.full_name.toLowerCase().includes(query) || r.clone_url.toLowerCase().includes(query))
+  // Only a repo picked from the suggestions is classified: a hand-typed URL
+  // gets no visibility warning (it cannot be verified here).
+  const publicSelected = selectedRepo !== null && !selectedRepo.private
+
+  const pickRepo = (r: GitHubRepo) => {
+    set('repo_url', r.clone_url)
+    setSelectedRepo(r)
+    setRepoOpen(false)
+  }
 
   // Suggestions for the repo URL come from the connected account; a failed
   // load just leaves the list empty — typing a URL always works.
@@ -299,14 +316,36 @@ function GitTab({ form, set, save, github, setGitHub }: {
           Disconnect
         </button>
       </div>
-      <div>
+      <div className="relative">
         <label className={label}>Git remote URL</label>
-        <input className={field} placeholder="https://github.com/you/wiki.git" list="repo-suggestions"
-          value={form.repo_url} onChange={(e) => set('repo_url', e.target.value)} />
-        <datalist id="repo-suggestions">
-          {repos.map((r) => <option key={r.full_name} value={r.clone_url}>{r.full_name}</option>)}
-        </datalist>
+        <input className={field} placeholder="https://github.com/you/wiki.git"
+          value={form.repo_url}
+          onFocus={() => setRepoOpen(true)}
+          onBlur={() => setRepoOpen(false)}
+          onChange={(e) => {
+            set('repo_url', e.target.value)
+            setSelectedRepo((prev) => (prev && prev.clone_url === e.target.value ? prev : null))
+          }} />
+        {repoOpen && filteredRepos.length > 0 && (
+          <ul className="absolute left-0 right-0 top-full z-10 max-h-56 overflow-y-auto rounded-b-lg border border-line bg-surface shadow-md">
+            {filteredRepos.map((r) => (
+              <li key={r.full_name}>
+                <button type="button"
+                  onMouseDown={(e) => { e.preventDefault(); pickRepo(r) }}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-ink transition hover:bg-raised">
+                  {r.private ? <LockIcon /> : <GlobeIcon />}
+                  <span className="min-w-0 truncate">{r.full_name}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
+      {publicSelected && (
+        <p className="text-sm text-red-600 dark:text-red-400">
+          Syncing to a public repository is blocked for your security — use a private repository.
+        </p>
+      )}
       <label className="flex items-center gap-2.5 rounded-lg border border-line bg-app px-3 py-2.5 text-sm text-ink">
         <input type="checkbox" checked={form.sync_enabled} onChange={(e) => set('sync_enabled', e.target.checked)}
           className="h-4 w-4 accent-emerald-500" />
@@ -322,12 +361,32 @@ function GitTab({ form, set, save, github, setGitHub }: {
           className="rounded-lg border border-line px-4 py-2 text-sm font-medium text-ink transition hover:bg-raised">
           Save
         </button>
-        <button onClick={() => void push()} disabled={pushing}
+        <button onClick={() => void push()} disabled={pushing || publicSelected}
           className="flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-accent-ink transition hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-60">
           {pushing && <span aria-hidden="true" className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-accent-ink/40 border-t-accent-ink" />}
           {pushing ? 'Pushing…' : 'Initialize & Push'}
         </button>
       </div>
     </div>
+  )
+}
+
+function GlobeIcon() {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"
+      className="h-4 w-4 shrink-0 text-subtle">
+      <circle cx="10" cy="10" r="7.5" />
+      <path d="M2.5 10h15M10 2.5c2.5 2 3.8 4.5 3.8 7.5S12.5 15.5 10 17.5c-2.5-2-3.8-4.5-3.8-7.5S7.5 4.5 10 2.5z" />
+    </svg>
+  )
+}
+
+function LockIcon() {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"
+      className="h-4 w-4 shrink-0 text-subtle">
+      <rect x="4.5" y="8.5" width="11" height="8" rx="1.5" />
+      <path d="M7 8.5V6.5a3 3 0 0 1 6 0v2" />
+    </svg>
   )
 }

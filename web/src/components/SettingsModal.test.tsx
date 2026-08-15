@@ -34,7 +34,10 @@ function stubAPI(handlers: Record<string, () => Response>) {
 const getSettings = () => new Response(JSON.stringify(settings), { status: 200 })
 const getEmptyGitHub = () => new Response(JSON.stringify(emptyGitHub), { status: 200 })
 const getRepos = () => new Response(JSON.stringify({
-  repos: [{ full_name: 'octo/wiki', clone_url: 'https://github.com/octo/wiki.git' }],
+  repos: [
+    { full_name: 'octo/wiki', clone_url: 'https://github.com/octo/wiki.git', private: true },
+    { full_name: 'octo/public-wiki', clone_url: 'https://github.com/octo/public-wiki.git', private: false },
+  ],
 }), { status: 200 })
 
 function renderModal() {
@@ -114,18 +117,18 @@ describe('SettingsModal', () => {
 
     renderModal()
     await userEvent.click(await screen.findByRole('tab', { name: 'Git remote' }))
-    // The connected account's repos are offered as suggestions (datalist
-    // options are not in the accessibility tree in jsdom — check the DOM).
-    await waitFor(() => expect(document.getElementById('repo-suggestions')?.querySelectorAll('option')).toHaveLength(1))
-    expect(document.getElementById('repo-suggestions')?.querySelector('option')?.getAttribute('value'))
-      .toBe('https://github.com/octo/wiki.git')
+    // The connected account's repos are offered as a dropdown the width of
+    // the input; picking the private repo fills the field.
     const url = await screen.findByPlaceholderText(/github\.com/)
-    await userEvent.type(url, 'https://example.com/wiki.git')
+    await userEvent.type(url, 'octo')
+    const option = await screen.findByRole('button', { name: /octo\/wiki/ })
+    await userEvent.click(option)
+    expect(url).toHaveValue('https://github.com/octo/wiki.git')
     await userEvent.click(screen.getByRole('button', { name: 'Initialize & Push' }))
     expect(await screen.findByText('Wiki pushed to remote')).toBeInTheDocument()
     // The setup call carried the URL.
     const gitBody = fetchMock.mock.calls.find(([u]) => u === '/api/git/setup')?.[1]?.body
-    expect(typeof gitBody === 'string' && gitBody.includes('https://example.com/wiki.git')).toBe(true)
+    expect(typeof gitBody === 'string' && gitBody.includes('https://github.com/octo/wiki.git')).toBe(true)
   })
 
   it('connects a GitHub account with a token', async () => {
@@ -208,5 +211,25 @@ describe('SettingsModal auto-sync', () => {
       ([u, init]) => u === '/api/settings' && init?.method === 'PUT',
     )?.[1]?.body
     expect(typeof put === 'string' && put.includes('"sync_enabled":true')).toBe(true)
+  })
+})
+
+describe('SettingsModal public repo guard', () => {
+  it('warns and blocks push when a public repo is picked', async () => {
+    stubAPI({
+      'GET /api/settings': getSettings,
+      'GET /api/github/auth': () => new Response(JSON.stringify(connected), { status: 200 }),
+      'GET /api/github/repos': getRepos,
+    })
+
+    renderModal()
+    await userEvent.click(await screen.findByRole('tab', { name: 'Git remote' }))
+    const url = await screen.findByPlaceholderText(/github\.com/)
+    await userEvent.type(url, 'octo/public')
+    await userEvent.click(await screen.findByRole('button', { name: /octo\/public-wiki/ }))
+
+    expect(url).toHaveValue('https://github.com/octo/public-wiki.git')
+    expect(await screen.findByText(/public repository is blocked/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Initialize & Push' })).toBeDisabled()
   })
 })
