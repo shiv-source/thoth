@@ -55,6 +55,28 @@ func TestStartStreamsEventsAndPassesFlags(t *testing.T) {
 	}
 }
 
+func TestStartDefaultsToDangerouslySkipPermissions(t *testing.T) {
+	// No configured permission mode: the CLI must run fully unattended so
+	// headless note-saving works. A named mode replaces the flag.
+	bin := writeFakeCLI(t)
+	c := New(bin, t.TempDir())
+
+	if err := c.Start(context.Background(), "sess-1", "p", WriterFunc(func(Event) error { return nil })); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	argv, err := os.ReadFile(filepath.Join(filepath.Dir(bin), "argv.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := string(argv)
+	if !strings.Contains(s, "--dangerously-skip-permissions") {
+		t.Fatalf("argv %q missing --dangerously-skip-permissions", s)
+	}
+	if strings.Contains(s, "--permission-mode") {
+		t.Fatalf("argv %q must not carry --permission-mode without a configured mode", s)
+	}
+}
+
 func TestDirProviderOverridesStaticDir(t *testing.T) {
 	dir := t.TempDir()
 	bin := filepath.Join(dir, "claude")

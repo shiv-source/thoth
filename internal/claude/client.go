@@ -53,13 +53,19 @@ func New(bin, dir string, opts ...Option) *CLIClient {
 }
 
 // args builds the CLI argument list. ALL flag knowledge lives here.
-// Verified against `claude --help` v2.1.232: with --print, --output-format
-// stream-json requires --verbose (without it the CLI exits 1 before
-// streaming). The event parser tolerates the extra events --verbose emits.
+// Verified against `claude --help` v2.1.232/v2.1.233: with --print,
+// --output-format stream-json requires --verbose (without it the CLI exits 1
+// before streaming). The event parser tolerates the extra events --verbose
+// emits. Permissions: with no configured mode the CLI runs fully unattended
+// (--dangerously-skip-permissions — headless mode cannot answer prompts, and
+// note-saving is the app's core feature); a configured permission_mode
+// switches to that named mode.
 func (c *CLIClient) args(sessionID, prompt string) []string {
 	a := []string{"-p", "--output-format", "stream-json", "--verbose", "--session-id", sessionID}
 	if c.PermissionMode != "" {
 		a = append(a, "--permission-mode", c.PermissionMode)
+	} else {
+		a = append(a, "--dangerously-skip-permissions")
 	}
 	if c.Model != "" {
 		a = append(a, "--model", c.Model)

@@ -80,3 +80,18 @@ func TestWriterFuncAdapter(t *testing.T) {
 		t.Fatalf("WriterFunc adapter broken: %v %+v", err, got)
 	}
 }
+
+func TestParseLineIgnoresStringShapedMessage(t *testing.T) {
+	// The CLI emits message as a string on non-assistant lines (system
+	// permission_denied events) and with --include-partial-messages; the
+	// parser must ignore those shapes, not error.
+	for _, line := range []string{
+		`{"type":"system","subtype":"permission_denied","tool_name":"Write","message":"Claude requested permissions to write to todos/TODO.md, but you haven't granted it yet."}`,
+		`{"type":"message","message":"partial text"}`,
+		`{"type":"assistant","message":"unexpected string shape"}`,
+	} {
+		if _, err := ParseLine([]byte(line)); !errors.Is(err, ErrIgnore) {
+			t.Fatalf("expected ErrIgnore for %s, got %v", line, err)
+		}
+	}
+}
