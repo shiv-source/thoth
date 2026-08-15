@@ -59,7 +59,7 @@ function ChatsList() {
 
   const groups = groupByDay(conversations)
   return (
-    <ul ref={listRef} className="max-h-64 space-y-0.5 overflow-y-auto px-1.5 pb-2">
+    <ul ref={listRef} className="h-full space-y-0.5 overflow-y-auto px-1.5 pb-2">
       {groups.map(([label, items]) => (
         <li key={label}>
           <div className="px-2 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wider text-subtle">
@@ -180,15 +180,19 @@ export function Sidebar({ openPath, onOpenNote, health, loading }: {
         <span className="font-display text-lg font-semibold tracking-tight text-heading">Thoth</span>
         <span className="ml-auto h-2 w-2 rounded-full bg-accent" aria-hidden="true" />
       </div>
-      <div className="flex items-center justify-between px-3 pb-1">
-        <span className="text-[11px] font-semibold uppercase tracking-wider text-subtle">Chats</span>
-        <button onClick={() => navigate('/')}
-          className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-accent transition hover:bg-accent-soft">
-          <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-          New chat
-        </button>
+      <div className="flex min-h-0 flex-1 flex-col">
+        <div className="flex shrink-0 items-center justify-between px-3 pb-1">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-subtle">Chats</span>
+          <button onClick={() => navigate('/')}
+            className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-accent transition hover:bg-accent-soft">
+            <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+            New chat
+          </button>
+        </div>
+        <div className="min-h-0 flex-1">
+          <ChatsList />
+        </div>
       </div>
-      <ChatsList />
       <div className="flex min-h-0 flex-1 flex-col border-t border-line px-3">
         <div className="px-0 pb-1.5 pt-4 text-[11px] font-semibold uppercase tracking-wider text-subtle">
           Wiki
