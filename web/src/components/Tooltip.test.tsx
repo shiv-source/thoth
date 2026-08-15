@@ -1,27 +1,39 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it } from 'vitest'
+import { beforeAll, describe, expect, it, vi } from 'vitest'
 import { Tooltip } from './Tooltip'
 
+// Radix positions tooltips with a ResizeObserver; jsdom does not ship one.
+class ResizeObserverMock {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+beforeAll(() => {
+  vi.stubGlobal('ResizeObserver', ResizeObserverMock)
+})
+
 describe('Tooltip', () => {
-  it('renders the label as a tooltip bubble', () => {
+  it('shows the styled bubble on hover with the label', async () => {
     render(
       <Tooltip label="Expand all">
         <button type="button">Toggle</button>
       </Tooltip>,
     )
-    expect(screen.getByRole('tooltip')).toHaveTextContent('Expand all')
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument()
+    await userEvent.hover(screen.getByRole('button'))
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Expand all')
   })
 
-  it('becomes visible on hover', async () => {
+  it('places the bubble on the requested side and alignment', async () => {
     render(
-      <Tooltip label="Expand all">
-        <button type="button">Toggle</button>
+      <Tooltip label="Delete chat" side="bottom" align="end">
+        <button type="button">Delete</button>
       </Tooltip>,
     )
-    const tooltip = screen.getByRole('tooltip')
-    expect(tooltip).toHaveClass('opacity-0')
     await userEvent.hover(screen.getByRole('button'))
-    expect(tooltip).toHaveClass('group-hover:opacity-100')
+    const bubble = await screen.findByRole('tooltip')
+    expect(bubble).toHaveAttribute('data-side', 'bottom')
+    expect(bubble).toHaveAttribute('data-align', 'end')
   })
 })
