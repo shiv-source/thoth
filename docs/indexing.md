@@ -38,14 +38,14 @@ flowchart LR
     P -->|file exists| U[parse → Upsert]
     P -->|file gone| D[Delete / DeletePrefix]
     P -->|malformed| L[log + skip]
-    S[startup / path change] -->|full walk| R[Rebuild: DELETE notes → walk → Upsert]
+    S[startup / path change] -->|walk, one transaction| R[Sync: upsert changed → delete missing]
     R --> DB[(thoth.db)]
     U --> DB
     D --> DB
 ```
 
 - **Watcher** (`internal/index/watcher.go`) — watches every directory; Write/Create/Remove/Rename coalesce into a 200 ms debounce flush. New directories are added to the watch with an immediate rescan, so files written before registration are still indexed. Removing a directory deletes the whole subtree from the index.
-- **Rebuild** (`internal/index/rebuild.go`) — clears the table and re-walks the tree at startup and on wiki-path changes. Notes with unparsable frontmatter are skipped and logged, never fatal.
+- **Sync** (`internal/index/sync.go`) — reconciles the index with the tree at startup and on wiki-path changes, in a single transaction: files whose stored `updated_at` matches their mtime are kept as is, new or changed files are upserted, and indexed paths no longer on disk are deleted. Notes with unparsable frontmatter are skipped and logged, never fatal. An edit within the same second as the last index write is invisible to the mtime check; the next edit to that file re-syncs it.
 
 ## Guarantees
 
@@ -54,6 +54,6 @@ flowchart LR
 | Note saved by Claude in the app | Indexed within ~200 ms |
 | Note edited in a terminal (Claude Code, vim) | Indexed within ~200 ms |
 | Note deleted | Removed from index (file or whole directory) |
-| Wiki path changed in Settings | New path scaffolded if needed, index rebuilt, watcher restarted |
-| App restarted | Full rebuild at startup — index always reflects the tree |
-| `thoth.db` deleted | No data loss — rebuilt on next serve |
+| Wiki path changed in Settings | New path scaffolded if needed, index synced, watcher restarted |
+| App restarted | Incremental sync at startup — unchanged files are skipped, so the index still always reflects the tree |
+| `thoth.db` deleted | No data loss — synced from the tree on next serve |

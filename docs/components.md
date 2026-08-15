@@ -8,7 +8,7 @@ The Go backend is organized as small packages with one purpose each, communicati
 | `internal/cli` | Cobra commands: serve, init, version, doctor | `Execute()` |
 | `internal/claude` | **The blast wall** — the only package that knows CLI flags, stream parsing, and process kill mechanics | `Client`, `CLIClient`, `Event`, `ParseLine`, `FakeClient` |
 | `internal/wiki` | The file contract: scaffolding, parsing, path safety, tree | `Scaffold`, `ParseNote`, `SafePath`, `Wiki`, `Rulebook` |
-| `internal/index` | SQLite + FTS5 + watcher | `Index`, `Rebuild`, `Watch`, `Search` |
+| `internal/index` | SQLite + FTS5 + watcher | `Index`, `Sync`, `Watch`, `Search` |
 | `internal/store` | Conversations and messages (same db file) | `Store` |
 | `internal/api` | Echo server: routes, WS hub, handlers | `Deps`, `New`, `Hub` |
 | `internal/config` | Localhost bind constants (`127.0.0.1:8333`) + `ExpandHome` path helper | `DefaultHost`, `DefaultPort`, `ExpandHome` |
@@ -47,7 +47,7 @@ Cancelling `ctx` kills the CLI's process group (unix) or direct child (windows) 
 - `Open(path)` — WAL mode + schema migration
 - `Upsert` / `Delete` / `DeletePrefix` — with FTS5 triggers keeping the index in sync
 - `Search(q, limit)` — bm25 ranking (title 8×) and body snippets, HTML-escaped
-- `Rebuild(root, log)` — clears and re-walks the tree; malformed notes skipped
+- `Sync(root, log)` — reconciles the index with the tree in one transaction (unchanged files skipped, missing files deleted); malformed notes skipped
 - `Watch(ctx, root, ix, log)` — fsnotify with 200 ms debounce and new-directory rescan
 
 Full mechanics: [Indexing & search](indexing.md).
