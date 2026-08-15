@@ -110,7 +110,7 @@ describe('Sidebar chats section', () => {
     stubAPI({
       '/api/conversations': () => conversations,
       '/api/wiki/tree': noTree,
-      [`DELETE /api/conversations/${conversations.conversations[0].id}`]: () => ({ ok: true }),
+      [`DELETE /api/conversations/${conversations.conversations[0]?.id}`]: () => ({ ok: true }),
     })
     renderSidebar()
     await userEvent.click(await screen.findByRole('button', { name: 'Delete Today chat' }))

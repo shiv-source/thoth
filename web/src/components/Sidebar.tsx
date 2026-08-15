@@ -185,12 +185,14 @@ export function Sidebar({ openPath, onOpenNote, health, loading }: {
         <span className="font-display text-lg font-semibold tracking-tight text-heading">Thoth</span>
       </div>
       <div className="flex min-h-0 flex-1 flex-col">
-        <div className="flex shrink-0 items-center justify-between px-3 pb-1">
+        <div className="shrink-0 px-3 pb-1.5">
           <span className="text-[11px] font-semibold uppercase tracking-wider text-subtle">Chats</span>
+        </div>
+        <div className="shrink-0 px-3 pb-1.5">
           <Tooltip label="Start a new chat">
             <button onClick={() => navigate('/')}
-              className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-accent transition hover:bg-accent-soft">
-              <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+              className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-accent/25 bg-accent-soft px-3 py-1.5 text-sm font-medium text-accent transition hover:border-accent/50 hover:bg-accent/10">
+              <Plus className="h-4 w-4" aria-hidden="true" />
               New chat
             </button>
           </Tooltip>
