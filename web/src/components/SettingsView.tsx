@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
+import { GitBranch, Settings as SettingsIcon, Stethoscope } from 'lucide-react'
 import {
     api,
     type DoctorCheck,
@@ -9,6 +10,7 @@ import {
 } from '../api/client'
 import { fetchSettings, saveSettings, selectSettings } from '../store'
 import { useAppDispatch, useAppSelector } from '../store/hooks'
+import { Card } from './Card'
 import { useToast } from './Toast'
 import { TopBar } from './TopBar'
 import { navigateSegment, useViewRoute } from '../hooks/useView'
@@ -33,15 +35,16 @@ const emptyGitHub: GitHubIdentity = {
 
 type Tab = 'general' | 'doctor' | 'git'
 
-const tabs: { id: Tab; label: string }[] = [
-    { id: 'general', label: 'General' },
-    { id: 'git', label: 'Git remote' },
-    { id: 'doctor', label: 'Doctor' }
+const tabs: { id: Tab; label: string; icon: typeof SettingsIcon }[] = [
+    { id: 'general', label: 'General', icon: SettingsIcon },
+    { id: 'git', label: 'Git remote', icon: GitBranch },
+    { id: 'doctor', label: 'Doctor', icon: Stethoscope }
 ]
 
 const field =
     'w-full rounded-lg border border-line bg-app px-3 py-2 text-sm text-ink outline-none placeholder:text-subtle focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500'
-const label = 'mb-1 block text-xs font-medium uppercase tracking-wide text-subtle'
+const label = 'mb-1.5 block text-sm font-medium text-ink'
+const hint = 'mt-1.5 text-xs text-subtle'
 
 export function SettingsView() {
     const { segment } = useViewRoute()
@@ -134,13 +137,13 @@ export function SettingsView() {
     return (
         <div className="flex min-h-0 flex-1 flex-col">
             <TopBar title="Settings" />
-            <div className="mx-auto flex min-h-0 w-full max-w-4xl flex-1 flex-col px-4 py-3">
-                <div className="flex min-h-0 flex-1">
+            <div className="flex min-h-0 w-full flex-1 flex-col px-6 py-4">
+                <div className="flex min-h-0 flex-1 gap-6">
                     <nav
                         role="tablist"
                         aria-label="Settings sections"
                         aria-orientation="vertical"
-                        className="w-44 shrink-0 space-y-1 border-r border-line pr-3"
+                        className="w-44 shrink-0 space-y-1"
                     >
                         {tabs.map((t) => (
                             <button
@@ -151,53 +154,60 @@ export function SettingsView() {
                                     setTab(t.id)
                                     navigateSegment('settings', t.id)
                                 }}
-                                className={`flex w-full items-center rounded-lg px-3 py-2 text-left text-sm transition ${
+                                className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm transition ${
                                     tab === t.id
-                                        ? 'bg-accent-soft font-medium text-accent'
+                                        ? 'bg-accent/15 font-medium text-accent'
                                         : 'text-subtle hover:bg-raised hover:text-ink'
                                 }`}
                             >
+                                <t.icon aria-hidden="true" className="h-4 w-4 shrink-0" />
                                 {t.label}
                             </button>
                         ))}
                     </nav>
-                    <div className="min-h-0 flex-1 overflow-y-auto pl-4">
+                    <div className="min-h-0 flex-1 overflow-y-auto">
                         {tab === 'general' && (
-                            <form
-                                onSubmit={handleSubmit}
-                                className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4"
-                            >
-                                <div>
-                                    <label className={label}>Wiki path</label>
-                                    <input
-                                        className={field}
-                                        placeholder="~/.thoth/wiki"
-                                        value={form.wiki_path}
-                                        onChange={(e) => set('wiki_path', e.target.value)}
-                                    />
+                            <form onSubmit={handleSubmit} className="space-y-4">
+                                <div className="grid gap-4 sm:grid-cols-2">
+                                    <Card title="Wiki">
+                                        <label className={label} htmlFor="wiki-path">
+                                            Wiki path
+                                        </label>
+                                        <input
+                                            id="wiki-path"
+                                            className={field}
+                                            placeholder="~/.thoth/wiki"
+                                            value={form.wiki_path}
+                                            onChange={(e) => set('wiki_path', e.target.value)}
+                                        />
+                                        <p className={hint}>
+                                            Where your notes live on disk. Defaults to ~/.thoth/wiki.
+                                        </p>
+                                    </Card>
+                                    <Card title="AI model">
+                                        <label className={label} htmlFor="model">
+                                            Model
+                                        </label>
+                                        <select
+                                            id="model"
+                                            className={field}
+                                            value={form.model}
+                                            onChange={(e) => set('model', e.target.value)}
+                                        >
+                                            {modelGroups.map((g) => (
+                                                <optgroup key={g.provider} label={g.provider}>
+                                                    {g.options.map((m) => (
+                                                        <option key={m.value || 'default'} value={m.value}>
+                                                            {m.label}
+                                                        </option>
+                                                    ))}
+                                                </optgroup>
+                                            ))}
+                                        </select>
+                                        <p className={hint}>Applied to all chats after the app restarts.</p>
+                                    </Card>
                                 </div>
-                                <div>
-                                    <label className={label}>AI model</label>
-                                    <select
-                                        className={field}
-                                        value={form.model}
-                                        onChange={(e) => set('model', e.target.value)}
-                                    >
-                                        {modelGroups.map((g) => (
-                                            <optgroup key={g.provider} label={g.provider}>
-                                                {g.options.map((m) => (
-                                                    <option key={m.value || 'default'} value={m.value}>
-                                                        {m.label}
-                                                    </option>
-                                                ))}
-                                            </optgroup>
-                                        ))}
-                                    </select>
-                                    <p className="mt-1 text-xs text-subtle">
-                                        Applied to all chats after the app restarts.
-                                    </p>
-                                </div>
-                                <div className="flex items-center justify-between border-t border-line pt-4">
+                                <div className="flex items-center justify-between">
                                     <div className="min-w-0 pr-3 text-xs">
                                         {status === 'saved' && (
                                             <p className="text-emerald-600 dark:text-emerald-400">Saved ✓</p>
@@ -252,8 +262,8 @@ function DoctorTab() {
     }, [run])
 
     return (
-        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4">
-            <div className="flex items-center justify-between">
+        <div className="space-y-4">
+            <div className="flex items-center justify-between gap-3">
                 <p className="text-sm text-subtle">
                     Installation health, using the same checks as{' '}
                     <code className="font-mono text-xs">thoth doctor</code>.
@@ -274,22 +284,24 @@ function DoctorTab() {
             </div>
             {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
             {checks && (
-                <ul className="space-y-2">
-                    {checks.map((c) => (
-                        <li
-                            key={c.name}
-                            className="flex items-start gap-2.5 rounded-lg border border-line bg-app px-3 py-2"
-                        >
-                            <span aria-hidden="true" className={`mt-px ${c.ok ? 'text-emerald-500' : 'text-red-500'}`}>
-                                {c.ok ? '✓' : '✗'}
-                            </span>
-                            <div className="min-w-0">
-                                <p className="text-sm font-medium text-ink">{c.name}</p>
-                                <p className="text-xs text-subtle">{c.message}</p>
-                            </div>
-                        </li>
-                    ))}
-                </ul>
+                <Card title="Checks">
+                    <ul className="space-y-2">
+                        {checks.map((c) => (
+                            <li key={c.name} className="flex items-start gap-2.5 rounded-lg bg-app px-3 py-2">
+                                <span
+                                    aria-hidden="true"
+                                    className={`mt-px ${c.ok ? 'text-emerald-500' : 'text-red-500'}`}
+                                >
+                                    {c.ok ? '✓' : '✗'}
+                                </span>
+                                <div className="min-w-0">
+                                    <p className="text-sm font-medium text-ink">{c.name}</p>
+                                    <p className="text-xs text-subtle">{c.message}</p>
+                                </div>
+                            </li>
+                        ))}
+                    </ul>
+                </Card>
             )}
         </div>
     )
@@ -407,24 +419,29 @@ function GitTab({
 
     if (!connected) {
         return (
-            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4">
-                <div>
-                    <label className={label}>Personal access token</label>
-                    <input
-                        className={field}
-                        type="password"
-                        placeholder="ghp_…"
-                        value={token}
-                        onChange={(e) => setToken(e.target.value)}
-                    />
+            <Card title="GitHub account">
+                <div className="grid grid-cols-12">
+                    <div className="col-span-6">
+                        <label className={label} htmlFor="git-token">
+                            Personal access token
+                        </label>
+                        <input
+                            id="git-token"
+                            className={field}
+                            type="password"
+                            placeholder="ghp_…"
+                            value={token}
+                            onChange={(e) => setToken(e.target.value)}
+                        />
+                        <p className={hint}>
+                            Connect your GitHub account to store the sync repo URL and credentials. The token needs the{' '}
+                            <code>user:email</code> scope and is stored locally in thoth.db — it is never sent anywhere
+                            except api.github.com.
+                        </p>
+                    </div>
                 </div>
-                <p className="text-xs text-subtle">
-                    Connect your GitHub account to store the sync repo URL and credentials. The token needs the{' '}
-                    <code>user:email</code> scope and is stored locally in thoth.db — it is never sent anywhere except
-                    api.github.com.
-                </p>
-                {gitError && <p className="text-sm text-red-600 dark:text-red-400">{gitError}</p>}
-                <div className="flex items-center justify-end border-t border-line pt-4">
+                {gitError && <p className="mt-2 text-sm text-red-600 dark:text-red-400">{gitError}</p>}
+                <div className="mt-4 flex items-center justify-end">
                     <button
                         onClick={() => void connect()}
                         disabled={connecting}
@@ -439,99 +456,116 @@ function GitTab({
                         {connecting ? 'Connecting…' : 'Connect'}
                     </button>
                 </div>
-            </div>
+            </Card>
         )
     }
 
     return (
-        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4">
-            <div className="flex items-center gap-3 rounded-lg border border-line bg-app px-3 py-2.5">
-                {github.avatar_url !== '' && (
-                    <img src={github.avatar_url} alt="" aria-hidden="true" className="h-9 w-9 rounded-full" />
-                )}
-                <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-ink">
-                        {github.profile_url !== '' ? (
-                            <a href={github.profile_url} target="_blank" rel="noreferrer" className="hover:underline">
-                                {github.display_name || github.username}
-                            </a>
-                        ) : (
-                            github.display_name || github.username
-                        )}
-                    </p>
-                    <p className="truncate text-xs text-subtle">{github.email || github.username}</p>
-                    {(github.account_created_at !== '' || github.account_updated_at !== '') && (
-                        <p className="mt-0.5 truncate text-xs text-subtle">
-                            Member since {github.account_created_at.slice(0, 10)}
-                            {github.account_updated_at !== '' && ` · Updated ${github.account_updated_at.slice(0, 10)}`}
+        <div className="space-y-4">
+            <Card title="GitHub account">
+                <div className="flex items-center gap-3 rounded-lg bg-app px-3 py-2.5">
+                    {github.avatar_url !== '' && (
+                        <img src={github.avatar_url} alt="" aria-hidden="true" className="h-9 w-9 rounded-full" />
+                    )}
+                    <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium text-ink">
+                            {github.profile_url !== '' ? (
+                                <a
+                                    href={github.profile_url}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="hover:underline"
+                                >
+                                    {github.display_name || github.username}
+                                </a>
+                            ) : (
+                                github.display_name || github.username
+                            )}
                         </p>
+                        <p className="truncate text-xs text-subtle">{github.email || github.username}</p>
+                        {(github.account_created_at !== '' || github.account_updated_at !== '') && (
+                            <p className="mt-0.5 truncate text-xs text-subtle">
+                                Member since {github.account_created_at.slice(0, 10)}
+                                {github.account_updated_at !== '' &&
+                                    ` · Updated ${github.account_updated_at.slice(0, 10)}`}
+                            </p>
+                        )}
+                    </div>
+                    <button
+                        onClick={() => void disconnect()}
+                        className="shrink-0 rounded-lg border border-line px-3 py-1.5 text-xs font-medium text-ink transition hover:bg-raised"
+                    >
+                        Disconnect
+                    </button>
+                </div>
+            </Card>
+            <Card title="Remote">
+                <div className="relative">
+                    <label className={label} htmlFor="repo-url">
+                        Git remote URL
+                    </label>
+                    <input
+                        id="repo-url"
+                        className={field}
+                        placeholder="https://github.com/you/wiki.git"
+                        value={form.repo_url}
+                        onFocus={() => setRepoOpen(true)}
+                        onBlur={() => setRepoOpen(false)}
+                        onChange={(e) => {
+                            set('repo_url', e.target.value)
+                            setSelectedRepo((prev) => (prev && prev.clone_url === e.target.value ? prev : null))
+                        }}
+                    />
+                    {repoOpen && filteredRepos.length > 0 && (
+                        <ul className="absolute left-0 right-0 top-full z-10 max-h-56 overflow-y-auto rounded-b-lg border border-line bg-surface shadow-md">
+                            {filteredRepos.map((r) => (
+                                <li key={r.full_name}>
+                                    <button
+                                        type="button"
+                                        onMouseDown={(e) => {
+                                            e.preventDefault()
+                                            pickRepo(r)
+                                        }}
+                                        className="flex w-full items-start gap-2 px-3 py-2 text-left transition hover:bg-raised"
+                                    >
+                                        {r.private ? <LockIcon /> : <GlobeIcon />}
+                                        <span className="min-w-0 flex-1">
+                                            <span className="block truncate text-sm text-ink">{r.full_name}</span>
+                                            {r.description !== '' && (
+                                                <span className="block truncate text-xs text-subtle">
+                                                    {r.description}
+                                                </span>
+                                            )}
+                                        </span>
+                                    </button>
+                                </li>
+                            ))}
+                        </ul>
                     )}
                 </div>
-                <button
-                    onClick={() => void disconnect()}
-                    className="shrink-0 rounded-lg border border-line px-3 py-1.5 text-xs font-medium text-ink transition hover:bg-raised"
-                >
-                    Disconnect
-                </button>
-            </div>
-            <div className="relative">
-                <label className={label}>Git remote URL</label>
-                <input
-                    className={field}
-                    placeholder="https://github.com/you/wiki.git"
-                    value={form.repo_url}
-                    onFocus={() => setRepoOpen(true)}
-                    onBlur={() => setRepoOpen(false)}
-                    onChange={(e) => {
-                        set('repo_url', e.target.value)
-                        setSelectedRepo((prev) => (prev && prev.clone_url === e.target.value ? prev : null))
-                    }}
-                />
-                {repoOpen && filteredRepos.length > 0 && (
-                    <ul className="absolute left-0 right-0 top-full z-10 max-h-56 overflow-y-auto rounded-b-lg border border-line bg-surface shadow-md">
-                        {filteredRepos.map((r) => (
-                            <li key={r.full_name}>
-                                <button
-                                    type="button"
-                                    onMouseDown={(e) => {
-                                        e.preventDefault()
-                                        pickRepo(r)
-                                    }}
-                                    className="flex w-full items-start gap-2 px-3 py-2 text-left transition hover:bg-raised"
-                                >
-                                    {r.private ? <LockIcon /> : <GlobeIcon />}
-                                    <span className="min-w-0 flex-1">
-                                        <span className="block truncate text-sm text-ink">{r.full_name}</span>
-                                        {r.description !== '' && (
-                                            <span className="block truncate text-xs text-subtle">{r.description}</span>
-                                        )}
-                                    </span>
-                                </button>
-                            </li>
-                        ))}
-                    </ul>
+                {publicSelected && (
+                    <p className="mt-2 text-sm text-red-600 dark:text-red-400">
+                        Syncing to a public repository is blocked for your security — use a private repository.
+                    </p>
                 )}
-            </div>
-            {publicSelected && (
-                <p className="text-sm text-red-600 dark:text-red-400">
-                    Syncing to a public repository is blocked for your security — use a private repository.
+            </Card>
+            <Card title="Sync">
+                <label className="flex items-center gap-2.5 rounded-lg bg-app px-3 py-2.5 text-sm text-ink">
+                    <input
+                        type="checkbox"
+                        checked={form.sync_enabled}
+                        onChange={(e) => set('sync_enabled', e.target.checked)}
+                        className="h-4 w-4 accent-emerald-500"
+                    />
+                    Auto-sync the wiki to the remote
+                </label>
+                <p className={hint}>
+                    Stores your wiki in a remote git repository. Thoth initializes the repo if needed, commits the
+                    current tree, and pushes the branch.
                 </p>
-            )}
-            <label className="flex items-center gap-2.5 rounded-lg border border-line bg-app px-3 py-2.5 text-sm text-ink">
-                <input
-                    type="checkbox"
-                    checked={form.sync_enabled}
-                    onChange={(e) => set('sync_enabled', e.target.checked)}
-                    className="h-4 w-4 accent-emerald-500"
-                />
-                Auto-sync the wiki to the remote
-            </label>
-            <p className="text-xs text-subtle">
-                Stores your wiki in a remote git repository. Thoth initializes the repo if needed, commits the current
-                tree, and pushes the branch.
-            </p>
+            </Card>
             {gitError && <p className="text-sm text-red-600 dark:text-red-400">{gitError}</p>}
-            <div className="flex items-center justify-end gap-3 border-t border-line pt-4">
+            <div className="flex items-center justify-end gap-3">
                 <button
                     onClick={() => void save()}
                     className="rounded-lg border border-line px-4 py-2 text-sm font-medium text-ink transition hover:bg-raised"

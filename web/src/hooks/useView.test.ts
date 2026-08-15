@@ -80,15 +80,15 @@ describe('useView', () => {
         expect(window.location.pathname).toBe('/notes')
     })
 
-    it('carries the search query and settings tab as the segment', () => {
-        go('/search/bookmarks')
+    it('carries the search query as ?q= and the settings tab as the segment', () => {
+        go('/search?q=bookmarks')
         const search = renderHook(() => useViewRoute())
-        expect(search.result.current).toEqual({ view: 'search', segment: 'bookmarks' })
+        expect(search.result.current).toEqual({ view: 'search', segment: null, query: 'bookmarks' })
         search.unmount()
 
         go('/settings/doctor')
         const settings = renderHook(() => useViewRoute())
-        expect(settings.result.current).toEqual({ view: 'settings', segment: 'doctor' })
+        expect(settings.result.current).toEqual({ view: 'settings', segment: 'doctor', query: null })
         settings.unmount()
     })
 

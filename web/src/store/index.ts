@@ -5,6 +5,7 @@ import { conversationsSlice } from './slices/conversationsSlice'
 import { chatSlice } from './slices/chatSlice'
 import { connectionSlice } from './slices/connectionSlice'
 import { notificationsSlice } from './slices/notificationsSlice'
+import { persistSearchHistory, searchHistorySlice } from './slices/searchHistorySlice'
 
 export function makeStore() {
     return configureStore({
@@ -14,8 +15,10 @@ export function makeStore() {
             conversations: conversationsSlice.reducer,
             chat: chatSlice.reducer,
             connection: connectionSlice.reducer,
-            notifications: notificationsSlice.reducer
-        }
+            notifications: notificationsSlice.reducer,
+            searchHistory: searchHistorySlice.reducer
+        },
+        middleware: (getDefaultMiddleware) => getDefaultMiddleware().concat(persistSearchHistory)
     })
 }
 
@@ -58,3 +61,4 @@ export {
     selectNotifications,
     selectUnreadCount
 } from './slices/notificationsSlice'
+export { commitSearch, clearSearchHistory, selectSearchHistory } from './slices/searchHistorySlice'

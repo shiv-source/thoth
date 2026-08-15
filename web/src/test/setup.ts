@@ -11,3 +11,20 @@ class ResizeObserverStub {
     disconnect() {}
 }
 globalThis.ResizeObserver ??= ResizeObserverStub as unknown as typeof ResizeObserver
+
+// jsdom has no matchMedia; ActivityChart watches prefers-color-scheme so the
+// chart flips with the theme. The stub never matches, which keeps theme
+// checks inert under test.
+Object.defineProperty(window, 'matchMedia', {
+    configurable: true,
+    value: (query: string) => ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        addListener: () => {},
+        removeListener: () => {},
+        dispatchEvent: () => false
+    })
+})
