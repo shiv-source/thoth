@@ -25,7 +25,7 @@ func TestSearchEndpoint(t *testing.T) {
 	if err := os.WriteFile(p, []byte("---\ntitle: Go\ntype: knowledge\n---\nchannels and goroutines\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := d.Index.Rebuild(root, d.Log); err != nil {
+	if err := d.Index.Sync(root, d.Log); err != nil {
 		t.Fatal(err)
 	}
 

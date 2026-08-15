@@ -35,7 +35,7 @@ func TestOnSettingsSavedSwitchesRootAndRestartsWatcher(t *testing.T) {
 	if err := wiki.Scaffold(oldRoot); err != nil {
 		t.Fatal(err)
 	}
-	if err := ix.Rebuild(oldRoot, log); err != nil {
+	if err := ix.Sync(oldRoot, log); err != nil {
 		t.Fatal(err)
 	}
 

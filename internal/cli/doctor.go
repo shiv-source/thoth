@@ -134,23 +134,23 @@ func (d *doctorRunner) repair(results []doctor.Check) bool {
 		}
 	}
 	if failed(results, "index") {
-		if err := d.rebuildIndex(); err != nil {
-			d.fixes = append(d.fixes, fmt.Sprintf("index: rebuild failed: %v", err))
+		if err := d.syncIndex(); err != nil {
+			d.fixes = append(d.fixes, fmt.Sprintf("index: sync failed: %v", err))
 		} else {
-			d.fixes = append(d.fixes, fmt.Sprintf("index: rebuilt from %s", d.wikiPath))
+			d.fixes = append(d.fixes, fmt.Sprintf("index: synced from %s", d.wikiPath))
 			fixed = true
 		}
 	}
 	return fixed
 }
 
-func (d *doctorRunner) rebuildIndex() error {
+func (d *doctorRunner) syncIndex() error {
 	ix, err := index.Open(d.dbPath)
 	if err != nil {
 		return err
 	}
 	defer func() { _ = ix.Close() }()
-	return ix.Rebuild(d.wikiPath, d.log)
+	return ix.Sync(d.wikiPath, d.log)
 }
 
 func failed(results []doctor.Check, name string) bool {
