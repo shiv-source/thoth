@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Sidebar } from './Sidebar'
+import { ToastProvider } from './Toast'
 
 const today = new Date()
 const yesterday = new Date(Date.now() - 86400000)
@@ -27,7 +28,7 @@ function stubAPI(handlers: Record<string, () => Response>) {
 }
 
 function renderSidebar() {
-  return render(<Sidebar openPath={null} onOpenNote={() => {}} />)
+  return render(<ToastProvider><Sidebar openPath={null} onOpenNote={() => {}} /></ToastProvider>)
 }
 
 describe('Sidebar chats section', () => {
@@ -58,6 +59,18 @@ describe('Sidebar chats section', () => {
     renderSidebar()
     await userEvent.click(await screen.findByText('Today chat'))
     expect(window.location.pathname).toBe('/chat/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1')
+  })
+
+  it('shows a delete affordance per row that does not navigate', async () => {
+    stubAPI({
+      '/api/conversations': () => new Response(JSON.stringify(conversations), { status: 200 }),
+      '/api/wiki/tree': () => new Response(JSON.stringify({ nodes: [] }), { status: 200 }),
+    })
+    renderSidebar()
+    const del = await screen.findByRole('button', { name: 'Delete Today chat' })
+    await userEvent.click(del)
+    expect(window.location.pathname).toBe('/')
+    expect(await screen.findByText('Deleting conversations is coming soon')).toBeInTheDocument()
   })
 
   it('navigates to the root when New chat is clicked', async () => {

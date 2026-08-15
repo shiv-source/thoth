@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import { Plus } from 'lucide-react'
+import { Plus, Trash2 } from 'lucide-react'
 import { api, type Conversation } from '../api/client'
 import { navigate } from '../hooks/useConversationRoute'
+import { useToast } from './Toast'
 import { SearchPanel } from './SearchPanel'
 import { WikiTree } from './WikiTree'
 
@@ -14,6 +15,7 @@ function ChatsList() {
   const [error, setError] = useState(false)
   const [pathname, setPathname] = useState(window.location.pathname)
   const listRef = useRef<HTMLUListElement>(null)
+  const { toast } = useToast()
 
   useEffect(() => {
     const onPop = () => setPathname(window.location.pathname)
@@ -67,11 +69,11 @@ function ChatsList() {
             {items.map((c) => {
               const active = c.id === activeConvID
               return (
-                <li key={c.id}>
+                <li key={c.id} className="group flex items-center">
                   <button
                     aria-current={active ? 'true' : undefined}
                     onClick={() => navigate(`/chat/${c.id}`)}
-                    className={`group flex w-full items-center gap-1.5 rounded-md py-1.5 pl-2 pr-2 text-left text-sm transition ${
+                    className={`flex min-w-0 flex-1 items-center gap-1.5 rounded-md py-1.5 pl-2 pr-1 text-left text-sm transition ${
                       active ? 'bg-accent-soft font-medium text-accent' : 'text-ink hover:bg-raised'
                     }`}
                   >
@@ -80,6 +82,17 @@ function ChatsList() {
                     <span className={`shrink-0 text-[11px] text-subtle ${active ? '' : 'opacity-0 group-hover:opacity-100'}`}>
                       {relativeDate(c.created_at)}
                     </span>
+                  </button>
+                  <button
+                    aria-label={`Delete ${c.title}`}
+                    title="Delete chat"
+                    onClick={() => {
+                      // Backend lands later; the affordance is visible now.
+                      toast('Deleting conversations is coming soon', 'error')
+                    }}
+                    className={`shrink-0 rounded-md p-1.5 text-subtle transition hover:bg-raised hover:text-red-500 ${active ? '' : 'opacity-0 group-hover:opacity-100'}`}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
                   </button>
                 </li>
               )
