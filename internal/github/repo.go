@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	_ "modernc.org/sqlite"
+	"github.com/shiv-source/thoth/internal/store"
 )
 
 // Auth is the stored GitHub connection. Token is never serialized: the API
@@ -32,7 +32,7 @@ type Repo struct {
 // OpenRepo opens a repository handle. The schema must exist — the store's
 // migrations create it.
 func OpenRepo(path string) (*Repo, error) {
-	db, err := sql.Open("sqlite", path)
+	db, err := store.OpenDB(path)
 	if err != nil {
 		return nil, fmt.Errorf("open github repo: %w", err)
 	}

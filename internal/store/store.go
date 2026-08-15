@@ -29,7 +29,7 @@ type Store struct {
 }
 
 func Open(path string) (*Store, error) {
-	db, err := sql.Open("sqlite", path)
+	db, err := OpenDB(path)
 	if err != nil {
 		return nil, fmt.Errorf("open store: %w", err)
 	}

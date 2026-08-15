@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/shiv-source/thoth/internal/store"
-	_ "modernc.org/sqlite"
 )
 
 type Note struct {
@@ -49,7 +48,7 @@ func Open(path string) (*Index, error) {
 	if err := st.Close(); err != nil {
 		return nil, err
 	}
-	db, err := sql.Open("sqlite", path)
+	db, err := store.OpenDB(path)
 	if err != nil {
 		return nil, fmt.Errorf("open index: %w", err)
 	}
