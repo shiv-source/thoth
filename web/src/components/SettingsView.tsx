@@ -11,6 +11,7 @@ import { fetchSettings, saveSettings, selectSettings } from '../store'
 import { useAppDispatch, useAppSelector } from '../store/hooks'
 import { useToast } from './Toast'
 import { TopBar } from './TopBar'
+import { navigateSegment, useViewRoute } from '../hooks/useView'
 
 const blank: Settings = {
     wiki_path: '',
@@ -43,7 +44,19 @@ const field =
 const label = 'mb-1 block text-xs font-medium uppercase tracking-wide text-subtle'
 
 export function SettingsView() {
-    const [tab, setTab] = useState<Tab>('general')
+    const { segment } = useViewRoute()
+    // The active tab rides the URL (#/settings/<tab>) so it survives a
+    // reload; an unknown or missing segment falls back to General — and the
+    // default is written into the URL so the route is always explicit.
+    const [tab, setTab] = useState<Tab>(() => (tabs.some((t) => t.id === segment) ? (segment as Tab) : 'general'))
+
+    useEffect(() => {
+        if (segment !== null && tabs.some((t) => t.id === segment)) {
+            setTab(segment as Tab)
+        } else {
+            navigateSegment('settings', 'general')
+        }
+    }, [segment])
     const [form, setForm] = useState<Settings>(blank)
     const [modelOptions, setModelOptions] = useState<ModelOption[]>([])
 
@@ -134,7 +147,10 @@ export function SettingsView() {
                                 key={t.id}
                                 role="tab"
                                 aria-selected={tab === t.id}
-                                onClick={() => setTab(t.id)}
+                                onClick={() => {
+                                    setTab(t.id)
+                                    navigateSegment('settings', t.id)
+                                }}
                                 className={`flex w-full items-center rounded-lg px-3 py-2 text-left text-sm transition ${
                                     tab === t.id
                                         ? 'bg-accent-soft font-medium text-accent'

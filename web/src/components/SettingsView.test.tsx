@@ -1,6 +1,6 @@
 import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { SettingsView } from './SettingsView'
 import { ToastProvider } from './Toast'
 import { renderWithStore } from '../test/renderWithStore'
@@ -310,5 +310,40 @@ describe('SettingsView public repo guard', () => {
         expect(url).toHaveValue('https://github.com/octo/public-wiki.git')
         expect(await screen.findByText(/public repository is blocked/)).toBeInTheDocument()
         expect(screen.getByRole('button', { name: 'Initialize & Push' })).toBeDisabled()
+    })
+})
+
+describe('SettingsView tab routing', () => {
+    afterEach(() => {
+        window.location.hash = ''
+    })
+
+    it('restores the active tab from the hash', async () => {
+        window.location.hash = '#/settings/doctor'
+        stubAPI({ 'GET /api/settings': getSettings, 'GET /api/github/auth': getEmptyGitHub })
+        renderSettings()
+        expect(await screen.findByRole('tab', { name: 'Doctor' })).toHaveAttribute('aria-selected', 'true')
+    })
+
+    it('writes the clicked tab into the hash', async () => {
+        window.location.hash = '#/settings'
+        stubAPI({ 'GET /api/settings': getSettings, 'GET /api/github/auth': getEmptyGitHub })
+        renderSettings()
+        await userEvent.click(await screen.findByRole('tab', { name: 'Git remote' }))
+        expect(window.location.hash).toBe('#/settings/git')
+    })
+})
+
+describe('SettingsView default tab route', () => {
+    afterEach(() => {
+        window.location.hash = ''
+    })
+
+    it('writes the General default into the URL when arriving at bare #/settings', async () => {
+        window.location.hash = '#/settings'
+        stubAPI({ 'GET /api/settings': getSettings, 'GET /api/github/auth': getEmptyGitHub })
+        renderSettings()
+        expect(await screen.findByRole('tab', { name: 'General' })).toHaveAttribute('aria-selected', 'true')
+        await waitFor(() => expect(window.location.hash).toBe('#/settings/general'))
     })
 })

@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { navigateNote, navigateView, useView, useViewRoute, type View } from './useView'
+import { navigateNote, navigateSegment, navigateView, useView, useViewRoute, type View } from './useView'
 
 describe('useView', () => {
     afterEach(() => {
@@ -58,14 +58,14 @@ describe('useView', () => {
         window.location.hash = '#/notes/knowledge/renovate-github-action.md'
         const { result } = renderHook(() => useViewRoute())
         expect(result.current.view).toBe('notes')
-        expect(result.current.note).toBe('knowledge/renovate-github-action.md')
+        expect(result.current.segment).toBe('knowledge/renovate-github-action.md')
     })
 
     it('treats #/notes without a path as no open note', () => {
         window.location.hash = '#/notes'
         const { result } = renderHook(() => useViewRoute())
         expect(result.current.view).toBe('notes')
-        expect(result.current.note).toBeNull()
+        expect(result.current.segment).toBeNull()
     })
 
     it('navigateNote opens and clears the note through the hash', () => {
@@ -74,6 +74,24 @@ describe('useView', () => {
         expect(window.location.hash).toBe('#/notes/meetings/standup.md')
         act(() => navigateNote(null))
         expect(window.location.hash).toBe('#/notes')
+    })
+
+    it('carries the search query and settings tab as the segment', () => {
+        window.location.hash = '#/search/bookmarks'
+        const search = renderHook(() => useViewRoute())
+        expect(search.result.current).toEqual({ view: 'search', segment: 'bookmarks' })
+        search.unmount()
+
+        window.location.hash = '#/settings/doctor'
+        const settings = renderHook(() => useViewRoute())
+        expect(settings.result.current).toEqual({ view: 'settings', segment: 'doctor' })
+        settings.unmount()
+    })
+
+    it('navigateSegment writes the segment for any view', () => {
+        renderHook(() => useViewRoute())
+        act(() => navigateSegment('settings', 'git'))
+        expect(window.location.hash).toBe('#/settings/git')
     })
 
     it('switching views drops the note segment', () => {

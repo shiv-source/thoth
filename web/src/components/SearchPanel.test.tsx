@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { axiosModuleMock } from '../test/mockAxios'
 import { SearchPanel } from './SearchPanel'
 
@@ -46,5 +46,26 @@ describe('SearchPanel', () => {
         await userEvent.keyboard('{Escape}')
         expect(input).toHaveValue('')
         expect(screen.queryByText('Standup')).not.toBeInTheDocument()
+    })
+})
+
+describe('SearchPanel routing', () => {
+    afterEach(() => {
+        window.location.hash = ''
+    })
+
+    it('restores the query from the hash on mount', () => {
+        window.location.hash = '#/search/goroutines'
+        stubSearch()
+        render(<SearchPanel onOpen={() => {}} />)
+        expect(screen.getByPlaceholderText(/Search your wiki/)).toHaveValue('goroutines')
+    })
+
+    it('keeps the query in the hash while typing (replaceState, no history spam)', async () => {
+        window.location.hash = '#/search'
+        stubSearch()
+        render(<SearchPanel onOpen={() => {}} />)
+        await userEvent.type(screen.getByPlaceholderText(/Search your wiki/), 'deploy')
+        expect(window.location.hash).toBe('#/search/deploy')
     })
 })

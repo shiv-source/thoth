@@ -1,16 +1,31 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { Search } from 'lucide-react'
 import { useSearch } from '../hooks/useSearch'
+import { useViewRoute } from '../hooks/useView'
 
 export function SearchPanel({ onOpen }: { onOpen: (path: string) => void }) {
-    const [query, setQuery] = useState('')
+    const { segment } = useViewRoute()
+    // The query rides the URL (#/search/<q>) so it survives a reload; typing
+    // replaceState's the hash (no history spam, no re-render loop).
+    const [query, setQuery] = useState(() => segment ?? '')
     const [active, setActive] = useState(0)
     const { results, loading } = useSearch(query)
     const inputRef = useRef<HTMLInputElement>(null)
 
+    // Back/forward (or any real hashchange) re-syncs the query.
+    useEffect(() => {
+        setQuery(segment ?? '')
+    }, [segment])
+
     useEffect(() => {
         setActive(0)
     }, [results])
+
+    const onQueryChange = (v: string) => {
+        setQuery(v)
+        const encoded = v ? encodeURIComponent(v).replace(/%2F/gi, '/') : ''
+        window.history.replaceState(null, '', v ? `#/search/${encoded}` : '#/search')
+    }
 
     const open = (path: string) => {
         onOpen(path)
@@ -46,7 +61,7 @@ export function SearchPanel({ onOpen }: { onOpen: (path: string) => void }) {
                 <input
                     ref={inputRef}
                     value={query}
-                    onChange={(e) => setQuery(e.target.value)}
+                    onChange={(e) => onQueryChange(e.target.value)}
                     onKeyDown={onKeyDown}
                     autoFocus
                     placeholder="Search your wiki…"

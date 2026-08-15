@@ -4,41 +4,56 @@ export type View = 'chat' | 'notes' | 'dashboard' | 'search' | 'settings'
 
 export interface ViewRoute {
     view: View
-    // note is the note path carried by #/notes/<path> — the open note in
-    // the Notes view survives reloads and back/forward.
-    note: string | null
+    // segment is the decoded path part after the view: the open note for
+    // #/notes/<path>, the query for #/search/<q>, the tab for
+    // #/settings/<tab>. It rides the URL, so the state survives reloads
+    // and back/forward.
+    segment: string | null
 }
 
 const VIEW_HASH = /^#\/(chat|notes|dashboard|search|settings)(?:\/(.+))?$/
 
 function routeFromHash(hash: string): ViewRoute {
     const m = VIEW_HASH.exec(hash)
-    if (!m) return { view: 'chat', note: null }
-    const view = m[1] as View
-    const note = view === 'notes' && m[2] !== undefined ? decodeURIComponent(m[2]) : null
-    return { view, note }
+    if (!m) return { view: 'chat', segment: null }
+    return {
+        view: m[1] as View,
+        segment: m[2] !== undefined ? decodeURIComponent(m[2]) : null
+    }
 }
 
-// navigateView moves the app between views; hashchange drives useView.
-// Assigning the hash alone does not fire hashchange in every environment
-// (jsdom), so dispatch it explicitly — same pattern as the conversation
-// navigate.
-export function navigateView(v: View): void {
-    window.location.hash = `#/${v}`
+// setHash assigns the hash and dispatches hashchange explicitly — assigning
+// alone does not fire it in every environment (jsdom), the same pattern as
+// the conversation navigate.
+function setHash(hash: string): void {
+    window.location.hash = hash
     window.dispatchEvent(new HashChangeEvent('hashchange'))
+}
+
+// navigateView moves the app between views (dropping any segment).
+export function navigateView(v: View): void {
+    setHash(`#/${v}`)
+}
+
+// navigateSegment moves to a view carrying state in the URL segment.
+// Slashes stay readable; decodeURIComponent reverses it on parse.
+export function navigateSegment(v: View, segment: string | null): void {
+    if (segment === null) {
+        setHash(`#/${v}`)
+        return
+    }
+    const encoded = encodeURIComponent(segment).replace(/%2F/gi, '/')
+    setHash(`#/${v}/${encoded}`)
 }
 
 // navigateNote opens (or clears) the note in the Notes view and switches to
 // it. The path rides the URL, so the open note survives a reload.
 export function navigateNote(path: string | null): void {
-    // Slashes stay readable in the hash; decodeURIComponent reverses it.
-    const encoded = path ? encodeURIComponent(path).replace(/%2F/gi, '/') : ''
-    window.location.hash = path ? `#/notes/${encoded}` : '#/notes'
-    window.dispatchEvent(new HashChangeEvent('hashchange'))
+    navigateSegment('notes', path)
 }
 
-// useViewRoute maps the URL hash to the active view plus the open note.
-// Chat is the home view for any hash the app does not recognize.
+// useViewRoute maps the URL hash to the active view plus its segment. Chat
+// is the home view for any hash the app does not recognize.
 export function useViewRoute(): ViewRoute {
     const [route, setRoute] = useState<ViewRoute>(() => routeFromHash(window.location.hash))
     useEffect(() => {

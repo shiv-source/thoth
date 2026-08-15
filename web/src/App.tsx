@@ -15,7 +15,7 @@ import { useAppDispatch, useAppSelector } from './store/hooks'
 import { selectHealth, selectHealthLoading } from './store'
 
 export default function App() {
-    const { view, note } = useViewRoute()
+    const { view, segment } = useViewRoute()
     useViewShortcuts()
     const dispatch = useAppDispatch()
     const health = useAppSelector(selectHealth)
@@ -44,7 +44,7 @@ export default function App() {
                         <>
                             {view === 'chat' && <ChatPanel onOpenSettings={openSettings} />}
                             {view === 'notes' && (
-                                <NotesView openPath={note} onOpenNote={openNoteHere} onOpenSettings={openSettings} />
+                                <NotesView openPath={segment} onOpenNote={openNoteHere} onOpenSettings={openSettings} />
                             )}
                             {view === 'dashboard' && <DashboardView onOpenSettings={openSettings} />}
                             {view === 'search' && (
