@@ -61,6 +61,7 @@ function lastBody(method: 'get' | 'post' | 'put' | 'delete', url: string): unkno
 
 const settings = {
     wiki_path: '~/.thoth/wiki',
+    model: '',
     repo_url: '',
     sync_enabled: false
 }
@@ -130,6 +131,27 @@ describe('SettingsModal', () => {
         await waitFor(() => expect(screen.getByText(/Saved ✓/)).toBeInTheDocument())
         // The save also surfaces as a toast.
         expect(await screen.findByText('Settings saved')).toBeInTheDocument()
+    })
+
+    it('selects a model from the models endpoint and saves it', async () => {
+        stubAPI({
+            'GET /api/settings': getSettings,
+            'GET /api/github/auth': getEmptyGitHub,
+            'GET /api/models': () => ({
+                models: [
+                    { value: '', label: 'CLI default', provider: 'Claude Code' },
+                    { value: 'deepseek-v4-flash', label: 'V4 Flash — fastest', provider: 'DeepSeek' }
+                ]
+            }),
+            'PUT /api/settings': () => ({ ...settings })
+        })
+
+        renderModal()
+        const select = await screen.findByRole('combobox')
+        await userEvent.selectOptions(select, 'deepseek-v4-flash')
+        await userEvent.click(screen.getByRole('button', { name: /Save/ }))
+        await waitFor(() => expect(screen.getByText(/Saved ✓/)).toBeInTheDocument())
+        expect(lastBody('put', '/api/settings')).toMatchObject({ model: 'deepseek-v4-flash' })
     })
 
     it('shows the save error when the server rejects', async () => {

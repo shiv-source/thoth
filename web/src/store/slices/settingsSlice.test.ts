@@ -7,7 +7,12 @@ import { fetchSettings, saveSettings, selectSettings } from './settingsSlice'
 const mocks = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() }))
 vi.mock('axios', () => axiosModuleMock(mocks))
 
-const saved: Settings = { wiki_path: '~/.thoth/wiki', repo_url: 'git@github.com:me/wiki.git', sync_enabled: true }
+const saved: Settings = {
+    wiki_path: '~/.thoth/wiki',
+    model: 'claude-sonnet-5',
+    repo_url: 'git@github.com:me/wiki.git',
+    sync_enabled: true
+}
 
 describe('settingsSlice', () => {
     beforeEach(() => {

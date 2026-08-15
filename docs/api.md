@@ -11,8 +11,9 @@ The server exposes REST for everything except the live chat, which is a WebSocke
 | `GET /api/notes?path=` | wiki-relative path | `{path, content}` |
 | `GET /api/wiki/tree` | — | `{nodes:[{name,path,is_dir,children}]}` |
 | `GET /api/doctor` | — | `{checks:[{name, ok, message}]}` — the shared `internal/doctor` suite (same checks as `thoth doctor`) |
-| `GET /api/settings` | — | `{wiki_path, repo_url, sync_enabled}` — every value lives in the `settings` key/value table in thoth.db (config.toml is deprecated) |
-| `PUT /api/settings` | `{wiki_path, repo_url, sync_enabled}` | saved values (KV upserts; the wiki-path-change callback runs first); 400 when `wiki_path` is empty |
+| `GET /api/settings` | — | `{wiki_path, model, repo_url, sync_enabled}` — every value lives in the `settings` key/value table in thoth.db (config.toml is deprecated) |
+| `PUT /api/settings` | `{wiki_path, model, repo_url, sync_enabled}` | saved values (KV upserts; the wiki-path-change callback runs first); 400 when `wiki_path` is empty |
+| `GET /api/models` | — | `{models:[{value,label}]}` — the model list for the Settings picker; the list lives in `internal/assets/models.json` (edit the file to customize) and the chosen `value` feeds the `model` setting |
 | `POST /api/github/auth` | `{token}` | identity `{username, display_name, email, avatar_url, scopes}` — the token itself is never returned; 400 "token is required" / "github rejected the token" |
 | `GET /api/github/auth` | — | identity (all fields empty when not connected) |
 | `DELETE /api/github/auth` | — | `{ok:true}` (idempotent) |
@@ -48,7 +49,8 @@ sequenceDiagram
     UI->>Go: send {text}
     Go->>Go: create/find conversation, persist user msg
     Go->>UI: assistant_start
-    Go->>CC: spawn claude -p --verbose (cwd=wiki, session-id)
+    Go->>CC: first turn: spawn claude -p --input-format stream-json (cwd=wiki, session-id)
+    Go->>CC: later turns: control message over the process's stdin
     CC->>W: read CLAUDE.md + notes
     CC-->>Go: stream-json lines
     Go-->>UI: assistant_delta ×N (+ tool_activity)
@@ -62,10 +64,10 @@ sequenceDiagram
 **Semantics:**
 
 - **Supersede** — a new `send` while a turn runs cancels the in-flight turn and starts the next
-- **Cancel** — kills the CLI process group; the UI receives `error {message:"cancelled"}` and nothing is persisted for that turn
+- **Cancel** — kills the conversation's pooled CLI process (there is no per-turn interrupt in the plain CLI); the UI receives `error {message:"cancelled"}` and nothing is persisted for that turn. The next send respawns the process, resuming the session from disk
 - **Resume** — after a reconnect, the client sends `resume`; the server replays the last turn's frames (≤ 500-message ring), then continues live
 - **Open** — pins the connection to an existing conversation so the next `send` continues it (conversation-history load). No replay, no other effect; an unknown id gets `error {message:"unknown conversation"}` and the connection stays unpinned
 - **New chat** — unpins the connection (cancels an in-flight turn first, which emits `error {message:"cancelled"}`); the next `send` starts a fresh conversation
-- **Sessions** — every conversation stores its Claude CLI session id (`conversations.claude_session_id`, seeded as the conversation id, migration 0003 backfills legacy rows). A turn reusing a session id the CLI reports as "already in use" (stale lock from a cancelled turn) forks once into a fresh id via `--resume <old> --fork-session` and persists the fork
+- **Sessions** — every conversation stores its Claude CLI session id (`conversations.claude_session_id`, seeded as the conversation id, migration 0003 backfills legacy rows) and owns one long-lived CLI process, lazily spawned and evicted after 10 idle minutes (the pool lives in `internal/claude/persistent.go`). A turn reusing a session id the CLI reports as "already in use" (stale lock from a killed process) forks once into a fresh id via `--resume <old> --fork-session` and persists the fork
 - **Titles** — derived from the first message, truncated at 60 runes
 - **Origins** — only localhost origins are accepted on the upgrade (see [Security](security.md))

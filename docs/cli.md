@@ -10,7 +10,7 @@ Starts the app on `host:port` from the config (default `127.0.0.1:8333`). No fla
 
 Startup sequence:
 
-1. Open `thoth.db` (migrations) and read `wiki_path` from the settings table
+1. Open `thoth.db` (migrations) and read `wiki_path` (and the optional `model`) from the settings table
 2. Scaffold the wiki if it doesn't exist
 3. Open `thoth.db` (index + store), sync the search index with the tree
 4. Start the fsnotify watcher

@@ -1,6 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { FileText, Folder, FolderOpen } from 'lucide-react'
 import { api, type TreeNode } from '../api/client'
+import { selectStreaming } from '../store'
+import { useAppSelector } from '../store/hooks'
 import { Tree } from './Tree'
 
 // WikiTree renders the wiki directory as a folder tree via the reusable
@@ -23,12 +25,33 @@ export function WikiTree({
 }) {
     const [nodes, setNodes] = useState<TreeNode[] | null>(null)
     const [error, setError] = useState(false)
+    const streaming = useAppSelector(selectStreaming)
+    const prevStreaming = useRef(streaming)
 
-    useEffect(() => {
+    // load fetches the tree; stable so the refetch effects can reuse it.
+    const load = useCallback(() => {
         api.tree()
             .then((r) => setNodes(r.nodes))
             .catch(() => setError(true))
     }, [])
+
+    useEffect(() => {
+        load()
+    }, [load])
+
+    // A completed chat turn may have saved notes: refetch so new files
+    // appear in the tree without a page refresh.
+    useEffect(() => {
+        if (prevStreaming.current && !streaming) load()
+        prevStreaming.current = streaming
+    }, [streaming, load])
+
+    // Notes written outside the app (terminal Claude, vim) show up when the
+    // window regains focus.
+    useEffect(() => {
+        window.addEventListener('focus', load)
+        return () => window.removeEventListener('focus', load)
+    }, [load])
 
     // One pass: every dir key plus the recursive file count per dir.
     const { allDirs, fileCounts } = useMemo(() => {

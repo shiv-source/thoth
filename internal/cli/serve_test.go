@@ -43,8 +43,10 @@ func TestOnSettingsSavedSwitchesRootAndRestartsWatcher(t *testing.T) {
 	w := wiki.New(oldRoot)
 	var watched []string
 	startWatcher := func(r string) { watched = append(watched, r) }
+	flushed := 0
+	flush := func() { flushed++ }
 
-	cb := onSettingsSaved(log, root, w, ix, startWatcher)
+	cb := onSettingsSaved(log, root, w, ix, startWatcher, flush)
 	if err := cb(newRoot); err != nil {
 		t.Fatalf("callback: %v", err)
 	}
@@ -57,6 +59,9 @@ func TestOnSettingsSavedSwitchesRootAndRestartsWatcher(t *testing.T) {
 	if len(watched) != 1 || watched[0] != newRoot {
 		t.Fatalf("watcher restarted with %v, want [%q]", watched, newRoot)
 	}
+	if flushed != 1 {
+		t.Fatalf("pooled CLI flush ran %d times, want 1", flushed)
+	}
 	// The new root was scaffolded by the callback.
 	if !w.Exists() {
 		t.Fatal("new wiki root was not scaffolded")
@@ -67,6 +72,9 @@ func TestOnSettingsSavedSwitchesRootAndRestartsWatcher(t *testing.T) {
 	}
 	if len(watched) != 1 {
 		t.Fatalf("no-op callback restarted the watcher: %v", watched)
+	}
+	if flushed != 1 {
+		t.Fatalf("no-op callback flushed again: %d", flushed)
 	}
 }
 
@@ -101,8 +109,10 @@ func TestOnSettingsSavedFailureLeavesRootUntouched(t *testing.T) {
 	w := wiki.New(oldRoot)
 	var watched []string
 	startWatcher := func(r string) { watched = append(watched, r) }
+	flushed := 0
+	flush := func() { flushed++ }
 
-	cb := onSettingsSaved(log, root, w, ix, startWatcher)
+	cb := onSettingsSaved(log, root, w, ix, startWatcher, flush)
 	if err := cb(newRoot); err == nil {
 		t.Fatal("expected error when scaffold fails")
 	}
@@ -114,6 +124,9 @@ func TestOnSettingsSavedFailureLeavesRootUntouched(t *testing.T) {
 	}
 	if len(watched) != 0 {
 		t.Fatalf("watcher restarted after failure: %v", watched)
+	}
+	if flushed != 0 {
+		t.Fatalf("pooled CLI flushed after failure: %d", flushed)
 	}
 }
 

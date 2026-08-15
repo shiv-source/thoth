@@ -6,9 +6,10 @@ The Go backend is organized as small packages with one purpose each, communicati
 |---|---|---|
 | `cmd/thoth` | Thin `main` — calls the CLI and exits | `main` |
 | `internal/cli` | Cobra commands: serve, init, version, doctor | `Execute()` |
-| `internal/claude` | **The blast wall** — the only package that knows CLI flags, stream parsing, and process kill mechanics | `Client`, `CLIClient`, `Event`, `ParseLine`, `FakeClient` |
+| `internal/claude` | **The blast wall** — the only package that knows CLI flags, stream parsing, and process kill mechanics | `Client`, `CLIClient`, `PersistentClient`, `Event`, `ParseLine`, `FakeClient` |
 | `internal/wiki` | The file contract: scaffolding, parsing, path safety, tree | `Scaffold`, `ParseNote`, `SafePath`, `Wiki`, `Rulebook` |
 | `internal/index` | SQLite + FTS5 + watcher | `Index`, `Sync`, `Watch`, `Search` |
+| `internal/assets` | Static data files served by the API (embedded) | `models.json` → `ModelOptions` (the Settings model picker list) |
 | `internal/store` | Conversations and messages (same db file) | `Store` |
 | `internal/api` | Echo server: routes, WS hub, handlers | `Deps`, `New`, `Hub` |
 | `internal/config` | Localhost bind constants (`127.0.0.1:8333`) + `ExpandHome` path helper | `DefaultHost`, `DefaultPort`, `ExpandHome` |
@@ -21,7 +22,8 @@ The Go backend is organized as small packages with one purpose each, communicati
 
 Everything version-sensitive about the Claude Code CLI lives in exactly two files:
 
-- `client.go` — the flag list (`-p --output-format stream-json --verbose --session-id …`, plus `--dangerously-skip-permissions` by default, or `--permission-mode <mode>` when configured, plus optional `--model`), spawn, stream scanning, cancel; stderr is captured and appended to exit errors
+- `client.go` — the flag lists (per-turn `-p --output-format stream-json --verbose --session-id …` and persistent-mode `-p --input-format stream-json … --autocompact auto`; plus `--dangerously-skip-permissions` by default, or `--permission-mode <mode>` when configured, plus optional `--model`), spawn, stream scanning, cancel; stderr is captured and appended to exit errors
+- `persistent.go` — `PersistentClient`, a pool of long-lived CLI processes keyed by session id: lazily spawned, one dispatcher goroutine per process turns stdout lines into events for the in-flight turn and ends it at the CLI's `result` line; cancel kills the process and the next turn respawns; idle processes evict after 10 min; `Flush` on wiki-path change, `Close` on shutdown
 - `events.go` — tolerant parsing of `stream-json` lines into typed events: `assistant_delta`, `thinking` (thinking-only assistant blocks — the UI shows "Thinking…" with the block text), `tool_activity`, `turn_done`, `error`; the raw stream is also appended to `~/.thoth/stream-dump.json` for debugging (rotated past 10MB)
 
 ```go
@@ -30,7 +32,7 @@ type Client interface {
 }
 ```
 
-Cancelling `ctx` kills the CLI's process group (unix) or direct child (windows) — `proc_unix.go` / `proc_windows.go` are build-tagged for that. A CLI upgrade can only ever break this package; everything else is stable.
+Cancelling `ctx` kills the CLI's process group (unix) or direct child (windows) — `proc_unix.go` / `proc_windows.go` are build-tagged for that; for a pooled process the kill evicts it and the next turn respawns (there is no per-turn interrupt in the plain CLI). A CLI upgrade can only ever break this package; everything else is stable.
 
 `FakeClient` replays scripted events and records calls — every consumer's tests use it, so no test ever touches the real CLI.
 

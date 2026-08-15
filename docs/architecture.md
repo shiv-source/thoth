@@ -22,7 +22,7 @@ flowchart LR
     UI <-->|REST /api/*| API
     UI <-->|WS /ws| API
     API --> CLI
-    CLI -->|spawns headless, cwd=wiki| CC
+    CLI -->|spawns headless per conversation (reused across turns), cwd=wiki| CC
     CC <-->|reads / writes notes| WIKI
     WATCH -->|fs events| INDEX
     API --> INDEX
@@ -39,7 +39,7 @@ Everything you know lives as markdown files in one directory (default `~/.thoth/
 One static binary (`bin/thoth`) containing:
 
 - **Echo server** — serves the embedded React build and the API (REST + WebSocket)
-- **Claude CLI client** — spawns `claude` headless per conversation, streams events, kills process groups on cancel. All CLI flags live in one file (`internal/claude/client.go`)
+- **Claude CLI client** — spawns `claude` headless per conversation and keeps it alive across turns (`--input-format stream-json`): the first turn of each conversation pays the CLI boot, later turns reuse the process. Cancels kill the process group and the next turn respawns, resuming the session from disk. All CLI flags live in one file (`internal/claude/client.go`)
 - **SQLite** — two roles in one db file: FTS5 search index over notes, and conversation/message history
 - **fsnotify watcher** — keeps the index in sync no matter which tool edits the wiki
 

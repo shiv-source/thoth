@@ -74,3 +74,19 @@ go tool cover -func=coverage.out | tail -1
 - `docs/` (this documentation set) is committed and maintained alongside code
 - Generated output (`bin/`, `web/dist/`, `internal/webui/dist/`, `node_modules/`, `*.db`) is never committed
 - No secrets anywhere — env vars or placeholders only
+
+## Debugging the persistent CLI pool
+
+Chat turns run through one long-lived `claude` process per conversation (`internal/claude/persistent.go`). To verify the CLI itself serves multiple turns over stream-json stdin (first step of any hang investigation):
+
+```sh
+SID=$(uuidgen)
+{ printf '{"type":"user","message":{"role":"user","content":"reply with exactly: one"}}\n';
+  printf '\n';
+  printf '{"type":"user","message":{"role":"user","content":"reply with exactly: two"}}\n'; } |
+  claude -p --input-format stream-json --output-format stream-json --verbose \
+    --session-id "$SID" --dangerously-skip-permissions 2>&1 |
+  grep -E '"type":"(assistant|result)"' | tail -10
+```
+
+Both turns must complete from one process (two `assistant` + two `result` lines). The raw stream of every turn lands in `~/.thoth/stream-dump.json` (rotated past 10MB), filterable by `session_id`.

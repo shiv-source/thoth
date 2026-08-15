@@ -60,6 +60,7 @@ func newServer(d Deps) (*echo.Echo, *Hub) {
 	e.GET("/api/wiki/tree", func(c echo.Context) error { return tree(c, d) })
 	e.GET("/api/settings", func(c echo.Context) error { return getSettings(c, d) })
 	e.PUT("/api/settings", func(c echo.Context) error { return putSettings(c, d) })
+	e.GET("/api/models", func(c echo.Context) error { return models(c, d) })
 	e.GET("/api/conversations", func(c echo.Context) error { return listConversations(c, d) })
 	e.POST("/api/conversations", func(c echo.Context) error { return createConversation(c, d) })
 	e.GET("/api/conversations/:id", func(c echo.Context) error { return getConversation(c, d) })
