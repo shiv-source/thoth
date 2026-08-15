@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import {
     api,
     type DoctorCheck,
@@ -45,6 +45,22 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
     const [tab, setTab] = useState<Tab>('general')
     const [form, setForm] = useState<Settings>(blank)
     const [modelOptions, setModelOptions] = useState<ModelOption[]>([])
+
+    // Group the flat model list by provider (stable first-seen order) so the
+    // select renders <optgroup> per provider.
+    const modelGroups = useMemo(() => {
+        const list = modelOptions.length ? modelOptions : [{ value: '', label: 'CLI default', provider: 'Claude Code' }]
+        const order: string[] = []
+        const byProvider = new Map<string, ModelOption[]>()
+        for (const m of list) {
+            if (!byProvider.has(m.provider)) {
+                byProvider.set(m.provider, [])
+                order.push(m.provider)
+            }
+            byProvider.get(m.provider)!.push(m)
+        }
+        return order.map((provider) => ({ provider, options: byProvider.get(provider)! }))
+    }, [modelOptions])
 
     // The model list comes from /api/models; on failure the select falls
     // back to the single Default option.
@@ -161,13 +177,15 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
                         <div>
                             <label className={label}>AI model</label>
                             <select className={field} value={form.model} onChange={(e) => set('model', e.target.value)}>
-                                {(modelOptions.length ? modelOptions : [{ value: '', label: 'Default (CLI)' }]).map(
-                                    (m) => (
-                                        <option key={m.value || 'default'} value={m.value}>
-                                            {m.label}
-                                        </option>
-                                    )
-                                )}
+                                {modelGroups.map((g) => (
+                                    <optgroup key={g.provider} label={g.provider}>
+                                        {g.options.map((m) => (
+                                            <option key={m.value || 'default'} value={m.value}>
+                                                {m.label}
+                                            </option>
+                                        ))}
+                                    </optgroup>
+                                ))}
                             </select>
                             <p className="mt-1 text-xs text-subtle">Applied to all chats after the app restarts.</p>
                         </div>

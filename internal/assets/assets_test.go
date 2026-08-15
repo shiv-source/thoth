@@ -18,6 +18,9 @@ func TestModelOptionsParse(t *testing.T) {
 		if o.Label == "" {
 			t.Fatalf("option %+v has no label", o)
 		}
+		if o.Provider == "" {
+			t.Fatalf("option %+v has no provider", o)
+		}
 		if seen[o.Value] {
 			t.Fatalf("duplicate model value %q", o.Value)
 		}

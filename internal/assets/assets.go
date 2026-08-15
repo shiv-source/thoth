@@ -15,8 +15,9 @@ var modelsJSON []byte
 // Option is one selectable model for the CLI's --model flag.
 type Option struct {
 	// Value is the --model argument ("" = the CLI's own default).
-	Value string `json:"value"`
-	Label string `json:"label"`
+	Value    string `json:"value"`
+	Label    string `json:"label"`
+	Provider string `json:"provider"`
 }
 
 // ModelOptions parses the embedded models.json.

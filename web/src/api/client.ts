@@ -22,7 +22,7 @@ export const Settings = z.object({
 })
 export type Settings = z.infer<typeof Settings>
 
-const ModelOption = z.object({ value: z.string(), label: z.string() })
+const ModelOption = z.object({ value: z.string(), label: z.string(), provider: z.string() })
 export type ModelOption = z.infer<typeof ModelOption>
 
 export const GitHubIdentity = z.object({

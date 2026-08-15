@@ -1,10 +1,10 @@
 {
   "models": [
-    { "value": "", "label": "Default (CLI)" },
-    { "value": "deepseek-v4-pro[1m]", "label": "DeepSeek V4 Pro — main" },
-    { "value": "deepseek-v4-flash", "label": "DeepSeek V4 Flash — fastest" },
-    { "value": "opus", "label": "Opus alias (env → deepseek-v4-pro[1m])" },
-    { "value": "sonnet", "label": "Sonnet alias (env → deepseek-v4-pro[1m])" },
-    { "value": "haiku", "label": "Haiku alias (env → deepseek-v4-flash)" }
+    { "value": "", "label": "CLI default", "provider": "Claude Code" },
+    { "value": "deepseek-v4-pro[1m]", "label": "V4 Pro — strongest", "provider": "DeepSeek" },
+    { "value": "deepseek-v4-flash", "label": "V4 Flash — fastest", "provider": "DeepSeek" },
+    { "value": "opus", "label": "Opus alias → V4 Pro", "provider": "DeepSeek" },
+    { "value": "sonnet", "label": "Sonnet alias → V4 Pro", "provider": "DeepSeek" },
+    { "value": "haiku", "label": "Haiku alias → V4 Flash", "provider": "DeepSeek" }
   ]
 }
