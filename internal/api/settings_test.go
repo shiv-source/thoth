@@ -195,3 +195,28 @@ func TestConversationsEndpoints(t *testing.T) {
 		t.Fatalf("list missing conversation: %d %s", rec.Code, rec.Body.String())
 	}
 }
+
+func TestDeleteConversationEndpoint(t *testing.T) {
+	d := testDeps(t)
+	e := New(d)
+
+	id, err := d.Store.CreateConversation("bye")
+	if err != nil {
+		t.Fatal(err)
+	}
+	req := httptest.NewRequest(http.MethodDelete, "/api/conversations/"+id, nil)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+	if convs, err := d.Store.ListConversations(); err != nil || len(convs) != 0 {
+		t.Fatalf("conversation not deleted: %v %+v", err, convs)
+	}
+	// Idempotent.
+	rec = httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("second delete status %d", rec.Code)
+	}
+}

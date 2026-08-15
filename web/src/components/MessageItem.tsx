@@ -1,19 +1,44 @@
+import { useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import { Check, Copy } from 'lucide-react'
 import type { ChatMessage } from '../hooks/useChat'
 
 export function MessageItem({ message, streaming }: { message: ChatMessage; streaming?: boolean }) {
   const isUser = message.role === 'user'
+  const [copied, setCopied] = useState(false)
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(message.content)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    } catch {
+      // Clipboard unavailable — the button simply does nothing.
+    }
+  }
+
   return (
     <div className={`flex items-start gap-2.5 ${isUser ? 'justify-end' : 'justify-start'}`}>
       {!isUser && <AssistantIcon />}
       <div
         className={
           isUser
-            ? 'max-w-[80%] rounded-xl rounded-br-sm bg-accent px-4 py-2.5 text-accent-ink'
-            : 'max-w-[85%] rounded-xl rounded-bl-sm border border-line bg-surface px-4 py-2.5'
+            ? 'group relative max-w-[80%] rounded-xl rounded-br-sm bg-accent px-4 py-2.5 text-accent-ink'
+            : 'group relative max-w-[85%] rounded-xl rounded-bl-sm border border-line bg-surface px-4 py-2.5'
         }
       >
+        {!isUser && !streaming && (
+          <button
+            type="button"
+            onClick={() => void copy()}
+            aria-label="Copy message"
+            title="Copy message"
+            className="absolute right-2 top-2 rounded-md p-1 text-subtle opacity-0 transition group-hover:opacity-100 hover:bg-raised hover:text-ink"
+          >
+            {copied ? <Check className="h-3.5 w-3.5 text-emerald-500" aria-hidden="true" /> : <Copy className="h-3.5 w-3.5" aria-hidden="true" />}
+          </button>
+        )}
         {isUser ? (
           <p className="whitespace-pre-wrap text-sm leading-relaxed">{message.content}</p>
         ) : (

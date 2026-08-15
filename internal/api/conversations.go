@@ -29,6 +29,15 @@ func createConversation(c echo.Context, d Deps) error {
 	return c.JSON(http.StatusOK, map[string]string{"id": id, "title": body.Title})
 }
 
+// deleteConversation removes the conversation and its messages; deleting a
+// missing conversation is a no-op (idempotent).
+func deleteConversation(c echo.Context, d Deps) error {
+	if err := d.Store.DeleteConversation(c.Param("id")); err != nil {
+		return internalError(c, d, "delete conversation", err)
+	}
+	return c.JSON(http.StatusOK, map[string]bool{"ok": true})
+}
+
 func getConversation(c echo.Context, d Deps) error {
 	convs, err := d.Store.ListConversations()
 	if err != nil {

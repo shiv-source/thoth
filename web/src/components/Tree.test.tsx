@@ -99,3 +99,49 @@ describe('Tree', () => {
     expect(screen.getByText('a.md').closest('[role="treeitem"]')!.querySelector('[tabindex="0"]')).toHaveFocus()
   })
 })
+
+describe('Tree controlled mode', () => {
+  it('defers expansion to the caller via expandedKeys/onExpandedChange', async () => {
+    let keys = new Set<string>(['inbox'])
+    const onExpandedChange = vi.fn((next: Set<string>) => { keys = next })
+    const { rerender } = render(
+      <Tree<Node>
+        nodes={sample}
+        getKey={(n) => n.id}
+        getLabel={(n) => n.label}
+        isDir={(n) => n.dir}
+        getChildren={(n) => n.children}
+        renderIcon={() => null}
+        onSelect={() => {}}
+        selectedKey={null}
+        expandedKeys={keys}
+        onExpandedChange={onExpandedChange}
+      />,
+    )
+    expect(screen.getByText('a.md')).toBeInTheDocument()
+    expect(screen.queryByText('b.md')).not.toBeInTheDocument()
+
+    // Collapsing goes through the callback.
+    await userEvent.click(screen.getByRole('button', { name: 'Collapse inbox' }))
+    expect(onExpandedChange).toHaveBeenCalled()
+    const collapsed = onExpandedChange.mock.calls.at(-1)![0]
+    expect(collapsed.has('inbox')).toBe(false)
+
+    // Rerendering with the collapsed set hides the children.
+    rerender(
+      <Tree<Node>
+        nodes={sample}
+        getKey={(n) => n.id}
+        getLabel={(n) => n.label}
+        isDir={(n) => n.dir}
+        getChildren={(n) => n.children}
+        renderIcon={() => null}
+        onSelect={() => {}}
+        selectedKey={null}
+        expandedKeys={collapsed}
+        onExpandedChange={onExpandedChange}
+      />,
+    )
+    expect(screen.queryByText('a.md')).not.toBeInTheDocument()
+  })
+})

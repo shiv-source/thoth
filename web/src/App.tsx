@@ -13,7 +13,7 @@ export default function App() {
   return (
     <ToastProvider>
       <div className="flex h-screen bg-app font-sans text-ink">
-        <Sidebar openPath={openNote} onOpenNote={setOpenNote} />
+        <Sidebar openPath={openNote} onOpenNote={setOpenNote} health={health} loading={loading} />
         <main className="flex min-w-0 flex-1 flex-col">
           {loading && !health ? (
             <div className="flex flex-1 items-center justify-center" role="status" aria-label="Loading">

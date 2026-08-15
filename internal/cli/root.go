@@ -8,6 +8,9 @@ import (
 
 var version = "dev"
 
+// Version returns the build version (stamped via -ldflags -X ...cli.version).
+func Version() string { return version }
+
 // Execute runs the thoth CLI and returns its error. main only prints and
 // exits; all cobra wiring lives here.
 func Execute() error {

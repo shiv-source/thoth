@@ -11,33 +11,47 @@ export interface TreeProps<T> {
   getChildren: (n: T) => T[]
   /** Icon slot (e.g. folder/file icons); expanded is only meaningful for dirs. */
   renderIcon: (n: T, expanded: boolean) => React.ReactNode
+  /** Optional trailing slot rendered right-aligned on rows (e.g. count badges). */
+  renderTrailing?: (n: T) => React.ReactNode
   onSelect: (n: T) => void
   /** Key of the selected node (e.g. the open note). */
   selectedKey: string | null
+  /** Controlled expansion (optional): when provided, Tree defers all
+   *  expand/collapse decisions to the caller. */
+  expandedKeys?: Set<string>
+  onExpandedChange?: (next: Set<string>) => void
 }
 
 // Tree is a reusable, accessible folder tree. Folders start collapsed (the
 // enterprise convention) and expand on the chevron click or ArrowRight.
 // Keyboard: ArrowDown/Up move focus, ArrowRight/Left expand/collapse, Enter
 // selects.
-export function Tree<T>({ nodes, getKey, getLabel, isDir, getChildren, renderIcon, onSelect, selectedKey }: TreeProps<T>) {
+export function Tree<T>({
+  nodes, getKey, getLabel, isDir, getChildren, renderIcon, renderTrailing,
+  onSelect, selectedKey, expandedKeys, onExpandedChange,
+}: TreeProps<T>) {
+  const controlled = expandedKeys !== undefined
   // Flattened, focusable rows in visual order — roving tabIndex.
   const rows = useRef<T[]>([])
   const rowRefs = useRef(new Map<string, HTMLElement>())
   const [focusedKey, setFocusedKey] = useState<string | null>(null)
-  const [expanded, setExpanded] = useState<Set<string>>(() => new Set())
+  const [internalExpanded, setInternalExpanded] = useState<Set<string>>(() => new Set())
+
+  const expanded = controlled ? expandedKeys : internalExpanded
 
   const toggle = (n: T) => {
-    setExpanded((prev) => {
-      const next = new Set(prev)
-      const key = getKey(n)
-      if (next.has(key)) {
-        next.delete(key)
-      } else {
-        next.add(key)
-      }
-      return next
-    })
+    const next = new Set(expanded)
+    const key = getKey(n)
+    if (next.has(key)) {
+      next.delete(key)
+    } else {
+      next.add(key)
+    }
+    if (controlled) {
+      onExpandedChange?.(next)
+    } else {
+      setInternalExpanded(next)
+    }
   }
 
   const moveFocus = (dir: 1 | -1) => {
@@ -127,6 +141,7 @@ export function Tree<T>({ nodes, getKey, getLabel, isDir, getChildren, renderIco
               )}
               <span className="w-5 shrink-0 text-subtle">{renderIcon(n, open)}</span>
               <span className="min-w-0 flex-1 truncate">{getLabel(n)}</span>
+              {renderTrailing?.(n)}
             </div>
             {dir && open && render(getChildren(n), depth + 1)}
           </li>

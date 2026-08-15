@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Plus, Trash2 } from 'lucide-react'
-import { api, type Conversation } from '../api/client'
+import { api, type Conversation, type Health } from '../api/client'
 import { navigate } from '../hooks/useConversationRoute'
 import { useToast } from './Toast'
 import { SearchPanel } from './SearchPanel'
@@ -87,8 +87,16 @@ function ChatsList() {
                     aria-label={`Delete ${c.title}`}
                     title="Delete chat"
                     onClick={() => {
-                      // Backend lands later; the affordance is visible now.
-                      toast('Deleting conversations is coming soon', 'error')
+                      void (async () => {
+                        try {
+                          await api.deleteConversation(c.id)
+                          setConversations((prev) => prev?.filter((p) => p.id !== c.id) ?? prev)
+                          toast('Conversation deleted', 'success')
+                          if (c.id === activeConvID) navigate('/')
+                        } catch {
+                          toast('Could not delete the conversation', 'error')
+                        }
+                      })()
                     }}
                     className={`shrink-0 rounded-md p-1.5 text-subtle transition hover:bg-raised hover:text-red-500 ${active ? '' : 'opacity-0 group-hover:opacity-100'}`}
                   >
@@ -159,9 +167,11 @@ function relativeDate(iso: string): string {
   return rtf.format(Math.round(months / 12), 'year')
 }
 
-export function Sidebar({ openPath, onOpenNote }: {
+export function Sidebar({ openPath, onOpenNote, health, loading }: {
   openPath: string | null
   onOpenNote: (path: string) => void
+  health: Health | null
+  loading: boolean
 }) {
   return (
     <aside className="flex w-72 shrink-0 flex-col border-r border-line bg-app">
@@ -190,6 +200,38 @@ export function Sidebar({ openPath, onOpenNote }: {
           </div>
         </div>
       </div>
+      <HealthFooter health={health} loading={loading} />
     </aside>
+  )
+}
+
+// HealthFooter is the bottom status bar: a health dot with a one-line
+// reason, and the app version on the right.
+function HealthFooter({ health, loading }: { health: Health | null; loading: boolean }) {
+  let dot = 'bg-subtle animate-pulse'
+  let label = 'Checking…'
+  if (!loading) {
+    if (health && health.claude.found && health.wiki.exists) {
+      dot = 'bg-emerald-500'
+      label = 'All systems go'
+    } else if (health && !health.claude.found) {
+      dot = 'bg-red-500'
+      label = 'Claude CLI missing'
+    } else if (health && !health.wiki.exists) {
+      dot = 'bg-red-500'
+      label = 'Wiki missing'
+    } else {
+      dot = 'bg-red-500'
+      label = 'Server unreachable'
+    }
+  }
+  return (
+    <footer className="flex h-8 shrink-0 items-center justify-between border-t border-line px-3 text-[11px] text-subtle">
+      <span className="flex min-w-0 items-center gap-1.5">
+        <span aria-hidden="true" className={`h-1.5 w-1.5 shrink-0 rounded-full ${dot}`} />
+        <span className="truncate">{label}</span>
+      </span>
+      <span className="shrink-0">v{health?.version ?? '…'}</span>
+    </footer>
   )
 }

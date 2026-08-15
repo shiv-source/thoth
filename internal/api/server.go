@@ -21,6 +21,7 @@ type Deps struct {
 	GitHub          *github.Service
 	Settings        *settings.Repo
 	DataDir         string // thoth dir (~/.thoth) — the doctor handler probes it
+	Version         string // build version, shown in /api/health and the UI footer
 	Wiki            *wiki.Wiki
 	Index           *index.Index
 	OnSettingsSaved func(wikiPath string) error
@@ -61,6 +62,7 @@ func newServer(d Deps) (*echo.Echo, *Hub) {
 	e.GET("/api/conversations", func(c echo.Context) error { return listConversations(c, d) })
 	e.POST("/api/conversations", func(c echo.Context) error { return createConversation(c, d) })
 	e.GET("/api/conversations/:id", func(c echo.Context) error { return getConversation(c, d) })
+	e.DELETE("/api/conversations/:id", func(c echo.Context) error { return deleteConversation(c, d) })
 	e.POST("/api/github/auth", func(c echo.Context) error { return connectGitHub(c, d) })
 	e.GET("/api/github/auth", func(c echo.Context) error { return getGitHubAuth(c, d) })
 	e.DELETE("/api/github/auth", func(c echo.Context) error { return disconnectGitHub(c, d) })

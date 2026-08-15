@@ -135,6 +135,7 @@ func runServe(cmd *cobra.Command, _ []string) error {
 		GitHub:          &github.Service{Client: github.New(http.DefaultClient), Repo: gh},
 		Settings:        stg,
 		DataDir:         dir,
+		Version:         Version(),
 		Wiki:            w,
 		Index:           ix,
 		OnSettingsSaved: onSettingsSaved(log, root, w, ix, startWatcher),

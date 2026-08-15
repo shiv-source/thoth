@@ -58,3 +58,21 @@ describe('WikiTree', () => {
     expect(await screen.findByText('Could not load the wiki tree')).toBeInTheDocument()
   })
 })
+
+describe('WikiTree controls', () => {
+  it('expand-all reveals every folder, collapse-all hides them, badges count files', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(treeResponse), { status: 200 })))
+    render(<WikiTree openPath={null} onOpenNote={() => {}} />)
+
+    // Badges: one file under each folder (recursive counts).
+    expect((await screen.findByText('meetings')).parentElement?.textContent).toContain('1')
+
+    await userEvent.click(screen.getByRole('button', { name: 'Expand all folders' }))
+    expect(screen.getByText('standup.md')).toBeInTheDocument()
+    expect(screen.getByText('TODO.md')).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Collapse all folders' }))
+    expect(screen.queryByText('standup.md')).not.toBeInTheDocument()
+    expect(screen.queryByText('TODO.md')).not.toBeInTheDocument()
+  })
+})

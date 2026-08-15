@@ -49,6 +49,7 @@ describe('api.getConversation and health', () => {
       status: 'ok',
       claude: { found: true, path: '/usr/local/bin/claude' },
       wiki: { path: '/tmp/wiki', exists: true },
+      version: '1.2.3',
     }), { status: 200 }))
     fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({
       checks: [{ name: 'config', ok: true, message: 'parses' }],

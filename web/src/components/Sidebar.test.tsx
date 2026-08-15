@@ -1,8 +1,16 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Sidebar } from './Sidebar'
 import { ToastProvider } from './Toast'
+import type { Health } from '../api/client'
+
+const healthy: Health = {
+  status: 'ok',
+  claude: { found: true, path: '/usr/local/bin/claude' },
+  wiki: { path: '/tmp/wiki', exists: true },
+  version: '1.2.3',
+}
 
 const today = new Date()
 const yesterday = new Date(Date.now() - 86400000)
@@ -27,8 +35,8 @@ function stubAPI(handlers: Record<string, () => Response>) {
   return fetchMock
 }
 
-function renderSidebar() {
-  return render(<ToastProvider><Sidebar openPath={null} onOpenNote={() => {}} /></ToastProvider>)
+function renderSidebar(health: Health | null = healthy, loading = false) {
+  return render(<ToastProvider><Sidebar openPath={null} onOpenNote={() => {}} health={health} loading={loading} /></ToastProvider>)
 }
 
 describe('Sidebar chats section', () => {
@@ -61,16 +69,24 @@ describe('Sidebar chats section', () => {
     expect(window.location.pathname).toBe('/chat/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1')
   })
 
-  it('shows a delete affordance per row that does not navigate', async () => {
-    stubAPI({
+  it('deletes a conversation via the API and removes it from the list', async () => {
+    const fetchMock = stubAPI({
       '/api/conversations': () => new Response(JSON.stringify(conversations), { status: 200 }),
       '/api/wiki/tree': () => new Response(JSON.stringify({ nodes: [] }), { status: 200 }),
     })
+    fetchMock.mockImplementation((url: string, init?: RequestInit) => {
+      if (init?.method === 'DELETE') return Promise.resolve(new Response(JSON.stringify({ ok: true }), { status: 200 }))
+      if (String(url).includes('/api/conversations')) {
+        return Promise.resolve(new Response(JSON.stringify(conversations), { status: 200 }))
+      }
+      return Promise.resolve(new Response(JSON.stringify({ nodes: [] }), { status: 200 }))
+    })
     renderSidebar()
-    const del = await screen.findByRole('button', { name: 'Delete Today chat' })
-    await userEvent.click(del)
-    expect(window.location.pathname).toBe('/')
-    expect(await screen.findByText('Deleting conversations is coming soon')).toBeInTheDocument()
+    await userEvent.click(await screen.findByRole('button', { name: 'Delete Today chat' }))
+    expect(await screen.findByText('Conversation deleted')).toBeInTheDocument()
+    await waitFor(() => expect(screen.queryByText('Today chat')).not.toBeInTheDocument())
+    const deleted = fetchMock.mock.calls.find(([u, init]) => String(u).includes('/api/conversations/') && init?.method === 'DELETE')
+    expect(deleted).toBeDefined()
   })
 
   it('navigates to the root when New chat is clicked', async () => {
@@ -99,5 +115,35 @@ describe('Sidebar chats section', () => {
     renderSidebar()
     expect(await screen.findByText('Could not load conversations')).toBeInTheDocument()
     void fetchMock
+  })
+})
+
+describe('Sidebar health footer', () => {
+  it('shows the healthy state with the version', async () => {
+    stubAPI({
+      '/api/conversations': () => new Response(JSON.stringify({ conversations: [] }), { status: 200 }),
+      '/api/wiki/tree': () => new Response(JSON.stringify({ nodes: [] }), { status: 200 }),
+    })
+    renderSidebar(healthy)
+    expect(await screen.findByText('All systems go')).toBeInTheDocument()
+    expect(screen.getByText('v1.2.3')).toBeInTheDocument()
+  })
+
+  it('shows the missing-claude state', async () => {
+    stubAPI({
+      '/api/conversations': () => new Response(JSON.stringify({ conversations: [] }), { status: 200 }),
+      '/api/wiki/tree': () => new Response(JSON.stringify({ nodes: [] }), { status: 200 }),
+    })
+    renderSidebar({ ...healthy, claude: { found: false, path: 'claude' } })
+    expect(await screen.findByText('Claude CLI missing')).toBeInTheDocument()
+  })
+
+  it('shows the loading state', async () => {
+    stubAPI({
+      '/api/conversations': () => new Response(JSON.stringify({ conversations: [] }), { status: 200 }),
+      '/api/wiki/tree': () => new Response(JSON.stringify({ nodes: [] }), { status: 200 }),
+    })
+    renderSidebar(null, true)
+    expect(await screen.findByText('Checking…')).toBeInTheDocument()
   })
 })

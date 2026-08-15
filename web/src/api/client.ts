@@ -51,6 +51,7 @@ export const Health = z.object({
   status: z.string(),
   claude: z.object({ found: z.boolean(), path: z.string() }),
   wiki: z.object({ path: z.string(), exists: z.boolean() }),
+  version: z.string(),
 })
 export type Health = z.infer<typeof Health>
 
@@ -83,6 +84,10 @@ export const api = {
   health: () => get('/api/health', Health),
   doctor: () => get('/api/doctor', z.object({ checks: z.array(DoctorCheck) })),
   listConversations: () => get('/api/conversations', z.object({ conversations: z.array(Conversation) })),
+  deleteConversation: async (id: string): Promise<void> => {
+    const res = await fetch(`/api/conversations/${encodeURIComponent(id)}`, { method: 'DELETE' })
+    if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
+  },
   getConversation: (id: string) => get(`/api/conversations/${encodeURIComponent(id)}`, z.object({ conversation: Conversation, messages: z.array(Message) })),
   gitSetup: async (url: string): Promise<{ ok: boolean; error?: string }> => {
     const res = await fetch('/api/git/setup', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ url }) })
