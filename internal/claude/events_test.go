@@ -63,13 +63,26 @@ func TestParseLineAssistantWithEmptyText(t *testing.T) {
 	if !errors.Is(err, ErrIgnore) {
 		t.Fatalf("expected ErrIgnore for empty text, got %v", err)
 	}
-	_, err = ParseLine([]byte(`{"type":"assistant","message":{"content":[{"type":"thinking","text":"hmm"}]}}`))
-	if !errors.Is(err, ErrIgnore) {
-		t.Fatalf("expected ErrIgnore for unknown block, got %v", err)
-	}
 	_, err = ParseLine([]byte(`{"type":"assistant","message":{"content":[]}}`))
 	if !errors.Is(err, ErrIgnore) {
 		t.Fatalf("expected ErrIgnore for empty content, got %v", err)
+	}
+}
+
+func TestParseLineThinking(t *testing.T) {
+	// Content made solely of thinking blocks surfaces as a thinking event.
+	ev, err := ParseLine([]byte(`{"type":"assistant","message":{"content":[{"type":"thinking","text":"hmm"}]}}`))
+	if err != nil || ev.Type != EventThinking || ev.Text != "hmm" {
+		t.Fatalf("thinking-only: %+v %v, want EventThinking with its text", ev, err)
+	}
+	// Text and tool blocks still win over thinking.
+	ev, err = ParseLine([]byte(`{"type":"assistant","message":{"content":[{"type":"thinking","text":"hmm"},{"type":"text","text":"answer"}]}}`))
+	if err != nil || ev.Type != EventDelta || ev.Text != "answer" {
+		t.Fatalf("mixed thinking+text: %+v %v, want delta", ev, err)
+	}
+	ev, err = ParseLine([]byte(`{"type":"assistant","message":{"content":[{"type":"thinking","text":"hmm"},{"type":"tool_use","name":"Read","input":{"path":"x.md"}}]}}`))
+	if err != nil || ev.Type != EventTool || ev.Tool != "Read" {
+		t.Fatalf("mixed thinking+tool: %+v %v, want tool", ev, err)
 	}
 }
 

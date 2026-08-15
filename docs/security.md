@@ -6,7 +6,7 @@ Thoth's security model is simple by design: **local-only, single-user, no authen
 
 | Threat | Mitigation |
 |---|---|
-| Remote access to the server | Binds `127.0.0.1` by default (configurable, but never `0.0.0.0` unless the user opts in) |
+| Remote access to the server | Binds `127.0.0.1` on port 8333 — the address is a code constant, not a setting |
 | Malicious webpage driving the WebSocket (WebSockets bypass CORS) | Origin check on upgrade: only localhost origins accepted |
 | Path traversal reading arbitrary files | Every filesystem access routes through `SafePath` — absolute paths and `..` escapes rejected |
 | Stored XSS via note content | Snippets are HTML-escaped server-side before `<mark>` highlighting; markdown rendering escapes HTML |
@@ -16,7 +16,7 @@ Thoth's security model is simple by design: **local-only, single-user, no authen
 
 ## Implementation pointers
 
-- **Bind default** — `host: 127.0.0.1` in `internal/config/config.go`
+- **Bind default** — `127.0.0.1:8333` constants in `internal/config/config.go` (the address is not user-configurable)
 - **Origin check** — `allowLocalOrigin` in `internal/api/chat.go`: accepts a missing Origin header (curl, tests, non-browser clients) or hostnames `localhost` / `127.0.0.1` / `::1`
 - **Path safety** — `internal/wiki/path.go` `SafePath`, used by `Wiki.Read` and the `/api/notes` handler
 - **Snippet escaping** — `html.EscapeString` then control-marker → `<mark>` replacement in `internal/index/index.go`, covered by `TestSearchSnippetEscapesHTML`
@@ -26,6 +26,6 @@ Thoth's security model is simple by design: **local-only, single-user, no authen
 ## Deliberate trade-offs
 
 - No authentication — correct for a localhost-bound single-user app; the origin check closes the realistic browser-based attack, not network access in general
-- The spawned Claude CLI runs **fully unattended by default** (`--dangerously-skip-permissions` — bypasses all permission checks; headless mode cannot answer prompts and note-saving is the app's core feature). Set a `permission_mode` in Settings (`acceptEdits`, `dontAsk`, `manual`, `plan`, …) to restore guardrails
+- The spawned Claude CLI runs **fully unattended by default** (`--dangerously-skip-permissions` — bypasses all permission checks; headless mode cannot answer prompts and note-saving is the app's core feature). The CLI flags are fixed in `internal/claude/client.go` (the blast wall)
 - Conversation history lives in the same local SQLite file as the index; nothing leaves the machine
 - The GitHub PAT is stored plaintext in `thoth.db` (`github_auth`) — the same trust model as the `gh` CLI's own credentials file; the API never returns it and errors never echo it, and it is only ever sent to `api.github.com`

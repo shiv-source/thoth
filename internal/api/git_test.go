@@ -78,7 +78,7 @@ func TestGitSetupRunsAgainstWiki(t *testing.T) {
 	}
 
 	// A successful push records the sync outcome.
-	last, syncErr, err := d.Store.SyncState()
+	last, syncErr, err := d.Settings.SyncState()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -120,7 +120,7 @@ func TestGitSetupReportsSanitizedFailure(t *testing.T) {
 	}
 
 	// A failed push records the sanitized error; last_synced_at stays empty.
-	last, syncErr, err := d.Store.SyncState()
+	last, syncErr, err := d.Settings.SyncState()
 	if err != nil {
 		t.Fatal(err)
 	}

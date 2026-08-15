@@ -19,7 +19,7 @@ The Go backend is organized as small packages with one purpose each, communicati
 Everything version-sensitive about the Claude Code CLI lives in exactly two files:
 
 - `client.go` — the flag list (`-p --output-format stream-json --verbose --session-id …`, plus `--dangerously-skip-permissions` by default, or `--permission-mode <mode>` when configured, plus optional `--model`), spawn, stream scanning, cancel; stderr is captured and appended to exit errors
-- `events.go` — tolerant parsing of `stream-json` lines into typed events: `assistant_delta`, `tool_activity`, `turn_done`, `error`
+- `events.go` — tolerant parsing of `stream-json` lines into typed events: `assistant_delta`, `thinking` (thinking-only assistant blocks — the UI shows "Thinking…" with the block text), `tool_activity`, `turn_done`, `error`; the raw stream is also appended to `~/.thoth/stream-dump.json` for debugging (rotated past 10MB)
 
 ```go
 type Client interface {

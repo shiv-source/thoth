@@ -24,6 +24,7 @@ import (
 	_ "modernc.org/sqlite"
 
 	"github.com/shiv-source/thoth/internal/config"
+	"github.com/shiv-source/thoth/internal/settings"
 	"github.com/shiv-source/thoth/internal/wiki"
 )
 
@@ -41,10 +42,12 @@ type Check struct {
 }
 
 // Run probes the installation under dir ("" means ~/.thoth) and returns every
-// check, in order: config, wiki, claude, claude login, database, index, api,
-// websocket. Every check runs even when an earlier one fails. ctx bounds the
-// claude probes; log is reserved for future diagnostics.
-func Run(ctx context.Context, dir string, log *slog.Logger) []Check {
+// check, in order: wiki, claude, claude login, database, index, api,
+// websocket. Every check runs even when an earlier one fails. addr is the
+// host:port the api/websocket checks probe ("" → 127.0.0.1:8333); tests
+// inject a free port. ctx bounds the claude probes; log is reserved for
+// future diagnostics.
+func Run(ctx context.Context, dir string, addr string, log *slog.Logger) []Check {
 	thDir := dir
 	if thDir == "" {
 		home, err := os.UserHomeDir()
@@ -53,57 +56,61 @@ func Run(ctx context.Context, dir string, log *slog.Logger) []Check {
 		}
 		thDir = filepath.Join(home, ".thoth")
 	}
-	cfgPath := filepath.Join(thDir, "config.toml")
+	if addr == "" {
+		addr = defaultAddr()
+	}
 	dbPath := filepath.Join(thDir, "thoth.db")
 
 	results := make([]Check, 0, 7)
 
-	// 1. config
-	cfg, res := checkConfig(cfgPath)
-	results = append(results, res)
-
-	// 2. wiki
-	expanded, err := config.ExpandHome(cfg.WikiPath)
+	// 1. wiki — the path lives in the settings table; a missing database
+	// falls back to the default (the doctor must not create the DB itself).
+	expanded, err := config.ExpandHome(wikiPath(dbPath))
 	if err != nil {
-		results = append(results, Check{Name: "wiki", OK: false, Message: fmt.Sprintf("cannot expand wiki path %q: %v", cfg.WikiPath, err)})
-		expanded = cfg.WikiPath
+		results = append(results, Check{Name: "wiki", OK: false, Message: fmt.Sprintf("cannot expand wiki path %q: %v", wikiPath(dbPath), err)})
+		expanded = wikiPath(dbPath)
 	}
 	results = append(results, checkWiki(expanded))
 
-	// 3. claude CLI
-	results = append(results, checkClaude(ctx, cfg)...)
+	// 2. claude CLI
+	results = append(results, checkClaude(ctx)...)
 
-	// 4. database
+	// 3. database
 	results = append(results, checkDatabase(dbPath))
 
-	// 5. index sync
+	// 4. index sync
 	results = append(results, checkIndex(dbPath, expanded))
 
-	// 6. api — REST health at the configured address. Pre-launch (CLI) it
+	// 5. api — REST health at the configured address. Pre-launch (CLI) it
 	// reports whether the port is free, occupied by a running Thoth, or by
 	// something else; in-flight (GET /api/doctor) it self-checks the very
 	// server answering the request.
-	apiCheck, apiReachable := checkAPI(cfg)
+	apiCheck, apiReachable := checkAPI(addr)
 	results = append(results, apiCheck)
 
-	// 7. websocket — the chat upgrade; reported separately, and only probed
+	// 6. websocket — the chat upgrade; reported separately, and only probed
 	// when the REST check reached a Thoth server.
-	results = append(results, checkWebsocket(cfg, apiReachable))
+	results = append(results, checkWebsocket(addr, apiReachable))
 
 	return results
 }
 
-// checkConfig verifies that ~/.thoth/config.toml exists and parses. On any
-// failure the caller proceeds with defaults so later checks still run.
-func checkConfig(path string) (config.Config, Check) {
-	if !fileExists(path) {
-		return config.Default(), Check{Name: "config", OK: false, Message: fmt.Sprintf("%s is missing — run thoth doctor --fix to create a default config", path)}
+// wikiPath reads the settings table when the database exists; a missing or
+// unreadable database (or an empty value) falls back to the default.
+func wikiPath(dbPath string) string {
+	if !fileExists(dbPath) {
+		return settings.DefaultWikiPath
 	}
-	cfg, err := config.Load(path)
+	r, err := settings.OpenRepo(dbPath)
 	if err != nil {
-		return config.Default(), Check{Name: "config", OK: false, Message: fmt.Sprintf("%s cannot be parsed: %v — fix the syntax or recreate the file", path, err)}
+		return settings.DefaultWikiPath
 	}
-	return cfg, Check{Name: "config", OK: true, Message: fmt.Sprintf("%s parses", path)}
+	defer func() { _ = r.Close() }()
+	value, found, err := r.Setting(settings.KeyWikiPath)
+	if err != nil || !found || value == "" {
+		return settings.DefaultWikiPath
+	}
+	return value
 }
 
 // checkWiki verifies that the wiki directory exists with the scaffold folders
@@ -127,11 +134,10 @@ func checkWiki(root string) Check {
 	return Check{Name: "wiki", OK: true, Message: fmt.Sprintf("%s exists with the 8 scaffold folders and CLAUDE.md", root)}
 }
 
-// checkClaude resolves the claude binary (config.ClaudeBin or "claude" on
-// PATH), reports its version, and probes the login state. The login result is
-// only reported when the binary was found.
-func checkClaude(ctx context.Context, cfg config.Config) []Check {
-	bin, notFound := resolveClaudeBin(cfg)
+// checkClaude resolves "claude" on PATH, reports its version, and probes the
+// login state. The login result is only reported when the binary was found.
+func checkClaude(ctx context.Context) []Check {
+	bin, notFound := resolveClaudeBin()
 	if notFound != "" {
 		return []Check{{Name: "claude", OK: false, Message: notFound}}
 	}
@@ -152,20 +158,13 @@ func checkClaude(ctx context.Context, cfg config.Config) []Check {
 	return results
 }
 
-// resolveClaudeBin returns the claude binary to probe: config.ClaudeBin when
-// configured, otherwise "claude" from PATH. The second return value is a
-// failure message, or "" when a binary was resolved.
-func resolveClaudeBin(cfg config.Config) (string, string) {
-	if bin := cfg.ClaudeBin; bin != "" {
-		if isExecutable(bin) {
-			return bin, ""
-		}
-		return "", fmt.Sprintf("configured claude_bin %q not found — fix claude_bin in the config", bin)
-	}
+// resolveClaudeBin returns the claude binary to probe: "claude" from PATH.
+// The second return value is a failure message, or "" when resolved.
+func resolveClaudeBin() (string, string) {
 	if p, err := exec.LookPath("claude"); err == nil {
 		return p, ""
 	}
-	return "", "claude CLI not found on PATH — install it or set claude_bin in the config"
+	return "", "claude CLI not found on PATH — install it"
 }
 
 // checkDatabase verifies that thoth.db exists, opens in WAL mode, and has the
@@ -248,9 +247,7 @@ func countNotes(root string) (int, error) {
 // checkAPI probes the REST health endpoint at the configured address and
 // reports whether a Thoth server answered (the bool) alongside the check.
 // The same check runs pre-launch and in-flight; see Run.
-func checkAPI(cfg config.Config) (Check, bool) {
-	addr := configAddr(cfg)
-
+func checkAPI(addr string) (Check, bool) {
 	// A TCP dial distinguishes "nothing there" from "something there that
 	// does not speak the Thoth protocol".
 	conn, err := net.DialTimeout("tcp", addr, apiCheckTimeout)
@@ -290,8 +287,7 @@ func checkAPI(cfg config.Config) (Check, bool) {
 // checkWebsocket probes the chat upgrade at the configured address. It only
 // runs when the REST check reached a Thoth server; otherwise it reports a
 // skip so a pre-launch run stays clean.
-func checkWebsocket(cfg config.Config, apiReachable bool) Check {
-	addr := configAddr(cfg)
+func checkWebsocket(addr string, apiReachable bool) Check {
 	if !apiReachable {
 		return Check{Name: "websocket", OK: true, Message: fmt.Sprintf("skipped — api not reachable at %s", addr)}
 	}
@@ -301,17 +297,9 @@ func checkWebsocket(cfg config.Config, apiReachable bool) Check {
 	return Check{Name: "websocket", OK: true, Message: fmt.Sprintf("chat websocket connects at %s", addr)}
 }
 
-// configAddr returns the configured host:port with defaults applied.
-func configAddr(cfg config.Config) string {
-	host := cfg.Host
-	if host == "" {
-		host = "127.0.0.1"
-	}
-	port := cfg.Port
-	if port == 0 {
-		port = 8333
-	}
-	return net.JoinHostPort(host, strconv.Itoa(port))
+// defaultAddr is the fixed server address (host/port are code constants).
+func defaultAddr() string {
+	return net.JoinHostPort(config.DefaultHost, strconv.Itoa(config.DefaultPort))
 }
 
 // wsUpgradeOK dials the chat websocket and reports whether the upgrade
@@ -336,11 +324,4 @@ func isDir(p string) bool {
 	return err == nil && fi.IsDir()
 }
 
-func isExecutable(bin string) bool {
-	if strings.ContainsRune(bin, os.PathSeparator) {
-		fi, err := os.Stat(bin)
-		return err == nil && !fi.IsDir()
-	}
-	_, err := exec.LookPath(bin)
-	return err == nil
-}
+// (removed with config.toml: the claude binary always comes from PATH)

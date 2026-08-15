@@ -24,13 +24,8 @@ type wikiState struct {
 }
 
 func health(c echo.Context, d Deps) error {
-	// Read under the read lock: putSettings replaces the whole config struct.
-	d.ConfigMu.RLock()
-	bin := d.Config.ClaudeBin
-	d.ConfigMu.RUnlock()
-	if bin == "" {
-		bin = "claude"
-	}
+	// The claude binary always comes from PATH (config.toml is gone).
+	bin := "claude"
 	found := false
 	if p, err := exec.LookPath(bin); err == nil {
 		found = true

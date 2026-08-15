@@ -15,12 +15,8 @@ export type TreeNode = z.infer<typeof TreeNodeSchema>
 
 export const Settings = z.object({
   wiki_path: z.string(),
-  host: z.string(),
-  port: z.number(),
-  claude_bin: z.string(),
-  permission_mode: z.string(),
-  model: z.string(),
   repo_url: z.string(),
+  sync_enabled: z.boolean(),
 })
 export type Settings = z.infer<typeof Settings>
 
@@ -36,7 +32,7 @@ export const GitHubIdentity = z.object({
 })
 export type GitHubIdentity = z.infer<typeof GitHubIdentity>
 
-export const GitHubRepo = z.object({ full_name: z.string(), clone_url: z.string() })
+export const GitHubRepo = z.object({ full_name: z.string(), clone_url: z.string(), private: z.boolean(), description: z.string() })
 export type GitHubRepo = z.infer<typeof GitHubRepo>
 
 const Conversation = z.object({ id: z.string(), title: z.string(), created_at: z.string() })

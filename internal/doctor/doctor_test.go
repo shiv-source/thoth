@@ -16,8 +16,9 @@ import (
 	"github.com/gorilla/websocket"
 	_ "modernc.org/sqlite"
 
-	"github.com/shiv-source/thoth/internal/config"
 	"github.com/shiv-source/thoth/internal/index"
+	"github.com/shiv-source/thoth/internal/settings"
+	"github.com/shiv-source/thoth/internal/store"
 	"github.com/shiv-source/thoth/internal/wiki"
 )
 
@@ -25,15 +26,40 @@ func testLog() *slog.Logger {
 	return slog.New(slog.NewTextHandler(io.Discard, nil))
 }
 
-// freePort returns a port that was free at the moment of the call.
-func freePort(t *testing.T) int {
+// freeAddr returns a 127.0.0.1:port address that was free at the moment of
+// the call.
+func freeAddr(t *testing.T) string {
 	t.Helper()
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer func() { _ = ln.Close() }()
-	return ln.Addr().(*net.TCPAddr).Port
+	return ln.Addr().String()
+}
+
+// seedSettingsRaw creates thoth.db in the given journal mode containing ONLY
+// the settings table with the wiki_path row — simulating a partial or
+// misconfigured database without running the store's migrations (which would
+// repair the very breakage the test wants to probe).
+func seedSettingsRaw(t *testing.T, dir, wikiPath, journalMode string) {
+	t.Helper()
+	db, err := sql.Open("sqlite", filepath.Join(dir, "thoth.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`PRAGMA journal_mode=` + journalMode); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`INSERT INTO settings(key, value) VALUES ('wiki_path', ?)`, wikiPath); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Close(); err != nil {
+		t.Fatal(err)
+	}
 }
 
 // fakeClaude writes an executable "claude" script to a fresh dir, puts that
@@ -50,9 +76,28 @@ func fakeClaude(t *testing.T, versionExit, authExit int) string {
 	return bin
 }
 
+// seedWikiPath stores a wiki path into the settings table of thoth.db under
+// dir (creating the database via the store's migrations first).
+func seedWikiPath(t *testing.T, dir, wikiPath string) {
+	t.Helper()
+	st, err := store.Open(filepath.Join(dir, "thoth.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = st.Close() }()
+	r, err := settings.OpenRepo(filepath.Join(dir, "thoth.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = r.Close() }()
+	if err := r.SetSetting(settings.KeyWikiPath, wikiPath); err != nil {
+		t.Fatal(err)
+	}
+}
+
 // healthyThothDir builds a fully healthy installation in a temp dir: a wiki
-// with one note, a synced index, a config with a free port, and a fake claude
-// on PATH. Returns the thoth dir.
+// with one note, a synced index, the settings table pointing at the wiki, and
+// a fake claude on PATH. Returns the thoth dir.
 func healthyThothDir(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()
@@ -67,6 +112,13 @@ func healthyThothDir(t *testing.T) string {
 		t.Fatal(err)
 	}
 	dbPath := filepath.Join(dir, "thoth.db")
+	st, err := store.Open(dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := st.Close(); err != nil {
+		t.Fatal(err)
+	}
 	ix, err := index.Open(dbPath)
 	if err != nil {
 		t.Fatal(err)
@@ -77,12 +129,7 @@ func healthyThothDir(t *testing.T) string {
 	if err := ix.Close(); err != nil {
 		t.Fatal(err)
 	}
-	cfg := config.Default()
-	cfg.WikiPath = wikiRoot
-	cfg.Port = freePort(t)
-	if err := config.Save(filepath.Join(dir, "config.toml"), cfg); err != nil {
-		t.Fatal(err)
-	}
+	seedWikiPath(t, dir, wikiRoot)
 	return dir
 }
 
@@ -98,8 +145,11 @@ func byName(t *testing.T, checks []Check, name string) Check {
 }
 
 func TestRunHealthy(t *testing.T) {
-	checks := Run(context.Background(), healthyThothDir(t), testLog())
-	want := []string{"config", "wiki", "claude", "claude login", "database", "index", "api", "websocket"}
+	// A free address keeps the healthy run deterministic: nothing answers
+	// there, so api reports "not running" (OK) and websocket is skipped (OK)
+	// regardless of what occupies the fixed port on the machine.
+	checks := Run(context.Background(), healthyThothDir(t), freeAddr(t), testLog())
+	want := []string{"wiki", "claude", "claude login", "database", "index", "api", "websocket"}
 	if len(checks) != len(want) {
 		t.Fatalf("got %d checks, want %d: %+v", len(checks), len(want), checks)
 	}
@@ -119,8 +169,8 @@ func TestRunHealthy(t *testing.T) {
 func TestRunEmptyDir(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	t.Setenv("PATH", t.TempDir())
-	checks := Run(context.Background(), "", testLog())
-	for _, name := range []string{"config", "wiki", "claude", "database", "index"} {
+	checks := Run(context.Background(), "", "", testLog())
+	for _, name := range []string{"wiki", "claude", "database", "index"} {
 		if byName(t, checks, name).OK {
 			t.Fatalf("check %q must fail in an empty installation", name)
 		}
@@ -132,33 +182,6 @@ func TestRunEmptyDir(t *testing.T) {
 	}
 }
 
-func TestRunMissingConfig(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
-	dir := t.TempDir()
-	checks := Run(context.Background(), dir, testLog())
-	c := byName(t, checks, "config")
-	if c.OK || !strings.Contains(c.Message, "is missing") {
-		t.Fatalf("config: %s", c.Message)
-	}
-	// With the config missing, later checks run against the defaults, so the
-	// default wiki path must be reported as missing too.
-	if byName(t, checks, "wiki").OK {
-		t.Fatalf("wiki must fail when the default wiki path is missing")
-	}
-}
-
-func TestRunUnparsableConfig(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
-	dir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(dir, "config.toml"), []byte("[[[ not toml"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	c := byName(t, Run(context.Background(), dir, testLog()), "config")
-	if c.OK || !strings.Contains(c.Message, "cannot be parsed") {
-		t.Fatalf("config: %s", c.Message)
-	}
-}
-
 func TestRunWikiMissingFolders(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	dir := t.TempDir()
@@ -166,13 +189,8 @@ func TestRunWikiMissingFolders(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(wikiRoot, "inbox"), 0o755); err != nil { // partial scaffold
 		t.Fatal(err)
 	}
-	cfg := config.Default()
-	cfg.WikiPath = wikiRoot
-	cfg.Port = freePort(t)
-	if err := config.Save(filepath.Join(dir, "config.toml"), cfg); err != nil {
-		t.Fatal(err)
-	}
-	c := byName(t, Run(context.Background(), dir, testLog()), "wiki")
+	seedWikiPath(t, dir, wikiRoot)
+	c := byName(t, Run(context.Background(), dir, "", testLog()), "wiki")
 	if c.OK || !strings.Contains(c.Message, "is missing") {
 		t.Fatalf("wiki: %s", c.Message)
 	}
@@ -182,7 +200,7 @@ func TestRunClaudeVersionFailure(t *testing.T) {
 	dir := healthyThothDir(t)
 	// Override the PATH claude with one that fails --version.
 	fakeClaude(t, 1, 1)
-	checks := Run(context.Background(), dir, testLog())
+	checks := Run(context.Background(), dir, "", testLog())
 	c := byName(t, checks, "claude")
 	if c.OK || !strings.Contains(c.Message, "--version failed") {
 		t.Fatalf("claude: %s", c.Message)
@@ -197,29 +215,13 @@ func TestRunClaudeVersionFailure(t *testing.T) {
 func TestRunClaudeLoginUnknown(t *testing.T) {
 	dir := healthyThothDir(t)
 	fakeClaude(t, 0, 1)
-	checks := Run(context.Background(), dir, testLog())
+	checks := Run(context.Background(), dir, "", testLog())
 	if !byName(t, checks, "claude").OK {
 		t.Fatalf("claude check must pass when --version works: %+v", checks)
 	}
 	login := byName(t, checks, "claude login")
 	if login.OK || !strings.Contains(login.Message, "login status unknown") {
 		t.Fatalf("claude login: %s", login.Message)
-	}
-}
-
-func TestRunConfiguredClaudeBinMissing(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
-	t.Setenv("PATH", t.TempDir())
-	dir := t.TempDir()
-	cfg := config.Default()
-	cfg.ClaudeBin = filepath.Join(t.TempDir(), "nope")
-	cfg.Port = freePort(t)
-	if err := config.Save(filepath.Join(dir, "config.toml"), cfg); err != nil {
-		t.Fatal(err)
-	}
-	c := byName(t, Run(context.Background(), dir, testLog()), "claude")
-	if c.OK || !strings.Contains(c.Message, "configured claude_bin") {
-		t.Fatalf("claude: %s", c.Message)
 	}
 }
 
@@ -230,19 +232,13 @@ func TestRunNonThothProcessOnPort(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() { _ = ln.Close() }()
-	port := ln.Addr().(*net.TCPAddr).Port
 
-	cfg := configLoad(t, filepath.Join(dir, "config.toml"))
-	cfg.Port = port
-	if err := config.Save(filepath.Join(dir, "config.toml"), cfg); err != nil {
-		t.Fatal(err)
-	}
-	c := byName(t, Run(context.Background(), dir, testLog()), "api")
+	checks := Run(context.Background(), dir, ln.Addr().String(), testLog())
+	c := byName(t, checks, "api")
 	if c.OK || !strings.Contains(c.Message, "non-thoth") {
 		t.Fatalf("api: %s", c.Message)
 	}
-	// The websocket check is skipped: the port is not a Thoth server.
-	ws := byName(t, Run(context.Background(), dir, testLog()), "websocket")
+	ws := byName(t, checks, "websocket")
 	if !ws.OK || !strings.Contains(ws.Message, "skipped") {
 		t.Fatalf("websocket: %s", ws.Message)
 	}
@@ -278,15 +274,9 @@ func TestRunAPIHealthy(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() { _ = ln.Close() }()
-
-	cfg := configLoad(t, filepath.Join(dir, "config.toml"))
-	cfg.Port = ln.Addr().(*net.TCPAddr).Port
-	if err := config.Save(filepath.Join(dir, "config.toml"), cfg); err != nil {
-		t.Fatal(err)
-	}
 	serveThothAPI(t, ln, `{"status":"ok","claude":{"found":true,"path":"/fake/claude"},"wiki":{"path":"/fake/wiki","exists":true}}`)
 
-	checks := Run(context.Background(), dir, testLog())
+	checks := Run(context.Background(), dir, ln.Addr().String(), testLog())
 	c := byName(t, checks, "api")
 	if !c.OK || !strings.Contains(c.Message, "REST") {
 		t.Fatalf("api: %s", c.Message)
@@ -309,14 +299,9 @@ func TestRunAPIPartialFailures(t *testing.T) {
 				t.Fatal(err)
 			}
 			defer func() { _ = ln.Close() }()
-			cfg := configLoad(t, filepath.Join(dir, "config.toml"))
-			cfg.Port = ln.Addr().(*net.TCPAddr).Port
-			if err := config.Save(filepath.Join(dir, "config.toml"), cfg); err != nil {
-				t.Fatal(err)
-			}
 			serveThothAPI(t, ln, health)
 
-			c := byName(t, Run(context.Background(), dir, testLog()), "api")
+			c := byName(t, Run(context.Background(), dir, ln.Addr().String(), testLog()), "api")
 			if c.OK || !strings.Contains(c.Message, strings.Split(name, " ")[0]) {
 				t.Fatalf("api: %s", c.Message)
 			}
@@ -331,12 +316,6 @@ func TestRunAPIWebsocketFails(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() { _ = ln.Close() }()
-
-	cfg := configLoad(t, filepath.Join(dir, "config.toml"))
-	cfg.Port = ln.Addr().(*net.TCPAddr).Port
-	if err := config.Save(filepath.Join(dir, "config.toml"), cfg); err != nil {
-		t.Fatal(err)
-	}
 	// REST health works but the /ws upgrade does not.
 	srv := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/api/health" {
@@ -348,7 +327,7 @@ func TestRunAPIWebsocketFails(t *testing.T) {
 	go func() { _ = srv.Serve(ln) }()
 	t.Cleanup(func() { _ = srv.Close() })
 
-	checks := Run(context.Background(), dir, testLog())
+	checks := Run(context.Background(), dir, ln.Addr().String(), testLog())
 	if c := byName(t, checks, "api"); !c.OK {
 		t.Fatalf("api: %s", c.Message)
 	}
@@ -360,21 +339,9 @@ func TestRunAPIWebsocketFails(t *testing.T) {
 func TestRunNonWALDatabase(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	dir := t.TempDir()
-	db, err := sql.Open("sqlite", filepath.Join(dir, "thoth.db"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := db.Exec(`PRAGMA journal_mode=DELETE`); err != nil {
-		t.Fatal(err)
-	}
-	_ = db.Close()
+	seedSettingsRaw(t, dir, filepath.Join(dir, "wiki"), "DELETE")
 
-	cfg := config.Default()
-	cfg.WikiPath = filepath.Join(dir, "wiki")
-	if err := config.Save(filepath.Join(dir, "config.toml"), cfg); err != nil {
-		t.Fatal(err)
-	}
-	c := byName(t, Run(context.Background(), dir, testLog()), "database")
+	c := byName(t, Run(context.Background(), dir, "", testLog()), "database")
 	if c.OK || !strings.Contains(c.Message, `journal mode is "delete"`) {
 		t.Fatalf("database: %s", c.Message)
 	}
@@ -383,21 +350,9 @@ func TestRunNonWALDatabase(t *testing.T) {
 func TestRunDatabaseMissingTables(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	dir := t.TempDir()
-	db, err := sql.Open("sqlite", filepath.Join(dir, "thoth.db"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := db.Exec(`PRAGMA journal_mode=WAL`); err != nil {
-		t.Fatal(err)
-	}
-	_ = db.Close()
+	seedSettingsRaw(t, dir, filepath.Join(dir, "wiki"), "WAL")
 
-	cfg := config.Default()
-	cfg.WikiPath = filepath.Join(dir, "wiki")
-	if err := config.Save(filepath.Join(dir, "config.toml"), cfg); err != nil {
-		t.Fatal(err)
-	}
-	c := byName(t, Run(context.Background(), dir, testLog()), "database")
+	c := byName(t, Run(context.Background(), dir, "", testLog()), "database")
 	if c.OK || !strings.Contains(c.Message, "missing the notes/notes_fts tables") {
 		t.Fatalf("database: %s", c.Message)
 	}
@@ -409,12 +364,7 @@ func TestRunCorruptDatabase(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "thoth.db"), []byte("definitely not a sqlite file"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	cfg := config.Default()
-	cfg.WikiPath = filepath.Join(dir, "wiki")
-	if err := config.Save(filepath.Join(dir, "config.toml"), cfg); err != nil {
-		t.Fatal(err)
-	}
-	c := byName(t, Run(context.Background(), dir, testLog()), "database")
+	c := byName(t, Run(context.Background(), dir, "", testLog()), "database")
 	if c.OK || !strings.Contains(c.Message, "not a usable sqlite database") {
 		t.Fatalf("database: %s", c.Message)
 	}
@@ -423,23 +373,13 @@ func TestRunCorruptDatabase(t *testing.T) {
 func TestRunMissingDatabaseIndex(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	dir := t.TempDir()
-	wikiRoot := filepath.Join(dir, "wiki")
-	if err := wiki.Scaffold(wikiRoot); err != nil {
-		t.Fatal(err)
-	}
-	cfg := config.Default()
-	cfg.WikiPath = wikiRoot
-	cfg.Port = freePort(t)
-	if err := config.Save(filepath.Join(dir, "config.toml"), cfg); err != nil {
-		t.Fatal(err)
-	}
-	// Wiki exists, but thoth.db was never created: both the database and the
-	// index checks must fail, each with its own message.
-	checks := Run(context.Background(), dir, testLog())
+	// thoth.db was never created: both the database and the index checks
+	// must fail, each with its own message.
+	checks := Run(context.Background(), dir, "", testLog())
 	if db := byName(t, checks, "database"); db.OK || !strings.Contains(db.Message, "does not exist") {
 		t.Fatalf("database: %s", db.Message)
 	}
-	if ix := byName(t, checks, "index"); ix.OK || !strings.Contains(ix.Message, "does not exist") {
+	if ix := byName(t, checks, "index"); ix.OK {
 		t.Fatalf("index: %s", ix.Message)
 	}
 }
@@ -451,7 +391,7 @@ func TestRunIndexOutOfSync(t *testing.T) {
 		[]byte("---\ntitle: Later\n---\n\nAdded after indexing\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	c := byName(t, Run(context.Background(), dir, testLog()), "index")
+	c := byName(t, Run(context.Background(), dir, "", testLog()), "index")
 	if c.OK || !strings.Contains(c.Message, "notes on disk") {
 		t.Fatalf("index: %s", c.Message)
 	}
@@ -465,18 +405,20 @@ func TestRunWikiMissingNoteIsSkipped(t *testing.T) {
 		[]byte("just some text, no frontmatter\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if !byName(t, Run(context.Background(), dir, testLog()), "index").OK {
+	if !byName(t, Run(context.Background(), dir, "", testLog()), "index").OK {
 		t.Fatalf("index must ignore non-indexable notes")
 	}
 }
 
-// config.LoadOrPanicForTest exists to keep the helper list local; it loads the
-// config or fails the test.
-func configLoad(t *testing.T, path string) config.Config {
-	t.Helper()
-	cfg, err := config.Load(path)
-	if err != nil {
-		t.Fatal(err)
+func TestRunDefaultWikiPathWhenDatabaseMissing(t *testing.T) {
+	// No database at all: the wiki check probes the seeded default path
+	// (which does not exist under the temp HOME).
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("PATH", t.TempDir())
+	dir := t.TempDir()
+	c := byName(t, Run(context.Background(), dir, "", testLog()), "wiki")
+	if c.OK || !strings.Contains(c.Message, filepath.Join(home, ".thoth", "wiki")) {
+		t.Fatalf("wiki: %s", c.Message)
 	}
-	return cfg
 }

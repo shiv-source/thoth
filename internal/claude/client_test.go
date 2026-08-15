@@ -2,6 +2,7 @@ package claude
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -303,5 +304,31 @@ func TestFakeClientRecordsResume(t *testing.T) {
 	err := f.Start(context.Background(), "s", "p", WriterFunc(func(Event) error { return nil }), WithResume("old"))
 	if err != nil || len(f.Calls) != 1 || f.Calls[0].SessionID != "s" || f.Calls[0].Prompt != "p" || f.Calls[0].Resume != "old" {
 		t.Fatalf("fake client misuse: %v %+v", err, f.Calls)
+	}
+}
+
+func TestStartWritesDebugStreamDump(t *testing.T) {
+	bin := writeFakeCLI(t)
+	dumpPath := filepath.Join(t.TempDir(), "stream-dump.json")
+	c := New(bin, t.TempDir(), WithDebugStream(dumpPath))
+	if err := c.Start(context.Background(), "sess-1", "p", WriterFunc(func(Event) error { return nil })); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	raw, err := os.ReadFile(dumpPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := string(raw)
+	for _, want := range []string{`"type":"assistant"`, `"type":"result"`} {
+		if !strings.Contains(s, want) {
+			t.Fatalf("dump missing %q:\n%s", want, s)
+		}
+	}
+	// Every line is pure JSON (jq-friendly, filterable by session_id).
+	for _, line := range strings.Split(strings.TrimSpace(s), "\n") {
+		var m map[string]any
+		if err := json.Unmarshal([]byte(line), &m); err != nil {
+			t.Fatalf("dump line is not JSON: %q", line)
+		}
 	}
 }

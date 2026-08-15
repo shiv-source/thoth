@@ -18,7 +18,7 @@ export function ChatPanel() {
   const [socket, setSocket] = useState<ChatSocket | null>(null)
   const [status, setStatus] = useState<ConnectionStatus>('connected')
   const [settingsOpen, setSettingsOpen] = useState(false)
-  const { messages, streaming, lastTool, conversationId, send, cancel, load, reset } = useChat(socket)
+  const { messages, streaming, lastTool, thinking, thinkingText, conversationId, send, cancel, load, reset } = useChat(socket)
   const { toast } = useToast()
   const endRef = useRef<HTMLDivElement>(null)
 
@@ -63,6 +63,12 @@ export function ChatPanel() {
         <div className="flex h-7 shrink-0 items-center gap-2 border-b border-line bg-raised px-4 text-xs text-subtle">
           <span className="h-1.5 w-1.5 rounded-full bg-accent" aria-hidden="true" />
           {status === 'reconnecting' ? 'Connection lost — reconnecting…' : 'Connection lost.'}
+        </div>
+      )}
+      {thinking && !lastTool && (
+        <div className="flex h-7 shrink-0 items-center gap-2 border-b border-line bg-raised px-4 text-xs text-subtle">
+          <span className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-accent" aria-hidden="true" />
+          <span className="min-w-0 truncate">Thinking… {thinkingText}</span>
         </div>
       )}
       {lastTool && (

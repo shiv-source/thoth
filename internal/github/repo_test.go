@@ -1,7 +1,6 @@
 package github
 
 import (
-	"errors"
 	"path/filepath"
 	"testing"
 
@@ -57,11 +56,8 @@ func TestRepoRoundTrip(t *testing.T) {
 		t.Fatalf("round trip = %+v, want %+v", got, in)
 	}
 
-	// A reconnect (second Save) keeps created_at and repo_url, bumps
-	// updated_at, and replaces the identity fields.
-	if err := r.SetRepoURL("https://github.com/x/w.git"); err != nil {
-		t.Fatal(err)
-	}
+	// A reconnect (second Save) keeps created_at, bumps updated_at, and
+	// replaces the identity fields.
 	var firstCreated, firstUpdated string
 	if err := r.db.QueryRow(`SELECT created_at, updated_at FROM github_auth`).Scan(&firstCreated, &firstUpdated); err != nil {
 		t.Fatal(err)
@@ -76,8 +72,8 @@ func TestRepoRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.Token != "ghp_two" || got.Username != "newuser" || got.RepoURL != "https://github.com/x/w.git" {
-		t.Fatalf("after reconnect = %+v, want new identity with repo_url preserved", got)
+	if got.Token != "ghp_two" || got.Username != "newuser" {
+		t.Fatalf("after reconnect = %+v, want new identity", got)
 	}
 	var secondCreated, secondUpdated string
 	if err := r.db.QueryRow(`SELECT created_at, updated_at FROM github_auth`).Scan(&secondCreated, &secondUpdated); err != nil {
@@ -88,27 +84,6 @@ func TestRepoRoundTrip(t *testing.T) {
 	}
 	if secondUpdated == "2020-01-01T00:00:00Z" {
 		t.Fatal("updated_at must bump on reconnect")
-	}
-}
-
-func TestRepoSetRepoURL(t *testing.T) {
-	r := openTestRepo(t)
-	if err := r.SetRepoURL("https://github.com/x/w.git"); !errors.Is(err, ErrGitHubAuthNotFound) {
-		t.Fatalf("SetRepoURL without a row: %v, want ErrGitHubAuthNotFound", err)
-	}
-
-	saved(t, r, "t", "octo")
-	if err := r.SetRepoURL("https://github.com/x/w.git"); err != nil {
-		t.Fatal(err)
-	}
-	if a, _, err := r.Get(); err != nil || a.RepoURL != "https://github.com/x/w.git" || a.Token != "t" {
-		t.Fatalf("after SetRepoURL: %+v %v", a, err)
-	}
-	if err := r.SetRepoURL(""); err != nil {
-		t.Fatal(err)
-	}
-	if a, _, err := r.Get(); err != nil || a.RepoURL != "" {
-		t.Fatalf("after clear: repo_url = %q, want empty (%v)", a.RepoURL, err)
 	}
 }
 
@@ -148,7 +123,7 @@ func TestRepoClosedErrors(t *testing.T) {
 	if err := r.Clear(); err == nil {
 		t.Fatal("Clear on closed repo must error")
 	}
-	if err := r.SetRepoURL("x"); err == nil {
-		t.Fatal("SetRepoURL on closed repo must error")
+	if err := r.Clear(); err == nil {
+		t.Fatal("Clear on closed repo must error")
 	}
 }

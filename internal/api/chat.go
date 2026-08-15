@@ -329,6 +329,12 @@ func (h *Hub) turnWriter(sb *strings.Builder, write func(serverMsg), convID stri
 			sb.WriteString(ev.Text)
 			write(serverMsg{Type: "assistant_delta", Text: ev.Text})
 			h.record(convID, serverMsg{Type: "assistant_delta", Text: ev.Text})
+		case claude.EventThinking:
+			// The thinking text rides the frame so the UI can show what the
+			// model is working on. Recorded so a reconnect mid-thinking
+			// resumes the state.
+			write(serverMsg{Type: "assistant_thinking", Text: ev.Text})
+			h.record(convID, serverMsg{Type: "assistant_thinking", Text: ev.Text})
 		case claude.EventTool:
 			write(serverMsg{Type: "tool_activity", Tool: ev.Tool, Detail: ev.Detail})
 			h.record(convID, serverMsg{Type: "tool_activity", Tool: ev.Tool, Detail: ev.Detail})

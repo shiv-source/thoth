@@ -42,7 +42,7 @@ func gitSetup(c echo.Context, d Deps) error {
 		return gitFailure(c, d, err)
 	}
 	if d.Store != nil {
-		_ = d.Store.SetSyncResult(true, "")
+		_ = d.Settings.SetSyncResult(true, "")
 	}
 	return c.JSON(http.StatusOK, map[string]bool{"ok": true})
 }
@@ -52,7 +52,7 @@ func gitSetup(c echo.Context, d Deps) error {
 // The summary (not the raw error) is what gets recorded in the sync state.
 func gitFailure(c echo.Context, d Deps, err error) error {
 	if d.Store != nil {
-		_ = d.Store.SetSyncResult(false, err.Error())
+		_ = d.Settings.SetSyncResult(false, err.Error())
 	}
 	return c.JSON(http.StatusOK, map[string]any{"ok": false, "error": err.Error()})
 }

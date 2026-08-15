@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/shiv-source/thoth/internal/config"
+	"github.com/shiv-source/thoth/internal/settings"
 	"github.com/shiv-source/thoth/internal/wiki"
 	"github.com/spf13/cobra"
 )
@@ -20,7 +21,7 @@ func newInitCmd() *cobra.Command {
 				target = args[0]
 			} else {
 				var err error
-				target, err = config.ExpandHome(config.Default().WikiPath)
+				target, err = config.ExpandHome(settings.DefaultWikiPath)
 				if err != nil {
 					return err
 				}

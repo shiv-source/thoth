@@ -3,13 +3,12 @@ package api
 import (
 	"context"
 	"log/slog"
-	"sync"
 
 	"github.com/labstack/echo/v4"
 	"github.com/shiv-source/thoth/internal/claude"
-	"github.com/shiv-source/thoth/internal/config"
 	"github.com/shiv-source/thoth/internal/github"
 	"github.com/shiv-source/thoth/internal/index"
+	"github.com/shiv-source/thoth/internal/settings"
 	"github.com/shiv-source/thoth/internal/store"
 	"github.com/shiv-source/thoth/internal/webui"
 	"github.com/shiv-source/thoth/internal/wiki"
@@ -17,15 +16,14 @@ import (
 
 type Deps struct {
 	Log             *slog.Logger
-	Config          *config.Config
-	ConfigPath      string
-	ConfigMu        *sync.RWMutex // guards *Config (shared with serve)
 	Store           *store.Store
 	Claude          claude.Client
 	GitHub          *github.Service
+	Settings        *settings.Repo
+	DataDir         string // thoth dir (~/.thoth) — the doctor handler probes it
 	Wiki            *wiki.Wiki
 	Index           *index.Index
-	OnSettingsSaved func(config.Config) error
+	OnSettingsSaved func(wikiPath string) error
 	Ctx             context.Context // cancelled on shutdown; reaps in-flight turns
 }
 
