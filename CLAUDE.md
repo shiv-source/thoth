@@ -35,8 +35,10 @@ thoth/
 ├── cmd/thoth/            # thin binary entrypoint (main.go)
 ├── internal/
 │   ├── api/              # Echo: WS chat (/ws) + REST; Deps carries all wiring
-│   ├── claude/           # BLAST WALL — ALL CLI flags live only in client.go;
-│   │                     #   verify against `claude --help` when the CLI upgrades
+│   ├── claude/           # BLAST WALL — ALL CLI flags live only in client.go
+│   │                     #   (per-turn + persistent-mode); verify against
+│   │                     #   `claude --help` when the CLI upgrades;
+│   │                     #   persistent.go = per-conversation process pool;
 │   │                     #   proc_*.go = build-tagged process-group kill (unix/windows)
 │   ├── cli/              # Cobra: serve, init, version, doctor
 │   ├── config/           # localhost bind constants + ExpandHome (no settings here)
