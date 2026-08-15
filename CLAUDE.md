@@ -148,6 +148,10 @@ Apply the standard principles — modular, composable, boring code that's easy t
 - **No secrets in the repo** — never commit real credentials, tokens, or keys in code, configs, tests, or docs; env vars or placeholders only.
 - **Design authority** — specs live (untracked) in `docs/specs/`; read the Thoth spec before large or cross-package changes.
 - **Project docs** — committed documentation lives in `docs/` (`index.md` is the hub: architecture, API, CLI, indexing, frontend, security, development). Update the relevant page when behavior changes.
+- **Issue/PR labels** — the repo uses a three-tier label set on GitHub; every issue/PR carries one type, every touched area, and (issues) a priority:
+  - Types (mirror the conventional-commit prefixes): `bug` · `feature` · `enhancement` · `documentation` · `chore` · `refactor` · `test` · `performance` · `ci`
+  - Areas (package-aligned): `api` · `chat` · `cli` · `github` · `index` · `search` · `settings` · `store` · `sync` · `ui` · `webui` · `wiki`
+  - Priority: `p-critical` · `p-high` · `p-medium` · `p-low`
 - Generated/ignored: `bin/`, `web/dist/`, `internal/webui/dist/`, `node_modules/`, `*.db`.
 
 ## Runtime data
