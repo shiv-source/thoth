@@ -2,29 +2,54 @@ import { useEffect, useState } from 'react'
 
 export type View = 'chat' | 'notes' | 'dashboard' | 'search' | 'settings'
 
-const VIEW_HASH = /^#\/(chat|notes|dashboard|search|settings)(\/|$)/
-
-function viewFromHash(hash: string): View {
-    const m = VIEW_HASH.exec(hash)
-    return (m?.[1] as View | undefined) ?? 'chat'
+export interface ViewRoute {
+    view: View
+    // note is the note path carried by #/notes/<path> — the open note in
+    // the Notes view survives reloads and back/forward.
+    note: string | null
 }
 
-// navigateView moves the app between views. hashchange drives useView, but
-// assigning the hash alone does not fire it in every environment (jsdom),
-// so dispatch it explicitly — same pattern as the conversation navigate.
+const VIEW_HASH = /^#\/(chat|notes|dashboard|search|settings)(?:\/(.+))?$/
+
+function routeFromHash(hash: string): ViewRoute {
+    const m = VIEW_HASH.exec(hash)
+    if (!m) return { view: 'chat', note: null }
+    const view = m[1] as View
+    const note = view === 'notes' && m[2] !== undefined ? decodeURIComponent(m[2]) : null
+    return { view, note }
+}
+
+// navigateView moves the app between views; hashchange drives useView.
+// Assigning the hash alone does not fire hashchange in every environment
+// (jsdom), so dispatch it explicitly — same pattern as the conversation
+// navigate.
 export function navigateView(v: View): void {
     window.location.hash = `#/${v}`
     window.dispatchEvent(new HashChangeEvent('hashchange'))
 }
 
-// useView maps the URL hash to the active view. Chat is the home view for
-// any hash the app does not recognize. Back/forward work via hashchange.
-export function useView(): View {
-    const [view, setView] = useState<View>(() => viewFromHash(window.location.hash))
+// navigateNote opens (or clears) the note in the Notes view and switches to
+// it. The path rides the URL, so the open note survives a reload.
+export function navigateNote(path: string | null): void {
+    // Slashes stay readable in the hash; decodeURIComponent reverses it.
+    const encoded = path ? encodeURIComponent(path).replace(/%2F/gi, '/') : ''
+    window.location.hash = path ? `#/notes/${encoded}` : '#/notes'
+    window.dispatchEvent(new HashChangeEvent('hashchange'))
+}
+
+// useViewRoute maps the URL hash to the active view plus the open note.
+// Chat is the home view for any hash the app does not recognize.
+export function useViewRoute(): ViewRoute {
+    const [route, setRoute] = useState<ViewRoute>(() => routeFromHash(window.location.hash))
     useEffect(() => {
-        const onHash = () => setView(viewFromHash(window.location.hash))
+        const onHash = () => setRoute(routeFromHash(window.location.hash))
         window.addEventListener('hashchange', onHash)
         return () => window.removeEventListener('hashchange', onHash)
     }, [])
-    return view
+    return route
+}
+
+// useView is the view-only slice of useViewRoute.
+export function useView(): View {
+    return useViewRoute().view
 }

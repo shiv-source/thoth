@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { Sidebar } from './components/Sidebar'
 import { ChatPanel } from './components/ChatPanel'
 import { NavRail } from './components/NavRail'
@@ -9,27 +8,24 @@ import { SettingsView } from './components/SettingsView'
 import { SetupScreen } from './components/SetupScreen'
 import { ToastProvider } from './components/Toast'
 import { NotificationToasts } from './components/NotificationToasts'
-import { navigateView, useView } from './hooks/useView'
+import { navigateNote, navigateView, useViewRoute } from './hooks/useView'
 import { useViewShortcuts } from './hooks/useViewShortcuts'
 import { fetchHealth } from './store'
 import { useAppDispatch, useAppSelector } from './store/hooks'
 import { selectHealth, selectHealthLoading } from './store'
 
 export default function App() {
-    const view = useView()
+    const { view, note } = useViewRoute()
     useViewShortcuts()
-    const [openNote, setOpenNote] = useState<string | null>(null)
     const dispatch = useAppDispatch()
     const health = useAppSelector(selectHealth)
     const loading = useAppSelector(selectHealthLoading)
     const recheck = () => void dispatch(fetchHealth())
     const openSettings = () => navigateView('settings')
     // Notes open only in the Notes view's inline reader — any view that
-    // opens one routes there, so there is exactly one reading surface.
-    const openNoteHere = (path: string | null) => {
-        if (path !== null) navigateView('notes')
-        setOpenNote(path)
-    }
+    // opens one routes there, and the path rides the URL hash so the open
+    // note survives a reload.
+    const openNoteHere = (path: string | null) => navigateNote(path)
 
     return (
         <ToastProvider>
@@ -48,11 +44,7 @@ export default function App() {
                         <>
                             {view === 'chat' && <ChatPanel onOpenSettings={openSettings} />}
                             {view === 'notes' && (
-                                <NotesView
-                                    openPath={openNote}
-                                    onOpenNote={openNoteHere}
-                                    onOpenSettings={openSettings}
-                                />
+                                <NotesView openPath={note} onOpenNote={openNoteHere} onOpenSettings={openSettings} />
                             )}
                             {view === 'dashboard' && <DashboardView onOpenSettings={openSettings} />}
                             {view === 'search' && (

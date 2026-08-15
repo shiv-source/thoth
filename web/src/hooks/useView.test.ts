@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { navigateView, useView, type View } from './useView'
+import { navigateNote, navigateView, useView, useViewRoute, type View } from './useView'
 
 describe('useView', () => {
     afterEach(() => {
@@ -52,5 +52,34 @@ describe('useView', () => {
             act(() => navigateView(v))
             expect(window.location.hash).toBe(`#/${v}`)
         }
+    })
+
+    it('restores the open note from #/notes/<path> on load', () => {
+        window.location.hash = '#/notes/knowledge/renovate-github-action.md'
+        const { result } = renderHook(() => useViewRoute())
+        expect(result.current.view).toBe('notes')
+        expect(result.current.note).toBe('knowledge/renovate-github-action.md')
+    })
+
+    it('treats #/notes without a path as no open note', () => {
+        window.location.hash = '#/notes'
+        const { result } = renderHook(() => useViewRoute())
+        expect(result.current.view).toBe('notes')
+        expect(result.current.note).toBeNull()
+    })
+
+    it('navigateNote opens and clears the note through the hash', () => {
+        renderHook(() => useViewRoute())
+        act(() => navigateNote('meetings/standup.md'))
+        expect(window.location.hash).toBe('#/notes/meetings/standup.md')
+        act(() => navigateNote(null))
+        expect(window.location.hash).toBe('#/notes')
+    })
+
+    it('switching views drops the note segment', () => {
+        renderHook(() => useViewRoute())
+        act(() => navigateNote('a.md'))
+        act(() => navigateView('dashboard'))
+        expect(window.location.hash).toBe('#/dashboard')
     })
 })
