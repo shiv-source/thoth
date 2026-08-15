@@ -36,17 +36,5 @@
     "husky": "^9.1.7",
     "lint-staged": "^17.3.0",
     "prettier": "^3.9.6"
-  },
-  "lint-staged": {
-    "web/src/**/*.{ts,tsx}": [
-      "pnpm --filter thoth-web exec eslint --fix",
-      "prettier --write"
-    ],
-    "web/src/**/*.{js,mjs,cjs,json,md,yml,yaml,css,html}": [
-      "prettier --write"
-    ],
-    "**/*.go": [
-      "golangci-lint run --fix"
-    ]
   }
 }
