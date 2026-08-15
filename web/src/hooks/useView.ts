@@ -13,9 +13,15 @@ export interface ViewRoute {
 
 const VIEW_HASH = /^#\/(chat|notes|dashboard|search|settings)(?:\/(.+))?$/
 
+// A /chat/<uuid> deep link with no view hash means the user came for that
+// conversation — land on chat. Otherwise the Dashboard is the home view.
+const CHAT_PATH = /^\/chat\/[0-9a-fA-F-]{36}$/
+
 function routeFromHash(hash: string): ViewRoute {
     const m = VIEW_HASH.exec(hash)
-    if (!m) return { view: 'chat', segment: null }
+    if (!m) {
+        return { view: CHAT_PATH.test(window.location.pathname) ? 'chat' : 'dashboard', segment: null }
+    }
     return {
         view: m[1] as View,
         segment: m[2] !== undefined ? decodeURIComponent(m[2]) : null

@@ -31,7 +31,7 @@ export default function App() {
         <ToastProvider>
             <div className="flex h-screen bg-app font-sans text-ink">
                 <NavRail />
-                {view !== 'notes' && <Sidebar health={health} loading={loading} />}
+                {view === 'chat' && <Sidebar health={health} loading={loading} />}
                 <main className="relative flex min-w-0 flex-1 flex-col">
                     {loading && !health ? (
                         <div className="flex flex-1 items-center justify-center" role="status" aria-label="Loading">

@@ -7,9 +7,16 @@ describe('useView', () => {
         window.location.hash = ''
     })
 
-    it('defaults to chat when the hash is empty', () => {
+    it('defaults to dashboard when the hash is empty', () => {
+        const { result } = renderHook(() => useView())
+        expect(result.current).toBe('dashboard')
+    })
+
+    it('lands on chat for a /chat/<uuid> deep link with no hash', () => {
+        window.history.pushState(null, '', '/chat/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1')
         const { result } = renderHook(() => useView())
         expect(result.current).toBe('chat')
+        window.history.pushState(null, '', '/')
     })
 
     it('parses every view from the hash', () => {
@@ -18,21 +25,21 @@ describe('useView', () => {
         expect(result.current).toBe('dashboard')
     })
 
-    it('falls back to chat for unknown hashes', () => {
+    it('falls back to dashboard for unknown hashes', () => {
         window.location.hash = '#/nonsense'
         const { result } = renderHook(() => useView())
-        expect(result.current).toBe('chat')
+        expect(result.current).toBe('dashboard')
     })
 
     it('rejects near-miss hashes (prefix of a view name)', () => {
         window.location.hash = '#/notesfoo'
         const { result } = renderHook(() => useView())
-        expect(result.current).toBe('chat')
+        expect(result.current).toBe('dashboard')
     })
 
     it('follows hash changes (back/forward, navigateView)', () => {
         const { result } = renderHook(() => useView())
-        expect(result.current).toBe('chat')
+        expect(result.current).toBe('dashboard')
 
         act(() => {
             navigateView('notes')
