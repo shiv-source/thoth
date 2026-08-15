@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/shiv-source/thoth/internal/store"
-	_ "modernc.org/sqlite"
 )
 
 type Note struct {
@@ -31,6 +30,13 @@ type Index struct {
 	db *sql.DB
 }
 
+// dbLike is the Exec/Query surface both *sql.DB and *sql.Tx provide, so the
+// single-row operations run on a plain handle or inside Sync's transaction.
+type dbLike interface {
+	Exec(query string, args ...any) (sql.Result, error)
+	Query(query string, args ...any) (*sql.Rows, error)
+}
+
 // Open opens the index database. The schema (notes, notes_fts, triggers)
 // lives in the store's SQL migrations, so a store open bootstraps it first;
 // Open itself issues no DDL.
@@ -42,7 +48,7 @@ func Open(path string) (*Index, error) {
 	if err := st.Close(); err != nil {
 		return nil, err
 	}
-	db, err := sql.Open("sqlite", path)
+	db, err := store.OpenDB(path)
 	if err != nil {
 		return nil, fmt.Errorf("open index: %w", err)
 	}
@@ -54,7 +60,14 @@ func Open(path string) (*Index, error) {
 }
 
 func (ix *Index) Upsert(n Note) error {
-	_, err := ix.db.Exec(`
+	if err := upsert(ix.db, n); err != nil {
+		return fmt.Errorf("index upsert %s: %w", n.Path, err)
+	}
+	return nil
+}
+
+func upsert(db dbLike, n Note) error {
+	_, err := db.Exec(`
 		INSERT INTO notes(path, title, kind, tags, body, updated_at)
 		VALUES (?, ?, ?, ?, ?, ?)
 		ON CONFLICT(path) DO UPDATE SET
@@ -64,17 +77,19 @@ func (ix *Index) Upsert(n Note) error {
 			body = excluded.body,
 			updated_at = excluded.updated_at`,
 		n.Path, n.Title, n.Kind, strings.Join(n.Tags, ","), n.Body, n.UpdatedAt.Format(time.RFC3339))
-	if err != nil {
-		return fmt.Errorf("index upsert %s: %w", n.Path, err)
+	return err
+}
+
+func (ix *Index) Delete(path string) error {
+	if err := del(ix.db, path); err != nil {
+		return fmt.Errorf("index delete %s: %w", path, err)
 	}
 	return nil
 }
 
-func (ix *Index) Delete(path string) error {
-	if _, err := ix.db.Exec(`DELETE FROM notes WHERE path = ?`, path); err != nil {
-		return fmt.Errorf("index delete %s: %w", path, err)
-	}
-	return nil
+func del(db dbLike, path string) error {
+	_, err := db.Exec(`DELETE FROM notes WHERE path = ?`, path)
+	return err
 }
 
 // DeletePrefix removes the note at prefix and every note stored under it.

@@ -133,7 +133,7 @@ Apply the standard principles — modular, composable, boring code that's easy t
 
 ## Invariants (do not break)
 
-- Files are the source of truth; the index rebuilds from the tree. Notes require `---` frontmatter with `title`; the wiki never stores secrets.
+- Files are the source of truth; the index syncs with the tree (thoth.db is derived data). Notes require `---` frontmatter with `title`; the wiki never stores secrets.
 - WS is chat-only transport; REST for everything else. Server message types in `internal/api/chat.go` must match `web/src/ws/chat.ts`.
 - Go: `%w` errors, `context.Context` everywhere (cancel = the stop button), no panics in library code, no package-level mutable globals.
 - TS: `strict`, no `any` (eslint), zod at the API boundary.

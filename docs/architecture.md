@@ -51,7 +51,7 @@ See [Components](components.md), [Indexing & search](indexing.md), [API](api.md)
 
 - Deleting the database costs only a reindex — no knowledge is lost
 - The wiki is never dependent on the app; both interfaces (the app's spawned Claude sessions, and Claude Code in a terminal) read and write the same tree under the same rules
-- The index rebuilds from the tree at every startup and on wiki-path changes
+- The index syncs with the tree at every startup and on wiki-path changes — incrementally, so unchanged files are not re-indexed
 
 ## Two interfaces, one contract
 

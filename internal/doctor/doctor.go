@@ -212,16 +212,16 @@ func checkIndex(dbPath, wikiRoot string) Check {
 	defer func() { _ = db.Close() }()
 	var indexed int
 	if err := db.QueryRow(`SELECT COUNT(*) FROM notes`).Scan(&indexed); err != nil {
-		return Check{Name: "index", OK: false, Message: fmt.Sprintf("cannot read the index: %v — run thoth doctor --fix to rebuild it", err)}
+		return Check{Name: "index", OK: false, Message: fmt.Sprintf("cannot read the index: %v — run thoth doctor --fix to sync it", err)}
 	}
 	if indexed != onDisk {
-		return Check{Name: "index", OK: false, Message: fmt.Sprintf("index has %d notes but %d notes on disk — run thoth doctor --fix to rebuild", indexed, onDisk)}
+		return Check{Name: "index", OK: false, Message: fmt.Sprintf("index has %d notes but %d notes on disk — run thoth doctor --fix to sync", indexed, onDisk)}
 	}
 	return Check{Name: "index", OK: true, Message: fmt.Sprintf("in sync: %d notes indexed, %d on disk", indexed, onDisk)}
 }
 
 // countNotes counts .md files with valid frontmatter under root, mirroring
-// index.Rebuild's definition of an indexable note.
+// index.Sync's definition of an indexable note.
 func countNotes(root string) (int, error) {
 	n := 0
 	err := filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
@@ -233,7 +233,7 @@ func countNotes(root string) (int, error) {
 		}
 		b, err := os.ReadFile(p)
 		if err != nil {
-			return nil // unreadable notes are skipped by Rebuild too
+			return nil // unreadable notes are skipped by Sync too
 		}
 		if _, _, err := wiki.ParseNote(b); err != nil {
 			return nil

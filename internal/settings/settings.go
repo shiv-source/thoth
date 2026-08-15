@@ -28,11 +28,12 @@ type Repo struct {
 	db *sql.DB
 }
 
-// OpenRepo opens a read/write handle. Deliberately no migrations and no
-// WAL pragma: the schema comes from the store's migrations, and running the
-// pragma here would mutate a non-WAL database during an otherwise read-only
-// doctor check (and create the file on a missing path). The file is WAL by
-// construction (store.Open always runs first in every real flow).
+// OpenRepo opens a read/write handle. Deliberately no migrations, no WAL
+// pragma, and no store.OpenDB: the schema comes from the store's migrations,
+// and pragmas (including OpenDB's busy_timeout) force an early connection,
+// which would create the file on a missing path during an otherwise
+// read-only doctor check. The file is WAL by construction (store.Open always
+// runs first in every real flow).
 func OpenRepo(path string) (*Repo, error) {
 	db, err := sql.Open("sqlite", path)
 	if err != nil {

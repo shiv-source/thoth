@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/labstack/echo/v4"
 	"github.com/shiv-source/thoth/internal/api"
@@ -178,16 +179,18 @@ func ensureWiki(path string, log *slog.Logger) (*wiki.Wiki, error) {
 	return w, nil
 }
 
-// openIndex opens the note index and rebuilds it from wikiPath.
+// openIndex opens the note index and syncs it from wikiPath.
 func openIndex(dbPath, wikiPath string, log *slog.Logger) (*index.Index, error) {
 	ix, err := index.Open(dbPath)
 	if err != nil {
 		return nil, err
 	}
-	if err := ix.Rebuild(wikiPath, log); err != nil {
+	start := time.Now()
+	if err := ix.Sync(wikiPath, log); err != nil {
 		_ = ix.Close()
 		return nil, err
 	}
+	log.Info("index synced", "path", wikiPath, "dur", time.Since(start))
 	return ix, nil
 }
 
@@ -214,7 +217,7 @@ func onSettingsSaved(log *slog.Logger, root *rootHolder, w *wiki.Wiki, ix *index
 		if newPath == root.get() {
 			return nil // already current (e.g. a retry after a failed save)
 		}
-		log.Info("wiki path changed, rebuilding index", "path", newPath)
+		log.Info("wiki path changed, syncing index", "path", newPath)
 		// Check the new path itself: w still points at the old root until
 		// every fallible step below has succeeded.
 		if !wiki.New(newPath).Exists() {
@@ -222,7 +225,7 @@ func onSettingsSaved(log *slog.Logger, root *rootHolder, w *wiki.Wiki, ix *index
 				return err
 			}
 		}
-		if err := ix.Rebuild(newPath, log); err != nil {
+		if err := ix.Sync(newPath, log); err != nil {
 			return err
 		}
 		// All fallible steps done: commit the new root atomically-ish.

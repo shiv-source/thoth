@@ -138,6 +138,13 @@ run: build ## build and serve
 	./$(BIN) serve
 .PHONY: run
 
+# Fast repeated starts: rebuilds only the Go binary and reuses the existing
+# embed. Run `make web` after frontend edits to refresh the embedded UI.
+run-fast: web-sync ## rebuild Go only and serve (reuse existing embed — run `make web` after frontend edits)
+	$(GO_BUILD) -o $(BIN) ./cmd/thoth
+	./$(BIN) serve
+.PHONY: run-fast
+
 doctor: ## diagnose the local Thoth setup
 .PHONY: doctor
 doctor:

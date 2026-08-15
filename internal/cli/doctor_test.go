@@ -69,7 +69,7 @@ func healthyEnv(t *testing.T, authStatusExit int) string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := ix.Rebuild(wikiRoot, slog.New(slog.NewTextHandler(io.Discard, nil))); err != nil {
+	if err := ix.Sync(wikiRoot, slog.New(slog.NewTextHandler(io.Discard, nil))); err != nil {
 		t.Fatal(err)
 	}
 	if err := ix.Close(); err != nil {

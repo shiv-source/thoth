@@ -12,7 +12,7 @@ Startup sequence:
 
 1. Open `thoth.db` (migrations) and read `wiki_path` from the settings table
 2. Scaffold the wiki if it doesn't exist
-3. Open `thoth.db` (index + store), rebuild the search index from the tree
+3. Open `thoth.db` (index + store), sync the search index with the tree
 4. Start the fsnotify watcher
 5. Resolve the claude binary (config → `PATH` → warn)
 6. Serve; SIGINT/SIGTERM → graceful shutdown (cancels in-flight Claude turns, then exits)
@@ -48,7 +48,7 @@ Flags:
 
 | Flag | Purpose |
 |---|---|
-| `--fix` | Repair the safe failures: missing config (writes defaults), missing wiki (scaffolds), out-of-sync index (rebuilds). Never touches your Claude login. |
+| `--fix` | Repair the safe failures: missing config (writes defaults), missing wiki (scaffolds), out-of-sync index (syncs). Never touches your Claude login. |
 | `--dir` | (hidden, test-only) Override `~/.thoth` |
 
 **Exit codes:** `0` when all checks pass, `1` when any fails. Script-friendly:

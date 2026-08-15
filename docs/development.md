@@ -38,6 +38,7 @@ Run `make help` for the full self-documenting list.
 | `make test` / `make race` / `make cover` / `make lint` / `make fmt` | Quality gates |
 | `make check` | Everything CI runs, locally |
 | `make doctor` / `make init` / `make run` / `make clean` | Ops |
+| `make run-fast` | Rebuild Go only and serve, reusing the existing embed (run `make web` after frontend edits) |
 
 ## Gates (every commit must pass)
 

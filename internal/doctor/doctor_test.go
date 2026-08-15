@@ -123,7 +123,7 @@ func healthyThothDir(t *testing.T) string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := ix.Rebuild(wikiRoot, testLog()); err != nil {
+	if err := ix.Sync(wikiRoot, testLog()); err != nil {
 		t.Fatal(err)
 	}
 	if err := ix.Close(); err != nil {

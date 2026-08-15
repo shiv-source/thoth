@@ -329,3 +329,22 @@ func TestDeleteConversation(t *testing.T) {
 		t.Fatalf("second delete: %v", err)
 	}
 }
+
+func TestOpenDBSetsBusyTimeoutAndPool(t *testing.T) {
+	db, err := OpenDB(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatalf("OpenDB: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+
+	var timeout int
+	if err := db.QueryRow(`PRAGMA busy_timeout;`).Scan(&timeout); err != nil {
+		t.Fatalf("busy_timeout pragma: %v", err)
+	}
+	if timeout != 5000 {
+		t.Fatalf("busy_timeout = %d, want 5000", timeout)
+	}
+	if got := db.Stats().MaxOpenConnections; got != 1 {
+		t.Fatalf("MaxOpenConnections = %d, want 1", got)
+	}
+}

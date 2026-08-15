@@ -249,8 +249,8 @@ func TestClosedIndexErrors(t *testing.T) {
 	if _, err := ix.Search("x", 10); err == nil {
 		t.Fatal("Search on closed index must error")
 	}
-	if err := ix.Rebuild(t.TempDir(), discardLog()); err == nil {
-		t.Fatal("Rebuild on closed index must error")
+	if err := ix.Sync(t.TempDir(), discardLog()); err == nil {
+		t.Fatal("Sync on closed index must error")
 	}
 }
 

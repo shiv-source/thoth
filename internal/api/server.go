@@ -50,6 +50,7 @@ func newServer(d Deps) (*echo.Echo, *Hub) {
 	e := echo.New()
 	e.HideBanner = true
 	e.HidePort = true
+	e.Use(requestLog(d.Log))
 
 	e.GET("/api/health", func(c echo.Context) error { return health(c, d) })
 	e.GET("/api/doctor", func(c echo.Context) error { return doctorHandler(c, d) })

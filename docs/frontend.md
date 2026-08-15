@@ -30,7 +30,7 @@ web/src/
 | `Sidebar` | Brand header, then a **Chats** section (New chat + conversation history grouped Today/Yesterday/Previous 7 days/Older, dates on hover, active rail, loading/error/empty states, re-fetches on URL change) above the **Wiki** section (search + `WikiTree`) |
 | `MessageItem` | User bubbles (plain text) vs assistant (react-markdown + GFM) with a streaming caret |
 | `NoteViewer` | Slide-over markdown panel (Esc or ✕ closes); "Copy raw" copies the note to the clipboard (+ success toast) |
-| `Tree` | Reusable, accessible folder tree: collapsible chevrons, ARIA tree roles, Arrow/Enter keyboard navigation, generic over the node type (icons from `lucide-react`) |
+| `Tree` | Reusable, accessible folder tree: collapsible chevrons, ARIA tree roles, Arrow/Enter keyboard navigation, generic over the node type (icons from `lucide-react`); rows are memoized — a selection change re-renders only the affected rows |
 | `WikiTree` | The wiki directory rendered through `Tree` (folders start collapsed; clicking a file opens the note; loading/error/empty states) |
 | `SettingsModal` | Tabbed: **General** (the wiki path — the only remaining field, persisted to the settings table), **Doctor** (shared check suite via `GET /api/doctor`, green ✓ / red ✗ rows, "Run checks"), **Git remote** (connect with a PAT → connected card with avatar/name/email + Disconnect; repo URL + an auto-sync toggle persisted to the settings table; "Initialize & Push" calls `POST /api/git/setup`); backdrop, ✕, and Esc close |
 | `SetupScreen` | Full-zone card shown while `/api/health` reports the Claude CLI missing: problem checklist with exact fix commands, "Re-check" button (spinner while rechecking) |
@@ -39,7 +39,7 @@ web/src/
 ## Hooks
 
 - **useChat** — thin adapter over the chat slice: maps server frames to chat actions, `send`/`cancel` call the socket; the conversation state itself (messages, streaming, conversationId, thinking, lastTool) lives in the Redux `chat` slice and survives component remounts. `load(messages, conversationId)` replaces the whole conversation (history fetch — local only, the caller pins the server side with `socket.open`); `reset()` clears locally and sends `new_chat` to unpin the server
-- **useSearch** — 300 ms debounce with a sequence guard, so slow older responses can't overwrite newer ones
+- **useSearch** — 300 ms debounce with a sequence guard, so slow older responses can't overwrite newer ones; superseded requests are aborted (AbortController), and clearing the query cancels the in-flight request and resets loading
 
 ## State
 
