@@ -1,22 +1,26 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
-import { Search } from 'lucide-react'
+import { Clock, Search } from 'lucide-react'
 import { useSearch } from '../hooks/useSearch'
 import { useViewRoute } from '../hooks/useView'
+import { clearSearchHistory, commitSearch, selectSearchHistory } from '../store'
+import { useAppDispatch, useAppSelector } from '../store/hooks'
 import { EmptyState } from './EmptyState'
 
 export function SearchPanel({ onOpen }: { onOpen: (path: string) => void }) {
-    const { segment } = useViewRoute()
-    // The query rides the URL (#/search/<q>) so it survives a reload; typing
-    // replaceState's the hash (no history spam, no re-render loop).
-    const [query, setQuery] = useState(() => segment ?? '')
+    // The query rides the URL (?q=) so it survives a reload; typing
+    // replaceState's the query string (no history spam, no re-render loop).
+    const { query: urlQuery } = useViewRoute()
+    const [query, setQuery] = useState(() => urlQuery ?? '')
     const [active, setActive] = useState(0)
     const { results, loading } = useSearch(query)
+    const history = useAppSelector(selectSearchHistory)
+    const dispatch = useAppDispatch()
     const inputRef = useRef<HTMLInputElement>(null)
 
-    // Back/forward (or any real hashchange) re-syncs the query.
+    // Back/forward (or any real popstate) re-syncs the query.
     useEffect(() => {
-        setQuery(segment ?? '')
-    }, [segment])
+        setQuery(urlQuery ?? '')
+    }, [urlQuery])
 
     useEffect(() => {
         setActive(0)
@@ -24,13 +28,25 @@ export function SearchPanel({ onOpen }: { onOpen: (path: string) => void }) {
 
     const onQueryChange = (v: string) => {
         setQuery(v)
-        const encoded = v ? encodeURIComponent(v).replace(/%2F/gi, '/') : ''
-        window.history.replaceState(null, '', v ? `/search/${encoded}` : '/search')
+        window.history.replaceState(null, '', v ? `/search?q=${encodeURIComponent(v)}` : '/search')
+    }
+
+    // commit records a deliberate search — Enter, or opening a result. The
+    // slice dedupes, caps, and persists.
+    const commit = (v: string) => {
+        if (v.trim()) dispatch(commitSearch(v))
+    }
+
+    const clearHistory = () => {
+        dispatch(clearSearchHistory())
     }
 
     const open = (path: string) => {
+        commit(query)
+        // Clear the search URL first: navigating to the note (onOpen) pushes
+        // /notes/<path>, and this replaceState would clobber it afterwards.
+        onQueryChange('')
         onOpen(path)
-        setQuery('')
     }
 
     const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
@@ -41,13 +57,14 @@ export function SearchPanel({ onOpen }: { onOpen: (path: string) => void }) {
             e.preventDefault()
             setActive((a) => Math.max(a - 1, 0))
         } else if (e.key === 'Enter') {
+            commit(query)
             const r = results[active]
             if (r) {
                 e.preventDefault()
                 open(r.path)
             }
         } else if (e.key === 'Escape') {
-            setQuery('')
+            onQueryChange('')
             inputRef.current?.blur()
         }
     }
@@ -99,6 +116,29 @@ export function SearchPanel({ onOpen }: { onOpen: (path: string) => void }) {
                             ))}
                         </ul>
                     )}
+                </div>
+            )}
+            {!query && history.length > 0 && (
+                <div className="mt-1.5">
+                    <div className="flex items-center justify-between px-1">
+                        <p className="text-xs font-medium uppercase tracking-wide text-subtle">Recent searches</p>
+                        <button onClick={clearHistory} className="text-xs text-subtle transition hover:text-ink">
+                            Clear
+                        </button>
+                    </div>
+                    <ul className="mt-1 space-y-0.5">
+                        {history.map((h) => (
+                            <li key={h}>
+                                <button
+                                    onClick={() => onQueryChange(h)}
+                                    className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm text-ink transition hover:bg-raised"
+                                >
+                                    <Clock className="h-3.5 w-3.5 shrink-0 text-subtle" aria-hidden="true" />
+                                    <span className="truncate">{h}</span>
+                                </button>
+                            </li>
+                        ))}
+                    </ul>
                 </div>
             )}
         </div>

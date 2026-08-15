@@ -1,82 +1,120 @@
-@import "tailwindcss";
-@import "@fontsource-variable/fraunces";
+@import 'tailwindcss';
+@import '@fontsource-variable/fraunces';
 @plugin "@tailwindcss/typography";
 
 @theme {
-  --font-display: "Fraunces Variable", Georgia, serif;
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --radius-lg: 0.75rem;
+    --font-display: 'Fraunces Variable', Georgia, serif;
+    --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+    --radius-lg: 0.75rem;
 
-  /* Semantic surfaces — resolve to CSS vars that flip with the OS theme */
-  --color-app: var(--thoth-app);
-  --color-surface: var(--thoth-surface);
-  --color-raised: var(--thoth-raised);
-  --color-line: var(--thoth-line);
-  --color-subtle: var(--thoth-subtle);
-  --color-ink: var(--thoth-ink);
-  --color-heading: var(--thoth-heading);
+    /* Semantic surfaces — resolve to CSS vars that flip with the OS theme */
+    --color-app: var(--thoth-app);
+    --color-surface: var(--thoth-surface);
+    --color-raised: var(--thoth-raised);
+    --color-line: var(--thoth-line);
+    --color-subtle: var(--thoth-subtle);
+    --color-ink: var(--thoth-ink);
+    --color-heading: var(--thoth-heading);
 
-  /* Accent — emerald */
-  --color-accent: var(--thoth-accent);
-  --color-accent-hover: var(--thoth-accent-hover);
-  --color-accent-bright: var(--thoth-accent-bright);
-  --color-accent-soft: var(--thoth-accent-soft);
-  --color-accent-ink: var(--thoth-accent-ink);
+    /* Accent — emerald */
+    --color-accent: var(--thoth-accent);
+    --color-accent-hover: var(--thoth-accent-hover);
+    --color-accent-bright: var(--thoth-accent-bright);
+    --color-accent-soft: var(--thoth-accent-soft);
+    --color-accent-ink: var(--thoth-accent-ink);
 }
 
 :root {
-  /* Light — slate + emerald */
-  --thoth-app: #f8fafc;            /* slate-50   app background */
-  --thoth-surface: #ffffff;        /* white      cards, bubbles */
-  --thoth-raised: #f1f5f9;         /* slate-100  hover, strips */
-  --thoth-line: #e2e8f0;           /* slate-200  borders */
-  --thoth-subtle: #64748b;         /* slate-500  secondary text */
-  --thoth-ink: #0f172a;            /* slate-900  primary text */
-  --thoth-heading: #1e293b;        /* slate-800  headings */
-  --thoth-accent: #059669;         /* emerald-600 */
-  --thoth-accent-hover: #047857;   /* emerald-700 */
-  --thoth-accent-bright: #10b981;  /* emerald-500 */
-  --thoth-accent-soft: #ecfdf5;    /* emerald-50 */
-  --thoth-accent-ink: #ffffff;     /* text on accent */
+    /* Light — slate + emerald */
+    --thoth-app: #f8fafc; /* slate-50   app background */
+    --thoth-surface: #ffffff; /* white      cards, bubbles */
+    --thoth-raised: #f1f5f9; /* slate-100  hover, strips */
+    --thoth-line: #e2e8f0; /* slate-200  borders */
+    --thoth-subtle: #64748b; /* slate-500  secondary text */
+    --thoth-ink: #0f172a; /* slate-900  primary text */
+    --thoth-heading: #1e293b; /* slate-800  headings */
+    --thoth-accent: #059669; /* emerald-600 */
+    --thoth-accent-hover: #047857; /* emerald-700 */
+    --thoth-accent-bright: #10b981; /* emerald-500 */
+    --thoth-accent-soft: #ecfdf5; /* emerald-50 */
+    --thoth-accent-ink: #ffffff; /* text on accent */
+
+    /* Categorical series hues for charts — order validated for CVD safety
+     (blue, orange, emerald, yellow) against the app surfaces. */
+    --thoth-series-1: #2a78d6;
+    --thoth-series-2: #eb6834;
+    --thoth-series-3: #059669;
+    --thoth-series-4: #eda100;
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
-    /* Dark — slate night + emerald */
-    --thoth-app: #020617;            /* slate-950  app background */
-    --thoth-surface: #0f172a;        /* slate-900  cards, bubbles */
-    --thoth-raised: #1e293b;         /* slate-800  hover, strips */
-    --thoth-line: #334155;           /* slate-700  borders */
-    --thoth-subtle: #94a3b8;         /* slate-400  secondary text */
-    --thoth-ink: #f1f5f9;            /* slate-100  primary text */
-    --thoth-heading: #f1f5f9;        /* slate-100  headings */
-    --thoth-accent: #34d399;         /* emerald-400 */
-    --thoth-accent-hover: #10b981;   /* emerald-500 */
-    --thoth-accent-bright: #10b981;  /* emerald-500 */
-    --thoth-accent-soft: rgb(16 185 129 / 0.14); /* emerald-500 at 14% */
-    --thoth-accent-ink: #022c22;     /* emerald-950 — text on accent */
-  }
+    :root {
+        /* Dark — slate night + emerald */
+        --thoth-app: #020617; /* slate-950  app background */
+        --thoth-surface: #0f172a; /* slate-900  cards, bubbles */
+        --thoth-raised: #1e293b; /* slate-800  hover, strips */
+        --thoth-line: #334155; /* slate-700  borders */
+        --thoth-subtle: #94a3b8; /* slate-400  secondary text */
+        --thoth-ink: #f1f5f9; /* slate-100  primary text */
+        --thoth-heading: #f1f5f9; /* slate-100  headings */
+        --thoth-accent: #34d399; /* emerald-400 */
+        --thoth-accent-hover: #10b981; /* emerald-500 */
+        --thoth-accent-bright: #10b981; /* emerald-500 */
+        --thoth-accent-soft: rgb(16 185 129 / 0.14); /* emerald-500 at 14% */
+        --thoth-accent-ink: #022c22; /* emerald-950 — text on accent */
+
+        --thoth-series-1: #3987e5;
+        --thoth-series-2: #d95926;
+        --thoth-series-3: #059669; /* mode-invariant — the dark accent is out of band */
+        --thoth-series-4: #c98500;
+    }
 }
 
 @keyframes slide-in-right {
-  from { transform: translateX(100%); }
-  to { transform: translateX(0); }
+    from {
+        transform: translateX(100%);
+    }
+    to {
+        transform: translateX(0);
+    }
 }
 
 @keyframes pop-in {
-  from { opacity: 0; transform: scale(0.96) translateY(4px); }
-  to { opacity: 1; transform: none; }
+    from {
+        opacity: 0;
+        transform: scale(0.96) translateY(4px);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
 }
 
 @keyframes fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
 }
 
-html, body, #root { height: 100%; }
-body { @apply antialiased; }
+html,
+body,
+#root {
+    height: 100%;
+}
+body {
+    @apply antialiased;
+}
 
 @keyframes tooltip-fade {
-  from { opacity: 0; transform: translateY(2px); }
-  to { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(2px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }

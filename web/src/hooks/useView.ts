@@ -5,27 +5,26 @@ export type View = 'chat' | 'notes' | 'dashboard' | 'search' | 'settings'
 export interface ViewRoute {
     view: View
     // segment is the decoded path part after the view: the open note for
-    // /notes/<path>, the query for /search/<q>, the tab for
-    // /settings/<tab>. It rides the URL, so the state survives reloads and
-    // back/forward.
+    // /notes/<path>, the tab for /settings/<tab>. It rides the URL, so the
+    // state survives reloads and back/forward.
     segment: string | null
+    // query is the URL's ?q= parameter — the search view's state.
+    query: string | null
 }
 
 // Pathname routing: / is the dashboard (home), /chat carries the
 // conversation id (owned by useConversationRoute — the uuid segment is not
 // part of the view route), and the other views carry their state as the
-// path segment.
+// path segment (or, for search, the ?q= query parameter).
 const VIEW_PATH = /^\/(chat|notes|dashboard|search|settings)(?:\/(.+))?$/
 
 function routeFromPathname(pathname: string): ViewRoute {
     const m = VIEW_PATH.exec(pathname)
-    if (!m) return { view: 'dashboard', segment: null }
+    if (!m) return { view: 'dashboard', segment: null, query: null }
     const view = m[1] as View
-    const segment =
-        (view === 'notes' || view === 'search' || view === 'settings') && m[2] !== undefined
-            ? decodeURIComponent(m[2])
-            : null
-    return { view, segment }
+    const segment = (view === 'notes' || view === 'settings') && m[2] !== undefined ? decodeURIComponent(m[2]) : null
+    const query = view === 'search' ? new URLSearchParams(window.location.search).get('q') : null
+    return { view, segment, query }
 }
 
 // setPath pushes the URL the way a user link would, so the route hooks'
