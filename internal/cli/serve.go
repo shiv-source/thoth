@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"net/http"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -17,6 +18,7 @@ import (
 	"github.com/shiv-source/thoth/internal/api"
 	"github.com/shiv-source/thoth/internal/claude"
 	"github.com/shiv-source/thoth/internal/config"
+	"github.com/shiv-source/thoth/internal/github"
 	"github.com/shiv-source/thoth/internal/index"
 	"github.com/shiv-source/thoth/internal/store"
 	"github.com/shiv-source/thoth/internal/wiki"
@@ -102,6 +104,12 @@ func runServe(cmd *cobra.Command, _ []string) error {
 	}
 	startWatcher(w.Root)
 
+	gh, err := github.OpenRepo(filepath.Join(dir, "thoth.db"))
+	if err != nil {
+		return err
+	}
+	defer func() { _ = gh.Close() }()
+
 	root := newRootHolder(w.Root)
 	e := api.New(api.Deps{
 		Log:             log,
@@ -110,6 +118,7 @@ func runServe(cmd *cobra.Command, _ []string) error {
 		ConfigMu:        &sync.RWMutex{},
 		Store:           st,
 		Claude:          claude.New(resolveClaudeBin(cfg, log), w.Root, claude.WithPermissionMode(cfg.PermissionMode), claude.WithModel(cfg.Model), claude.WithDirProvider(root.get)),
+		GitHub:          &github.Service{Client: github.New(http.DefaultClient), Repo: gh},
 		Wiki:            w,
 		Index:           ix,
 		OnSettingsSaved: onSettingsSaved(log, root, w, ix, startWatcher),
