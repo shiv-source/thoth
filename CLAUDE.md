@@ -31,7 +31,7 @@ Frontend: `pnpm <cmd>` from the repo root (workspace proxies) or `cd web && pnpm
 ## Layout
 
 ```
-wiki/
+thoth/
 ├── cmd/thoth/            # thin binary entrypoint (main.go)
 ├── internal/
 │   ├── cli/              # Cobra: serve, init, version, doctor
