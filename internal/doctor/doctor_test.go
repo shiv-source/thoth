@@ -99,7 +99,7 @@ func byName(t *testing.T, checks []Check, name string) Check {
 
 func TestRunHealthy(t *testing.T) {
 	checks := Run(context.Background(), healthyThothDir(t), testLog())
-	want := []string{"config", "wiki", "claude", "claude login", "database", "index", "api"}
+	want := []string{"config", "wiki", "claude", "claude login", "database", "index", "api", "websocket"}
 	if len(checks) != len(want) {
 		t.Fatalf("got %d checks, want %d: %+v", len(checks), len(want), checks)
 	}
@@ -241,6 +241,11 @@ func TestRunNonThothProcessOnPort(t *testing.T) {
 	if c.OK || !strings.Contains(c.Message, "non-thoth") {
 		t.Fatalf("api: %s", c.Message)
 	}
+	// The websocket check is skipped: the port is not a Thoth server.
+	ws := byName(t, Run(context.Background(), dir, testLog()), "websocket")
+	if !ws.OK || !strings.Contains(ws.Message, "skipped") {
+		t.Fatalf("websocket: %s", ws.Message)
+	}
 }
 
 // serveThothAPI serves the REST health and chat websocket endpoints on ln the
@@ -281,9 +286,14 @@ func TestRunAPIHealthy(t *testing.T) {
 	}
 	serveThothAPI(t, ln, `{"status":"ok","claude":{"found":true,"path":"/fake/claude"},"wiki":{"path":"/fake/wiki","exists":true}}`)
 
-	c := byName(t, Run(context.Background(), dir, testLog()), "api")
-	if !c.OK || !strings.Contains(c.Message, "REST and chat websocket") {
+	checks := Run(context.Background(), dir, testLog())
+	c := byName(t, checks, "api")
+	if !c.OK || !strings.Contains(c.Message, "REST") {
 		t.Fatalf("api: %s", c.Message)
+	}
+	ws := byName(t, checks, "websocket")
+	if !ws.OK || !strings.Contains(ws.Message, "connects") {
+		t.Fatalf("websocket: %s", ws.Message)
 	}
 }
 
@@ -338,9 +348,12 @@ func TestRunAPIWebsocketFails(t *testing.T) {
 	go func() { _ = srv.Serve(ln) }()
 	t.Cleanup(func() { _ = srv.Close() })
 
-	c := byName(t, Run(context.Background(), dir, testLog()), "api")
-	if c.OK || !strings.Contains(c.Message, "websocket") {
+	checks := Run(context.Background(), dir, testLog())
+	if c := byName(t, checks, "api"); !c.OK {
 		t.Fatalf("api: %s", c.Message)
+	}
+	if c := byName(t, checks, "websocket"); c.OK || !strings.Contains(c.Message, "did not connect") {
+		t.Fatalf("websocket: %s", c.Message)
 	}
 }
 

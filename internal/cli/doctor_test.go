@@ -111,7 +111,7 @@ func TestDoctorHealthy(t *testing.T) {
 	if strings.Contains(out, "✗") {
 		t.Fatalf("unexpected failing checks:\n%s", out)
 	}
-	for _, want := range []string{"config:", "wiki:", "claude:", "claude login:", "database:", "index:", "api:"} {
+	for _, want := range []string{"config:", "wiki:", "claude:", "claude login:", "database:", "index:", "api:", "websocket:"} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("output missing %q:\n%s", want, out)
 		}

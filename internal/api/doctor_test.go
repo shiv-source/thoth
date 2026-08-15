@@ -130,7 +130,7 @@ func TestDoctorEndpointHealthy(t *testing.T) {
 	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
 		t.Fatal(err)
 	}
-	want := []string{"config", "wiki", "claude", "claude login", "database", "index", "api"}
+	want := []string{"config", "wiki", "claude", "claude login", "database", "index", "api", "websocket"}
 	if len(body.Checks) != len(want) {
 		t.Fatalf("got %d checks, want %d: %+v", len(body.Checks), len(want), body.Checks)
 	}

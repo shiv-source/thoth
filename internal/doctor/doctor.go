@@ -41,9 +41,9 @@ type Check struct {
 }
 
 // Run probes the installation under dir ("" means ~/.thoth) and returns every
-// check, in order: config, wiki, claude, claude login, database, index, api.
-// Every check runs even when an earlier one fails. ctx bounds the claude
-// probes; log is reserved for future diagnostics.
+// check, in order: config, wiki, claude, claude login, database, index, api,
+// websocket. Every check runs even when an earlier one fails. ctx bounds the
+// claude probes; log is reserved for future diagnostics.
 func Run(ctx context.Context, dir string, log *slog.Logger) []Check {
 	thDir := dir
 	if thDir == "" {
@@ -79,11 +79,16 @@ func Run(ctx context.Context, dir string, log *slog.Logger) []Check {
 	// 5. index sync
 	results = append(results, checkIndex(dbPath, expanded))
 
-	// 6. api — REST health plus the chat websocket upgrade at the configured
-	// address. Pre-launch (CLI) it reports whether the port is free, occupied
-	// by a running Thoth, or by something else; in-flight (GET /api/doctor)
-	// it self-checks the very server answering the request.
-	results = append(results, checkAPI(cfg))
+	// 6. api — REST health at the configured address. Pre-launch (CLI) it
+	// reports whether the port is free, occupied by a running Thoth, or by
+	// something else; in-flight (GET /api/doctor) it self-checks the very
+	// server answering the request.
+	apiCheck, apiReachable := checkAPI(cfg)
+	results = append(results, apiCheck)
+
+	// 7. websocket — the chat upgrade; reported separately, and only probed
+	// when the REST check reached a Thoth server.
+	results = append(results, checkWebsocket(cfg, apiReachable))
 
 	return results
 }
@@ -240,32 +245,24 @@ func countNotes(root string) (int, error) {
 	return n, err
 }
 
-// checkAPI probes the server at the configured address: REST health first,
-// then the chat websocket upgrade. The same check runs pre-launch and
-// in-flight; see Run.
-func checkAPI(cfg config.Config) Check {
-	host := cfg.Host
-	if host == "" {
-		host = "127.0.0.1"
-	}
-	port := cfg.Port
-	if port == 0 {
-		port = 8333
-	}
-	addr := net.JoinHostPort(host, strconv.Itoa(port))
+// checkAPI probes the REST health endpoint at the configured address and
+// reports whether a Thoth server answered (the bool) alongside the check.
+// The same check runs pre-launch and in-flight; see Run.
+func checkAPI(cfg config.Config) (Check, bool) {
+	addr := configAddr(cfg)
 
 	// A TCP dial distinguishes "nothing there" from "something there that
 	// does not speak the Thoth protocol".
 	conn, err := net.DialTimeout("tcp", addr, apiCheckTimeout)
 	if err != nil {
-		return Check{Name: "api", OK: true, Message: fmt.Sprintf("api not running at %s", addr)}
+		return Check{Name: "api", OK: true, Message: fmt.Sprintf("api not running at %s", addr)}, false
 	}
 	_ = conn.Close()
 
 	client := &http.Client{Timeout: apiCheckTimeout}
 	resp, err := client.Get("http://" + addr + "/api/health")
 	if err != nil {
-		return Check{Name: "api", OK: false, Message: fmt.Sprintf("port %s is occupied by a non-thoth process", addr)}
+		return Check{Name: "api", OK: false, Message: fmt.Sprintf("port %s is occupied by a non-thoth process", addr)}, false
 	}
 	defer func() { _ = resp.Body.Close() }()
 	var h struct {
@@ -279,18 +276,42 @@ func checkAPI(cfg config.Config) Check {
 		} `json:"wiki"`
 	}
 	if resp.StatusCode != http.StatusOK || json.NewDecoder(resp.Body).Decode(&h) != nil || h.Status != "ok" {
-		return Check{Name: "api", OK: false, Message: fmt.Sprintf("port %s is occupied by a non-thoth process", addr)}
+		return Check{Name: "api", OK: false, Message: fmt.Sprintf("port %s is occupied by a non-thoth process", addr)}, false
 	}
 	if !h.Claude.Found {
-		return Check{Name: "api", OK: false, Message: fmt.Sprintf("api healthy at %s but the claude CLI was not found", addr)}
+		return Check{Name: "api", OK: false, Message: fmt.Sprintf("api healthy at %s but the claude CLI was not found", addr)}, true
 	}
 	if !h.Wiki.Exists {
-		return Check{Name: "api", OK: false, Message: fmt.Sprintf("api healthy at %s but the wiki path does not exist", addr)}
+		return Check{Name: "api", OK: false, Message: fmt.Sprintf("api healthy at %s but the wiki path does not exist", addr)}, true
+	}
+	return Check{Name: "api", OK: true, Message: fmt.Sprintf("api healthy at %s — REST", addr)}, true
+}
+
+// checkWebsocket probes the chat upgrade at the configured address. It only
+// runs when the REST check reached a Thoth server; otherwise it reports a
+// skip so a pre-launch run stays clean.
+func checkWebsocket(cfg config.Config, apiReachable bool) Check {
+	addr := configAddr(cfg)
+	if !apiReachable {
+		return Check{Name: "websocket", OK: true, Message: fmt.Sprintf("skipped — api not reachable at %s", addr)}
 	}
 	if !wsUpgradeOK(addr) {
-		return Check{Name: "api", OK: false, Message: fmt.Sprintf("api healthy at %s but the chat websocket did not connect", addr)}
+		return Check{Name: "websocket", OK: false, Message: fmt.Sprintf("chat websocket did not connect at %s", addr)}
 	}
-	return Check{Name: "api", OK: true, Message: fmt.Sprintf("api healthy at %s — REST and chat websocket", addr)}
+	return Check{Name: "websocket", OK: true, Message: fmt.Sprintf("chat websocket connects at %s", addr)}
+}
+
+// configAddr returns the configured host:port with defaults applied.
+func configAddr(cfg config.Config) string {
+	host := cfg.Host
+	if host == "" {
+		host = "127.0.0.1"
+	}
+	port := cfg.Port
+	if port == 0 {
+		port = 8333
+	}
+	return net.JoinHostPort(host, strconv.Itoa(port))
 }
 
 // wsUpgradeOK dials the chat websocket and reports whether the upgrade
