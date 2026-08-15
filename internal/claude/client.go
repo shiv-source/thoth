@@ -71,21 +71,43 @@ func New(bin, dir string, opts ...Option) *CLIClient {
 	return c
 }
 
-// args builds the CLI argument list. ALL flag knowledge lives here.
-// Verified against `claude --help` v2.1.232/v2.1.233: with --print,
-// --output-format stream-json requires --verbose (without it the CLI exits 1
-// before streaming). The event parser tolerates the extra events --verbose
-// emits. Permissions: with no configured mode the CLI runs fully unattended
-// (--dangerously-skip-permissions — headless mode cannot answer prompts, and
-// note-saving is the app's core feature); a configured permission_mode
-// switches to that named mode.
+// args builds the per-turn CLI argument list. ALL flag knowledge lives here
+// (and in persistentArgs/commonTail below). Verified against `claude --help`
+// v2.1.232/v2.1.233: with --print, --output-format stream-json requires
+// --verbose (without it the CLI exits 1 before streaming). The event parser
+// tolerates the extra events --verbose emits. Permissions: with no configured
+// mode the CLI runs fully unattended (--dangerously-skip-permissions —
+// headless mode cannot answer prompts, and note-saving is the app's core
+// feature); a configured permission_mode switches to that named mode.
 func (c *CLIClient) args(sessionID, prompt string, cfg *startConfig) []string {
 	a := []string{"-p", "--output-format", "stream-json", "--verbose"}
-	if sessionID != "" {
-		a = append(a, "--session-id", sessionID)
-	}
 	if cfg.resume != "" {
 		a = append(a, "--resume", cfg.resume, "--fork-session")
+	}
+	a = append(a, c.commonTail(sessionID)...)
+	return append(a, prompt)
+}
+
+// persistentArgs builds the long-lived invocation for the process pool:
+// prompts travel over stdin as stream-json control messages, so there is no
+// prompt argument and one process serves many turns. --autocompact auto
+// keeps long conversations compact (bounds per-turn prefill). Also verified
+// against `claude --help` v2.1.233: --input-format only works with --print
+// and requires --output-format stream-json.
+func (c *CLIClient) persistentArgs(sessionID string, cfg *startConfig) []string {
+	a := []string{"-p", "--input-format", "stream-json", "--output-format", "stream-json", "--verbose", "--autocompact", "auto"}
+	if cfg.resume != "" {
+		a = append(a, "--resume", cfg.resume, "--fork-session")
+	}
+	return append(a, c.commonTail(sessionID)...)
+}
+
+// commonTail appends the flags every invocation shares: the session id, the
+// permission mode, and the model override.
+func (c *CLIClient) commonTail(sessionID string) []string {
+	var a []string
+	if sessionID != "" {
+		a = append(a, "--session-id", sessionID)
 	}
 	if c.PermissionMode != "" {
 		a = append(a, "--permission-mode", c.PermissionMode)
@@ -95,13 +117,16 @@ func (c *CLIClient) args(sessionID, prompt string, cfg *startConfig) []string {
 	if c.Model != "" {
 		a = append(a, "--model", c.Model)
 	}
-	return append(a, prompt)
+	return a
 }
+
+// debugDumpMaxBytes is the rotation size for the stream dump (the pool keeps
+// the dump open across turns and rotates it in place past this size).
+const debugDumpMaxBytes = 10 << 20
 
 // openDebugDump opens the stream dump for appending, truncating first when
 // it has grown past debugDumpMaxBytes.
 func openDebugDump(path string) (*os.File, error) {
-	const debugDumpMaxBytes = 10 << 20
 	flags := os.O_CREATE | os.O_WRONLY | os.O_APPEND
 	if fi, err := os.Stat(path); err == nil && fi.Size() > debugDumpMaxBytes {
 		flags |= os.O_TRUNC
