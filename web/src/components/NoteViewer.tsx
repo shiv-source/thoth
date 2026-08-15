@@ -4,7 +4,7 @@ import remarkGfm from 'remark-gfm'
 import { api } from '../api/client'
 import { useToast } from './Toast'
 
-export function NoteViewer({ path, onClose, inline = false }: { path: string; onClose: () => void; inline?: boolean }) {
+export function NoteViewer({ path, onClose }: { path: string; onClose: () => void }) {
     const [content, setContent] = useState<string | null>(null)
     const [error, setError] = useState<string | null>(null)
     const [copied, setCopied] = useState(false)
@@ -42,13 +42,7 @@ export function NoteViewer({ path, onClose, inline = false }: { path: string; on
     }
 
     return (
-        <aside
-            className={
-                inline
-                    ? 'flex min-h-0 min-w-0 flex-1 flex-col bg-surface'
-                    : 'fixed inset-y-0 right-0 z-40 flex w-[42rem] max-w-full animate-[slide-in-right_200ms_ease-out] flex-col border-l border-line bg-surface shadow-lg'
-            }
-        >
+        <aside className="flex min-h-0 min-w-0 flex-1 flex-col bg-surface">
             <header className="flex shrink-0 items-center justify-between gap-3 border-b border-line px-5 py-3">
                 <span className="truncate font-mono text-xs text-subtle">{path}</span>
                 <button

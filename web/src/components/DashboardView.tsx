@@ -30,7 +30,7 @@ export function DashboardView({ onOpenSettings }: { onOpenSettings: () => void }
         <div className="flex min-h-0 flex-1 flex-col">
             <TopBar title="Dashboard" onOpenSettings={onOpenSettings} />
             <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4">
-                <div className="grid gap-4 md:grid-cols-2">
+                <div className="mx-auto grid w-full max-w-5xl gap-4 md:grid-cols-2">
                     <Card title="Open todos">
                         <ul className="space-y-2">
                             {MOCK_TODOS.filter((t) => !t.done).map((t) => (

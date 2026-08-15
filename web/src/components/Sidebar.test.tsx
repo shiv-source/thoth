@@ -106,8 +106,10 @@ describe('Sidebar chats section', () => {
             '/api/conversations': () => conversations
         })
         renderSidebar()
+        window.location.hash = '#/notes' // a chat click must also leave the notes view
         await userEvent.click(await screen.findByText('Today chat'))
         expect(window.location.pathname).toBe('/chat/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1')
+        expect(window.location.hash).toBe('#/chat')
     })
 
     it('deletes a conversation via the API and removes it from the list', async () => {
@@ -140,8 +142,10 @@ describe('Sidebar chats section', () => {
             '/api/conversations': () => conversations
         })
         renderSidebar()
+        window.location.hash = '#/dashboard' // New chat must also leave the dashboard view
         await userEvent.click(await screen.findByRole('button', { name: /New chat/ }))
         expect(window.location.pathname).toBe('/')
+        expect(window.location.hash).toBe('#/chat')
     })
 
     it('shows empty and error states', async () => {

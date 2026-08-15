@@ -6,30 +6,37 @@ import { NotesView } from './components/NotesView'
 import { DashboardView } from './components/DashboardView'
 import { SearchView } from './components/SearchView'
 import { SettingsView } from './components/SettingsView'
-import { NoteViewer } from './components/NoteViewer'
 import { SetupScreen } from './components/SetupScreen'
 import { ToastProvider } from './components/Toast'
 import { NotificationToasts } from './components/NotificationToasts'
 import { navigateView, useView } from './hooks/useView'
+import { useViewShortcuts } from './hooks/useViewShortcuts'
 import { fetchHealth } from './store'
 import { useAppDispatch, useAppSelector } from './store/hooks'
 import { selectHealth, selectHealthLoading } from './store'
 
 export default function App() {
     const view = useView()
+    useViewShortcuts()
     const [openNote, setOpenNote] = useState<string | null>(null)
     const dispatch = useAppDispatch()
     const health = useAppSelector(selectHealth)
     const loading = useAppSelector(selectHealthLoading)
     const recheck = () => void dispatch(fetchHealth())
     const openSettings = () => navigateView('settings')
+    // Notes open only in the Notes view's inline reader — any view that
+    // opens one routes there, so there is exactly one reading surface.
+    const openNoteHere = (path: string | null) => {
+        if (path !== null) navigateView('notes')
+        setOpenNote(path)
+    }
 
     return (
         <ToastProvider>
             <div className="flex h-screen bg-app font-sans text-ink">
                 <NavRail />
-                <Sidebar health={health} loading={loading} />
-                <main className="flex min-w-0 flex-1 flex-col">
+                {view !== 'notes' && <Sidebar health={health} loading={loading} />}
+                <main className="relative flex min-w-0 flex-1 flex-col">
                     {loading && !health ? (
                         <div className="flex flex-1 items-center justify-center" role="status" aria-label="Loading">
                             <span
@@ -41,18 +48,23 @@ export default function App() {
                         <>
                             {view === 'chat' && <ChatPanel onOpenSettings={openSettings} />}
                             {view === 'notes' && (
-                                <NotesView openPath={openNote} onOpenNote={setOpenNote} onOpenSettings={openSettings} />
+                                <NotesView
+                                    openPath={openNote}
+                                    onOpenNote={openNoteHere}
+                                    onOpenSettings={openSettings}
+                                />
                             )}
                             {view === 'dashboard' && <DashboardView onOpenSettings={openSettings} />}
-                            {view === 'search' && <SearchView onOpenNote={setOpenNote} onOpenSettings={openSettings} />}
+                            {view === 'search' && (
+                                <SearchView onOpenNote={openNoteHere} onOpenSettings={openSettings} />
+                            )}
                             {view === 'settings' && <SettingsView />}
                         </>
                     ) : (
                         <SetupScreen health={health} loading={loading} onRecheck={() => void recheck()} />
                     )}
+                    <NotificationToasts />
                 </main>
-                {view !== 'notes' && openNote && <NoteViewer path={openNote} onClose={() => setOpenNote(null)} />}
-                <NotificationToasts />
             </div>
         </ToastProvider>
     )

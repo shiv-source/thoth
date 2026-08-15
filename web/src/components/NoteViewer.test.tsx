@@ -9,11 +9,11 @@ import { NoteViewer } from './NoteViewer'
 const mocks = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() }))
 vi.mock('axios', () => axiosModuleMock(mocks))
 
-function renderViewer(inline = false) {
+function renderViewer() {
     const onClose = vi.fn()
     const utils = renderWithStore(
         <ToastProvider>
-            <NoteViewer path="knowledge/note.md" onClose={onClose} inline={inline} />
+            <NoteViewer path="knowledge/note.md" onClose={onClose} />
         </ToastProvider>
     )
     return { onClose, ...utils }
@@ -32,22 +32,16 @@ describe('NoteViewer', () => {
         expect(await screen.findByText('Hello')).toBeInTheDocument()
     })
 
-    it('renders inline (fills its container, no fixed drawer) when inline is set', async () => {
-        const { container } = renderViewer(true)
+    it('fills its container (no fixed drawer — the inline reader is the only mode)', async () => {
+        const { container } = renderViewer()
         await screen.findByText('Hello')
         const aside = container.querySelector('aside')
         expect(aside?.className).toContain('flex-1')
         expect(aside?.className).not.toContain('fixed')
     })
 
-    it('renders as the fixed right drawer by default', async () => {
-        const { container } = renderViewer()
-        await screen.findByText('Hello')
-        expect(container.querySelector('aside')?.className).toContain('fixed')
-    })
-
     it('closes via the close button', async () => {
-        const { onClose } = renderViewer(true)
+        const { onClose } = renderViewer()
         await userEvent.click(screen.getByRole('button', { name: 'Close note' }))
         expect(onClose).toHaveBeenCalled()
     })
@@ -55,7 +49,7 @@ describe('NoteViewer', () => {
     it('copies the raw note and shows the toast', async () => {
         const writeText = vi.fn().mockResolvedValue(undefined)
         Object.assign(navigator, { clipboard: { writeText } })
-        renderViewer(true)
+        renderViewer()
         await screen.findByText('Hello')
         await userEvent.click(screen.getByRole('button', { name: 'Copy raw' }))
         expect(writeText).toHaveBeenCalledWith('# Hello\n\nbody')

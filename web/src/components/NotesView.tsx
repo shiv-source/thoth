@@ -55,7 +55,7 @@ export function NotesView({
                 </aside>
                 <main className="flex min-w-0 flex-1 flex-col">
                     {openPath ? (
-                        <NoteViewer path={openPath} onClose={() => onOpenNote(null)} inline />
+                        <NoteViewer path={openPath} onClose={() => onOpenNote(null)} />
                     ) : (
                         <div className="flex flex-1 flex-col items-center justify-center gap-3 text-subtle">
                             <span className="text-3xl" aria-hidden="true">

@@ -1,4 +1,4 @@
-import { act, screen } from '@testing-library/react'
+import { act, fireEvent, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { notify } from '../store'
@@ -29,5 +29,26 @@ describe('TopBar', () => {
         await userEvent.click(screen.getByRole('button', { name: 'Notifications' }))
         expect(screen.getByRole('dialog', { name: 'Notifications' })).toBeInTheDocument()
         expect(screen.getByText('Git synced')).toBeInTheDocument()
+    })
+
+    it('closes the panel on Escape', async () => {
+        renderWithStore(<TopBar title="Chat" onOpenSettings={vi.fn()} />)
+        await userEvent.click(screen.getByRole('button', { name: 'Notifications' }))
+        expect(screen.getByRole('dialog', { name: 'Notifications' })).toBeInTheDocument()
+
+        await userEvent.keyboard('{Escape}')
+        expect(screen.queryByRole('dialog', { name: 'Notifications' })).not.toBeInTheDocument()
+    })
+
+    it('closes the panel on a press outside, not inside', async () => {
+        renderWithStore(<TopBar title="Chat" onOpenSettings={vi.fn()} />)
+        await userEvent.click(screen.getByRole('button', { name: 'Notifications' }))
+        const panel = screen.getByRole('dialog', { name: 'Notifications' })
+
+        await userEvent.click(panel)
+        expect(screen.getByRole('dialog', { name: 'Notifications' })).toBeInTheDocument()
+
+        fireEvent.mouseDown(document.body)
+        expect(screen.queryByRole('dialog', { name: 'Notifications' })).not.toBeInTheDocument()
     })
 })

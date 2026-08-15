@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Plus, Trash2 } from 'lucide-react'
 import type { Conversation, Health } from '../api/client'
 import { navigate } from '../hooks/useConversationRoute'
+import { navigateView } from '../hooks/useView'
 import { deleteConversation, fetchConversations, selectConversations } from '../store'
 import { useAppDispatch, useAppSelector } from '../store/hooks'
 import { useToast } from './Toast'
@@ -76,7 +77,10 @@ function ChatsList() {
                                 <li key={c.id} className="group flex items-center">
                                     <button
                                         aria-current={active ? 'true' : undefined}
-                                        onClick={() => navigate(`/chat/${c.id}`)}
+                                        onClick={() => {
+                                            navigate(`/chat/${c.id}`)
+                                            navigateView('chat')
+                                        }}
                                         className={`flex min-w-0 flex-1 items-center gap-1.5 rounded-md py-1.5 pl-2 pr-1 text-left text-sm transition ${
                                             active
                                                 ? 'bg-accent-soft font-medium text-accent'
@@ -104,7 +108,10 @@ function ChatsList() {
                                                     try {
                                                         await dispatch(deleteConversation(c.id)).unwrap()
                                                         toast('Conversation deleted', 'success')
-                                                        if (c.id === activeConvID) navigate('/')
+                                                        if (c.id === activeConvID) {
+                                                            navigate('/')
+                                                            navigateView('chat')
+                                                        }
                                                     } catch {
                                                         toast('Could not delete the conversation', 'error')
                                                     }
@@ -195,7 +202,10 @@ export function Sidebar({ health, loading }: { health: Health | null; loading: b
                 <div className="shrink-0 px-3 pb-1.5">
                     <Tooltip label="Start a new chat">
                         <button
-                            onClick={() => navigate('/')}
+                            onClick={() => {
+                                navigate('/')
+                                navigateView('chat')
+                            }}
                             className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-accent/25 bg-accent-soft px-3 py-1.5 text-sm font-medium text-accent transition hover:border-accent/50 hover:bg-accent/10"
                         >
                             <Plus className="h-4 w-4" aria-hidden="true" />

@@ -24,6 +24,12 @@ describe('useView', () => {
         expect(result.current).toBe('chat')
     })
 
+    it('rejects near-miss hashes (prefix of a view name)', () => {
+        window.location.hash = '#/notesfoo'
+        const { result } = renderHook(() => useView())
+        expect(result.current).toBe('chat')
+    })
+
     it('follows hash changes (back/forward, navigateView)', () => {
         const { result } = renderHook(() => useView())
         expect(result.current).toBe('chat')

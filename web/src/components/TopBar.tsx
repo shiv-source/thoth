@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Bell } from 'lucide-react'
 import { selectUnreadCount } from '../store'
 import { useAppSelector } from '../store/hooks'
@@ -8,9 +8,31 @@ import { Tooltip } from './Tooltip'
 export function TopBar({ title, onOpenSettings }: { title: string; onOpenSettings?: () => void }) {
     const unread = useAppSelector(selectUnreadCount)
     const [panelOpen, setPanelOpen] = useState(false)
+    const headerRef = useRef<HTMLElement>(null)
+
+    // While the panel is open: Escape closes it, and a press anywhere
+    // outside the header (which owns both the bell and the panel) closes it.
+    useEffect(() => {
+        if (!panelOpen) return
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') setPanelOpen(false)
+        }
+        const onDown = (e: MouseEvent) => {
+            if (headerRef.current && !headerRef.current.contains(e.target as Node)) setPanelOpen(false)
+        }
+        document.addEventListener('keydown', onKey)
+        document.addEventListener('mousedown', onDown)
+        return () => {
+            document.removeEventListener('keydown', onKey)
+            document.removeEventListener('mousedown', onDown)
+        }
+    }, [panelOpen])
 
     return (
-        <header className="relative flex h-14 shrink-0 items-center justify-between gap-4 border-b border-line bg-surface px-4">
+        <header
+            ref={headerRef}
+            className="relative flex h-14 shrink-0 items-center justify-between gap-4 border-b border-line bg-surface px-4"
+        >
             <h1 className="truncate text-sm font-medium text-ink">{title}</h1>
             <div className="flex shrink-0 items-center gap-1">
                 <button
