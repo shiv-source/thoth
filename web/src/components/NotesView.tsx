@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ChevronsDownUp, ChevronsUpDown } from 'lucide-react'
 import { EmptyState } from './EmptyState'
 import { NoteViewer } from './NoteViewer'
@@ -21,6 +21,23 @@ export function NotesView({
     const [expandedKeys, setExpandedKeys] = useState<Set<string>>(() => new Set())
     const [allDirs, setAllDirs] = useState<Set<string>>(() => new Set())
     const allExpanded = allDirs.size > 0 && expandedKeys.size >= allDirs.size
+
+    // The open note's ancestor folders stay expanded, so a reload (or any
+    // navigation into a note) shows where the note lives in the tree.
+    useEffect(() => {
+        if (!openPath) return
+        const dirs: string[] = []
+        let idx = openPath.indexOf('/')
+        while (idx !== -1) {
+            dirs.push(openPath.slice(0, idx))
+            idx = openPath.indexOf('/', idx + 1)
+        }
+        setExpandedKeys((prev) => {
+            const next = new Set(prev)
+            for (const d of dirs) next.add(d)
+            return next
+        })
+    }, [openPath])
 
     return (
         <div className="flex min-h-0 flex-1 flex-col">

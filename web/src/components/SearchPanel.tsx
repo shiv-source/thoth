@@ -25,7 +25,7 @@ export function SearchPanel({ onOpen }: { onOpen: (path: string) => void }) {
     const onQueryChange = (v: string) => {
         setQuery(v)
         const encoded = v ? encodeURIComponent(v).replace(/%2F/gi, '/') : ''
-        window.history.replaceState(null, '', v ? `#/search/${encoded}` : '#/search')
+        window.history.replaceState(null, '', v ? `/search/${encoded}` : '/search')
     }
 
     const open = (path: string) => {

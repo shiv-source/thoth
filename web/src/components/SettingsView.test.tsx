@@ -315,35 +315,35 @@ describe('SettingsView public repo guard', () => {
 
 describe('SettingsView tab routing', () => {
     afterEach(() => {
-        window.location.hash = ''
+        window.history.pushState(null, '', '/')
     })
 
     it('restores the active tab from the hash', async () => {
-        window.location.hash = '#/settings/doctor'
+        window.history.pushState(null, '', '/settings/doctor')
         stubAPI({ 'GET /api/settings': getSettings, 'GET /api/github/auth': getEmptyGitHub })
         renderSettings()
         expect(await screen.findByRole('tab', { name: 'Doctor' })).toHaveAttribute('aria-selected', 'true')
     })
 
     it('writes the clicked tab into the hash', async () => {
-        window.location.hash = '#/settings'
+        window.history.pushState(null, '', '/settings')
         stubAPI({ 'GET /api/settings': getSettings, 'GET /api/github/auth': getEmptyGitHub })
         renderSettings()
         await userEvent.click(await screen.findByRole('tab', { name: 'Git remote' }))
-        expect(window.location.hash).toBe('#/settings/git')
+        expect(window.location.pathname).toBe('/settings/git')
     })
 })
 
 describe('SettingsView default tab route', () => {
     afterEach(() => {
-        window.location.hash = ''
+        window.history.pushState(null, '', '/')
     })
 
     it('writes the General default into the URL when arriving at bare #/settings', async () => {
-        window.location.hash = '#/settings'
+        window.history.pushState(null, '', '/settings')
         stubAPI({ 'GET /api/settings': getSettings, 'GET /api/github/auth': getEmptyGitHub })
         renderSettings()
         expect(await screen.findByRole('tab', { name: 'General' })).toHaveAttribute('aria-selected', 'true')
-        await waitFor(() => expect(window.location.hash).toBe('#/settings/general'))
+        await waitFor(() => expect(window.location.pathname).toBe('/settings/general'))
     })
 })

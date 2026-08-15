@@ -51,21 +51,21 @@ describe('SearchPanel', () => {
 
 describe('SearchPanel routing', () => {
     afterEach(() => {
-        window.location.hash = ''
+        window.history.pushState(null, '', '/')
     })
 
     it('restores the query from the hash on mount', () => {
-        window.location.hash = '#/search/goroutines'
+        window.history.pushState(null, '', '/search/goroutines')
         stubSearch()
         render(<SearchPanel onOpen={() => {}} />)
         expect(screen.getByPlaceholderText(/Search your wiki/)).toHaveValue('goroutines')
     })
 
     it('keeps the query in the hash while typing (replaceState, no history spam)', async () => {
-        window.location.hash = '#/search'
+        window.history.pushState(null, '', '/search')
         stubSearch()
         render(<SearchPanel onOpen={() => {}} />)
         await userEvent.type(screen.getByPlaceholderText(/Search your wiki/), 'deploy')
-        expect(window.location.hash).toBe('#/search/deploy')
+        expect(window.location.pathname).toBe('/search/deploy')
     })
 })

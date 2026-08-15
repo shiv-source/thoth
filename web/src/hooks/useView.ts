@@ -5,51 +5,51 @@ export type View = 'chat' | 'notes' | 'dashboard' | 'search' | 'settings'
 export interface ViewRoute {
     view: View
     // segment is the decoded path part after the view: the open note for
-    // #/notes/<path>, the query for #/search/<q>, the tab for
-    // #/settings/<tab>. It rides the URL, so the state survives reloads
-    // and back/forward.
+    // /notes/<path>, the query for /search/<q>, the tab for
+    // /settings/<tab>. It rides the URL, so the state survives reloads and
+    // back/forward.
     segment: string | null
 }
 
-const VIEW_HASH = /^#\/(chat|notes|dashboard|search|settings)(?:\/(.+))?$/
+// Pathname routing: / is the dashboard (home), /chat carries the
+// conversation id (owned by useConversationRoute — the uuid segment is not
+// part of the view route), and the other views carry their state as the
+// path segment.
+const VIEW_PATH = /^\/(chat|notes|dashboard|search|settings)(?:\/(.+))?$/
 
-// A /chat/<uuid> deep link with no view hash means the user came for that
-// conversation — land on chat. Otherwise the Dashboard is the home view.
-const CHAT_PATH = /^\/chat\/[0-9a-fA-F-]{36}$/
-
-function routeFromHash(hash: string): ViewRoute {
-    const m = VIEW_HASH.exec(hash)
-    if (!m) {
-        return { view: CHAT_PATH.test(window.location.pathname) ? 'chat' : 'dashboard', segment: null }
-    }
-    return {
-        view: m[1] as View,
-        segment: m[2] !== undefined ? decodeURIComponent(m[2]) : null
-    }
+function routeFromPathname(pathname: string): ViewRoute {
+    const m = VIEW_PATH.exec(pathname)
+    if (!m) return { view: 'dashboard', segment: null }
+    const view = m[1] as View
+    const segment =
+        (view === 'notes' || view === 'search' || view === 'settings') && m[2] !== undefined
+            ? decodeURIComponent(m[2])
+            : null
+    return { view, segment }
 }
 
-// setHash assigns the hash and dispatches hashchange explicitly — assigning
-// alone does not fire it in every environment (jsdom), the same pattern as
-// the conversation navigate.
-function setHash(hash: string): void {
-    window.location.hash = hash
-    window.dispatchEvent(new HashChangeEvent('hashchange'))
+// setPath pushes the URL the way a user link would, so the route hooks'
+// applyRoute runs — pushState alone does not fire popstate.
+function setPath(path: string): void {
+    window.history.pushState(null, '', path)
+    window.dispatchEvent(new PopStateEvent('popstate'))
 }
 
 // navigateView moves the app between views (dropping any segment).
+// The dashboard is the root path.
 export function navigateView(v: View): void {
-    setHash(`#/${v}`)
+    setPath(v === 'dashboard' ? '/' : `/${v}`)
 }
 
 // navigateSegment moves to a view carrying state in the URL segment.
 // Slashes stay readable; decodeURIComponent reverses it on parse.
 export function navigateSegment(v: View, segment: string | null): void {
     if (segment === null) {
-        setHash(`#/${v}`)
+        navigateView(v)
         return
     }
     const encoded = encodeURIComponent(segment).replace(/%2F/gi, '/')
-    setHash(`#/${v}/${encoded}`)
+    setPath(`/${v}/${encoded}`)
 }
 
 // navigateNote opens (or clears) the note in the Notes view and switches to
@@ -58,14 +58,14 @@ export function navigateNote(path: string | null): void {
     navigateSegment('notes', path)
 }
 
-// useViewRoute maps the URL hash to the active view plus its segment. Chat
-// is the home view for any hash the app does not recognize.
+// useViewRoute maps the URL pathname to the active view plus its segment.
+// The dashboard is the home view for any path the app does not recognize.
 export function useViewRoute(): ViewRoute {
-    const [route, setRoute] = useState<ViewRoute>(() => routeFromHash(window.location.hash))
+    const [route, setRoute] = useState<ViewRoute>(() => routeFromPathname(window.location.pathname))
     useEffect(() => {
-        const onHash = () => setRoute(routeFromHash(window.location.hash))
-        window.addEventListener('hashchange', onHash)
-        return () => window.removeEventListener('hashchange', onHash)
+        const applyRoute = () => setRoute(routeFromPathname(window.location.pathname))
+        window.addEventListener('popstate', applyRoute)
+        return () => window.removeEventListener('popstate', applyRoute)
     }, [])
     return route
 }

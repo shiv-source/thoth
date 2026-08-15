@@ -55,6 +55,44 @@ describe('NotesView', () => {
         expect(screen.queryByText('standup.md')).not.toBeInTheDocument()
     })
 
+    it('expands the open note’s ancestor folders automatically', async () => {
+        mocks.get.mockImplementation((url: string) => {
+            if (url === '/api/wiki/tree') {
+                return Promise.resolve({
+                    data: {
+                        nodes: [
+                            {
+                                name: 'meetings',
+                                path: 'meetings',
+                                is_dir: true,
+                                children: [
+                                    {
+                                        name: 'standup.md',
+                                        path: 'meetings/standup.md',
+                                        is_dir: false,
+                                        children: null
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                })
+            }
+            if (url === '/api/notes?path=meetings%2Fstandup.md') {
+                return Promise.resolve({ data: { path: 'meetings/standup.md', content: '# Standup' } })
+            }
+            return Promise.reject(new Error(`unhandled ${url}`))
+        })
+        const onOpenNote = vi.fn()
+        renderWithStore(
+            <ToastProvider>
+                <NotesView openPath="meetings/standup.md" onOpenNote={onOpenNote} onOpenSettings={vi.fn()} />
+            </ToastProvider>
+        )
+        // No expand-all click needed: the ancestor folder is already open.
+        expect(await screen.findByText('standup.md')).toBeInTheDocument()
+    })
+
     it('opens the selected note inline and closes back to the empty state', async () => {
         mocks.get.mockImplementation((url: string) => {
             if (url === '/api/wiki/tree') return Promise.resolve({ data: tree() })

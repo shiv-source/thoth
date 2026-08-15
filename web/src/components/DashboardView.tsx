@@ -75,10 +75,7 @@ export function DashboardView({ onOpenSettings }: { onOpenSettings: () => void }
                     <div className="flex flex-wrap gap-2">
                         <button
                             type="button"
-                            onClick={() => {
-                                navigate('/')
-                                navigateView('chat')
-                            }}
+                            onClick={() => navigate('/chat')}
                             className="flex items-center gap-2 rounded-lg bg-accent px-3 py-2 text-sm font-medium text-accent-ink transition hover:bg-accent-hover"
                         >
                             <MessageSquarePlus className="h-4 w-4" aria-hidden="true" />
@@ -160,10 +157,7 @@ export function DashboardView({ onOpenSettings }: { onOpenSettings: () => void }
                                         <li key={c.id}>
                                             <button
                                                 type="button"
-                                                onClick={() => {
-                                                    navigate(`/chat/${c.id}`)
-                                                    navigateView('chat')
-                                                }}
+                                                onClick={() => navigate(`/chat/${c.id}`)}
                                                 className="w-full truncate rounded-md px-1 py-1 text-left text-sm text-ink transition hover:bg-raised"
                                             >
                                                 {c.title}

@@ -6,11 +6,11 @@ import { NavRail } from './NavRail'
 
 describe('NavRail', () => {
     afterEach(() => {
-        window.location.hash = ''
+        window.history.pushState(null, '', '/')
     })
 
     it('renders every view button and highlights the active one', () => {
-        window.location.hash = '#/notes'
+        window.history.pushState(null, '', '/notes')
         renderWithStore(<NavRail />)
         expect(screen.getByRole('button', { name: 'Chat' })).toBeInTheDocument()
         expect(screen.getByRole('button', { name: 'Notes' })).toHaveAttribute('aria-current', 'page')
@@ -19,10 +19,10 @@ describe('NavRail', () => {
         expect(screen.getByRole('button', { name: 'Settings' })).toBeInTheDocument()
     })
 
-    it('navigates views through the hash on click', async () => {
+    it('navigates views through the path on click', async () => {
         renderWithStore(<NavRail />)
         await userEvent.click(screen.getByRole('button', { name: 'Dashboard' }))
-        expect(window.location.hash).toBe('#/dashboard')
+        expect(window.location.pathname).toBe('/')
         expect(screen.getByRole('button', { name: 'Dashboard' })).toHaveAttribute('aria-current', 'page')
     })
 })

@@ -25,7 +25,6 @@ describe('DashboardView', () => {
 
     afterEach(() => {
         vi.useRealTimers()
-        window.location.hash = ''
         window.history.pushState(null, '', '/')
     })
 
@@ -49,10 +48,9 @@ describe('DashboardView', () => {
         renderWithStore(<DashboardView onOpenSettings={vi.fn()} />)
         expect(await screen.findByText('Today chat')).toBeInTheDocument()
 
-        window.location.hash = '#/dashboard'
+        window.history.pushState(null, '', '/dashboard')
         fireEvent.click(screen.getByText('Today chat'))
         expect(window.location.pathname).toBe('/chat/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1')
-        expect(window.location.hash).toBe('#/chat')
     })
 
     it('routes the quick actions to their views', async () => {
@@ -60,13 +58,12 @@ describe('DashboardView', () => {
         await waitFor(() => expect(mocks.get).toHaveBeenCalled())
 
         fireEvent.click(screen.getByRole('button', { name: /Ask the wiki/ }))
-        expect(window.location.hash).toBe('#/search')
+        expect(window.location.pathname).toBe('/search')
 
         fireEvent.click(screen.getByRole('button', { name: /New note/ }))
-        expect(window.location.hash).toBe('#/notes')
+        expect(window.location.pathname).toBe('/notes')
 
         fireEvent.click(screen.getByRole('button', { name: /New chat/ }))
-        expect(window.location.pathname).toBe('/')
-        expect(window.location.hash).toBe('#/chat')
+        expect(window.location.pathname).toBe('/chat')
     })
 })
