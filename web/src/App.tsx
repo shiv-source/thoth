@@ -1,14 +1,20 @@
 import { useState } from 'react'
 import { Sidebar } from './components/Sidebar'
 import { ChatPanel } from './components/ChatPanel'
+import { NavRail } from './components/NavRail'
+import { NotesView } from './components/NotesView'
+import { DashboardView } from './components/DashboardView'
+import { SearchView } from './components/SearchView'
 import { NoteViewer } from './components/NoteViewer'
 import { SetupScreen } from './components/SetupScreen'
 import { ToastProvider } from './components/Toast'
+import { useView } from './hooks/useView'
 import { fetchHealth } from './store'
 import { useAppDispatch, useAppSelector } from './store/hooks'
 import { selectHealth, selectHealthLoading } from './store'
 
 export default function App() {
+    const view = useView()
     const [openNote, setOpenNote] = useState<string | null>(null)
     const dispatch = useAppDispatch()
     const health = useAppSelector(selectHealth)
@@ -18,6 +24,7 @@ export default function App() {
     return (
         <ToastProvider>
             <div className="flex h-screen bg-app font-sans text-ink">
+                <NavRail />
                 <Sidebar openPath={openNote} onOpenNote={setOpenNote} health={health} loading={loading} />
                 <main className="flex min-w-0 flex-1 flex-col">
                     {loading && !health ? (
@@ -28,7 +35,12 @@ export default function App() {
                             />
                         </div>
                     ) : health?.claude.found ? (
-                        <ChatPanel />
+                        <>
+                            {view === 'chat' && <ChatPanel />}
+                            {view === 'notes' && <NotesView openPath={openNote} onOpenNote={setOpenNote} />}
+                            {view === 'dashboard' && <DashboardView />}
+                            {view === 'search' && <SearchView onOpenNote={setOpenNote} />}
+                        </>
                     ) : (
                         <SetupScreen health={health} loading={loading} onRecheck={() => void recheck()} />
                     )}
