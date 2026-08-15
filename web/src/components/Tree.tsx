@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState, type KeyboardEvent } from 'react'
 import { ChevronRight } from 'lucide-react'
+import { Tooltip } from './Tooltip'
 
 export interface TreeProps<T> {
   nodes: T[]
@@ -13,6 +14,8 @@ export interface TreeProps<T> {
   renderIcon: (n: T, expanded: boolean) => React.ReactNode
   /** Optional trailing slot rendered right-aligned on rows (e.g. count badges). */
   renderTrailing?: (n: T) => React.ReactNode
+  /** Optional hover tooltip per node; return undefined for no tooltip. */
+  renderTooltip?: (n: T) => string | undefined
   onSelect: (n: T) => void
   /** Key of the selected node (e.g. the open note). */
   selectedKey: string | null
@@ -28,7 +31,7 @@ export interface TreeProps<T> {
 // selects.
 export function Tree<T>({
   nodes, getKey, getLabel, isDir, getChildren, renderIcon, renderTrailing,
-  onSelect, selectedKey, expandedKeys, onExpandedChange,
+  renderTooltip, onSelect, selectedKey, expandedKeys, onExpandedChange,
 }: TreeProps<T>) {
   const controlled = expandedKeys !== undefined
   // Flattened, focusable rows in visual order — roving tabIndex.
@@ -109,40 +112,44 @@ export function Tree<T>({
         const key = getKey(n)
         const open = dir && expanded.has(key)
         const selected = selectedKey === key
+        const row = (
+          <div
+            ref={(el) => {
+              if (el) {
+                rowRefs.current.set(key, el)
+              } else {
+                rowRefs.current.delete(key)
+              }
+            }}
+            tabIndex={focusedKey === key ? 0 : -1}
+            onFocus={() => setFocusedKey(key)}
+            onKeyDown={(e) => onKeyDown(e, n)}
+            onClick={() => (dir ? toggle(n) : onSelect(n))}
+            className={`flex w-full cursor-pointer items-center gap-1 rounded-md px-1.5 py-1 transition ${
+              selected ? 'bg-accent-soft font-medium text-accent' : 'text-ink hover:bg-raised'
+            }`}
+          >
+            {dir ? (
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); toggle(n) }}
+                aria-label={`${open ? 'Collapse' : 'Expand'} ${getLabel(n)}`}
+                className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-subtle transition hover:text-ink"
+              >
+                <ChevronRight className={`h-3.5 w-3.5 transition-transform ${open ? 'rotate-90' : ''}`} />
+              </button>
+            ) : (
+              <span className="w-5 shrink-0" />
+            )}
+            <span className="w-5 shrink-0 text-subtle">{renderIcon(n, open)}</span>
+            <span className="min-w-0 flex-1 truncate">{getLabel(n)}</span>
+            {renderTrailing?.(n)}
+          </div>
+        )
+        const tip = renderTooltip?.(n)
         return (
           <li key={key} role="treeitem" aria-expanded={dir ? open : undefined} aria-selected={selected}>
-            <div
-              ref={(el) => {
-                if (el) {
-                  rowRefs.current.set(key, el)
-                } else {
-                  rowRefs.current.delete(key)
-                }
-              }}
-              tabIndex={focusedKey === key ? 0 : -1}
-              onFocus={() => setFocusedKey(key)}
-              onKeyDown={(e) => onKeyDown(e, n)}
-              onClick={() => (dir ? toggle(n) : onSelect(n))}
-              className={`flex w-full cursor-pointer items-center gap-1 rounded-md px-1.5 py-1 transition ${
-                selected ? 'bg-accent-soft font-medium text-accent' : 'text-ink hover:bg-raised'
-              }`}
-            >
-              {dir ? (
-                <button
-                  type="button"
-                  onClick={(e) => { e.stopPropagation(); toggle(n) }}
-                  aria-label={`${open ? 'Collapse' : 'Expand'} ${getLabel(n)}`}
-                  className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-subtle transition hover:text-ink"
-                >
-                  <ChevronRight className={`h-3.5 w-3.5 transition-transform ${open ? 'rotate-90' : ''}`} />
-                </button>
-              ) : (
-                <span className="w-5 shrink-0" />
-              )}
-              <span className="w-5 shrink-0 text-subtle">{renderIcon(n, open)}</span>
-              <span className="min-w-0 flex-1 truncate">{getLabel(n)}</span>
-              {renderTrailing?.(n)}
-            </div>
+            {tip ? <Tooltip label={tip}>{row}</Tooltip> : row}
             {dir && open && render(getChildren(n), depth + 1)}
           </li>
         )

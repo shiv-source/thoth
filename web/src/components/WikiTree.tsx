@@ -74,12 +74,10 @@ export function WikiTree({ openPath, onOpenNote, expandedKeys, onExpandedChange,
               ? <FolderOpen className="h-4 w-4" />
               : <Folder className="h-4 w-4" />
             : <FileText className="h-4 w-4" />}
-        renderTrailing={(n) =>
-          n.is_dir ? (
-            <span className="shrink-0 rounded-full bg-raised px-1.5 text-[10px] text-subtle">
-              {fileCounts.get(n.path) ?? 0}
-            </span>
-          ) : null}
+        renderTooltip={(n) =>
+          n.is_dir
+            ? `${fileCounts.get(n.path) ?? 0} file${(fileCounts.get(n.path) ?? 0) === 1 ? '' : 's'}`
+            : undefined}
         onSelect={(n) => { if (!n.is_dir) onOpenNote(n.path) }}
         selectedKey={openPath}
         expandedKeys={expandedKeys}

@@ -86,12 +86,11 @@ describe('WikiTree', () => {
     await waitFor(() => expect(screen.queryByText('standup.md')).not.toBeInTheDocument())
   })
 
-  it('shows per-folder note-count badges', async () => {
+  it('shows the file count in a hover tooltip', async () => {
     mocks.get.mockResolvedValueOnce({ data: treeResponse })
     renderWikiTree()
-    // Badges: one file under each folder (recursive counts).
-    expect((await screen.findByText('meetings')).parentElement?.textContent).toContain('1')
-    expect(screen.getByText('todos').parentElement?.textContent).toContain('1')
+    await userEvent.hover(await screen.findByText('meetings'))
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('1 file')
   })
 
   it('shows an error state when the tree fetch fails', async () => {
