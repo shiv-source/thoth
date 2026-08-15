@@ -1,60 +1,90 @@
 package cli
 
 import (
-	"fmt"
 	"net"
 	"net/url"
 	"os"
 	"strconv"
 	"strings"
-	"unicode/utf8"
+
+	"github.com/charmbracelet/lipgloss"
+	"github.com/muesli/termenv"
 )
 
+// glyphs is the block-letter font for the wordmark: five rows per letter.
+var glyphs = map[rune][5]string{
+	't': {"█████", "  █  ", "  █  ", "  █  ", "  █  "},
+	'h': {"█   █", "█   █", "█████", "█   █", "█   █"},
+	'o': {"█████", "█   █", "█   █", "█   █", "█████"},
+}
+
 // isTerminal reports whether f is a character device — a real terminal —
-// so the banner only uses ANSI colors when they will actually be seen.
+// so the banner only uses ANSI styling when it will actually be seen.
 func isTerminal(f *os.File) bool {
 	fi, err := f.Stat()
 	return err == nil && fi.Mode()&os.ModeCharDevice != 0
 }
 
-// startupBanner renders the terminal panel printed when the server comes up:
-// a boxed panel with the version, UI URL, and wiki path. With color=true the
-// URL is bold green (callers pass true only when stderr is a TTY).
+// startupBanner renders the startup panel: a big block-letter "thoth"
+// wordmark over a boxed panel with the version, UI URL, and wiki path.
+// With color=true the wordmark gets an emerald gradient and the URL is
+// bold emerald (callers pass true only when stderr is a TTY).
 func startupBanner(version, host string, port int, wikiPath string, color bool) string {
-	u := (&url.URL{Scheme: "http", Host: net.JoinHostPort(host, strconv.Itoa(port))}).String() + "/"
-	title := fmt.Sprintf("Thoth %s — ready", version)
-	plainUI := "UI:   " + u
-	plainWiki := "Wiki: " + wikiPath
-
-	// Geometry is computed in runes from the plain text only — ANSI codes
-	// and multi-byte characters must never change the box shape.
-	runes := utf8.RuneCountInString
-	inner := runes(title)
-	if n := runes(plainUI); n > inner {
-		inner = n
-	}
-	if n := runes(plainWiki); n > inner {
-		inner = n
-	}
-	total := inner + 6 // │ + two spaces of padding on each side
-
-	ui := plainUI
+	// lipgloss picks its color profile from the environment; force ANSI so
+	// the styled banner renders regardless of TERM/NO_COLOR, and let the
+	// plain path (no color styles) stay escape-free.
 	if color {
-		ui = "UI:   " + "\x1b[1;32m" + u + "\x1b[0m"
+		prev := lipgloss.ColorProfile()
+		lipgloss.SetColorProfile(termenv.ANSI)
+		defer lipgloss.SetColorProfile(prev)
 	}
 
-	// row pads display to the full box width using plain's rune length.
-	row := func(plain, display string) string {
-		return "│  " + display + strings.Repeat(" ", inner-runes(plain)) + "  │"
+	u := (&url.URL{Scheme: "http", Host: net.JoinHostPort(host, strconv.Itoa(port))}).String() + "/"
+
+	shades := []string{"#059669", "#0a9e6e", "#10b981", "#34d399", "#6ee7b7"}
+	var rows [5]string
+	for i := range rows {
+		var b strings.Builder
+		for j, r := range "thoth" {
+			if j > 0 {
+				b.WriteString("  ")
+			}
+			g := glyphs[r][i]
+			if color {
+				g = lipgloss.NewStyle().Foreground(lipgloss.Color(shades[j])).Render(g)
+			}
+			b.WriteString(g)
+		}
+		rows[i] = b.String()
+	}
+	wordmark := strings.Join(rows[:], "\n")
+	if color {
+		wordmark = lipgloss.NewStyle().Bold(true).Render(wordmark)
 	}
 
-	bar := strings.Repeat("─", total-2)
-	return fmt.Sprintf("┌%s┐\n%s\n%s\n%s\n%s\n└%s┘\n",
-		bar,
-		row(title, title),
-		row("", ""),
-		row(plainUI, ui),
-		row(plainWiki, plainWiki),
-		bar,
+	label := func(s string) string {
+		if color {
+			return lipgloss.NewStyle().Faint(true).Render(s)
+		}
+		return s
+	}
+	ui := u
+	if color {
+		ui = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#34d399")).Render(u)
+	}
+	content := lipgloss.JoinVertical(lipgloss.Left,
+		"Thoth — ready",
+		"",
+		label("UI:      ")+ui,
+		label("Wiki:    ")+wikiPath,
+		label("Version: ")+version,
 	)
+
+	box := lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).Padding(0, 1)
+	if color {
+		box = box.BorderForeground(lipgloss.Color("240"))
+	}
+
+	// Blank lines on both sides keep the panel clear of surrounding output.
+	return "\n\n" + lipgloss.JoinVertical(lipgloss.Center, wordmark, box.Render(content)) + "\n\n"
 }

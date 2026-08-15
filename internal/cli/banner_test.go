@@ -3,14 +3,13 @@ package cli
 import (
 	"strings"
 	"testing"
-	"unicode/utf8"
 )
 
 func TestStartupBannerContainsTheFacts(t *testing.T) {
 	b := startupBanner("1.2.3", "127.0.0.1", 8333, "~/.thoth/wiki", false)
 
 	for _, want := range []string{
-		"Thoth", "1.2.3", "ready",
+		"1.2.3", "ready", "Version:",
 		"http://127.0.0.1:8333/",
 		"~/.thoth/wiki",
 	} {
@@ -27,19 +26,17 @@ func TestStartupBannerFormatsIPv6Hosts(t *testing.T) {
 	}
 }
 
-func TestStartupBannerDrawsAnEvenBox(t *testing.T) {
-	b := startupBanner("dev", "127.0.0.1", 8333, "~/.thoth/wiki", false)
-	lines := strings.Split(strings.TrimSuffix(b, "\n"), "\n")
-	if len(lines) != 6 {
-		t.Fatalf("expected 6 box rows (top, title, blank, ui, wiki, bottom), got %d:\n%s", len(lines), b)
+func TestStartupBannerShowsTheBigWordmark(t *testing.T) {
+	b := startupBanner("dev", "127.0.0.1", 8333, "/tmp/wiki", false)
+	// The banner is padded with blank lines so it sits clear of prior logs.
+	lines := strings.Split(strings.Trim(b, "\n"), "\n")
+	if len(lines) < 11 {
+		t.Fatalf("expected wordmark + info box (>=11 lines), got %d:\n%s", len(lines), b)
 	}
-	for i, l := range lines {
-		if utf8.RuneCountInString(l) != utf8.RuneCountInString(lines[0]) {
-			t.Errorf("row %d width %d != row 0 width %d:\n%s", i, utf8.RuneCountInString(l), utf8.RuneCountInString(lines[0]), b)
+	for _, l := range lines[:5] {
+		if !strings.Contains(l, "█") {
+			t.Errorf("wordmark row should use block glyphs:\n%s", b)
 		}
-	}
-	if !strings.HasPrefix(lines[0], "┌") || !strings.HasPrefix(lines[5], "└") {
-		t.Errorf("box should be closed with corner rows:\n%s", b)
 	}
 }
 
@@ -50,7 +47,7 @@ func TestStartupBannerAddsColorOnlyWhenAsked(t *testing.T) {
 	if strings.Contains(plain, "\x1b[") {
 		t.Error("plain banner must not contain escape sequences")
 	}
-	if !strings.Contains(colored, "\x1b[1;32m") {
-		t.Errorf("colored banner should highlight the URL:\n%q", colored)
+	if !strings.Contains(colored, "\x1b[") {
+		t.Errorf("colored banner should use ANSI styling:\n%q", colored)
 	}
 }
