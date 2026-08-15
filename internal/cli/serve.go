@@ -75,6 +75,9 @@ func runServe(cmd *cobra.Command, _ []string) error {
 	}
 	defer func() { _ = st.Close() }()
 	defer func() { _ = ix.Close() }()
+	if err := st.EnsureMetadata(); err != nil {
+		return err
+	}
 
 	ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
 	defer stop()

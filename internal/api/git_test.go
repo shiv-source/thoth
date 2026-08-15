@@ -33,6 +33,10 @@ exit 0
 
 func TestGitSetupRunsAgainstWiki(t *testing.T) {
 	d := testDeps(t)
+	// Boot seeds the metadata row; sync outcomes are recorded against it.
+	if err := d.Store.EnsureMetadata(); err != nil {
+		t.Fatal(err)
+	}
 	binDir, logPath := writeFakeGit(t)
 	t.Setenv("PATH", binDir)
 	t.Setenv("FAKE_GIT_LOG", logPath)
@@ -72,10 +76,22 @@ func TestGitSetupRunsAgainstWiki(t *testing.T) {
 			t.Fatalf("git log missing %q:\n%s", want, log)
 		}
 	}
+
+	// A successful push records the sync outcome.
+	last, syncErr, err := d.Store.SyncState()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if last == "" || !strings.HasSuffix(last, "Z") || syncErr != "" {
+		t.Fatalf("sync state after success: last=%q err=%q", last, syncErr)
+	}
 }
 
 func TestGitSetupReportsSanitizedFailure(t *testing.T) {
 	d := testDeps(t)
+	if err := d.Store.EnsureMetadata(); err != nil {
+		t.Fatal(err)
+	}
 	binDir, logPath := writeFakeGit(t)
 	t.Setenv("PATH", binDir)
 	t.Setenv("FAKE_GIT_LOG", logPath)
@@ -101,6 +117,15 @@ func TestGitSetupReportsSanitizedFailure(t *testing.T) {
 	}
 	if strings.Contains(body.Error, url) {
 		t.Fatalf("error must not echo the remote URL: %q", body.Error)
+	}
+
+	// A failed push records the sanitized error; last_synced_at stays empty.
+	last, syncErr, err := d.Store.SyncState()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if last != "" || syncErr == "" || strings.Contains(syncErr, url) {
+		t.Fatalf("sync state after failure: last=%q err=%q", last, syncErr)
 	}
 }
 

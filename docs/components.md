@@ -18,7 +18,7 @@ The Go backend is organized as small packages with one purpose each, communicati
 
 Everything version-sensitive about the Claude Code CLI lives in exactly two files:
 
-- `client.go` — the flag list (`-p --output-format stream-json --session-id …`, plus optional `--permission-mode`/`--model`), spawn, stream scanning, cancel
+- `client.go` — the flag list (`-p --output-format stream-json --verbose --session-id …`, plus `--dangerously-skip-permissions` by default, or `--permission-mode <mode>` when configured, plus optional `--model`), spawn, stream scanning, cancel; stderr is captured and appended to exit errors
 - `events.go` — tolerant parsing of `stream-json` lines into typed events: `assistant_delta`, `tool_activity`, `turn_done`, `error`
 
 ```go
@@ -55,7 +55,7 @@ Full mechanics: [Indexing & search](indexing.md).
 
 ## internal/store
 
-Conversations and messages in the same `thoth.db` (separate `*sql.DB`, WAL makes sharing safe). IDs are UUID-shaped because the Claude CLI requires UUIDs for `--session-id`. Timestamps are stored UTC so ordering is chronological.
+Conversations and messages in the same `thoth.db` (separate `*sql.DB`, WAL makes sharing safe). The whole schema lives in embedded `.sql` migrations in `migrations/`, applied in filename order and gated on `PRAGMA user_version`; a single-row `app_metadata` table (enforced by `CHECK (id = 1)`) holds install facts (`installation_id`, `created_at`, seeded by `EnsureMetadata` on boot) and git sync state (`last_synced_at`, `sync_error`, written by `SetSyncResult`). IDs are valid RFC 4122 v4 UUIDs (`google/uuid`) because the Claude CLI requires UUIDs for `--session-id`. Timestamps are stored UTC so ordering is chronological.
 
 ## internal/cli
 

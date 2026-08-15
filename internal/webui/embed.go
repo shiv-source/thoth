@@ -23,6 +23,11 @@ func Register(e *echo.Echo, _ *slog.Logger) {
 	e.Filesystem = sub
 	e.GET("/*", func(c echo.Context) error {
 		p := strings.TrimPrefix(c.Request().URL.Path, "/")
+		// The API surface stays JSON: unknown /api paths are a 404, never the
+		// SPA shell.
+		if p == "api" || strings.HasPrefix(p, "api/") {
+			return echo.ErrNotFound
+		}
 		if p == "" {
 			p = "index.html"
 		}

@@ -23,6 +23,8 @@ func doctorHandler(c echo.Context, d Deps) error {
 	}
 	ctx, cancel := context.WithTimeout(c.Request().Context(), doctorTimeout)
 	defer cancel()
+	// The api check probes the configured address — in-flight that is this
+	// very server, so it self-checks the health payload and websocket.
 	checks := doctor.Run(ctx, dir, d.Log)
 	return c.JSON(http.StatusOK, map[string]any{"checks": checks})
 }

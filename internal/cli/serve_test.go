@@ -9,12 +9,21 @@ import (
 
 	"github.com/shiv-source/thoth/internal/config"
 	"github.com/shiv-source/thoth/internal/index"
+	"github.com/shiv-source/thoth/internal/store"
 	"github.com/shiv-source/thoth/internal/wiki"
 )
 
 func TestOnSettingsSavedSwitchesRootAndRestartsWatcher(t *testing.T) {
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
 	dbPath := filepath.Join(t.TempDir(), "test.db")
+	// The schema lives in the store's migrations; index.Open issues no DDL.
+	st, err := store.Open(dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := st.Close(); err != nil {
+		t.Fatal(err)
+	}
 	ix, err := index.Open(dbPath)
 	if err != nil {
 		t.Fatal(err)
@@ -63,7 +72,15 @@ func TestOnSettingsSavedSwitchesRootAndRestartsWatcher(t *testing.T) {
 
 func TestOnSettingsSavedFailureLeavesRootUntouched(t *testing.T) {
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
-	ix, err := index.Open(filepath.Join(t.TempDir(), "test.db"))
+	dbPath := filepath.Join(t.TempDir(), "test.db")
+	st, err := store.Open(dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := st.Close(); err != nil {
+		t.Fatal(err)
+	}
+	ix, err := index.Open(dbPath)
 	if err != nil {
 		t.Fatal(err)
 	}

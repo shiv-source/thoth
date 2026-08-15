@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useChat, type ChatMessage } from '../hooks/useChat'
+import { useConversationRoute } from '../hooks/useConversationRoute'
 import { ChatSocket, type ConnectionStatus } from '../ws/chat'
 import { Composer } from './Composer'
 import { MessageItem } from './MessageItem'
@@ -17,7 +18,7 @@ export function ChatPanel() {
   const [socket, setSocket] = useState<ChatSocket | null>(null)
   const [status, setStatus] = useState<ConnectionStatus>('connected')
   const [settingsOpen, setSettingsOpen] = useState(false)
-  const { messages, streaming, lastTool, send, cancel, load, reset } = useChat(socket)
+  const { messages, streaming, lastTool, conversationId, send, cancel, load, reset } = useChat(socket)
   const { toast } = useToast()
   const endRef = useRef<HTMLDivElement>(null)
 
@@ -39,6 +40,11 @@ export function ChatPanel() {
     load(msgs, id)
     socket?.open(id)
   }
+
+  // /chat/<uuid> deep links and back/forward navigation follow the active
+  // conversation; the URL follows conversationId changes.
+  const onRouteError = useCallback((message: string) => toast(message, 'error'), [toast])
+  useConversationRoute({ socket, conversationId, load, reset, onError: onRouteError })
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' })

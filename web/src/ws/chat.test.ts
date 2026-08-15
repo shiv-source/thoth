@@ -89,4 +89,80 @@ describe('ChatSocket', () => {
     socket.open('conv-9')
     expect(ws.sent).toEqual([JSON.stringify({ type: 'open', conversation_id: 'conv-9' })])
   })
+
+  it('defers the open frame until the handshake completes', () => {
+    const socket = new ChatSocket('ws://x/ws')
+    socket.connect()
+    // Deep links call open() right after connect(): the socket is still
+    // CONNECTING and a real WebSocket would throw on send.
+    socket.open('conv-9')
+    const ws = FakeWS.instances[0]!
+    expect(ws.sent).toEqual([])
+
+    ws.open()
+    expect(ws.sent).toEqual([JSON.stringify({ type: 'open', conversation_id: 'conv-9' })])
+  })
+
+  it('drops a deferred open frame when the socket is closed', () => {
+    const socket = new ChatSocket('ws://x/ws')
+    socket.connect()
+    socket.open('conv-9')
+    socket.close()
+    const ws = FakeWS.instances[0]!
+    ws.onopen!()
+    expect(ws.sent).toEqual([])
+  })
+})
+
+describe('ChatSocket newChat', () => {
+  afterEach(() => { FakeWS.instances = [] })
+
+  it('sends the new_chat frame when connected', () => {
+    const socket = new ChatSocket('ws://x/ws')
+    socket.connect()
+    const ws = FakeWS.instances[0]!
+    ws.open()
+    socket.newChat()
+    expect(ws.sent).toEqual([JSON.stringify({ type: 'new_chat' })])
+  })
+
+  it('defers the new_chat frame until the handshake completes', () => {
+    const socket = new ChatSocket('ws://x/ws')
+    socket.connect()
+    socket.newChat()
+    const ws = FakeWS.instances[0]!
+    expect(ws.sent).toEqual([])
+    ws.open()
+    expect(ws.sent).toEqual([JSON.stringify({ type: 'new_chat' })])
+  })
+
+  it('clears the resume id so a reconnect cannot resurrect the old pin', () => {
+    vi.useFakeTimers()
+    try {
+      const socket = new ChatSocket('ws://x/ws')
+      socket.connect()
+      FakeWS.instances[0]!.open()
+      FakeWS.instances[0]!.onmessage!({ data: JSON.stringify({ type: 'turn_done', conversation_id: 'conv-1' }) })
+
+      socket.newChat()
+      FakeWS.instances[0]!.onclose!()
+      vi.advanceTimersByTime(1000)
+      FakeWS.instances[1]!.open()
+      // No resume (or any other) frame may leave the new socket: the pin
+      // was dropped by new_chat.
+      expect(FakeWS.instances[1]!.sent).toEqual([])
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('discards a deferred open when newChat wins', () => {
+    const socket = new ChatSocket('ws://x/ws')
+    socket.connect()
+    socket.open('conv-9') // CONNECTING: deferred
+    socket.newChat()      // must supersede the deferred open
+    const ws = FakeWS.instances[0]!
+    ws.open()
+    expect(ws.sent).toEqual([JSON.stringify({ type: 'new_chat' })])
+  })
 })

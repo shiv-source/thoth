@@ -20,9 +20,24 @@ export const Settings = z.object({
   claude_bin: z.string(),
   permission_mode: z.string(),
   model: z.string(),
-  git_remote_url: z.string(),
+  repo_url: z.string(),
 })
 export type Settings = z.infer<typeof Settings>
+
+export const GitHubIdentity = z.object({
+  username: z.string(),
+  display_name: z.string(),
+  email: z.string(),
+  avatar_url: z.string(),
+  profile_url: z.string(),
+  scopes: z.string(),
+  account_created_at: z.string(),
+  account_updated_at: z.string(),
+})
+export type GitHubIdentity = z.infer<typeof GitHubIdentity>
+
+export const GitHubRepo = z.object({ full_name: z.string(), clone_url: z.string() })
+export type GitHubRepo = z.infer<typeof GitHubRepo>
 
 const Conversation = z.object({ id: z.string(), title: z.string(), created_at: z.string() })
 export type Conversation = z.infer<typeof Conversation>
@@ -52,6 +67,13 @@ async function get<T>(url: string, schema: z.ZodType<T>): Promise<T> {
   return schema.parse(await res.json())
 }
 
+/** Reads the server's {"error":"<msg>"} body, falling back to the status. */
+async function errorMessage(res: Response): Promise<string> {
+  const body = (await res.json()) as { error?: unknown }
+  if (typeof body.error === 'string') return body.error
+  return `${res.status} ${res.statusText}`
+}
+
 export const api = {
   search: (q: string) => get(`/api/search?q=${encodeURIComponent(q)}`, z.object({ results: z.array(SearchResult) })),
   note: (path: string) => get(`/api/notes?path=${encodeURIComponent(path)}`, Note),
@@ -70,5 +92,16 @@ export const api = {
     const res = await fetch('/api/git/setup', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ url }) })
     if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
     return z.object({ ok: z.boolean(), error: z.string().optional() }).parse(await res.json())
+  },
+  githubAuth: () => get('/api/github/auth', GitHubIdentity),
+  githubRepos: () => get('/api/github/repos', z.object({ repos: z.array(GitHubRepo) })),
+  connectGitHub: async (token: string): Promise<GitHubIdentity> => {
+    const res = await fetch('/api/github/auth', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ token }) })
+    if (!res.ok) throw new Error(await errorMessage(res))
+    return GitHubIdentity.parse(await res.json())
+  },
+  disconnectGitHub: async (): Promise<void> => {
+    const res = await fetch('/api/github/auth', { method: 'DELETE' })
+    if (!res.ok) throw new Error(await errorMessage(res))
   },
 }

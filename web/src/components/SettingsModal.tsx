@@ -1,9 +1,13 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
-import { api, type DoctorCheck, type Settings } from '../api/client'
+import { api, type DoctorCheck, type GitHubIdentity, type GitHubRepo, type Settings } from '../api/client'
 import { useToast } from './Toast'
 
 const blank: Settings = {
-  wiki_path: '', host: '127.0.0.1', port: 8333, claude_bin: '', permission_mode: '', model: '', git_remote_url: '',
+  wiki_path: '', host: '127.0.0.1', port: 8333, claude_bin: '', permission_mode: '', model: '', repo_url: '',
+}
+
+const emptyGitHub: GitHubIdentity = {
+  username: '', display_name: '', email: '', avatar_url: '', profile_url: '', scopes: '', account_created_at: '', account_updated_at: '',
 }
 
 type Tab = 'general' | 'doctor' | 'git'
@@ -20,12 +24,15 @@ const label = 'mb-1 block text-xs font-medium uppercase tracking-wide text-subtl
 export function SettingsModal({ onClose }: { onClose: () => void }) {
   const [tab, setTab] = useState<Tab>('general')
   const [form, setForm] = useState<Settings>(blank)
+  const [github, setGitHub] = useState<GitHubIdentity>(emptyGitHub)
   const [status, setStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
   const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const { toast } = useToast()
 
   useEffect(() => {
-    api.settings().then(setForm).catch(() => setStatus('error'))
+    Promise.all([api.settings(), api.githubAuth()])
+      .then(([s, g]) => { setForm(s); setGitHub(g) })
+      .catch(() => setStatus('error'))
   }, [])
 
   useEffect(() => {
@@ -121,7 +128,7 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
           </form>
         )}
         {tab === 'doctor' && <DoctorTab />}
-        {tab === 'git' && <GitTab form={form} set={set} save={save} />}
+        {tab === 'git' && <GitTab form={form} set={set} save={save} github={github} setGitHub={setGitHub} />}
       </div>
     </div>
   )
@@ -179,27 +186,75 @@ function DoctorTab() {
   )
 }
 
-// GitTab stores the wiki in a git remote: the URL is part of the settings
-// form (Save persists it), and "Initialize & Push" runs the server-side
-// setup against the current wiki path.
-function GitTab({ form, set, save }: {
+// GitTab connects a GitHub account (the token is stored server-side), keeps
+// the sync repo URL in the settings form (Save persists it to the DB), and
+// "Initialize & Push" runs the server-side setup against the current wiki
+// path. The URL input only appears once connected: the server stores it in
+// the github_auth row.
+function GitTab({ form, set, save, github, setGitHub }: {
   form: Settings
   set: <K extends keyof Settings>(key: K, value: Settings[K]) => void
   save: () => Promise<void>
+  github: GitHubIdentity
+  setGitHub: (g: GitHubIdentity) => void
 }) {
   const { toast } = useToast()
   const [pushing, setPushing] = useState(false)
+  const [connecting, setConnecting] = useState(false)
+  const [token, setToken] = useState('')
+  const [repos, setRepos] = useState<GitHubRepo[]>([])
   const [gitError, setGitError] = useState<string | null>(null)
 
+  const connected = github.username !== ''
+
+  // Suggestions for the repo URL come from the connected account; a failed
+  // load just leaves the list empty — typing a URL always works.
+  useEffect(() => {
+    if (!connected) return
+    api.githubRepos().then((r) => setRepos(r.repos)).catch(() => setRepos([]))
+  }, [connected])
+
+  const connect = async () => {
+    if (!token) {
+      setGitError('Enter a personal access token.')
+      return
+    }
+    setConnecting(true)
+    setGitError(null)
+    try {
+      setGitHub(await api.connectGitHub(token))
+      setToken('')
+      toast('GitHub connected', 'success')
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Could not connect GitHub'
+      setGitError(msg)
+      toast(msg, 'error')
+    } finally {
+      setConnecting(false)
+    }
+  }
+
+  const disconnect = async () => {
+    try {
+      await api.disconnectGitHub()
+    } catch {
+      toast('Could not disconnect GitHub', 'error')
+      return
+    }
+    setGitHub(emptyGitHub)
+    set('repo_url', '')
+    toast('GitHub disconnected', 'success')
+  }
+
   const push = async () => {
-    if (!form.git_remote_url) {
+    if (!form.repo_url) {
       setGitError('Enter a remote URL first.')
       return
     }
     setPushing(true)
     setGitError(null)
     try {
-      const res = await api.gitSetup(form.git_remote_url)
+      const res = await api.gitSetup(form.repo_url)
       if (res.ok) {
         toast('Wiki pushed to remote', 'success')
       } else {
@@ -215,12 +270,64 @@ function GitTab({ form, set, save }: {
     }
   }
 
+  if (!connected) {
+    return (
+      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4">
+        <div>
+          <label className={label}>Personal access token</label>
+          <input className={field} type="password" placeholder="ghp_…"
+            value={token} onChange={(e) => setToken(e.target.value)} />
+        </div>
+        <p className="text-xs text-subtle">
+          Connect your GitHub account to store the sync repo URL and
+          credentials. The token needs the <code>user:email</code> scope and
+          is stored locally in thoth.db — it is never sent anywhere except
+          api.github.com.
+        </p>
+        {gitError && <p className="text-sm text-red-600 dark:text-red-400">{gitError}</p>}
+        <div className="flex items-center justify-end border-t border-line pt-4">
+          <button onClick={() => void connect()} disabled={connecting}
+            className="flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-accent-ink transition hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-60">
+            {connecting && <span aria-hidden="true" className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-accent-ink/40 border-t-accent-ink" />}
+            {connecting ? 'Connecting…' : 'Connect'}
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4">
+      <div className="flex items-center gap-3 rounded-lg border border-line bg-app px-3 py-2.5">
+        {github.avatar_url !== '' && (
+          <img src={github.avatar_url} alt="" aria-hidden="true" className="h-9 w-9 rounded-full" />
+        )}
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-medium text-ink">
+            {github.profile_url !== ''
+              ? <a href={github.profile_url} target="_blank" rel="noreferrer" className="hover:underline">{github.display_name || github.username}</a>
+              : (github.display_name || github.username)}
+          </p>
+          <p className="truncate text-xs text-subtle">{github.email || github.username}</p>
+          {(github.account_created_at !== '' || github.account_updated_at !== '') && (
+            <p className="mt-0.5 truncate text-xs text-subtle">
+              Member since {github.account_created_at.slice(0, 10)}
+              {github.account_updated_at !== '' && ` · Updated ${github.account_updated_at.slice(0, 10)}`}
+            </p>
+          )}
+        </div>
+        <button onClick={() => void disconnect()}
+          className="shrink-0 rounded-lg border border-line px-3 py-1.5 text-xs font-medium text-ink transition hover:bg-raised">
+          Disconnect
+        </button>
+      </div>
       <div>
         <label className={label}>Git remote URL</label>
-        <input className={field} placeholder="https://github.com/you/wiki.git"
-          value={form.git_remote_url} onChange={(e) => set('git_remote_url', e.target.value)} />
+        <input className={field} placeholder="https://github.com/you/wiki.git" list="repo-suggestions"
+          value={form.repo_url} onChange={(e) => set('repo_url', e.target.value)} />
+        <datalist id="repo-suggestions">
+          {repos.map((r) => <option key={r.full_name} value={r.clone_url}>{r.full_name}</option>)}
+        </datalist>
       </div>
       <p className="text-xs text-subtle">
         Stores your wiki in a remote git repository. Thoth initializes the

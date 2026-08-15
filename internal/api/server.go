@@ -8,6 +8,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/shiv-source/thoth/internal/claude"
 	"github.com/shiv-source/thoth/internal/config"
+	"github.com/shiv-source/thoth/internal/github"
 	"github.com/shiv-source/thoth/internal/index"
 	"github.com/shiv-source/thoth/internal/store"
 	"github.com/shiv-source/thoth/internal/webui"
@@ -21,6 +22,7 @@ type Deps struct {
 	ConfigMu        *sync.RWMutex // guards *Config (shared with serve)
 	Store           *store.Store
 	Claude          claude.Client
+	GitHub          *github.Service
 	Wiki            *wiki.Wiki
 	Index           *index.Index
 	OnSettingsSaved func(config.Config) error
@@ -61,6 +63,10 @@ func newServer(d Deps) (*echo.Echo, *Hub) {
 	e.GET("/api/conversations", func(c echo.Context) error { return listConversations(c, d) })
 	e.POST("/api/conversations", func(c echo.Context) error { return createConversation(c, d) })
 	e.GET("/api/conversations/:id", func(c echo.Context) error { return getConversation(c, d) })
+	e.POST("/api/github/auth", func(c echo.Context) error { return connectGitHub(c, d) })
+	e.GET("/api/github/auth", func(c echo.Context) error { return getGitHubAuth(c, d) })
+	e.DELETE("/api/github/auth", func(c echo.Context) error { return disconnectGitHub(c, d) })
+	e.GET("/api/github/repos", func(c echo.Context) error { return listGitHubRepos(c, d) })
 
 	hub := NewHub(d.Claude, d.Store, d.Log, d.ctx())
 	e.GET("/ws", hub.chat)

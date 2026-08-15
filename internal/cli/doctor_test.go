@@ -111,7 +111,7 @@ func TestDoctorHealthy(t *testing.T) {
 	if strings.Contains(out, "✗") {
 		t.Fatalf("unexpected failing checks:\n%s", out)
 	}
-	for _, want := range []string{"config:", "wiki:", "claude:", "claude login:", "database:", "index:", "port:"} {
+	for _, want := range []string{"config:", "wiki:", "claude:", "claude login:", "database:", "index:", "api:", "websocket:"} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("output missing %q:\n%s", want, out)
 		}
@@ -287,8 +287,8 @@ func TestDoctorDetectsBusyPort(t *testing.T) {
 	if err == nil {
 		t.Fatalf("expected doctor to fail on a busy port:\n%s", out)
 	}
-	if !strings.Contains(out, "✗ port") || !strings.Contains(out, "in use") {
-		t.Fatalf("expected failing port check:\n%s", out)
+	if !strings.Contains(out, "✗ api") || !strings.Contains(out, "non-thoth") {
+		t.Fatalf("expected failing api check:\n%s", out)
 	}
 }
 
@@ -331,12 +331,23 @@ func TestDoctorDetectsMissingIndexTables(t *testing.T) {
 	if err := config.Save(filepath.Join(dir, "config.toml"), cfg); err != nil {
 		t.Fatal(err)
 	}
-	// store.Open creates conversations/messages but no notes tables.
+	// store.Open runs the migrations (the single schema source). Simulate a
+	// database that lost its index tables by dropping them afterwards.
 	st, err := store.Open(filepath.Join(dir, "thoth.db"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if err := st.Close(); err != nil {
+		t.Fatal(err)
+	}
+	db, err := sql.Open("sqlite", filepath.Join(dir, "thoth.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`DROP TABLE notes_fts; DROP TABLE notes;`); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Close(); err != nil {
 		t.Fatal(err)
 	}
 

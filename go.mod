@@ -4,6 +4,7 @@ go 1.26.1
 
 require (
 	github.com/fsnotify/fsnotify v1.10.1
+	github.com/google/uuid v1.6.0
 	github.com/gorilla/websocket v1.5.3
 	github.com/labstack/echo/v4 v4.15.4
 	github.com/pelletier/go-toml/v2 v2.4.3
@@ -14,7 +15,6 @@ require (
 
 require (
 	github.com/dustin/go-humanize v1.0.1 // indirect
-	github.com/google/uuid v1.6.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/labstack/gommon v0.5.0 // indirect
 	github.com/mattn/go-colorable v0.1.15 // indirect

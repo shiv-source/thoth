@@ -9,6 +9,7 @@ import (
 type Call struct {
 	SessionID string
 	Prompt    string
+	Resume    string // fork source, set via WithResume
 }
 
 // FakeClient replays scripted events and records every call.
@@ -20,9 +21,13 @@ type FakeClient struct {
 	Calls  []Call
 }
 
-func (f *FakeClient) Start(_ context.Context, sessionID, prompt string, w EventWriter) error {
+func (f *FakeClient) Start(_ context.Context, sessionID, prompt string, w EventWriter, opts ...StartOption) error {
+	var cfg startConfig
+	for _, opt := range opts {
+		opt(&cfg)
+	}
 	f.mu.Lock()
-	f.Calls = append(f.Calls, Call{SessionID: sessionID, Prompt: prompt})
+	f.Calls = append(f.Calls, Call{SessionID: sessionID, Prompt: prompt, Resume: cfg.resume})
 	f.mu.Unlock()
 	if f.Err != nil {
 		return f.Err

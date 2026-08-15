@@ -116,7 +116,7 @@ describe('useChat', () => {
     expect(FakeWS.instances[0]!.sent).toEqual([JSON.stringify({ type: 'send', text: 'hello' })])
   })
 
-  it('reset() clears everything locally without talking to the server', () => {
+  it('reset() clears locally and unpins the server', () => {
     const socket = freshSocket()
     const { result } = renderHook(() => useChat(socket))
 
@@ -131,8 +131,12 @@ describe('useChat', () => {
     expect(result.current.streaming).toBe(false)
     expect(result.current.conversationId).toBeNull()
     expect(result.current.lastTool).toBeNull()
-    // No frames left the socket: the server creates a conversation on next send.
-    expect(ws.sent).toEqual([JSON.stringify({ type: 'send', text: 'hello' })])
+    // The unpin frame must reach the server, or the next send would
+    // continue the old pinned conversation.
+    expect(ws.sent).toEqual([
+      JSON.stringify({ type: 'send', text: 'hello' }),
+      JSON.stringify({ type: 'new_chat' }),
+    ])
   })
 })
 

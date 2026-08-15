@@ -35,12 +35,15 @@ type WriterFunc func(Event) error
 func (f WriterFunc) Write(e Event) error { return f(e) }
 
 // rawLine is the tolerant view of one stream-json line. Unknown fields are
-// ignored by design so the parser survives CLI output additions.
+// ignored by design so the parser survives CLI output additions. Message is
+// kept raw: the CLI emits it as an object on assistant lines but as a string
+// on others (e.g. system permission_denied or --include-partial-messages
+// "message" lines), so it is decoded lazily — only for assistant lines.
 type rawLine struct {
-	Type    string  `json:"type"`
-	Message *rawMsg `json:"message"`
-	IsError bool    `json:"is_error"`
-	Result  string  `json:"result"`
+	Type    string          `json:"type"`
+	Message json.RawMessage `json:"message"`
+	IsError bool            `json:"is_error"`
+	Result  string          `json:"result"`
 }
 
 type rawMsg struct {
@@ -63,10 +66,14 @@ func ParseLine(line []byte) (Event, error) {
 	}
 	switch raw.Type {
 	case "assistant":
-		if raw.Message == nil {
+		if len(raw.Message) == 0 {
 			return Event{}, ErrIgnore
 		}
-		for _, b := range raw.Message.Content {
+		var msg rawMsg
+		if err := json.Unmarshal(raw.Message, &msg); err != nil {
+			return Event{}, ErrIgnore // wrong-shaped payload: not a delta
+		}
+		for _, b := range msg.Content {
 			switch b.Type {
 			case "text":
 				if b.Text != "" {

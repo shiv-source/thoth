@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/shiv-source/thoth/internal/claude"
 )
@@ -167,7 +168,7 @@ func TestChatResumeReplays(t *testing.T) {
 // instantly and never exposes an in-flight turn).
 type hangClient struct{}
 
-func (hangClient) Start(ctx context.Context, _, _ string, _ claude.EventWriter) error {
+func (hangClient) Start(ctx context.Context, _, _ string, _ claude.EventWriter, _ ...claude.StartOption) error {
 	<-ctx.Done()
 	return ctx.Err()
 }
@@ -500,7 +501,7 @@ func TestChatResumePinsConnectionForNextSend(t *testing.T) {
 // client behaves the same way via exec.CommandContext).
 type ctxAwareFake struct{}
 
-func (ctxAwareFake) Start(ctx context.Context, _, _ string, _ claude.EventWriter) error {
+func (ctxAwareFake) Start(ctx context.Context, _, _ string, _ claude.EventWriter, _ ...claude.StartOption) error {
 	<-ctx.Done()
 	return ctx.Err()
 }
@@ -654,5 +655,205 @@ func TestChatCancelStopsInFlightTurn(t *testing.T) {
 	msgs, err := d.Store.Messages(convs[0].ID)
 	if err != nil || len(msgs) != 1 || msgs[0].Role != "user" {
 		t.Fatalf("expected only the user message, got %v %+v", err, msgs)
+	}
+}
+
+// staleLockClient fails its first Start with the CLI's stale-lock error
+// (what a killed turn leaves behind), then delegates to a FakeClient so the
+// fork retry can succeed and be inspected.
+type staleLockClient struct {
+	fake  claude.FakeClient
+	first string
+	calls int
+}
+
+func (s *staleLockClient) Start(ctx context.Context, sessionID, prompt string, w claude.EventWriter, opts ...claude.StartOption) error {
+	s.calls++
+	if s.calls == 1 {
+		s.first = sessionID
+		return errors.New("claude exited: exit status 1 (stderr: Error: Session ID abc is already in use. )")
+	}
+	return s.fake.Start(ctx, sessionID, prompt, w, opts...)
+}
+
+func TestChatRotatesStaleSessionID(t *testing.T) {
+	d := testDeps(t)
+	stale := &staleLockClient{fake: claude.FakeClient{Script: []claude.Event{
+		{Type: claude.EventDelta, Text: "recovered"},
+		{Type: claude.EventDone},
+	}}}
+	d.Claude = stale
+	e := New(d)
+
+	conn, _, err := websocket.DefaultDialer.Dial(wsURL(t, e), nil)
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	defer func() { _ = conn.Close() }()
+
+	if err := conn.WriteJSON(map[string]string{"type": "send", "text": "hello"}); err != nil {
+		t.Fatal(err)
+	}
+	var convID string
+	for {
+		m := readMsg(t, conn)
+		switch m["type"] {
+		case "error":
+			t.Fatalf("turn must recover from the stale lock, got %+v", m)
+		case "turn_done":
+			convID, _ = m["conversation_id"].(string)
+			goto done
+		}
+	}
+done:
+	if stale.first == "" || convID == "" || stale.first != convID {
+		t.Fatalf("first attempt session = %q, conversation = %q (a fresh conversation seeds its own id)", stale.first, convID)
+	}
+	// The retry forked into a fresh valid id resumed from the locked one,
+	// and the store now holds the fork.
+	if len(stale.fake.Calls) != 1 {
+		t.Fatalf("expected exactly one retry call, got %d", len(stale.fake.Calls))
+	}
+	forked := stale.fake.Calls[0]
+	if forked.SessionID == stale.first || forked.Resume != stale.first {
+		t.Fatalf("retry call = %+v, want fresh id resumed from %q", forked, stale.first)
+	}
+	if _, err := uuid.Parse(forked.SessionID); err != nil {
+		t.Fatalf("forked session id %q is not a valid UUID: %v", forked.SessionID, err)
+	}
+	sid, err := d.Store.ConversationSessionID(convID)
+	if err != nil || sid != forked.SessionID {
+		t.Fatalf("stored session id = %q/%v, want %q", sid, err, forked.SessionID)
+	}
+}
+
+func TestChatNewChatUnpinsConnection(t *testing.T) {
+	d := testDeps(t)
+	id1, err := d.Store.CreateConversation("first")
+	if err != nil {
+		t.Fatal(err)
+	}
+	fake := &claude.FakeClient{Script: []claude.Event{{Type: claude.EventDone}}}
+	d.Claude = fake
+	e := New(d)
+
+	conn, _, err := websocket.DefaultDialer.Dial(wsURL(t, e), nil)
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	defer func() { _ = conn.Close() }()
+
+	// Pin to the first conversation and chat in it.
+	if err := conn.WriteJSON(map[string]string{"type": "open", "conversation_id": id1}); err != nil {
+		t.Fatal(err)
+	}
+	if err := conn.WriteJSON(map[string]string{"type": "send", "text": "hello one"}); err != nil {
+		t.Fatal(err)
+	}
+	conv1 := waitTurnDone(t, conn)
+
+	// New chat unpins: the next send must create a brand-new conversation.
+	if err := conn.WriteJSON(map[string]string{"type": "new_chat"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := conn.WriteJSON(map[string]string{"type": "send", "text": "hello two"}); err != nil {
+		t.Fatal(err)
+	}
+	conv2 := waitTurnDone(t, conn)
+
+	if conv1 != id1 {
+		t.Fatalf("first turn ran in %q, want %q", conv1, id1)
+	}
+	if conv2 == id1 || conv2 == "" {
+		t.Fatalf("new chat reused the old conversation: %q", conv2)
+	}
+	convs, err := d.Store.ListConversations()
+	if err != nil || len(convs) != 2 {
+		t.Fatalf("expected two conversations: %v %+v", err, convs)
+	}
+	msgs, err := d.Store.Messages(id1)
+	if err != nil || len(msgs) != 1 || msgs[0].Content != "hello one" {
+		t.Fatalf("first conversation changed: %v %+v", err, msgs)
+	}
+	if len(fake.Calls) != 2 || fake.Calls[0].SessionID != id1 || fake.Calls[1].SessionID != conv2 {
+		t.Fatalf("session ids wrong: %+v", fake.Calls)
+	}
+}
+
+// waitTurnDone reads frames until turn_done, failing on error frames.
+func waitTurnDone(t *testing.T, conn *websocket.Conn) string {
+	t.Helper()
+	for {
+		m := readMsg(t, conn)
+		switch m["type"] {
+		case "error":
+			t.Fatalf("unexpected error frame: %+v", m)
+		case "turn_done":
+			id, _ := m["conversation_id"].(string)
+			return id
+		}
+	}
+}
+
+func TestChatNewChatCancelsBusyTurn(t *testing.T) {
+	d := testDeps(t)
+	d.Claude = hangClient{}
+	e, hub := newServer(d)
+
+	conn, _, err := websocket.DefaultDialer.Dial(wsURL(t, e), nil)
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	defer func() { _ = conn.Close() }()
+
+	// First send starts a hanging turn.
+	if err := conn.WriteJSON(map[string]string{"type": "send", "text": "first"}); err != nil {
+		t.Fatal(err)
+	}
+	if m := readMsg(t, conn); m["type"] != "assistant_start" {
+		t.Fatalf("expected assistant_start, got %+v", m)
+	}
+
+	// New chat cancels it: the cancelled frame arrives before anything else.
+	if err := conn.WriteJSON(map[string]string{"type": "new_chat"}); err != nil {
+		t.Fatal(err)
+	}
+	if m := readMsg(t, conn); m["type"] != "error" || m["message"] != "cancelled" {
+		t.Fatalf("expected cancelled error frame, got %+v", m)
+	}
+
+	// The next send starts a fresh conversation.
+	if err := conn.WriteJSON(map[string]string{"type": "send", "text": "second"}); err != nil {
+		t.Fatal(err)
+	}
+	if m := readMsg(t, conn); m["type"] != "assistant_start" {
+		t.Fatalf("expected assistant_start for the second turn, got %+v", m)
+	}
+	convs, err := d.Store.ListConversations()
+	if err != nil || len(convs) != 2 {
+		t.Fatalf("expected two conversations: %v %+v", err, convs)
+	}
+
+	// End the hanging second turn.
+	if err := conn.WriteJSON(map[string]string{"type": "cancel"}); err != nil {
+		t.Fatal(err)
+	}
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		hub.mu.Lock()
+		busy := 0
+		for _, t := range hub.turns {
+			if t.busy {
+				busy++
+			}
+		}
+		hub.mu.Unlock()
+		if busy == 0 {
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("turns did not drain after cancel")
+		}
+		time.Sleep(10 * time.Millisecond)
 	}
 }

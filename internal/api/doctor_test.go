@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"log/slog"
 	"net"
@@ -11,8 +12,10 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/gorilla/websocket"
 	"github.com/shiv-source/thoth/internal/config"
 	"github.com/shiv-source/thoth/internal/index"
+	"github.com/shiv-source/thoth/internal/store"
 	"github.com/shiv-source/thoth/internal/wiki"
 )
 
@@ -49,6 +52,13 @@ func healthyThothDir(t *testing.T) string {
 		t.Fatal(err)
 	}
 	dbPath := filepath.Join(dir, "thoth.db")
+	st, err := store.Open(dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := st.Close(); err != nil {
+		t.Fatal(err)
+	}
 	ix, err := index.Open(dbPath)
 	if err != nil {
 		t.Fatal(err)
@@ -70,8 +80,39 @@ func healthyThothDir(t *testing.T) string {
 
 func TestDoctorEndpointHealthy(t *testing.T) {
 	d := testDeps(t)
-	d.ConfigPath = filepath.Join(healthyThothDir(t), "config.toml")
+	dir := healthyThothDir(t)
+	d.ConfigPath = filepath.Join(dir, "config.toml")
 	e := New(d)
+
+	// The api check probes the configured address — in-flight that is this
+	// very server, so occupy the port with a stub serving the same REST
+	// health and websocket upgrade as the real server.
+	cfg, err := config.Load(d.ConfigPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ln, err := net.Listen("tcp", net.JoinHostPort("127.0.0.1", fmt.Sprintf("%d", cfg.Port)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = ln.Close() }()
+	upgrader := websocket.Upgrader{CheckOrigin: func(*http.Request) bool { return true }}
+	srv := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/health":
+			_, _ = w.Write([]byte(`{"status":"ok","claude":{"found":true,"path":"/fake/claude"},"wiki":{"path":"/fake/wiki","exists":true}}`))
+		case "/ws":
+			conn, err := upgrader.Upgrade(w, r, nil)
+			if err != nil {
+				return
+			}
+			_ = conn.Close()
+		default:
+			http.NotFound(w, r)
+		}
+	})}
+	go func() { _ = srv.Serve(ln) }()
+	t.Cleanup(func() { _ = srv.Close() })
 
 	req := httptest.NewRequest(http.MethodGet, "/api/doctor", nil)
 	rec := httptest.NewRecorder()
@@ -89,7 +130,7 @@ func TestDoctorEndpointHealthy(t *testing.T) {
 	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
 		t.Fatal(err)
 	}
-	want := []string{"config", "wiki", "claude", "claude login", "database", "index", "port"}
+	want := []string{"config", "wiki", "claude", "claude login", "database", "index", "api", "websocket"}
 	if len(body.Checks) != len(want) {
 		t.Fatalf("got %d checks, want %d: %+v", len(body.Checks), len(want), body.Checks)
 	}
