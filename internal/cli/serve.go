@@ -129,17 +129,22 @@ func runServe(cmd *cobra.Command, _ []string) error {
 	defer func() { _ = gh.Close() }()
 
 	root := newRootHolder(w.Root)
+	// One long-lived CLI process per conversation: the first turn of each
+	// conversation pays the CLI boot, later turns reuse the process. Close
+	// guarantees no CLI process outlives the server.
+	pc := claude.NewPersistent(resolveClaudeBin(log), w.Root, claude.WithDirProvider(root.get), claude.WithDebugStream(filepath.Join(dir, "stream-dump.json")))
+	defer func() { _ = pc.Close() }()
 	e := api.New(api.Deps{
 		Log:             log,
 		Store:           st,
-		Claude:          claude.New(resolveClaudeBin(log), w.Root, claude.WithDirProvider(root.get), claude.WithDebugStream(filepath.Join(dir, "stream-dump.json"))),
+		Claude:          pc,
 		GitHub:          &github.Service{Client: github.New(http.DefaultClient), Repo: gh},
 		Settings:        stg,
 		DataDir:         dir,
 		Version:         Version(),
 		Wiki:            w,
 		Index:           ix,
-		OnSettingsSaved: onSettingsSaved(log, root, w, ix, startWatcher),
+		OnSettingsSaved: onSettingsSaved(log, root, w, ix, startWatcher, pc.Flush),
 		Ctx:             ctx,
 	})
 
@@ -206,9 +211,10 @@ func resolveClaudeBin(log *slog.Logger) string {
 
 // onSettingsSaved rebuilds the index and switches the live wiki root when
 // the wiki path changes. Nothing is mutated until every step that can fail
-// has succeeded: scaffold, then rebuild, and only then the root swap and
-// watcher restart.
-func onSettingsSaved(log *slog.Logger, root *rootHolder, w *wiki.Wiki, ix *index.Index, startWatcher func(string)) func(string) error {
+// has succeeded: scaffold, then rebuild, and only then the root swap, the
+// watcher restart, and the pooled-CLI flush (idle processes die now, a busy
+// one is evicted at its turn's end — same semantics as the per-Start cwd).
+func onSettingsSaved(log *slog.Logger, root *rootHolder, w *wiki.Wiki, ix *index.Index, startWatcher func(string), flush func()) func(string) error {
 	return func(wikiPath string) error {
 		newPath, err := config.ExpandHome(wikiPath)
 		if err != nil {
@@ -232,6 +238,7 @@ func onSettingsSaved(log *slog.Logger, root *rootHolder, w *wiki.Wiki, ix *index
 		root.set(newPath)
 		w.Root = newPath
 		startWatcher(newPath)
+		flush()
 		return nil
 	}
 }
