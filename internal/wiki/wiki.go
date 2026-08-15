@@ -54,6 +54,9 @@ func tree(base, rel string) ([]Node, error) {
 		if e.Name()[0] == '.' {
 			continue // .git, .gitkeep, dotfiles
 		}
+		if rel == "" && e.Name() == "CLAUDE.md" {
+			continue // the wiki's own rulebook is not a note
+		}
 		childRel := filepath.Join(rel, e.Name())
 		n := Node{Name: e.Name(), Path: filepath.ToSlash(childRel), IsDir: e.IsDir()}
 		if e.IsDir() {
