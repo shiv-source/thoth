@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useChat, type ChatMessage } from '../hooks/useChat'
+import { useChat } from '../hooks/useChat'
 import { useConversationRoute } from '../hooks/useConversationRoute'
 import { ChatSocket, type ConnectionStatus } from '../ws/chat'
 import { Composer } from './Composer'
@@ -36,11 +36,6 @@ export function ChatPanel() {
     return () => s.close()
   }, [toast])
 
-  const openConversation = (msgs: ChatMessage[], id: string) => {
-    load(msgs, id)
-    socket?.open(id)
-  }
-
   // /chat/<uuid> deep links and back/forward navigation follow the active
   // conversation; the URL follows conversationId changes.
   const onRouteError = useCallback((message: string) => toast(message, 'error'), [toast])
@@ -57,8 +52,7 @@ export function ChatPanel() {
 
   return (
     <div className="flex h-full flex-col">
-      <TopBar title={displayTitle} onNewChat={reset} onOpenSettings={() => setSettingsOpen(true)}
-        onOpenConversation={openConversation} />
+      <TopBar title={displayTitle} onOpenSettings={() => setSettingsOpen(true)} />
       {status !== 'connected' && (
         <div className="flex h-7 shrink-0 items-center gap-2 border-b border-line bg-raised px-4 text-xs text-subtle">
           <span className="h-1.5 w-1.5 rounded-full bg-accent" aria-hidden="true" />

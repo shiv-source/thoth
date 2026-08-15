@@ -10,7 +10,7 @@ web/src/
 ├── ws/chat.ts           # ChatSocket: protocol frames, reconnect/resume
 ├── hooks/               # useChat, useHealth, useSearch
 ├── components/          # ChatPanel, Composer, MessageItem, TopBar,
-│                        # ConversationMenu, SearchPanel, NoteViewer,
+│                        # Sidebar (Chats + Wiki), SearchPanel, NoteViewer,
 │                        # SettingsModal, SetupScreen, Toast, Sidebar
 └── index.css            # Tailwind v4 @theme tokens
 ```
@@ -22,9 +22,10 @@ web/src/
 | `Sidebar` | Brand, live search, recursive collapsible wiki tree (chevron folders, doc glyphs, indent guides); clicking a note opens the viewer panel |
 | `SearchPanel` | Debounced search (300 ms), highlighted snippets; ↑/↓ + Enter open the highlighted note, Esc clears |
 | `TopBar` | Conversation title (first message-derived), conversation-history dropdown, "New chat" (local reset), gear → settings modal |
-| `ConversationMenu` | Clock button in the TopBar; dropdown of past conversations (title + relative date) from `GET /api/conversations`; picking one loads it via `api.getConversation` → `useChat.load` + `socket.open`; Esc/backdrop close |
+
 | `ChatPanel` | Owns the socket lifecycle (created in an effect, closed on unmount); message list + scroll; tool status line ("Reading `path`") while a tool runs; surfaces the one-shot reconnect failure as an error toast |
 | `Composer` | Textarea (Enter = send, Shift+Enter = newline); Send **and** Stop — sending while streaming supersedes the running turn |
+| `Sidebar` | Brand header, then a **Chats** section (New chat + conversation history grouped Today/Yesterday/Previous 7 days/Older, dates on hover, active rail, loading/error/empty states, re-fetches on URL change) above the **Wiki** section (search + `WikiTree`) |
 | `MessageItem` | User bubbles (plain text) vs assistant (react-markdown + GFM) with a streaming caret |
 | `NoteViewer` | Slide-over markdown panel (Esc or ✕ closes); "Copy raw" copies the note to the clipboard (+ success toast) |
 | `Tree` | Reusable, accessible folder tree: collapsible chevrons, ARIA tree roles, Arrow/Enter keyboard navigation, generic over the node type (icons from `lucide-react`) |

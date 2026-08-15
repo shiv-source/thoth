@@ -40,17 +40,6 @@ describe('ChatPanel', () => {
     expect(screen.queryByText(/meetings\/standup\.md/)).not.toBeInTheDocument()
   })
 
-  it('New chat clears the conversation locally', async () => {
-    renderPanel()
-    act(() => FakeWS.instances[0]!.open())
-    await userEvent.type(screen.getByPlaceholderText(/Ask your wiki/), 'hello')
-    await userEvent.click(screen.getByRole('button', { name: /Send/ }))
-    expect(screen.getByText('hello', { selector: 'p' })).toBeInTheDocument()
-
-    await userEvent.click(screen.getByRole('button', { name: /New chat/ }))
-    expect(screen.queryByText('hello', { selector: 'p' })).not.toBeInTheDocument()
-    expect(screen.getByText('New conversation')).toBeInTheDocument()
-  })
 })
 
 afterAll(() => { globalThis.WebSocket = original })
