@@ -33,7 +33,8 @@ export function NavRail() {
                     <Icon className="h-5 w-5" aria-hidden="true" />
                 </button>
             ))}
-            <div className="mt-auto flex flex-col items-center">
+            <div className="mt-auto flex flex-col items-center gap-1 pb-2 pt-2">
+                <div aria-hidden="true" className="mb-1 h-px w-8 bg-line" />
                 <button
                     type="button"
                     onClick={() => navigateView('settings')}
