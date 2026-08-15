@@ -332,9 +332,14 @@ function GitTab({ form, set, save, github, setGitHub }: {
               <li key={r.full_name}>
                 <button type="button"
                   onMouseDown={(e) => { e.preventDefault(); pickRepo(r) }}
-                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-ink transition hover:bg-raised">
+                  className="flex w-full items-start gap-2 px-3 py-2 text-left transition hover:bg-raised">
                   {r.private ? <LockIcon /> : <GlobeIcon />}
-                  <span className="min-w-0 truncate">{r.full_name}</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm text-ink">{r.full_name}</span>
+                    {r.description !== '' && (
+                      <span className="block truncate text-xs text-subtle">{r.description}</span>
+                    )}
+                  </span>
                 </button>
               </li>
             ))}

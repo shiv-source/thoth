@@ -35,9 +35,10 @@ type Profile struct {
 // settings UI needs: the full name to display, the clone URL to use as the
 // remote, and the visibility (the UI blocks syncing to public repos).
 type Repository struct {
-	FullName string `json:"full_name"`
-	CloneURL string `json:"clone_url"`
-	Private  bool   `json:"private"`
+	FullName    string `json:"full_name"`
+	CloneURL    string `json:"clone_url"`
+	Private     bool   `json:"private"`
+	Description string `json:"description"` // null in the API -> ""
 }
 
 // Client fetches GitHub identity for a token. Errors are fixed messages:

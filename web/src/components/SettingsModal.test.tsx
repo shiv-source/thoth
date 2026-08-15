@@ -35,8 +35,8 @@ const getSettings = () => new Response(JSON.stringify(settings), { status: 200 }
 const getEmptyGitHub = () => new Response(JSON.stringify(emptyGitHub), { status: 200 })
 const getRepos = () => new Response(JSON.stringify({
   repos: [
-    { full_name: 'octo/wiki', clone_url: 'https://github.com/octo/wiki.git', private: true },
-    { full_name: 'octo/public-wiki', clone_url: 'https://github.com/octo/public-wiki.git', private: false },
+    { full_name: 'octo/wiki', clone_url: 'https://github.com/octo/wiki.git', private: true, description: 'My personal knowledge base' },
+    { full_name: 'octo/public-wiki', clone_url: 'https://github.com/octo/public-wiki.git', private: false, description: '' },
   ],
 }), { status: 200 })
 
@@ -122,6 +122,7 @@ describe('SettingsModal', () => {
     const url = await screen.findByPlaceholderText(/github\.com/)
     await userEvent.type(url, 'octo')
     const option = await screen.findByRole('button', { name: /octo\/wiki/ })
+    expect(await screen.findByText('My personal knowledge base')).toBeInTheDocument()
     await userEvent.click(option)
     expect(url).toHaveValue('https://github.com/octo/wiki.git')
     await userEvent.click(screen.getByRole('button', { name: 'Initialize & Push' }))
