@@ -84,7 +84,7 @@ function ChatsList() {
                       {relativeDate(c.created_at)}
                     </span>
                   </button>
-                  <Tooltip label="Delete chat" side="bottom">
+                  <Tooltip label="Delete chat" side="bottom" align="end">
                   <button
                     aria-label={`Delete ${c.title}`}
                     onClick={() => {
