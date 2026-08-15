@@ -2,7 +2,6 @@ package claude
 
 import (
 	"bufio"
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -279,9 +278,6 @@ func (c *PersistentClient) dispatch(sessionID string, p *proc) {
 		if turnOver {
 			continue
 		}
-		// The raw type decides turn end: "result" is the CLI's end-of-turn
-		// signal regardless of what the event parser makes of it.
-		endTurn := bytes.HasPrefix(line, []byte(`{"type":"result"`))
 		ev, err := ParseLine(line)
 		if errors.Is(err, ErrIgnore) {
 			continue
@@ -290,6 +286,10 @@ func (c *PersistentClient) dispatch(sessionID string, p *proc) {
 			_ = w.Write(Event{Type: EventError, Detail: err.Error()})
 			continue
 		}
+		// The parsed event decides turn end: EventDone and EventError come
+		// only from the CLI's result line, and JSON parsing is key-order
+		// independent — the real CLI emits is_error first, not type.
+		endTurn := ev.Type == EventDone || ev.Type == EventError
 		if err := w.Write(ev); err != nil {
 			streamErr = err
 			break

@@ -84,6 +84,22 @@ echo 'Session ID 1234 is already in use' >&2
 exit 2
 `
 
+// realResultFake emits the result line with the real CLI's key order —
+// is_error first, "type":"result" later in the object. Turn-end detection
+// must not depend on JSON key order.
+const realResultFake = `#!/bin/sh
+n=0
+while IFS= read -r line; do
+  case "$line" in
+    *user*)
+      n=$((n+1))
+      echo '{"type":"assistant","message":{"content":[{"type":"text","text":"turn-'$n'"}]}}'
+      echo '{"is_error":false,"duration_api_ms":100,"num_turns":'$n',"subtype":"success","result":"done","type":"result"}'
+      ;;
+  esac
+done
+`
+
 // initDrainFake emits a single ~200KB init line before answering, exercising
 // the stdout pipe-buffer drain on spawn.
 const initDrainFake = `#!/bin/sh
@@ -289,6 +305,29 @@ func TestPersistentSpawnLockedSession(t *testing.T) {
 	err := pc.Start(context.Background(), "sess-1", "hello", WriterFunc(func(Event) error { return nil }))
 	if err == nil || !strings.Contains(err.Error(), "already in use") {
 		t.Fatalf("expected already-in-use error, got %v", err)
+	}
+}
+
+func TestPersistentEndsTurnOnRealCLIResultShape(t *testing.T) {
+	bin := writeFakeCLIVariant(t, realResultFake)
+	pc := NewPersistent(bin, t.TempDir())
+	t.Cleanup(func() { _ = pc.Close() })
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	var got []Event
+	err := pc.Start(ctx, "sess-1", "question", WriterFunc(func(e Event) error {
+		got = append(got, e)
+		return nil
+	}))
+	if err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	if len(got) == 0 || got[0].Text != "turn-1" {
+		t.Fatalf("turn deltas: %+v", got)
+	}
+	if pc.poolSize() != 1 {
+		t.Fatalf("pool size after turn = %d, want 1 (process must stay pooled)", pc.poolSize())
 	}
 }
 

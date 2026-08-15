@@ -13,6 +13,10 @@ interface ChatState {
     lastTool: string | null
     thinking: boolean
     thinkingText: string
+    // freshMessage marks that assistant_start opened a new turn whose first
+    // delta must start a NEW assistant message (never append into a previous
+    // turn's message or an error marker).
+    freshMessage: boolean
 }
 
 const initialState: ChatState = {
@@ -21,7 +25,8 @@ const initialState: ChatState = {
     conversationId: null,
     lastTool: null,
     thinking: false,
-    thinkingText: ''
+    thinkingText: '',
+    freshMessage: false
 }
 
 // The chat slice is a pure state machine over WS frames: useChat dispatches
@@ -34,10 +39,12 @@ export const chatSlice = createSlice({
         userMessage: (s, a: PayloadAction<string>) => {
             s.messages.push({ role: 'user', content: a.payload })
             s.streaming = true
+            s.freshMessage = false
         },
         assistantStart: (s) => {
             s.streaming = true
             s.thinking = true
+            s.freshMessage = true
         },
         assistantThinking: (s, a: PayloadAction<string>) => {
             s.thinking = true
@@ -47,11 +54,12 @@ export const chatSlice = createSlice({
             s.thinking = false
             s.thinkingText = ''
             const last = s.messages[s.messages.length - 1]
-            if (last && last.role === 'assistant') {
+            if (!s.freshMessage && last && last.role === 'assistant') {
                 last.content += a.payload
             } else {
                 s.messages.push({ role: 'assistant', content: a.payload })
             }
+            s.freshMessage = false
         },
         toolActivity: (s, a: PayloadAction<string>) => {
             s.thinking = false
@@ -64,6 +72,7 @@ export const chatSlice = createSlice({
             s.lastTool = null
             s.thinking = false
             s.thinkingText = ''
+            s.freshMessage = false
         },
         chatError: (s, a: PayloadAction<string>) => {
             s.messages.push({ role: 'assistant', content: `⚠️ ${a.payload}` })
@@ -71,9 +80,11 @@ export const chatSlice = createSlice({
             s.lastTool = null
             s.thinking = false
             s.thinkingText = ''
+            s.freshMessage = false
         },
         stopStreaming: (s) => {
             s.streaming = false
+            s.freshMessage = false
         },
         loadChat: (s, a: PayloadAction<{ messages: ChatMessage[]; conversationId: string }>) => {
             s.messages = a.payload.messages
@@ -82,6 +93,7 @@ export const chatSlice = createSlice({
             s.lastTool = null
             s.thinking = false
             s.thinkingText = ''
+            s.freshMessage = false
         },
         resetChat: (s) => {
             s.messages = []
@@ -90,6 +102,7 @@ export const chatSlice = createSlice({
             s.lastTool = null
             s.thinking = false
             s.thinkingText = ''
+            s.freshMessage = false
         }
     }
 })

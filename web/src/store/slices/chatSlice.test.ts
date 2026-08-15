@@ -107,6 +107,30 @@ describe('chatSlice', () => {
         expect(selectLastTool(store.getState())).toBeNull()
     })
 
+    it('starts a fresh assistant message for a new turn after an error marker', () => {
+        store.dispatch(userMessage('hi'))
+        store.dispatch(chatError('cancelled'))
+        store.dispatch(assistantStart())
+        store.dispatch(assistantDelta('the answer'))
+        expect(selectMessages(store.getState())).toEqual([
+            { role: 'user', content: 'hi' },
+            { role: 'assistant', content: '⚠️ cancelled' },
+            { role: 'assistant', content: 'the answer' }
+        ])
+    })
+
+    it('assistant_start between deltas opens a fresh message for the new turn', () => {
+        store.dispatch(userMessage('hi'))
+        store.dispatch(assistantDelta('first turn'))
+        store.dispatch(assistantStart())
+        store.dispatch(assistantDelta('second turn'))
+        expect(selectMessages(store.getState())).toEqual([
+            { role: 'user', content: 'hi' },
+            { role: 'assistant', content: 'first turn' },
+            { role: 'assistant', content: 'second turn' }
+        ])
+    })
+
     it('loads a conversation from history', () => {
         store.dispatch(userMessage('old'))
         store.dispatch(
