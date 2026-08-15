@@ -2,9 +2,9 @@ import { FileText, LayoutDashboard, MessageSquare, Search, Settings } from 'luci
 import { navigateView, useView, type View } from '../hooks/useView'
 
 const VIEWS: { view: View; label: string; icon: typeof MessageSquare }[] = [
+    { view: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { view: 'chat', label: 'Chat', icon: MessageSquare },
     { view: 'notes', label: 'Notes', icon: FileText },
-    { view: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { view: 'search', label: 'Search', icon: Search }
 ]
 

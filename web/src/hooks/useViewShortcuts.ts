@@ -1,7 +1,8 @@
 import { useEffect } from 'react'
 import { navigateView, type View } from './useView'
 
-const DIGIT_VIEWS: Record<string, View> = { '1': 'chat', '2': 'notes', '3': 'dashboard', '4': 'search' }
+// Mirrors the rail order: dashboard first, then chat, notes, search.
+const DIGIT_VIEWS: Record<string, View> = { '1': 'dashboard', '2': 'chat', '3': 'notes', '4': 'search' }
 
 // useViewShortcuts binds ⌘/Ctrl+1..4 to the views and ⌘/Ctrl+K to Search.
 // The listener lives on window and is removed on unmount.

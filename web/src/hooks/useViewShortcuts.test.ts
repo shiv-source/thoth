@@ -13,9 +13,13 @@ describe('useViewShortcuts', () => {
         window.location.hash = ''
     })
 
-    it('navigates views with cmd+1..4', () => {
+    it('navigates views with cmd+1..4 in rail order', () => {
         renderHook(() => useViewShortcuts())
+        key({ key: '1', metaKey: true })
+        expect(window.location.hash).toBe('#/dashboard')
         key({ key: '2', metaKey: true })
+        expect(window.location.hash).toBe('#/chat')
+        key({ key: '3', metaKey: true })
         expect(window.location.hash).toBe('#/notes')
         key({ key: '4', metaKey: true })
         expect(window.location.hash).toBe('#/search')
