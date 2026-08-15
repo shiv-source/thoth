@@ -14,8 +14,8 @@ type Tab = 'general' | 'doctor' | 'git'
 
 const tabs: { id: Tab; label: string }[] = [
   { id: 'general', label: 'General' },
-  { id: 'doctor', label: 'Doctor' },
   { id: 'git', label: 'Git remote' },
+  { id: 'doctor', label: 'Doctor' },
 ]
 
 const field = 'w-full rounded-lg border border-line bg-app px-3 py-2 text-sm text-ink outline-none placeholder:text-subtle focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500'
