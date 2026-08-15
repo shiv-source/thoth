@@ -70,7 +70,6 @@ go tool cover -func=coverage.out | tail -1
 - Branch workflow: never commit to `main` directly — sync and branch first (`git switch main && git pull --ff-only && git switch -c <type>/<slug>`), conventional commits on the branch, squash-merge back via PR
 - PRs follow `.github/pull_request_template.md` — conventional-commit title, full summary (bullet points when it helps), files changed, and the verification checklist
 - Code rules, memory-safety rules, and token-efficiency rules live in the root `CLAUDE.md` — read it before coding
-- Design authority: `docs/superpowers/specs/` (untracked working docs — never commit)
 - `docs/` (this documentation set) is committed and maintained alongside code
 - Generated output (`bin/`, `web/dist/`, `internal/webui/dist/`, `node_modules/`, `*.db`) is never committed
 - No secrets anywhere — env vars or placeholders only

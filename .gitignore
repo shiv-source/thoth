@@ -7,8 +7,6 @@ web/dist/
 *.db-shm
 coverage.out
 .DS_Store
-docs/superpowers/
-.superpowers/
 internal/webui/dist/
 /thoth
 /thoth.exe

@@ -11,7 +11,10 @@ The Go backend is organized as small packages with one purpose each, communicati
 | `internal/index` | SQLite + FTS5 + watcher | `Index`, `Rebuild`, `Watch`, `Search` |
 | `internal/store` | Conversations and messages (same db file) | `Store` |
 | `internal/api` | Echo server: routes, WS hub, handlers | `Deps`, `New`, `Hub` |
-| `internal/config` | TOML settings | `Config`, `Load`, `Save` |
+| `internal/config` | Localhost bind constants (`127.0.0.1:8333`) + `ExpandHome` path helper | `DefaultHost`, `DefaultPort`, `ExpandHome` |
+| `internal/doctor` | Shared install checks (the `thoth doctor` CLI and the Settings → Doctor tab run the same suite) | `Check`, `Run` |
+| `internal/github` | GitHub identity (PAT storage) and git sync | `Client`, `Auth`, `Repo`, `Service` |
+| `internal/settings` | The settings KV table (thoth.db) — the single source for user-facing settings | `Repo`, `OpenRepo` |
 | `internal/webui` | Embedded frontend | `Register` |
 
 ## internal/claude — the blast wall
@@ -60,3 +63,15 @@ Conversations and messages in the same `thoth.db` (separate `*sql.DB`, WAL makes
 ## internal/cli
 
 `Execute()` builds the root Cobra command. `serve` is a thin orchestration function whose helpers (`loadConfig`, `ensureWiki`, `openStores`, `resolveClaudeBin`, `onSettingsSaved`, `serveUntilShutdown`) keep each step readable. Details: [CLI](cli.md).
+
+## internal/doctor
+
+`Run(ctx, dir, addr, log)` runs the six install checks (wiki, claude, database, index, api, websocket) and returns `[]Check`, each carrying `Name`/`OK`/`Message`. The dashboard's Settings → Doctor tab runs the same suite via `GET /api/doctor` (details: [CLI](cli.md)).
+
+## internal/github
+
+`Client` talks to api.github.com (identity + repos; the token is never sent anywhere else), `Repo` stores the PAT and identity in the `github_auth` table, and `Service` drives the git sync (init, remote, commit, push — errors sanitized). Details: [Schema](schema.md).
+
+## internal/settings
+
+`Repo` (`OpenRepo(path)`) owns the `settings` KV table — `wiki_path`, `github_sync_*` keys — with sync-state conveniences. It deliberately runs no migrations and no WAL pragma: the doctor must never mutate a database it only reads. Details: [Schema](schema.md).

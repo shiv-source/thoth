@@ -41,7 +41,8 @@ Runs six health checks and reports each. The checks live in the shared `internal
 | claude | binary found; `claude --version` works; login status confirmed |
 | database | db opens in WAL with `notes` + `notes_fts` tables |
 | index | indexed count matches the number of valid notes on disk |
-| port | the configured port is free |
+| api | something speaks the Thoth protocol at the configured port (`GET /api/health` returns `ok`) |
+| websocket | the chat WS upgrade succeeds (skipped when the api is unreachable) |
 
 Flags:
 
