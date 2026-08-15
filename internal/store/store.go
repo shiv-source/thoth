@@ -114,12 +114,35 @@ func (s *Store) CreateConversation(title string) (string, error) {
 	// ORDER BY, so it must be UTC: local offsets would misorder rows
 	// written under different offsets.
 	_, err = s.db.Exec(
-		`INSERT INTO conversations(id, title, created_at) VALUES (?, ?, ?)`,
-		id, title, time.Now().UTC().Format(time.RFC3339))
+		`INSERT INTO conversations(id, title, created_at, claude_session_id) VALUES (?, ?, ?, ?)`,
+		id, title, time.Now().UTC().Format(time.RFC3339), id)
 	if err != nil {
 		return "", fmt.Errorf("create conversation: %w", err)
 	}
 	return id, nil
+}
+
+// ConversationSessionID returns the Claude CLI session id stored for the
+// conversation ("" when the conversation does not exist).
+func (s *Store) ConversationSessionID(convID string) (string, error) {
+	var sid string
+	err := s.db.QueryRow(`SELECT claude_session_id FROM conversations WHERE id = ?`, convID).Scan(&sid)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", nil
+	}
+	if err != nil {
+		return "", fmt.Errorf("read session id: %w", err)
+	}
+	return sid, nil
+}
+
+// SetClaudeSessionID stores the Claude CLI session id for the conversation
+// (rotation writes a fresh id after forking away from a stale-locked one).
+func (s *Store) SetClaudeSessionID(convID, sessionID string) error {
+	if _, err := s.db.Exec(`UPDATE conversations SET claude_session_id = ? WHERE id = ?`, sessionID, convID); err != nil {
+		return fmt.Errorf("set session id: %w", err)
+	}
+	return nil
 }
 
 func (s *Store) AddMessage(convID, role, content string) error {

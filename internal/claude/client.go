@@ -12,7 +12,21 @@ import (
 
 // Client starts a Claude turn for a conversation and streams parsed events.
 type Client interface {
-	Start(ctx context.Context, sessionID, prompt string, w EventWriter) error
+	Start(ctx context.Context, sessionID, prompt string, w EventWriter, opts ...StartOption) error
+}
+
+// startConfig carries per-turn CLI options.
+type startConfig struct {
+	resume string // fork source: --resume <resume> --fork-session
+}
+
+// StartOption tunes a single CLI turn.
+type StartOption func(*startConfig)
+
+// WithResume forks the CLI session: the new sessionID starts from the
+// history of the given session (used when the stored session id is locked).
+func WithResume(oldSessionID string) StartOption {
+	return func(c *startConfig) { c.resume = oldSessionID }
 }
 
 type CLIClient struct {
@@ -60,8 +74,14 @@ func New(bin, dir string, opts ...Option) *CLIClient {
 // (--dangerously-skip-permissions — headless mode cannot answer prompts, and
 // note-saving is the app's core feature); a configured permission_mode
 // switches to that named mode.
-func (c *CLIClient) args(sessionID, prompt string) []string {
-	a := []string{"-p", "--output-format", "stream-json", "--verbose", "--session-id", sessionID}
+func (c *CLIClient) args(sessionID, prompt string, cfg *startConfig) []string {
+	a := []string{"-p", "--output-format", "stream-json", "--verbose"}
+	if sessionID != "" {
+		a = append(a, "--session-id", sessionID)
+	}
+	if cfg.resume != "" {
+		a = append(a, "--resume", cfg.resume, "--fork-session")
+	}
 	if c.PermissionMode != "" {
 		a = append(a, "--permission-mode", c.PermissionMode)
 	} else {
@@ -105,8 +125,12 @@ func (t *stderrTail) String() string {
 	return string(t.buf)
 }
 
-func (c *CLIClient) Start(ctx context.Context, sessionID, prompt string, w EventWriter) error {
-	cmd := exec.CommandContext(ctx, c.Bin, c.args(sessionID, prompt)...)
+func (c *CLIClient) Start(ctx context.Context, sessionID, prompt string, w EventWriter, opts ...StartOption) error {
+	var cfg startConfig
+	for _, opt := range opts {
+		opt(&cfg)
+	}
+	cmd := exec.CommandContext(ctx, c.Bin, c.args(sessionID, prompt, &cfg)...)
 	cmd.Dir = c.dir()
 	// Put the CLI in its own process group and kill the whole group on cancel:
 	// the CLI may spawn children that inherit stdout, and the stream reader

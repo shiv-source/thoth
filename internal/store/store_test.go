@@ -162,6 +162,12 @@ func TestClosedStoreErrors(t *testing.T) {
 	if _, err := s.Messages("c"); err == nil {
 		t.Fatal("Messages on closed store must error")
 	}
+	if _, err := s.ConversationSessionID("c"); err == nil {
+		t.Fatal("ConversationSessionID on closed store must error")
+	}
+	if err := s.SetClaudeSessionID("c", "s"); err == nil {
+		t.Fatal("SetClaudeSessionID on closed store must error")
+	}
 }
 
 func TestNewIDIsUUIDShaped(t *testing.T) {
@@ -294,5 +300,78 @@ func TestSyncStateWithoutMetadataRow(t *testing.T) {
 	last, syncErr, err := s.SyncState()
 	if err != nil || last != "" || syncErr != "" {
 		t.Fatalf("SyncState without a row = %q/%q/%v, want empty/empty/nil", last, syncErr, err)
+	}
+}
+
+func TestConversationSessionIDRoundTrip(t *testing.T) {
+	s, err := Open(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = s.Close() })
+
+	id, err := s.CreateConversation("session check")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// A fresh conversation seeds its own id as the CLI session.
+	sid, err := s.ConversationSessionID(id)
+	if err != nil || sid != id {
+		t.Fatalf("session id = %q/%v, want %q", sid, err, id)
+	}
+	// Rotation overwrites it; unknown conversations read empty.
+	if err := s.SetClaudeSessionID(id, "fresh-session-uuid"); err != nil {
+		t.Fatal(err)
+	}
+	if sid, err = s.ConversationSessionID(id); err != nil || sid != "fresh-session-uuid" {
+		t.Fatalf("after rotation: %q/%v", sid, err)
+	}
+	if sid, err = s.ConversationSessionID("no-such-conv"); err != nil || sid != "" {
+		t.Fatalf("unknown conversation: %q/%v, want empty/nil", sid, err)
+	}
+}
+
+func TestMigration0003BackfillsSessionID(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "test.db")
+	s, err := Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Rewind to a pre-0003 database: no column, version 2, one legacy row
+	// seeded without a session id (raw insert — CreateConversation needs the
+	// column).
+	if _, err := s.db.Exec(`ALTER TABLE conversations DROP COLUMN claude_session_id`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.db.Exec(`PRAGMA user_version = 2`); err != nil {
+		t.Fatal(err)
+	}
+	const legacyID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+	if _, err := s.db.Exec(
+		`INSERT INTO conversations(id, title, created_at) VALUES (?, 'legacy', '2026-01-01T00:00:00Z')`,
+		legacyID); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Reopening runs 0003: the column returns and the legacy row is
+	// backfilled with its own id (its on-disk CLI session key).
+	s2, err := Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = s2.Close() })
+	if sid, err := s2.ConversationSessionID(legacyID); err != nil || sid != legacyID {
+		t.Fatalf("backfilled session id = %q/%v, want %q", sid, err, legacyID)
+	}
+	// Fresh conversations still seed their own id.
+	id, err := s2.CreateConversation("after migration")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sid, err := s2.ConversationSessionID(id); err != nil || sid != id {
+		t.Fatalf("fresh session id = %q/%v, want %q", sid, err, id)
 	}
 }

@@ -32,7 +32,7 @@ One socket per browser tab. The protocol is small and typed on both sides (`inte
 
 | Direction | Frames |
 |---|---|
-| client → server | `{"type":"send","text":…}` · `{"type":"cancel"}` · `{"type":"resume","conversation_id":…}` · `{"type":"open","conversation_id":…}` |
+| client → server | `{"type":"send","text":…}` · `{"type":"cancel"}` · `{"type":"resume","conversation_id":…}` · `{"type":"open","conversation_id":…}` · `{"type":"new_chat"}` |
 | server → client | `assistant_start` · `assistant_delta {text}` · `tool_activity {tool, detail}` · `turn_done {conversation_id}` · `error {message}` |
 
 ```mermaid
@@ -62,5 +62,7 @@ sequenceDiagram
 - **Cancel** — kills the CLI process group; the UI receives `error {message:"cancelled"}` and nothing is persisted for that turn
 - **Resume** — after a reconnect, the client sends `resume`; the server replays the last turn's frames (≤ 500-message ring), then continues live
 - **Open** — pins the connection to an existing conversation so the next `send` continues it (conversation-history load). No replay, no other effect; an unknown id gets `error {message:"unknown conversation"}` and the connection stays unpinned
+- **New chat** — unpins the connection (cancels an in-flight turn first, which emits `error {message:"cancelled"}`); the next `send` starts a fresh conversation
+- **Sessions** — every conversation stores its Claude CLI session id (`conversations.claude_session_id`, seeded as the conversation id, migration 0003 backfills legacy rows). A turn reusing a session id the CLI reports as "already in use" (stale lock from a cancelled turn) forks once into a fresh id via `--resume <old> --fork-session` and persists the fork
 - **Titles** — derived from the first message, truncated at 60 runes
 - **Origins** — only localhost origins are accepted on the upgrade (see [Security](security.md))

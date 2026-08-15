@@ -93,8 +93,10 @@ export function useChat(socket: ChatSocket | null) {
   }, [])
 
   const reset = useCallback(() => {
-    // Local only — no frame goes to the server; it creates a fresh
-    // conversation on the next send anyway.
+    // Unpin the server too: without the frame the server keeps the old
+    // pinned conversation and the next send would continue it (interfering
+    // chats into each other's history).
+    socket?.newChat()
     messagesRef.current = []
     setMessages([])
     streamingRef.current = false
@@ -102,7 +104,7 @@ export function useChat(socket: ChatSocket | null) {
     conversationIdRef.current = null
     setConversationId(null)
     setLastTool(null)
-  }, [])
+  }, [socket])
 
   useEffect(() => {
     if (socket) socket.onMessage(handle)

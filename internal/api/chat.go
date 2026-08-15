@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/labstack/echo/v4"
 	"github.com/shiv-source/thoth/internal/claude"
@@ -158,6 +159,12 @@ func (h *Hub) chat(c echo.Context) error {
 			} else {
 				write(serverMsg{Type: "error", Message: "unknown conversation"})
 			}
+		case "new_chat":
+			// Unpin the connection: cancel the in-flight turn first so its
+			// stream does not bleed into the fresh chat, then let the next
+			// send create a brand-new conversation.
+			h.cancelTurn(convID)
+			convID = ""
 		default:
 			write(serverMsg{Type: "error", Message: "unknown message type: " + msg.Type})
 		}
@@ -274,7 +281,22 @@ func (h *Hub) runTurn(convID, prompt string, write func(serverMsg)) {
 
 	write(serverMsg{Type: "assistant_start"})
 	var sb strings.Builder
-	err := h.claude.Start(ctx, convID, prompt, h.turnWriter(&sb, write, convID))
+	sid := h.sessionID(convID)
+	err := h.claude.Start(ctx, sid, prompt, h.turnWriter(&sb, write, convID))
+	// A cancelled turn can leave the CLI session locked ("Session ID ... is
+	// already in use"); fork the history into a fresh session id once and
+	// persist it, so the next turn resumes the fork.
+	if err != nil && sid != "" && strings.Contains(err.Error(), "already in use") {
+		newSid := uuid.NewString()
+		if rerr := h.claude.Start(ctx, newSid, prompt, h.turnWriter(&sb, write, convID), claude.WithResume(sid)); rerr == nil {
+			if serr := h.store.SetClaudeSessionID(convID, newSid); serr != nil {
+				h.log.Warn("persist session id", "err", serr)
+			}
+			err = nil
+		} else {
+			err = rerr
+		}
+	}
 	if h.finishTurn(convID, err, write) {
 		return
 	}
@@ -282,6 +304,21 @@ func (h *Hub) runTurn(convID, prompt string, write func(serverMsg)) {
 	m := serverMsg{Type: "turn_done", ConversationID: convID}
 	write(m)
 	h.record(convID, m)
+}
+
+// sessionID resolves the CLI session for a conversation: the stored
+// claude_session_id, falling back to the conversation id (which is what
+// legacy rows resume today).
+func (h *Hub) sessionID(convID string) string {
+	sid, err := h.store.ConversationSessionID(convID)
+	if err != nil {
+		h.log.Warn("read session id", "err", err)
+		return convID
+	}
+	if sid == "" {
+		return convID
+	}
+	return sid
 }
 
 // turnWriter bridges Claude events to the socket and the replay buffer.

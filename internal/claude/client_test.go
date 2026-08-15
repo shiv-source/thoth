@@ -263,3 +263,45 @@ exit 1
 		}
 	}
 }
+
+func TestStartOmitsSessionIDWhenEmpty(t *testing.T) {
+	bin := writeFakeCLI(t)
+	c := New(bin, t.TempDir())
+	if err := c.Start(context.Background(), "", "p", WriterFunc(func(Event) error { return nil })); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	argv, err := os.ReadFile(filepath.Join(filepath.Dir(bin), "argv.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(argv), "--session-id") {
+		t.Fatalf("argv %q must omit --session-id for an empty session", argv)
+	}
+}
+
+func TestStartWithResumeForksSession(t *testing.T) {
+	bin := writeFakeCLI(t)
+	c := New(bin, t.TempDir())
+	err := c.Start(context.Background(), "new-id", "p", WriterFunc(func(Event) error { return nil }), WithResume("old-id"))
+	if err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	argv, err := os.ReadFile(filepath.Join(filepath.Dir(bin), "argv.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := string(argv)
+	for _, want := range []string{"--session-id", "new-id", "--resume", "old-id", "--fork-session"} {
+		if !strings.Contains(s, want) {
+			t.Fatalf("argv %q missing %q", s, want)
+		}
+	}
+}
+
+func TestFakeClientRecordsResume(t *testing.T) {
+	f := &FakeClient{Script: []Event{{Type: EventDone}}}
+	err := f.Start(context.Background(), "s", "p", WriterFunc(func(Event) error { return nil }), WithResume("old"))
+	if err != nil || len(f.Calls) != 1 || f.Calls[0].SessionID != "s" || f.Calls[0].Prompt != "p" || f.Calls[0].Resume != "old" {
+		t.Fatalf("fake client misuse: %v %+v", err, f.Calls)
+	}
+}
