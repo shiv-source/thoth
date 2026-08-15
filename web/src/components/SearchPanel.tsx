@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
+import { Search } from 'lucide-react'
 import { useSearch } from '../hooks/useSearch'
 
 export function SearchPanel({ onOpen }: { onOpen: (path: string) => void }) {
@@ -33,11 +34,8 @@ export function SearchPanel({ onOpen }: { onOpen: (path: string) => void }) {
   return (
     <div>
       <div className="relative">
-        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"
-          className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-subtle">
-          <circle cx="7" cy="7" r="4.5" />
-          <path d="m10.5 10.5 3 3" strokeLinecap="round" />
-        </svg>
+        <Search aria-hidden="true"
+          className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-subtle" />
         <input
           ref={inputRef}
           value={query}
