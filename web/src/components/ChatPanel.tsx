@@ -6,7 +6,6 @@ import { useAppDispatch, useAppSelector } from '../store/hooks'
 import { ChatSocket } from '../ws/chat'
 import { Composer } from './Composer'
 import { MessageItem } from './MessageItem'
-import { SettingsModal } from './SettingsModal'
 import { TopBar } from './TopBar'
 import { useToast } from './Toast'
 
@@ -16,13 +15,12 @@ function createSocket(): ChatSocket {
     return socket
 }
 
-export function ChatPanel() {
+export function ChatPanel({ onOpenSettings }: { onOpenSettings: () => void }) {
     const dispatch = useAppDispatch()
     const [socket, setSocket] = useState<ChatSocket | null>(null)
     // The connection status lives in the store so the whole app can react to
     // it; the socket only reports changes.
     const status = useAppSelector(selectConnectionStatus)
-    const [settingsOpen, setSettingsOpen] = useState(false)
     const { messages, streaming, lastTool, thinking, thinkingText, conversationId, send, cancel, load, reset } =
         useChat(socket)
     const { toast } = useToast()
@@ -69,7 +67,7 @@ export function ChatPanel() {
 
     return (
         <div className="flex h-full flex-col">
-            <TopBar title={displayTitle} onOpenSettings={() => setSettingsOpen(true)} />
+            <TopBar title={displayTitle} onOpenSettings={onOpenSettings} />
             {status !== 'connected' && (
                 <div className="flex h-7 shrink-0 items-center gap-2 border-b border-line bg-raised px-4 text-xs text-subtle">
                     <span className="h-1.5 w-1.5 rounded-full bg-accent" aria-hidden="true" />
@@ -104,7 +102,6 @@ export function ChatPanel() {
                 <div ref={endRef} />
             </div>
             <Composer onSend={send} onCancel={cancel} streaming={streaming} />
-            {settingsOpen && <SettingsModal onClose={() => setSettingsOpen(false)} />}
         </div>
     )
 }

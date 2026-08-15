@@ -19,7 +19,7 @@ vi.mock('axios', () => axiosModuleMock(mocks))
 function renderPanel() {
     return renderWithStore(
         <ToastProvider>
-            <ChatPanel />
+            <ChatPanel onOpenSettings={() => {}} />
         </ToastProvider>
     )
 }

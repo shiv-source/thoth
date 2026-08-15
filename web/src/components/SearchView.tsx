@@ -1,13 +1,18 @@
 import { SearchPanel } from './SearchPanel'
+import { TopBar } from './TopBar'
 
 // SearchView is the full-page search surface — the same search that lives in
 // the sidebar, with room for richer results (kind filters, previews) later.
-export function SearchView({ onOpenNote }: { onOpenNote: (path: string) => void }) {
+export function SearchView({
+    onOpenNote,
+    onOpenSettings
+}: {
+    onOpenNote: (path: string) => void
+    onOpenSettings: () => void
+}) {
     return (
         <div className="flex min-h-0 flex-1 flex-col">
-            <header className="border-b border-line bg-surface px-4 py-3">
-                <h1 className="text-sm font-medium text-ink">Search</h1>
-            </header>
+            <TopBar title="Search" onOpenSettings={onOpenSettings} />
             <div className="mx-auto w-full max-w-2xl px-4 py-5">
                 <SearchPanel onOpen={onOpenNote} />
             </div>
