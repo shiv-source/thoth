@@ -33,7 +33,7 @@ One socket per browser tab. The protocol is small and typed on both sides (`inte
 | Direction | Frames |
 |---|---|
 | client → server | `{"type":"send","text":…}` · `{"type":"cancel"}` · `{"type":"resume","conversation_id":…}` · `{"type":"open","conversation_id":…}` · `{"type":"new_chat"}` |
-| server → client | `assistant_start` · `assistant_delta {text}` · `tool_activity {tool, detail}` · `turn_done {conversation_id}` · `error {message}` |
+| server → client | `assistant_start` · `assistant_thinking {text}` · `assistant_delta {text}` · `tool_activity {tool, detail}` · `turn_done {conversation_id}` · `error {message}` |
 
 ```mermaid
 sequenceDiagram

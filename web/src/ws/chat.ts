@@ -1,5 +1,6 @@
 export type ServerMessage =
   | { type: 'assistant_start' }
+  | { type: 'assistant_thinking'; text: string }
   | { type: 'assistant_delta'; text: string }
   | { type: 'tool_activity'; tool: string; detail: string }
   | { type: 'turn_done'; conversation_id?: string }

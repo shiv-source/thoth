@@ -54,3 +54,24 @@ describe('ChatPanel', () => {
 })
 
 afterAll(() => { globalThis.WebSocket = original })
+
+describe('ChatPanel thinking status', () => {
+  afterEach(() => { FakeWS.instances = [] })
+
+  it('shows what the assistant is thinking and hides it on the first delta', () => {
+    renderPanel()
+    act(() => FakeWS.instances[0]!.open())
+    const ws = FakeWS.instances[0]!
+    const emit = (frame: object) =>
+      act(() => ws.onmessage?.({ data: JSON.stringify(frame) }))
+
+    emit({ type: 'assistant_start' })
+    expect(screen.getByText('Thinking…')).toBeInTheDocument()
+
+    emit({ type: 'assistant_thinking', text: 'checking the inbox folder' })
+    expect(screen.getByText(/checking the inbox folder/)).toBeInTheDocument()
+
+    emit({ type: 'assistant_delta', text: 'hi' })
+    expect(screen.queryByText(/checking the inbox folder/)).not.toBeInTheDocument()
+  })
+})

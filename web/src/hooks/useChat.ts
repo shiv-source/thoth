@@ -8,9 +8,12 @@ export function useChat(socket: ChatSocket | null) {
   const [streaming, setStreaming] = useState(false)
   const [conversationId, setConversationId] = useState<string | null>(null)
   const [lastTool, setLastTool] = useState<string | null>(null)
+  const [thinking, setThinking] = useState(false)
+  const [thinkingText, setThinkingText] = useState('')
   const messagesRef = useRef<ChatMessage[]>([])
   const streamingRef = useRef(false)
   const conversationIdRef = useRef<string | null>(null)
+  const thinkingRef = useRef(false)
 
   const push = useCallback((m: ChatMessage) => {
     messagesRef.current = [...messagesRef.current, m]
@@ -47,13 +50,26 @@ export function useChat(socket: ChatSocket | null) {
       case 'assistant_start':
         streamingRef.current = true
         setStreaming(true)
+        thinkingRef.current = true
+        setThinking(true)
+        break
+      case 'assistant_thinking':
+        thinkingRef.current = true
+        setThinking(true)
+        setThinkingText(m.text)
         break
       case 'assistant_delta':
+        thinkingRef.current = false
+        setThinking(false)
+        setThinkingText('')
         appendAssistant(m.text)
         break
       case 'tool_activity':
         // The detail carries the raw tool-input JSON; surface the path it
         // reads/writes (e.g. "meetings/…") and fall back to the tool name.
+        thinkingRef.current = false
+        setThinking(false)
+        setThinkingText('')
         setLastTool(toolLabel(m.tool, m.detail))
         break
       case 'turn_done':
@@ -66,6 +82,9 @@ export function useChat(socket: ChatSocket | null) {
         streamingRef.current = false
         setStreaming(false)
         setLastTool(null)
+        thinkingRef.current = false
+        setThinking(false)
+        setThinkingText('')
         break
       case 'error':
         // Surface cancelled/crash feedback as a visible assistant message so
@@ -74,6 +93,9 @@ export function useChat(socket: ChatSocket | null) {
         streamingRef.current = false
         setStreaming(false)
         setLastTool(null)
+        thinkingRef.current = false
+        setThinking(false)
+        setThinkingText('')
         break
       default:
         break
@@ -90,6 +112,9 @@ export function useChat(socket: ChatSocket | null) {
     conversationIdRef.current = convId
     setConversationId(convId)
     setLastTool(null)
+    thinkingRef.current = false
+    setThinking(false)
+    setThinkingText('')
   }, [])
 
   const reset = useCallback(() => {
@@ -104,13 +129,16 @@ export function useChat(socket: ChatSocket | null) {
     conversationIdRef.current = null
     setConversationId(null)
     setLastTool(null)
+    thinkingRef.current = false
+    setThinking(false)
+    setThinkingText('')
   }, [socket])
 
   useEffect(() => {
     if (socket) socket.onMessage(handle)
   }, [socket, handle])
 
-  return { messages, streaming, conversationId, lastTool, send, cancel, load, reset }
+  return { messages, streaming, conversationId, lastTool, thinking, thinkingText, send, cancel, load, reset }
 }
 
 /** Pick the label for the tool status line: a path from the input JSON when

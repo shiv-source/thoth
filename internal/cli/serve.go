@@ -131,7 +131,7 @@ func runServe(cmd *cobra.Command, _ []string) error {
 	e := api.New(api.Deps{
 		Log:             log,
 		Store:           st,
-		Claude:          claude.New(resolveClaudeBin(log), w.Root, claude.WithDirProvider(root.get)),
+		Claude:          claude.New(resolveClaudeBin(log), w.Root, claude.WithDirProvider(root.get), claude.WithDebugStream(filepath.Join(dir, "stream-dump.json"))),
 		GitHub:          &github.Service{Client: github.New(http.DefaultClient), Repo: gh},
 		Settings:        stg,
 		DataDir:         dir,

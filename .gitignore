@@ -12,3 +12,6 @@ docs/superpowers/
 internal/webui/dist/
 /thoth
 /thoth.exe
+
+# local debugging dumps
+stream-dump.json

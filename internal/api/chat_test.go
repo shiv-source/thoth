@@ -857,3 +857,72 @@ func TestChatNewChatCancelsBusyTurn(t *testing.T) {
 		time.Sleep(10 * time.Millisecond)
 	}
 }
+
+func TestChatForwardsThinkingFrames(t *testing.T) {
+	d := testDeps(t)
+	fake := &claude.FakeClient{Script: []claude.Event{
+		{Type: claude.EventThinking},
+		{Type: claude.EventDelta, Text: "answer"},
+		{Type: claude.EventDone},
+	}}
+	d.Claude = fake
+	e := New(d)
+
+	conn, _, err := websocket.DefaultDialer.Dial(wsURL(t, e), nil)
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	defer func() { _ = conn.Close() }()
+
+	if err := conn.WriteJSON(map[string]string{"type": "send", "text": "question"}); err != nil {
+		t.Fatal(err)
+	}
+	got := []string{}
+	var convID string
+	for {
+		m := readMsg(t, conn)
+		switch m["type"] {
+		case "error":
+			t.Fatalf("unexpected error frame: %+v", m)
+		case "turn_done":
+			convID, _ = m["conversation_id"].(string)
+			goto done
+		default:
+			got = append(got, m["type"].(string))
+		}
+	}
+done:
+	want := []string{"assistant_start", "assistant_thinking", "assistant_delta"}
+	if len(got) != len(want) {
+		t.Fatalf("frames = %v, want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("frame %d = %q, want %q (%v)", i, got[i], want[i], got)
+		}
+	}
+	// A reconnect replay must include the thinking frame (resume keeps the
+	// "Thinking…" state for mid-thinking reconnects).
+	conn2, _, err := websocket.DefaultDialer.Dial(wsURL(t, e), nil)
+	if err != nil {
+		t.Fatalf("dial2: %v", err)
+	}
+	defer func() { _ = conn2.Close() }()
+	if err := conn2.WriteJSON(map[string]string{"type": "resume", "conversation_id": convID}); err != nil {
+		t.Fatal(err)
+	}
+	replayed := []string{}
+	for {
+		m := readMsg(t, conn2)
+		switch m["type"] {
+		case "turn_done":
+			goto replayDone
+		default:
+			replayed = append(replayed, m["type"].(string))
+		}
+	}
+replayDone:
+	if len(replayed) == 0 || replayed[0] != "assistant_thinking" {
+		t.Fatalf("replay = %v, want the thinking frame first", replayed)
+	}
+}

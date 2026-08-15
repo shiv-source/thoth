@@ -36,6 +36,7 @@ type CLIClient struct {
 	Model          string
 
 	dirProvider func() string // dynamic cwd (wiki path changes at runtime)
+	debugPath   string        // when set, the raw stream is appended here (debug aid)
 
 	mu      sync.Mutex  // guards process for the cancel path
 	process *os.Process // windows: the running CLI, for cancels
@@ -48,6 +49,10 @@ func WithModel(m string) Option          { return func(c *CLIClient) { c.Model =
 func WithDirProvider(p func() string) Option {
 	return func(c *CLIClient) { c.dirProvider = p }
 }
+
+// WithDebugStream appends the raw stream-json lines to path (rotated past
+// 10MB) — a debugging aid, wired by serve to ~/.thoth/stream-dump.json.
+func WithDebugStream(path string) Option { return func(c *CLIClient) { c.debugPath = path } }
 
 // dir returns the cwd for the CLI process: the live provider value when set,
 // otherwise the static Dir.
@@ -91,6 +96,17 @@ func (c *CLIClient) args(sessionID, prompt string, cfg *startConfig) []string {
 		a = append(a, "--model", c.Model)
 	}
 	return append(a, prompt)
+}
+
+// openDebugDump opens the stream dump for appending, truncating first when
+// it has grown past debugDumpMaxBytes.
+func openDebugDump(path string) (*os.File, error) {
+	const debugDumpMaxBytes = 10 << 20
+	flags := os.O_CREATE | os.O_WRONLY | os.O_APPEND
+	if fi, err := os.Stat(path); err == nil && fi.Size() > debugDumpMaxBytes {
+		flags |= os.O_TRUNC
+	}
+	return os.OpenFile(path, flags, 0o644)
 }
 
 // stderrTail keeps the last max bytes of the CLI's stderr for error reports.
@@ -167,6 +183,18 @@ func (c *CLIClient) Start(ctx context.Context, sessionID, prompt string, w Event
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("start claude: %w", err)
 	}
+	// Debug dump of the raw stream (best-effort; errors are ignored — this is
+	// an aid, never a failure path). Rotated past 10MB so it cannot grow
+	// unbounded.
+	var dump *os.File
+	if c.debugPath != "" {
+		if dump, err = openDebugDump(c.debugPath); err != nil {
+			dump = nil
+		}
+		if dump != nil {
+			defer func() { _ = dump.Close() }()
+		}
+	}
 	c.mu.Lock()
 	c.process = cmd.Process
 	c.mu.Unlock()
@@ -176,6 +204,10 @@ func (c *CLIClient) Start(ctx context.Context, sessionID, prompt string, w Event
 		sc := bufio.NewScanner(stdout)
 		sc.Buffer(make([]byte, 0, 1<<20), 1<<20)
 		for sc.Scan() {
+			if dump != nil {
+				_, _ = dump.Write(sc.Bytes())
+				_, _ = dump.Write([]byte("\n"))
+			}
 			ev, err := ParseLine(sc.Bytes())
 			if errors.Is(err, ErrIgnore) {
 				continue

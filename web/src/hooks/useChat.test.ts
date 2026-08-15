@@ -141,3 +141,43 @@ describe('useChat', () => {
 })
 
 afterAll(() => { globalThis.WebSocket = original })
+
+describe('useChat thinking state', () => {
+  it('shows thinking from assistant_start until the first delta', () => {
+    const socket = freshSocket()
+    const { result } = renderHook(() => useChat(socket))
+    const ws = FakeWS.instances[0]!
+    const emit = (type: string) =>
+      act(() => ws?.onmessage?.({ data: JSON.stringify({ type }) }))
+
+    emit('assistant_start')
+    expect(result.current.thinking).toBe(true)
+
+    act(() => ws?.onmessage?.({ data: JSON.stringify({ type: 'assistant_thinking', text: 'checking the folder' }) }))
+    expect(result.current.thinking).toBe(true)
+    expect(result.current.thinkingText).toBe('checking the folder')
+
+    emit('assistant_delta')
+    expect(result.current.thinking).toBe(false)
+  })
+
+  it('clears thinking on tool activity, turn_done, and errors', () => {
+    const socket = freshSocket()
+    const { result } = renderHook(() => useChat(socket))
+    const ws = FakeWS.instances[0]!
+    const emit = (type: string) =>
+      act(() => ws?.onmessage?.({ data: JSON.stringify({ type }) }))
+
+    emit('assistant_start')
+    emit('tool_activity')
+    expect(result.current.thinking).toBe(false)
+
+    emit('assistant_start')
+    emit('turn_done')
+    expect(result.current.thinking).toBe(false)
+
+    emit('assistant_start')
+    emit('error')
+    expect(result.current.thinking).toBe(false)
+  })
+})

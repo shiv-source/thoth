@@ -12,10 +12,11 @@ var ErrIgnore = errors.New("ignore line")
 type EventType string
 
 const (
-	EventDelta EventType = "assistant_delta"
-	EventTool  EventType = "tool_activity"
-	EventDone  EventType = "turn_done"
-	EventError EventType = "error"
+	EventDelta    EventType = "assistant_delta"
+	EventTool     EventType = "tool_activity"
+	EventThinking EventType = "thinking"
+	EventDone     EventType = "turn_done"
+	EventError    EventType = "error"
 )
 
 type Event struct {
@@ -73,6 +74,10 @@ func ParseLine(line []byte) (Event, error) {
 		if err := json.Unmarshal(raw.Message, &msg); err != nil {
 			return Event{}, ErrIgnore // wrong-shaped payload: not a delta
 		}
+		// Text and tool blocks win over thinking; only a content made solely
+		// of thinking blocks surfaces as a thinking event carrying the last
+		// block's text (the UI shows what the model is working on).
+		thinkingText := ""
 		for _, b := range msg.Content {
 			switch b.Type {
 			case "text":
@@ -81,7 +86,14 @@ func ParseLine(line []byte) (Event, error) {
 				}
 			case "tool_use":
 				return Event{Type: EventTool, Tool: b.Name, Detail: string(b.Input)}, nil
+			case "thinking":
+				if b.Text != "" {
+					thinkingText = b.Text
+				}
 			}
+		}
+		if thinkingText != "" {
+			return Event{Type: EventThinking, Text: thinkingText}, nil
 		}
 		return Event{}, ErrIgnore
 	case "result":
