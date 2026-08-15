@@ -4,10 +4,10 @@ description: Node/pnpm toolchain + frozen install (shared CI preamble for fronte
 runs:
   using: composite
   steps:
-    - uses: pnpm/action-setup@v4
+    - uses: pnpm/action-setup@v6
       with:
         version: latest
-    - uses: actions/setup-node@v4
+    - uses: actions/setup-node@v7
       with:
         node-version: lts/*
         cache: pnpm

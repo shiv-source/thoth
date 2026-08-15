@@ -18,7 +18,7 @@ jobs:
     timeout-minutes: 10
     needs: [quality]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-go-web
       - name: build linux targets
         shell: bash
@@ -31,7 +31,7 @@ jobs:
     timeout-minutes: 10
     needs: [quality]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-go-web
       - name: build darwin targets
         shell: bash
@@ -44,7 +44,7 @@ jobs:
     timeout-minutes: 10
     needs: [quality]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-go-web
       - name: build windows target
         shell: bash
@@ -59,7 +59,7 @@ jobs:
       run:
         working-directory: web
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-web
       - run: pnpm run build
 

@@ -32,7 +32,6 @@
     "type": "git",
     "url": "git+https://github.com/shiv-source/thoth.git"
   },
-  "packageManager": "pnpm@11.7.0",
   "devDependencies": {
     "husky": "^9.1.7",
     "lint-staged": "^17.3.0",
