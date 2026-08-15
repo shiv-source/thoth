@@ -68,7 +68,9 @@ export type DoctorCheck = z.infer<typeof DoctorCheck>
 const http = axios.create({ timeout: 10000 })
 
 async function get<T>(url: string, schema: z.ZodType<T>, signal?: AbortSignal): Promise<T> {
-    const res = await http.get(url, { signal })
+    // Only attach the config when a signal exists: every non-search caller
+    // keeps the bare-url call shape (and its mock assertions).
+    const res = signal ? await http.get(url, { signal }) : await http.get(url)
     return schema.parse(res.data)
 }
 
