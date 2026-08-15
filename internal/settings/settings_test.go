@@ -44,6 +44,20 @@ func TestOpenSeedsDefaults(t *testing.T) {
 	}
 }
 
+func TestModelSettingRoundTrip(t *testing.T) {
+	r := openTestRepo(t)
+	if _, found, err := r.Setting(KeyModel); err != nil || found {
+		t.Fatalf("model must default to absent, found=%v err=%v", found, err)
+	}
+	if err := r.SetSetting(KeyModel, "claude-haiku-4-5-20251001"); err != nil {
+		t.Fatal(err)
+	}
+	got, found, err := r.Setting(KeyModel)
+	if err != nil || !found || got != "claude-haiku-4-5-20251001" {
+		t.Fatalf("model round trip = %q/%v/%v", got, found, err)
+	}
+}
+
 func TestSettingRoundTrip(t *testing.T) {
 	r := openTestRepo(t)
 	if err := r.SetSetting(KeyRepoURL, "https://github.com/octo/wiki.git"); err != nil {

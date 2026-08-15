@@ -61,6 +61,7 @@ function lastBody(method: 'get' | 'post' | 'put' | 'delete', url: string): unkno
 
 const settings = {
     wiki_path: '~/.thoth/wiki',
+    model: '',
     repo_url: '',
     sync_enabled: false
 }
@@ -130,6 +131,27 @@ describe('SettingsModal', () => {
         await waitFor(() => expect(screen.getByText(/Saved ✓/)).toBeInTheDocument())
         // The save also surfaces as a toast.
         expect(await screen.findByText('Settings saved')).toBeInTheDocument()
+    })
+
+    it('selects a model from the models endpoint and saves it', async () => {
+        stubAPI({
+            'GET /api/settings': getSettings,
+            'GET /api/github/auth': getEmptyGitHub,
+            'GET /api/models': () => ({
+                models: [
+                    { value: '', label: 'Default (CLI)' },
+                    { value: 'claude-haiku-4-5-20251001', label: 'Haiku — fastest' }
+                ]
+            }),
+            'PUT /api/settings': () => ({ ...settings })
+        })
+
+        renderModal()
+        const select = await screen.findByRole('combobox')
+        await userEvent.selectOptions(select, 'claude-haiku-4-5-20251001')
+        await userEvent.click(screen.getByRole('button', { name: /Save/ }))
+        await waitFor(() => expect(screen.getByText(/Saved ✓/)).toBeInTheDocument())
+        expect(lastBody('put', '/api/settings')).toMatchObject({ model: 'claude-haiku-4-5-20251001' })
     })
 
     it('shows the save error when the server rejects', async () => {

@@ -1,11 +1,19 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
-import { api, type DoctorCheck, type GitHubIdentity, type GitHubRepo, type Settings } from '../api/client'
+import {
+    api,
+    type DoctorCheck,
+    type GitHubIdentity,
+    type GitHubRepo,
+    type ModelOption,
+    type Settings
+} from '../api/client'
 import { fetchSettings, saveSettings, selectSettings } from '../store'
 import { useAppDispatch, useAppSelector } from '../store/hooks'
 import { useToast } from './Toast'
 
 const blank: Settings = {
     wiki_path: '',
+    model: '',
     repo_url: '',
     sync_enabled: false
 }
@@ -36,6 +44,15 @@ const label = 'mb-1 block text-xs font-medium uppercase tracking-wide text-subtl
 export function SettingsModal({ onClose }: { onClose: () => void }) {
     const [tab, setTab] = useState<Tab>('general')
     const [form, setForm] = useState<Settings>(blank)
+    const [modelOptions, setModelOptions] = useState<ModelOption[]>([])
+
+    // The model list comes from /api/models; on failure the select falls
+    // back to the single Default option.
+    useEffect(() => {
+        api.models()
+            .then((r) => setModelOptions(r.models))
+            .catch(() => setModelOptions([]))
+    }, [])
     const [github, setGitHub] = useState<GitHubIdentity>(emptyGitHub)
     // The 'saving' state lives in the settings slice — the button reads it.
     const [status, setStatus] = useState<'idle' | 'saved' | 'error'>('idle')
@@ -140,6 +157,19 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
                                 value={form.wiki_path}
                                 onChange={(e) => set('wiki_path', e.target.value)}
                             />
+                        </div>
+                        <div>
+                            <label className={label}>AI model</label>
+                            <select className={field} value={form.model} onChange={(e) => set('model', e.target.value)}>
+                                {(modelOptions.length ? modelOptions : [{ value: '', label: 'Default (CLI)' }]).map(
+                                    (m) => (
+                                        <option key={m.value || 'default'} value={m.value}>
+                                            {m.label}
+                                        </option>
+                                    )
+                                )}
+                            </select>
+                            <p className="mt-1 text-xs text-subtle">Applied to all chats after the app restarts.</p>
                         </div>
                         <div className="flex items-center justify-between border-t border-line pt-4">
                             <div className="min-w-0 pr-3 text-xs">

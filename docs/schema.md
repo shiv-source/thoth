@@ -74,6 +74,7 @@ The app's user-facing settings, key/value. `config.toml` is deprecated — this 
 | Key | Seed | Meaning |
 |---|---|---|
 | `wiki_path` | `~/.thoth/wiki` | Where the wiki lives (seed mirrors `settings.DefaultWikiPath`) |
+| `model` | — (absent) | The `--model` value enforced on every Claude CLI spawn; absent/empty keeps the CLI's default. Read at boot, applied on next start |
 | `github_sync_repo` | `''` | The wiki's sync repo URL |
 | `github_sync_enabled` | `'false'` | The auto-sync switch (`'true'`/`'false'`) |
 | `github_last_synced_at` | `''` | UTC RFC3339 of the last successful git sync |

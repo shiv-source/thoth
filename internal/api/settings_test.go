@@ -49,11 +49,11 @@ func TestSettingsRoundTripAndCallback(t *testing.T) {
 
 	// GET returns the migration-seeded defaults.
 	got := getSettingsReq(t, e)
-	if got.WikiPath != "~/.thoth/wiki" || got.RepoURL != "" || got.SyncEnabled {
+	if got.WikiPath != "~/.thoth/wiki" || got.Model != "" || got.RepoURL != "" || got.SyncEnabled {
 		t.Fatalf("seeded settings = %+v", got)
 	}
 
-	rec := putSettingsReq(t, e, `{"wiki_path":"/tmp/other/wiki","repo_url":"https://github.com/x/w.git","sync_enabled":true}`)
+	rec := putSettingsReq(t, e, `{"wiki_path":"/tmp/other/wiki","model":"claude-sonnet-5","repo_url":"https://github.com/x/w.git","sync_enabled":true}`)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("PUT status %d: %s", rec.Code, rec.Body.String())
 	}
@@ -62,12 +62,15 @@ func TestSettingsRoundTripAndCallback(t *testing.T) {
 	}
 
 	got = getSettingsReq(t, e)
-	if got.WikiPath != "/tmp/other/wiki" || got.RepoURL != "https://github.com/x/w.git" || !got.SyncEnabled {
+	if got.WikiPath != "/tmp/other/wiki" || got.Model != "claude-sonnet-5" || got.RepoURL != "https://github.com/x/w.git" || !got.SyncEnabled {
 		t.Fatalf("after PUT: %+v", got)
 	}
 	// The values live in the settings table.
 	if v, found, err := d.Settings.Setting(settings.KeyWikiPath); err != nil || !found || v != "/tmp/other/wiki" {
 		t.Fatalf("stored wiki_path = %q/%v/%v", v, found, err)
+	}
+	if v, found, err := d.Settings.Setting(settings.KeyModel); err != nil || !found || v != "claude-sonnet-5" {
+		t.Fatalf("stored model = %q/%v/%v", v, found, err)
 	}
 	if v, found, err := d.Settings.Setting(settings.KeyRepoURL); err != nil || !found || v != "https://github.com/x/w.git" {
 		t.Fatalf("stored repo_url = %q/%v/%v", v, found, err)

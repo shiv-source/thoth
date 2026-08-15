@@ -89,6 +89,12 @@ func runServe(cmd *cobra.Command, _ []string) error {
 	if !found || wikiPath == "" {
 		wikiPath = settings.DefaultWikiPath
 	}
+	// The model setting enforces --model on every CLI spawn; empty keeps
+	// the CLI's own default. Read at boot — a change applies on next start.
+	model, _, err := stg.Setting(settings.KeyModel)
+	if err != nil {
+		return err
+	}
 	w, err := ensureWiki(wikiPath, log)
 	if err != nil {
 		return err
@@ -132,7 +138,7 @@ func runServe(cmd *cobra.Command, _ []string) error {
 	// One long-lived CLI process per conversation: the first turn of each
 	// conversation pays the CLI boot, later turns reuse the process. Close
 	// guarantees no CLI process outlives the server.
-	pc := claude.NewPersistent(resolveClaudeBin(log), w.Root, claude.WithDirProvider(root.get), claude.WithDebugStream(filepath.Join(dir, "stream-dump.json")))
+	pc := claude.NewPersistent(resolveClaudeBin(log), w.Root, claude.WithDirProvider(root.get), claude.WithModel(model), claude.WithDebugStream(filepath.Join(dir, "stream-dump.json")))
 	defer func() { _ = pc.Close() }()
 	e := api.New(api.Deps{
 		Log:             log,

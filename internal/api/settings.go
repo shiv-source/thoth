@@ -11,6 +11,7 @@ import (
 // in the settings table in thoth.db.
 type settingsDTO struct {
 	WikiPath    string `json:"wiki_path"`
+	Model       string `json:"model"`
 	RepoURL     string `json:"repo_url"`
 	SyncEnabled bool   `json:"sync_enabled"`
 }
@@ -20,6 +21,10 @@ func getSettings(c echo.Context, d Deps) error {
 	if err != nil {
 		return internalError(c, d, "read wiki_path", err)
 	}
+	model, _, err := d.Settings.Setting(settings.KeyModel)
+	if err != nil {
+		return internalError(c, d, "read model", err)
+	}
 	repoURL, _, err := d.Settings.Setting(settings.KeyRepoURL)
 	if err != nil {
 		return internalError(c, d, "read repo_url", err)
@@ -28,7 +33,7 @@ func getSettings(c echo.Context, d Deps) error {
 	if err != nil {
 		return internalError(c, d, "read sync_enabled", err)
 	}
-	return c.JSON(http.StatusOK, settingsDTO{WikiPath: wikiPath, RepoURL: repoURL, SyncEnabled: syncEnabled})
+	return c.JSON(http.StatusOK, settingsDTO{WikiPath: wikiPath, Model: model, RepoURL: repoURL, SyncEnabled: syncEnabled})
 }
 
 func putSettings(c echo.Context, d Deps) error {
@@ -50,6 +55,9 @@ func putSettings(c echo.Context, d Deps) error {
 	}
 	if err := d.Settings.SetSetting(settings.KeyWikiPath, next.WikiPath); err != nil {
 		return internalError(c, d, "set wiki_path", err)
+	}
+	if err := d.Settings.SetSetting(settings.KeyModel, next.Model); err != nil {
+		return internalError(c, d, "set model", err)
 	}
 	if err := d.Settings.SetSetting(settings.KeyRepoURL, next.RepoURL); err != nil {
 		return internalError(c, d, "set repo_url", err)

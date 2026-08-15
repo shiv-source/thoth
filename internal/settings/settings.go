@@ -13,6 +13,7 @@ import (
 // GitHub/sync keys carry the github_ prefix.
 const (
 	KeyWikiPath     = "wiki_path"
+	KeyModel        = "model"
 	KeyRepoURL      = "github_sync_repo"
 	KeySyncEnabled  = "github_sync_enabled"
 	KeyLastSyncedAt = "github_last_synced_at"

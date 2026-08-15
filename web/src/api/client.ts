@@ -16,10 +16,14 @@ export type TreeNode = z.infer<typeof TreeNodeSchema>
 
 export const Settings = z.object({
     wiki_path: z.string(),
+    model: z.string(),
     repo_url: z.string(),
     sync_enabled: z.boolean()
 })
 export type Settings = z.infer<typeof Settings>
+
+const ModelOption = z.object({ value: z.string(), label: z.string() })
+export type ModelOption = z.infer<typeof ModelOption>
 
 export const GitHubIdentity = z.object({
     username: z.string(),
@@ -94,6 +98,7 @@ export const api = {
     note: (path: string) => get(`/api/notes?path=${encodeURIComponent(path)}`, Note),
     tree: () => get('/api/wiki/tree', z.object({ nodes: z.array(TreeNodeSchema) })),
     settings: () => get('/api/settings', Settings),
+    models: () => get('/api/models', z.object({ models: z.array(ModelOption) })),
     saveSettings: async (s: Settings): Promise<Settings> => {
         const res = await http.put('/api/settings', s)
         return parseBody(res, Settings)
