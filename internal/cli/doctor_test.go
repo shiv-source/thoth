@@ -111,7 +111,7 @@ func TestDoctorHealthy(t *testing.T) {
 	if strings.Contains(out, "✗") {
 		t.Fatalf("unexpected failing checks:\n%s", out)
 	}
-	for _, want := range []string{"config:", "wiki:", "claude:", "claude login:", "database:", "index:", "port:"} {
+	for _, want := range []string{"config:", "wiki:", "claude:", "claude login:", "database:", "index:", "api:"} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("output missing %q:\n%s", want, out)
 		}
@@ -287,8 +287,8 @@ func TestDoctorDetectsBusyPort(t *testing.T) {
 	if err == nil {
 		t.Fatalf("expected doctor to fail on a busy port:\n%s", out)
 	}
-	if !strings.Contains(out, "✗ port") || !strings.Contains(out, "in use") {
-		t.Fatalf("expected failing port check:\n%s", out)
+	if !strings.Contains(out, "✗ api") || !strings.Contains(out, "non-thoth") {
+		t.Fatalf("expected failing api check:\n%s", out)
 	}
 }
 

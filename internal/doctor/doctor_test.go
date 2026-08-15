@@ -6,12 +6,14 @@ import (
 	"io"
 	"log/slog"
 	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
 
+	"github.com/gorilla/websocket"
 	_ "modernc.org/sqlite"
 
 	"github.com/shiv-source/thoth/internal/config"
@@ -97,7 +99,7 @@ func byName(t *testing.T, checks []Check, name string) Check {
 
 func TestRunHealthy(t *testing.T) {
 	checks := Run(context.Background(), healthyThothDir(t), testLog())
-	want := []string{"config", "wiki", "claude", "claude login", "database", "index", "port"}
+	want := []string{"config", "wiki", "claude", "claude login", "database", "index", "api"}
 	if len(checks) != len(want) {
 		t.Fatalf("got %d checks, want %d: %+v", len(checks), len(want), checks)
 	}
@@ -221,7 +223,7 @@ func TestRunConfiguredClaudeBinMissing(t *testing.T) {
 	}
 }
 
-func TestRunBusyPort(t *testing.T) {
+func TestRunNonThothProcessOnPort(t *testing.T) {
 	dir := healthyThothDir(t)
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -235,9 +237,110 @@ func TestRunBusyPort(t *testing.T) {
 	if err := config.Save(filepath.Join(dir, "config.toml"), cfg); err != nil {
 		t.Fatal(err)
 	}
-	c := byName(t, Run(context.Background(), dir, testLog()), "port")
-	if c.OK || !strings.Contains(c.Message, "already in use") {
-		t.Fatalf("port: %s", c.Message)
+	c := byName(t, Run(context.Background(), dir, testLog()), "api")
+	if c.OK || !strings.Contains(c.Message, "non-thoth") {
+		t.Fatalf("api: %s", c.Message)
+	}
+}
+
+// serveThothAPI serves the REST health and chat websocket endpoints on ln the
+// way the real server does, so the api check can probe a running Thoth.
+func serveThothAPI(t *testing.T, ln net.Listener, health string) {
+	t.Helper()
+	upgrader := websocket.Upgrader{CheckOrigin: func(*http.Request) bool { return true }}
+	srv := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/health":
+			_, _ = w.Write([]byte(health))
+		case "/ws":
+			conn, err := upgrader.Upgrade(w, r, nil)
+			if err != nil {
+				return
+			}
+			_ = conn.Close()
+		default:
+			http.NotFound(w, r)
+		}
+	})}
+	go func() { _ = srv.Serve(ln) }()
+	t.Cleanup(func() { _ = srv.Close() })
+}
+
+func TestRunAPIHealthy(t *testing.T) {
+	dir := healthyThothDir(t)
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = ln.Close() }()
+
+	cfg := configLoad(t, filepath.Join(dir, "config.toml"))
+	cfg.Port = ln.Addr().(*net.TCPAddr).Port
+	if err := config.Save(filepath.Join(dir, "config.toml"), cfg); err != nil {
+		t.Fatal(err)
+	}
+	serveThothAPI(t, ln, `{"status":"ok","claude":{"found":true,"path":"/fake/claude"},"wiki":{"path":"/fake/wiki","exists":true}}`)
+
+	c := byName(t, Run(context.Background(), dir, testLog()), "api")
+	if !c.OK || !strings.Contains(c.Message, "REST and chat websocket") {
+		t.Fatalf("api: %s", c.Message)
+	}
+}
+
+func TestRunAPIPartialFailures(t *testing.T) {
+	for name, health := range map[string]string{
+		"claude missing": `{"status":"ok","claude":{"found":false,"path":""},"wiki":{"exists":true}}`,
+		"wiki missing":   `{"status":"ok","claude":{"found":true,"path":"/f"},"wiki":{"exists":false}}`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			dir := healthyThothDir(t)
+			ln, err := net.Listen("tcp", "127.0.0.1:0")
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer func() { _ = ln.Close() }()
+			cfg := configLoad(t, filepath.Join(dir, "config.toml"))
+			cfg.Port = ln.Addr().(*net.TCPAddr).Port
+			if err := config.Save(filepath.Join(dir, "config.toml"), cfg); err != nil {
+				t.Fatal(err)
+			}
+			serveThothAPI(t, ln, health)
+
+			c := byName(t, Run(context.Background(), dir, testLog()), "api")
+			if c.OK || !strings.Contains(c.Message, strings.Split(name, " ")[0]) {
+				t.Fatalf("api: %s", c.Message)
+			}
+		})
+	}
+}
+
+func TestRunAPIWebsocketFails(t *testing.T) {
+	dir := healthyThothDir(t)
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = ln.Close() }()
+
+	cfg := configLoad(t, filepath.Join(dir, "config.toml"))
+	cfg.Port = ln.Addr().(*net.TCPAddr).Port
+	if err := config.Save(filepath.Join(dir, "config.toml"), cfg); err != nil {
+		t.Fatal(err)
+	}
+	// REST health works but the /ws upgrade does not.
+	srv := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/health" {
+			_, _ = w.Write([]byte(`{"status":"ok","claude":{"found":true,"path":"/f"},"wiki":{"exists":true}}`))
+			return
+		}
+		http.NotFound(w, r)
+	})}
+	go func() { _ = srv.Serve(ln) }()
+	t.Cleanup(func() { _ = srv.Close() })
+
+	c := byName(t, Run(context.Background(), dir, testLog()), "api")
+	if c.OK || !strings.Contains(c.Message, "websocket") {
+		t.Fatalf("api: %s", c.Message)
 	}
 }
 

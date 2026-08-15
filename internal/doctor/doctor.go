@@ -7,10 +7,12 @@ package doctor
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"io/fs"
 	"log/slog"
 	"net"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -18,6 +20,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gorilla/websocket"
 	_ "modernc.org/sqlite"
 
 	"github.com/shiv-source/thoth/internal/config"
@@ -26,7 +29,7 @@ import (
 
 const (
 	claudeCheckTimeout = 2 * time.Second
-	portDialTimeout    = 300 * time.Millisecond
+	apiCheckTimeout    = 2 * time.Second
 )
 
 // Check is one named health check: what was probed and the human-readable
@@ -37,27 +40,11 @@ type Check struct {
 	Message string `json:"message"`
 }
 
-// RunOption tunes which checks Run performs.
-type RunOption func(*runOptions)
-
-type runOptions struct {
-	skipPort bool
-}
-
-// SkipPort drops the port check: the in-server doctor (GET /api/doctor) runs
-// inside the process that occupies the port, so the pre-launch port check
-// would always report a false positive there.
-func SkipPort() RunOption { return func(o *runOptions) { o.skipPort = true } }
-
 // Run probes the installation under dir ("" means ~/.thoth) and returns every
-// check, in order: config, wiki, claude, claude login, database, index, port
-// (unless skipped). Every check runs even when an earlier one fails. ctx
-// bounds the claude probes; log is reserved for future diagnostics.
-func Run(ctx context.Context, dir string, log *slog.Logger, opts ...RunOption) []Check {
-	var options runOptions
-	for _, opt := range opts {
-		opt(&options)
-	}
+// check, in order: config, wiki, claude, claude login, database, index, api.
+// Every check runs even when an earlier one fails. ctx bounds the claude
+// probes; log is reserved for future diagnostics.
+func Run(ctx context.Context, dir string, log *slog.Logger) []Check {
 	thDir := dir
 	if thDir == "" {
 		home, err := os.UserHomeDir()
@@ -92,10 +79,11 @@ func Run(ctx context.Context, dir string, log *slog.Logger, opts ...RunOption) [
 	// 5. index sync
 	results = append(results, checkIndex(dbPath, expanded))
 
-	// 6. port — pre-launch only: a running server always occupies its own.
-	if !options.skipPort {
-		results = append(results, checkPort(cfg))
-	}
+	// 6. api — REST health plus the chat websocket upgrade at the configured
+	// address. Pre-launch (CLI) it reports whether the port is free, occupied
+	// by a running Thoth, or by something else; in-flight (GET /api/doctor)
+	// it self-checks the very server answering the request.
+	results = append(results, checkAPI(cfg))
 
 	return results
 }
@@ -252,8 +240,10 @@ func countNotes(root string) (int, error) {
 	return n, err
 }
 
-// checkPort verifies that nothing is listening on the configured address.
-func checkPort(cfg config.Config) Check {
+// checkAPI probes the server at the configured address: REST health first,
+// then the chat websocket upgrade. The same check runs pre-launch and
+// in-flight; see Run.
+func checkAPI(cfg config.Config) Check {
 	host := cfg.Host
 	if host == "" {
 		host = "127.0.0.1"
@@ -263,12 +253,56 @@ func checkPort(cfg config.Config) Check {
 		port = 8333
 	}
 	addr := net.JoinHostPort(host, strconv.Itoa(port))
-	conn, err := net.DialTimeout("tcp", addr, portDialTimeout)
-	if err == nil {
-		_ = conn.Close()
-		return Check{Name: "port", OK: false, Message: fmt.Sprintf("%s is already in use — stop the other process or change the port in the config", addr)}
+
+	// A TCP dial distinguishes "nothing there" from "something there that
+	// does not speak the Thoth protocol".
+	conn, err := net.DialTimeout("tcp", addr, apiCheckTimeout)
+	if err != nil {
+		return Check{Name: "api", OK: true, Message: fmt.Sprintf("api not running at %s", addr)}
 	}
-	return Check{Name: "port", OK: true, Message: fmt.Sprintf("%s is free", addr)}
+	_ = conn.Close()
+
+	client := &http.Client{Timeout: apiCheckTimeout}
+	resp, err := client.Get("http://" + addr + "/api/health")
+	if err != nil {
+		return Check{Name: "api", OK: false, Message: fmt.Sprintf("port %s is occupied by a non-thoth process", addr)}
+	}
+	defer func() { _ = resp.Body.Close() }()
+	var h struct {
+		Status string `json:"status"`
+		Claude struct {
+			Found bool   `json:"found"`
+			Path  string `json:"path"`
+		} `json:"claude"`
+		Wiki struct {
+			Exists bool `json:"exists"`
+		} `json:"wiki"`
+	}
+	if resp.StatusCode != http.StatusOK || json.NewDecoder(resp.Body).Decode(&h) != nil || h.Status != "ok" {
+		return Check{Name: "api", OK: false, Message: fmt.Sprintf("port %s is occupied by a non-thoth process", addr)}
+	}
+	if !h.Claude.Found {
+		return Check{Name: "api", OK: false, Message: fmt.Sprintf("api healthy at %s but the claude CLI was not found", addr)}
+	}
+	if !h.Wiki.Exists {
+		return Check{Name: "api", OK: false, Message: fmt.Sprintf("api healthy at %s but the wiki path does not exist", addr)}
+	}
+	if !wsUpgradeOK(addr) {
+		return Check{Name: "api", OK: false, Message: fmt.Sprintf("api healthy at %s but the chat websocket did not connect", addr)}
+	}
+	return Check{Name: "api", OK: true, Message: fmt.Sprintf("api healthy at %s — REST and chat websocket", addr)}
+}
+
+// wsUpgradeOK dials the chat websocket and reports whether the upgrade
+// succeeds. The connection is closed immediately — no frames are sent.
+func wsUpgradeOK(addr string) bool {
+	dialer := websocket.Dialer{HandshakeTimeout: apiCheckTimeout}
+	conn, _, err := dialer.Dial("ws://"+addr+"/ws", nil)
+	if err != nil {
+		return false
+	}
+	_ = conn.Close()
+	return true
 }
 
 func fileExists(p string) bool {

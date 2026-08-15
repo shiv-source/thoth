@@ -23,8 +23,8 @@ func doctorHandler(c echo.Context, d Deps) error {
 	}
 	ctx, cancel := context.WithTimeout(c.Request().Context(), doctorTimeout)
 	defer cancel()
-	// The port check is pre-launch only: this handler runs inside the very
-	// process occupying the port, so it would always report a false positive.
-	checks := doctor.Run(ctx, dir, d.Log, doctor.SkipPort())
+	// The api check probes the configured address — in-flight that is this
+	// very server, so it self-checks the health payload and websocket.
+	checks := doctor.Run(ctx, dir, d.Log)
 	return c.JSON(http.StatusOK, map[string]any{"checks": checks})
 }
