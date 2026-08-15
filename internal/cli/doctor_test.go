@@ -11,8 +11,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/shiv-source/thoth/internal/config"
 	"github.com/shiv-source/thoth/internal/index"
+	"github.com/shiv-source/thoth/internal/settings"
 	"github.com/shiv-source/thoth/internal/store"
 	"github.com/shiv-source/thoth/internal/wiki"
 )
@@ -36,17 +36,6 @@ esac
 	return p
 }
 
-// freePort returns a port that was free at the moment of the call.
-func freePort(t *testing.T) int {
-	t.Helper()
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() { _ = ln.Close() }()
-	return ln.Addr().(*net.TCPAddr).Port
-}
-
 // healthyEnv builds a fully healthy installation in a temp thoth dir: a wiki
 // with one valid note, a synced index, a config with a free port, and a fake
 // claude on PATH. Returns the thoth dir.
@@ -66,6 +55,13 @@ func healthyEnv(t *testing.T, authStatusExit int) string {
 	}
 
 	dbPath := filepath.Join(dir, "thoth.db")
+	st, err := store.Open(dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := st.Close(); err != nil {
+		t.Fatal(err)
+	}
 	ix, err := index.Open(dbPath)
 	if err != nil {
 		t.Fatal(err)
@@ -77,10 +73,14 @@ func healthyEnv(t *testing.T, authStatusExit int) string {
 		t.Fatal(err)
 	}
 
-	cfg := config.Default()
-	cfg.WikiPath = wikiRoot
-	cfg.Port = freePort(t)
-	if err := config.Save(filepath.Join(dir, "config.toml"), cfg); err != nil {
+	stg, err := settings.OpenRepo(dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := stg.SetSetting(settings.KeyWikiPath, wikiRoot); err != nil {
+		t.Fatal(err)
+	}
+	if err := stg.Close(); err != nil {
 		t.Fatal(err)
 	}
 	return dir
@@ -111,7 +111,7 @@ func TestDoctorHealthy(t *testing.T) {
 	if strings.Contains(out, "✗") {
 		t.Fatalf("unexpected failing checks:\n%s", out)
 	}
-	for _, want := range []string{"config:", "wiki:", "claude:", "claude login:", "database:", "index:", "api:", "websocket:"} {
+	for _, want := range []string{"wiki:", "claude:", "claude login:", "database:", "index:", "api:", "websocket:"} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("output missing %q:\n%s", want, out)
 		}
@@ -132,10 +132,21 @@ func TestDoctorMissingWikiAndFix(t *testing.T) {
 	claude := writeFakeClaude(t, 0)
 	t.Setenv("PATH", filepath.Dir(claude))
 	wikiRoot := filepath.Join(dir, "wiki")
-	cfg := config.Default()
-	cfg.WikiPath = wikiRoot
-	cfg.Port = freePort(t)
-	if err := config.Save(filepath.Join(dir, "config.toml"), cfg); err != nil {
+	st, err := store.Open(filepath.Join(dir, "thoth.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := st.Close(); err != nil {
+		t.Fatal(err)
+	}
+	stg, err := settings.OpenRepo(filepath.Join(dir, "thoth.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := stg.SetSetting(settings.KeyWikiPath, wikiRoot); err != nil {
+		t.Fatal(err)
+	}
+	if err := stg.Close(); err != nil {
 		t.Fatal(err)
 	}
 
@@ -149,9 +160,6 @@ func TestDoctorMissingWikiAndFix(t *testing.T) {
 	}
 	if _, err := os.Stat(wikiRoot); !os.IsNotExist(err) {
 		t.Fatalf("doctor without --fix must not scaffold the wiki")
-	}
-	if _, err := os.Stat(filepath.Join(dir, "thoth.db")); !os.IsNotExist(err) {
-		t.Fatalf("doctor without --fix must not create the database")
 	}
 
 	// With --fix the wiki is scaffolded and every check passes.
@@ -201,24 +209,6 @@ func TestDoctorFixesOutOfSyncIndex(t *testing.T) {
 	}
 }
 
-func TestDoctorDetectsUnparsableConfig(t *testing.T) {
-	dir := t.TempDir()
-	// Keep the default wiki path (~/.thoth/wiki) and claude lookups out of the
-	// real environment: the failed config check falls back to defaults.
-	t.Setenv("HOME", t.TempDir())
-	t.Setenv("PATH", t.TempDir())
-	if err := os.WriteFile(filepath.Join(dir, "config.toml"), []byte("not valid toml {{{"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	out, err := executeDoctor(t, dir, false)
-	if err == nil {
-		t.Fatalf("expected doctor to fail on an unparsable config:\n%s", out)
-	}
-	if !strings.Contains(out, "✗ config") {
-		t.Fatalf("expected failing config check:\n%s", out)
-	}
-}
-
 func TestDoctorDetectsMissingClaude(t *testing.T) {
 	dir := healthyEnv(t, 0)
 	// Break the PATH so claude cannot be found.
@@ -235,27 +225,6 @@ func TestDoctorDetectsMissingClaude(t *testing.T) {
 	}
 }
 
-func TestDoctorUsesConfiguredClaudeBin(t *testing.T) {
-	dir := healthyEnv(t, 0)
-	claude := writeFakeClaude(t, 0)
-	t.Setenv("PATH", t.TempDir()) // claude must resolve via config, not PATH
-	cfg, err := config.Load(filepath.Join(dir, "config.toml"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	cfg.ClaudeBin = claude
-	if err := config.Save(filepath.Join(dir, "config.toml"), cfg); err != nil {
-		t.Fatal(err)
-	}
-	out, err := executeDoctor(t, dir, false)
-	if err != nil {
-		t.Fatalf("Execute: %v\n%s", err, out)
-	}
-	if strings.Contains(out, "✗") || !strings.Contains(out, claude) {
-		t.Fatalf("configured claude_bin not used:\n%s", out)
-	}
-}
-
 func TestDoctorReportsUnknownLogin(t *testing.T) {
 	dir := healthyEnv(t, 1) // auth status exits 1
 	out, err := executeDoctor(t, dir, false)
@@ -269,19 +238,13 @@ func TestDoctorReportsUnknownLogin(t *testing.T) {
 
 func TestDoctorDetectsBusyPort(t *testing.T) {
 	dir := healthyEnv(t, 0)
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	// The api check probes the fixed 127.0.0.1:8333 address; skip when a real
+	// server occupies it.
+	ln, err := net.Listen("tcp", "127.0.0.1:8333")
 	if err != nil {
-		t.Fatal(err)
+		t.Skip("port 8333 is occupied by a real server — cannot run the busy-port check deterministically")
 	}
 	defer func() { _ = ln.Close() }()
-	cfg, err := config.Load(filepath.Join(dir, "config.toml"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	cfg.Port = ln.Addr().(*net.TCPAddr).Port
-	if err := config.Save(filepath.Join(dir, "config.toml"), cfg); err != nil {
-		t.Fatal(err)
-	}
 
 	out, err := executeDoctor(t, dir, false)
 	if err == nil {
@@ -292,7 +255,7 @@ func TestDoctorDetectsBusyPort(t *testing.T) {
 	}
 }
 
-func TestDoctorCreatesMissingConfigWithFix(t *testing.T) {
+func TestDoctorFixesMissingDefaultWiki(t *testing.T) {
 	dir := t.TempDir()
 	home := t.TempDir()
 	t.Setenv("HOME", home)
@@ -301,16 +264,13 @@ func TestDoctorCreatesMissingConfigWithFix(t *testing.T) {
 
 	out, err := executeDoctor(t, dir, true)
 	// The default port (8333) may or may not be free on this machine, so the
-	// exit status is not asserted — only that the config was written and the
-	// default wiki scaffolded under the temp HOME.
+	// exit status is not asserted — only that the default wiki was scaffolded
+	// under the temp HOME.
 	if err != nil {
 		t.Logf("doctor --fix reported problems (expected if port 8333 is busy):\n%s", out)
 	}
-	if !strings.Contains(out, "wrote default config") {
-		t.Fatalf("expected config fix line:\n%s", out)
-	}
-	if _, err := os.Stat(filepath.Join(dir, "config.toml")); err != nil {
-		t.Fatalf("--fix did not write the config: %v", err)
+	if !strings.Contains(out, "scaffolded") {
+		t.Fatalf("expected scaffold fix line:\n%s", out)
 	}
 	if _, err := os.Stat(filepath.Join(home, ".thoth", "wiki", "CLAUDE.md")); err != nil {
 		t.Fatalf("--fix did not scaffold the default wiki under HOME: %v", err)
@@ -323,12 +283,6 @@ func TestDoctorDetectsMissingIndexTables(t *testing.T) {
 	t.Setenv("PATH", filepath.Dir(claude))
 	wikiRoot := filepath.Join(dir, "wiki")
 	if err := wiki.Scaffold(wikiRoot); err != nil {
-		t.Fatal(err)
-	}
-	cfg := config.Default()
-	cfg.WikiPath = wikiRoot
-	cfg.Port = freePort(t)
-	if err := config.Save(filepath.Join(dir, "config.toml"), cfg); err != nil {
 		t.Fatal(err)
 	}
 	// store.Open runs the migrations (the single schema source). Simulate a
@@ -350,6 +304,16 @@ func TestDoctorDetectsMissingIndexTables(t *testing.T) {
 	if err := db.Close(); err != nil {
 		t.Fatal(err)
 	}
+	stg, err := settings.OpenRepo(filepath.Join(dir, "thoth.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := stg.SetSetting(settings.KeyWikiPath, wikiRoot); err != nil {
+		t.Fatal(err)
+	}
+	if err := stg.Close(); err != nil {
+		t.Fatal(err)
+	}
 
 	out, err := executeDoctor(t, dir, false)
 	if err == nil {
@@ -368,13 +332,9 @@ func TestDoctorDetectsNonWALDatabase(t *testing.T) {
 	if err := wiki.Scaffold(wikiRoot); err != nil {
 		t.Fatal(err)
 	}
-	cfg := config.Default()
-	cfg.WikiPath = wikiRoot
-	cfg.Port = freePort(t)
-	if err := config.Save(filepath.Join(dir, "config.toml"), cfg); err != nil {
-		t.Fatal(err)
-	}
-	// A valid sqlite database in the default (delete) journal mode.
+	// A valid sqlite database in the default (delete) journal mode (the
+	// settings table is absent — the doctor falls back to the default wiki
+	// path, which this test does not assert on).
 	db, err := sql.Open("sqlite", filepath.Join(dir, "thoth.db"))
 	if err != nil {
 		t.Fatal(err)

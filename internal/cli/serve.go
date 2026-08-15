@@ -20,6 +20,7 @@ import (
 	"github.com/shiv-source/thoth/internal/config"
 	"github.com/shiv-source/thoth/internal/github"
 	"github.com/shiv-source/thoth/internal/index"
+	"github.com/shiv-source/thoth/internal/settings"
 	"github.com/shiv-source/thoth/internal/store"
 	"github.com/shiv-source/thoth/internal/wiki"
 	"github.com/spf13/cobra"
@@ -62,24 +63,40 @@ func runServe(cmd *cobra.Command, _ []string) error {
 	if err != nil {
 		return err
 	}
-	cfgPath := filepath.Join(dir, "config.toml")
-	cfg, err := loadConfig(cfgPath)
-	if err != nil {
-		return err
-	}
-	w, err := ensureWiki(cfg.WikiPath, log)
-	if err != nil {
-		return err
-	}
-	st, ix, err := openStores(filepath.Join(dir, "thoth.db"), w.Root, log)
+	dbPath := filepath.Join(dir, "thoth.db")
+	st, err := store.Open(dbPath)
 	if err != nil {
 		return err
 	}
 	defer func() { _ = st.Close() }()
-	defer func() { _ = ix.Close() }()
 	if err := st.EnsureMetadata(); err != nil {
 		return err
 	}
+	stg, err := settings.OpenRepo(dbPath)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = stg.Close() }()
+
+	// The wiki path lives in the settings table; failing to read it aborts
+	// boot rather than silently falling back to a default (a fallback would
+	// scaffold a second wiki while the user's data lives elsewhere).
+	wikiPath, found, err := stg.Setting(settings.KeyWikiPath)
+	if err != nil {
+		return err
+	}
+	if !found || wikiPath == "" {
+		wikiPath = settings.DefaultWikiPath
+	}
+	w, err := ensureWiki(wikiPath, log)
+	if err != nil {
+		return err
+	}
+	ix, err := openIndex(dbPath, w.Root, log)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = ix.Close() }()
 
 	ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -104,7 +121,7 @@ func runServe(cmd *cobra.Command, _ []string) error {
 	}
 	startWatcher(w.Root)
 
-	gh, err := github.OpenRepo(filepath.Join(dir, "thoth.db"))
+	gh, err := github.OpenRepo(dbPath)
 	if err != nil {
 		return err
 	}
@@ -113,19 +130,18 @@ func runServe(cmd *cobra.Command, _ []string) error {
 	root := newRootHolder(w.Root)
 	e := api.New(api.Deps{
 		Log:             log,
-		Config:          &cfg,
-		ConfigPath:      cfgPath,
-		ConfigMu:        &sync.RWMutex{},
 		Store:           st,
-		Claude:          claude.New(resolveClaudeBin(cfg, log), w.Root, claude.WithPermissionMode(cfg.PermissionMode), claude.WithModel(cfg.Model), claude.WithDirProvider(root.get)),
+		Claude:          claude.New(resolveClaudeBin(log), w.Root, claude.WithDirProvider(root.get)),
 		GitHub:          &github.Service{Client: github.New(http.DefaultClient), Repo: gh},
+		Settings:        stg,
+		DataDir:         dir,
 		Wiki:            w,
 		Index:           ix,
 		OnSettingsSaved: onSettingsSaved(log, root, w, ix, startWatcher),
 		Ctx:             ctx,
 	})
 
-	addr := net.JoinHostPort(cfg.Host, strconv.Itoa(cfg.Port))
+	addr := net.JoinHostPort(config.DefaultHost, strconv.Itoa(config.DefaultPort))
 	log.Info("thoth listening", "addr", addr, "wiki", w.Root)
 	return serveUntilShutdown(e, addr, ctx)
 }
@@ -141,18 +157,6 @@ func thothDir() (string, error) {
 		return "", fmt.Errorf("create ~/.thoth: %w", err)
 	}
 	return dir, nil
-}
-
-// loadConfig reads the config at path, persisting defaults on first run.
-func loadConfig(path string) (config.Config, error) {
-	cfg, err := config.Load(path)
-	if err != nil {
-		return config.Config{}, err
-	}
-	if err := config.Save(path, cfg); err != nil {
-		return config.Config{}, err // persist defaults on first run
-	}
-	return cfg, nil
 }
 
 // ensureWiki returns a wiki for path, scaffolding it if it does not exist.
@@ -171,37 +175,26 @@ func ensureWiki(path string, log *slog.Logger) (*wiki.Wiki, error) {
 	return w, nil
 }
 
-// openStores opens the chat store and the note index and rebuilds the index
-// from wikiPath.
-func openStores(dbPath, wikiPath string, log *slog.Logger) (*store.Store, *index.Index, error) {
-	st, err := store.Open(dbPath)
-	if err != nil {
-		return nil, nil, err
-	}
+// openIndex opens the note index and rebuilds it from wikiPath.
+func openIndex(dbPath, wikiPath string, log *slog.Logger) (*index.Index, error) {
 	ix, err := index.Open(dbPath)
 	if err != nil {
-		_ = st.Close()
-		return nil, nil, err
+		return nil, err
 	}
 	if err := ix.Rebuild(wikiPath, log); err != nil {
 		_ = ix.Close()
-		_ = st.Close()
-		return nil, nil, err
+		return nil, err
 	}
-	return st, ix, nil
+	return ix, nil
 }
 
-// resolveClaudeBin returns the configured claude binary, falling back to the
-// one on PATH and finally to a bare "claude" that will fail loudly at chat
-// time.
-func resolveClaudeBin(cfg config.Config, log *slog.Logger) string {
-	if cfg.ClaudeBin != "" {
-		return cfg.ClaudeBin
-	}
+// resolveClaudeBin returns the claude binary from PATH, falling back to a
+// bare "claude" that will fail loudly at chat time.
+func resolveClaudeBin(log *slog.Logger) string {
 	if p, err := exec.LookPath("claude"); err == nil {
 		return p
 	}
-	log.Warn("claude CLI not found on PATH — chat will fail until configured", "setting", "claude_bin")
+	log.Warn("claude CLI not found on PATH — chat will fail until it is installed")
 	return "claude"
 }
 
@@ -209,9 +202,9 @@ func resolveClaudeBin(cfg config.Config, log *slog.Logger) string {
 // the wiki path changes. Nothing is mutated until every step that can fail
 // has succeeded: scaffold, then rebuild, and only then the root swap and
 // watcher restart.
-func onSettingsSaved(log *slog.Logger, root *rootHolder, w *wiki.Wiki, ix *index.Index, startWatcher func(string)) func(config.Config) error {
-	return func(c config.Config) error {
-		newPath, err := config.ExpandHome(c.WikiPath)
+func onSettingsSaved(log *slog.Logger, root *rootHolder, w *wiki.Wiki, ix *index.Index, startWatcher func(string)) func(string) error {
+	return func(wikiPath string) error {
+		newPath, err := config.ExpandHome(wikiPath)
 		if err != nil {
 			return err
 		}

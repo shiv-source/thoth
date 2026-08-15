@@ -1,7 +1,6 @@
 package store
 
 import (
-	"database/sql"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -237,72 +236,6 @@ func TestEnsureMetadataSeedsOnce(t *testing.T) {
 	}
 }
 
-func TestSetSyncResultRecordsOutcome(t *testing.T) {
-	s, err := Open(filepath.Join(t.TempDir(), "test.db"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = s.Close() })
-	if err := s.EnsureMetadata(); err != nil {
-		t.Fatal(err)
-	}
-
-	read := func() (last, syncErr string) {
-		t.Helper()
-		var l, e sql.NullString
-		if err := s.db.QueryRow(`SELECT last_synced_at, sync_error FROM app_metadata`).Scan(&l, &e); err != nil {
-			t.Fatal(err)
-		}
-		return l.String, e.String
-	}
-
-	// A failure records the error and leaves last_synced_at NULL.
-	if err := s.SetSyncResult(false, "push rejected"); err != nil {
-		t.Fatal(err)
-	}
-	last, syncErr := read()
-	if last != "" || syncErr != "push rejected" {
-		t.Fatalf("after failure: last=%q err=%q", last, syncErr)
-	}
-	if gotLast, gotErr, err := s.SyncState(); err != nil || gotLast != last || gotErr != syncErr {
-		t.Fatalf("SyncState = %q/%q/%v, want %q/%q", gotLast, gotErr, err, last, syncErr)
-	}
-
-	// A success stamps last_synced_at and clears the error.
-	if err := s.SetSyncResult(true, ""); err != nil {
-		t.Fatal(err)
-	}
-	last, syncErr = read()
-	if last == "" || !strings.HasSuffix(last, "Z") || syncErr != "" {
-		t.Fatalf("after success: last=%q err=%q", last, syncErr)
-	}
-
-	// A later failure keeps the last successful timestamp.
-	first := last
-	if err := s.SetSyncResult(false, "offline"); err != nil {
-		t.Fatal(err)
-	}
-	if last, syncErr = read(); last != first || syncErr != "offline" {
-		t.Fatalf("after later failure: last=%q err=%q", last, syncErr)
-	}
-	if gotLast, gotErr, err := s.SyncState(); err != nil || gotLast != first || gotErr != "offline" {
-		t.Fatalf("SyncState = %q/%q/%v, want %q/offline", gotLast, gotErr, err, first)
-	}
-}
-
-func TestSyncStateWithoutMetadataRow(t *testing.T) {
-	s, err := Open(filepath.Join(t.TempDir(), "test.db"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = s.Close() })
-
-	last, syncErr, err := s.SyncState()
-	if err != nil || last != "" || syncErr != "" {
-		t.Fatalf("SyncState without a row = %q/%q/%v, want empty/empty/nil", last, syncErr, err)
-	}
-}
-
 func TestConversationSessionIDRoundTrip(t *testing.T) {
 	s, err := Open(filepath.Join(t.TempDir(), "test.db"))
 	if err != nil {
@@ -331,47 +264,33 @@ func TestConversationSessionIDRoundTrip(t *testing.T) {
 	}
 }
 
-func TestMigration0003BackfillsSessionID(t *testing.T) {
+func TestFreshOpenRunsAllMigrations(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "test.db")
 	s, err := Open(path)
 	if err != nil {
 		t.Fatal(err)
 	}
-	// Rewind to a pre-0003 database: no column, version 2, one legacy row
-	// seeded without a session id (raw insert — CreateConversation needs the
-	// column).
-	if _, err := s.db.Exec(`ALTER TABLE conversations DROP COLUMN claude_session_id`); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := s.db.Exec(`PRAGMA user_version = 2`); err != nil {
-		t.Fatal(err)
-	}
-	const legacyID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
-	if _, err := s.db.Exec(
-		`INSERT INTO conversations(id, title, created_at) VALUES (?, 'legacy', '2026-01-01T00:00:00Z')`,
-		legacyID); err != nil {
-		t.Fatal(err)
-	}
-	if err := s.Close(); err != nil {
-		t.Fatal(err)
-	}
+	t.Cleanup(func() { _ = s.Close() })
 
-	// Reopening runs 0003: the column returns and the legacy row is
-	// backfilled with its own id (its on-disk CLI session key).
-	s2, err := Open(path)
-	if err != nil {
+	var v int
+	if err := s.db.QueryRow(`PRAGMA user_version`).Scan(&v); err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { _ = s2.Close() })
-	if sid, err := s2.ConversationSessionID(legacyID); err != nil || sid != legacyID {
-		t.Fatalf("backfilled session id = %q/%v, want %q", sid, err, legacyID)
+	if v != 7 {
+		t.Fatalf("user_version = %d, want 7 (one migration per table)", v)
 	}
-	// Fresh conversations still seed their own id.
-	id, err := s2.CreateConversation("after migration")
-	if err != nil {
+	// The settings seed lands with the migrations.
+	var wikiPath, repoURL, syncEnabled string
+	if err := s.db.QueryRow(`SELECT value FROM settings WHERE key = 'wiki_path'`).Scan(&wikiPath); err != nil {
 		t.Fatal(err)
 	}
-	if sid, err := s2.ConversationSessionID(id); err != nil || sid != id {
-		t.Fatalf("fresh session id = %q/%v, want %q", sid, err, id)
+	if err := s.db.QueryRow(`SELECT value FROM settings WHERE key = 'github_sync_repo'`).Scan(&repoURL); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.db.QueryRow(`SELECT value FROM settings WHERE key = 'github_sync_enabled'`).Scan(&syncEnabled); err != nil {
+		t.Fatal(err)
+	}
+	if wikiPath != "~/.thoth/wiki" || repoURL != "" || syncEnabled != "false" {
+		t.Fatalf("seeded settings = %q/%q/%q", wikiPath, repoURL, syncEnabled)
 	}
 }

@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/shiv-source/thoth/internal/config"
 	"github.com/shiv-source/thoth/internal/index"
+	"github.com/shiv-source/thoth/internal/settings"
 	"github.com/shiv-source/thoth/internal/store"
 	"github.com/shiv-source/thoth/internal/wiki"
 )
@@ -45,7 +45,7 @@ func TestOnSettingsSavedSwitchesRootAndRestartsWatcher(t *testing.T) {
 	startWatcher := func(r string) { watched = append(watched, r) }
 
 	cb := onSettingsSaved(log, root, w, ix, startWatcher)
-	if err := cb(config.Config{WikiPath: newRoot}); err != nil {
+	if err := cb(newRoot); err != nil {
 		t.Fatalf("callback: %v", err)
 	}
 	if got := root.get(); got != newRoot {
@@ -62,7 +62,7 @@ func TestOnSettingsSavedSwitchesRootAndRestartsWatcher(t *testing.T) {
 		t.Fatal("new wiki root was not scaffolded")
 	}
 	// A no-op call (path already current) must not restart the watcher again.
-	if err := cb(config.Config{WikiPath: newRoot}); err != nil {
+	if err := cb(newRoot); err != nil {
 		t.Fatalf("no-op callback: %v", err)
 	}
 	if len(watched) != 1 {
@@ -103,7 +103,7 @@ func TestOnSettingsSavedFailureLeavesRootUntouched(t *testing.T) {
 	startWatcher := func(r string) { watched = append(watched, r) }
 
 	cb := onSettingsSaved(log, root, w, ix, startWatcher)
-	if err := cb(config.Config{WikiPath: newRoot}); err == nil {
+	if err := cb(newRoot); err == nil {
 		t.Fatal("expected error when scaffold fails")
 	}
 	if got := root.get(); got != oldRoot {
@@ -117,25 +117,6 @@ func TestOnSettingsSavedFailureLeavesRootUntouched(t *testing.T) {
 	}
 }
 
-func TestServeRejectsMalformedConfig(t *testing.T) {
-	home := t.TempDir()
-	t.Setenv("HOME", home)
-	thothDir := filepath.Join(home, ".thoth")
-	if err := os.MkdirAll(thothDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(thothDir, "config.toml"),
-		[]byte("not valid toml {{{\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-
-	root := newRootCmd()
-	root.SetArgs([]string{"serve"})
-	if err := root.Execute(); err == nil {
-		t.Fatal("expected error for malformed config")
-	}
-}
-
 func TestServeErrorWhenWikiScaffoldFails(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
@@ -143,13 +124,28 @@ func TestServeErrorWhenWikiScaffoldFails(t *testing.T) {
 	if err := os.MkdirAll(thothDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	// wiki_path points under a regular file: MkdirAll in Scaffold fails.
+	// The settings table's wiki_path points under a regular file: MkdirAll
+	// in Scaffold fails and serve must abort.
+	dbPath := filepath.Join(thothDir, "thoth.db")
+	st, err := store.Open(dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := st.Close(); err != nil {
+		t.Fatal(err)
+	}
 	blocker := filepath.Join(home, "blocker")
 	if err := os.WriteFile(blocker, []byte("file"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	cfg := "wiki_path = " + filepath.Join(blocker, "wiki") + "\nhost = \"127.0.0.1\"\nport = 8333\n"
-	if err := os.WriteFile(filepath.Join(thothDir, "config.toml"), []byte(cfg), 0o644); err != nil {
+	stg, err := settings.OpenRepo(dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := stg.SetSetting(settings.KeyWikiPath, filepath.Join(blocker, "wiki")); err != nil {
+		t.Fatal(err)
+	}
+	if err := stg.Close(); err != nil {
 		t.Fatal(err)
 	}
 

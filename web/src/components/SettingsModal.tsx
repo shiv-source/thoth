@@ -3,7 +3,7 @@ import { api, type DoctorCheck, type GitHubIdentity, type GitHubRepo, type Setti
 import { useToast } from './Toast'
 
 const blank: Settings = {
-  wiki_path: '', host: '127.0.0.1', port: 8333, claude_bin: '', permission_mode: '', model: '', repo_url: '',
+  wiki_path: '', repo_url: '', sync_enabled: false,
 }
 
 const emptyGitHub: GitHubIdentity = {
@@ -91,29 +91,7 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
           <form onSubmit={handleSubmit} className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4">
             <div>
               <label className={label}>Wiki path</label>
-              <input className={field} value={form.wiki_path} onChange={(e) => set('wiki_path', e.target.value)} />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className={label}>Host</label>
-                <input className={field} value={form.host} onChange={(e) => set('host', e.target.value)} />
-              </div>
-              <div>
-                <label className={label}>Port</label>
-                <input className={field} type="number" value={form.port} onChange={(e) => set('port', Number(e.target.value))} />
-              </div>
-            </div>
-            <div>
-              <label className={label}>Claude binary</label>
-              <input className={field} placeholder="claude (from PATH)" value={form.claude_bin} onChange={(e) => set('claude_bin', e.target.value)} />
-            </div>
-            <div>
-              <label className={label}>Permission mode</label>
-              <input className={field} placeholder="safe default" value={form.permission_mode} onChange={(e) => set('permission_mode', e.target.value)} />
-            </div>
-            <div>
-              <label className={label}>Model</label>
-              <input className={field} placeholder="CLI default" value={form.model} onChange={(e) => set('model', e.target.value)} />
+              <input className={field} placeholder="~/.thoth/wiki" value={form.wiki_path} onChange={(e) => set('wiki_path', e.target.value)} />
             </div>
             <div className="flex items-center justify-between border-t border-line pt-4">
               <div className="min-w-0 pr-3 text-xs">
@@ -329,6 +307,11 @@ function GitTab({ form, set, save, github, setGitHub }: {
           {repos.map((r) => <option key={r.full_name} value={r.clone_url}>{r.full_name}</option>)}
         </datalist>
       </div>
+      <label className="flex items-center gap-2.5 rounded-lg border border-line bg-app px-3 py-2.5 text-sm text-ink">
+        <input type="checkbox" checked={form.sync_enabled} onChange={(e) => set('sync_enabled', e.target.checked)}
+          className="h-4 w-4 accent-emerald-500" />
+        Auto-sync the wiki to the remote
+      </label>
       <p className="text-xs text-subtle">
         Stores your wiki in a remote git repository. Thoth initializes the
         repo if needed, commits the current tree, and pushes the branch.

@@ -11,8 +11,8 @@ The server exposes REST for everything except the live chat, which is a WebSocke
 | `GET /api/notes?path=` | wiki-relative path | `{path, content}` |
 | `GET /api/wiki/tree` | — | `{nodes:[{name,path,is_dir,children}]}` |
 | `GET /api/doctor` | — | `{checks:[{name, ok, message}]}` — the shared `internal/doctor` suite (same checks as `thoth doctor`) |
-| `GET /api/settings` | — | config fields plus `repo_url` (stored in the DB's `github_auth` row, not config.toml) |
-| `PUT /api/settings` | config fields plus `repo_url` | saved config; `repo_url` persists to the DB (400 "connect GitHub first" when non-empty and no account is connected); validates `wiki_path`/`host` non-empty, port 1–65535 |
+| `GET /api/settings` | — | `{wiki_path, repo_url, sync_enabled}` — every value lives in the `settings` key/value table in thoth.db (config.toml is deprecated) |
+| `PUT /api/settings` | `{wiki_path, repo_url, sync_enabled}` | saved values (KV upserts; the wiki-path-change callback runs first); 400 when `wiki_path` is empty |
 | `POST /api/github/auth` | `{token}` | identity `{username, display_name, email, avatar_url, scopes}` — the token itself is never returned; 400 "token is required" / "github rejected the token" |
 | `GET /api/github/auth` | — | identity (all fields empty when not connected) |
 | `DELETE /api/github/auth` | — | `{ok:true}` (idempotent) |

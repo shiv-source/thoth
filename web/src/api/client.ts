@@ -15,12 +15,8 @@ export type TreeNode = z.infer<typeof TreeNodeSchema>
 
 export const Settings = z.object({
   wiki_path: z.string(),
-  host: z.string(),
-  port: z.number(),
-  claude_bin: z.string(),
-  permission_mode: z.string(),
-  model: z.string(),
   repo_url: z.string(),
+  sync_enabled: z.boolean(),
 })
 export type Settings = z.infer<typeof Settings>
 

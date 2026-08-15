@@ -9,12 +9,8 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-// ErrGitHubAuthNotFound reports an operation against the github_auth row when
-// the user has not connected a GitHub account.
-var ErrGitHubAuthNotFound = errors.New("github auth not set")
-
 // Auth is the stored GitHub connection. Token is never serialized: the API
-// returns identity only.
+// returns identity only. The sync repo URL lives in the settings table.
 type Auth struct {
 	Token            string `json:"-"`
 	Username         string `json:"username"`
@@ -25,7 +21,6 @@ type Auth struct {
 	Scopes           string `json:"scopes"`
 	AccountCreatedAt string `json:"account_created_at"`
 	AccountUpdatedAt string `json:"account_updated_at"`
-	RepoURL          string `json:"repo_url"`
 }
 
 // Repo owns the github_auth table on its own connection to thoth.db (the
@@ -50,15 +45,14 @@ func OpenRepo(path string) (*Repo, error) {
 
 func (r *Repo) Close() error { return r.db.Close() }
 
-// Save upserts the single row (id = 1). created_at and repo_url are
-// deliberately absent from the UPDATE set: a reconnect preserves when the
-// connection was first made, and SetRepoURL is the only writer of the repo
-// URL. expires_at ships reserved (no data source from /user).
+// Save upserts the single row (id = 1). created_at is deliberately absent
+// from the UPDATE set: a reconnect preserves when the connection was first
+// made. expires_at ships reserved (no data source from /user).
 func (r *Repo) Save(a Auth) error {
 	now := time.Now().UTC().Format(time.RFC3339)
 	_, err := r.db.Exec(`
-		INSERT INTO github_auth (id, token, username, display_name, email, avatar_url, scopes, expires_at, profile_url, account_created_at, account_updated_at, repo_url, created_at, updated_at)
-		VALUES (1, ?, ?, ?, ?, ?, ?, '', ?, ?, ?, '', ?, ?)
+		INSERT INTO github_auth (id, token, username, display_name, email, avatar_url, scopes, expires_at, profile_url, account_created_at, account_updated_at, created_at, updated_at)
+		VALUES (1, ?, ?, ?, ?, ?, ?, '', ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			token = excluded.token,
 			username = excluded.username,
@@ -83,9 +77,9 @@ func (r *Repo) Get() (Auth, bool, error) {
 	var a Auth
 	var displayName, email, avatarURL, profileURL, scopes, accountCreated, accountUpdated sql.NullString
 	err := r.db.QueryRow(`
-		SELECT token, username, display_name, email, avatar_url, profile_url, scopes, account_created_at, account_updated_at, repo_url
+		SELECT token, username, display_name, email, avatar_url, profile_url, scopes, account_created_at, account_updated_at
 		FROM github_auth WHERE id = 1`).
-		Scan(&a.Token, &a.Username, &displayName, &email, &avatarURL, &profileURL, &scopes, &accountCreated, &accountUpdated, &a.RepoURL)
+		Scan(&a.Token, &a.Username, &displayName, &email, &avatarURL, &profileURL, &scopes, &accountCreated, &accountUpdated)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Auth{}, false, nil
 	}
@@ -106,25 +100,6 @@ func (r *Repo) Get() (Auth, bool, error) {
 func (r *Repo) Clear() error {
 	if _, err := r.db.Exec(`DELETE FROM github_auth WHERE id = 1`); err != nil {
 		return fmt.Errorf("clear github auth: %w", err)
-	}
-	return nil
-}
-
-// SetRepoURL stores the wiki sync repo URL; it requires an existing row
-// (connect first), so an unconnected save of a non-empty URL is a client
-// error.
-func (r *Repo) SetRepoURL(url string) error {
-	res, err := r.db.Exec(`UPDATE github_auth SET repo_url = ?, updated_at = ? WHERE id = 1`,
-		url, time.Now().UTC().Format(time.RFC3339))
-	if err != nil {
-		return fmt.Errorf("set repo url: %w", err)
-	}
-	n, err := res.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("set repo url: %w", err)
-	}
-	if n == 0 {
-		return ErrGitHubAuthNotFound
 	}
 	return nil
 }

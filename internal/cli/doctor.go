@@ -11,6 +11,7 @@ import (
 	"github.com/shiv-source/thoth/internal/config"
 	"github.com/shiv-source/thoth/internal/doctor"
 	"github.com/shiv-source/thoth/internal/index"
+	"github.com/shiv-source/thoth/internal/settings"
 	"github.com/shiv-source/thoth/internal/wiki"
 	"github.com/spf13/cobra"
 )
@@ -25,7 +26,6 @@ var errUnhealthy = errors.New("doctor: one or more checks failed")
 type doctorRunner struct {
 	log          *slog.Logger
 	fixes        []string
-	cfgPath      string
 	dbPath       string
 	wikiPath     string
 	wikiResolved bool
@@ -80,24 +80,31 @@ func (d *doctorRunner) checks(dir string, fix bool) []doctor.Check {
 }
 
 // runChecks runs the shared check suite and captures the resolved paths the
-// repair pass needs. The config fallback mirrors internal/doctor: a missing or
-// unparsable config yields defaults, so repairs target the default wiki path.
+// repair pass needs. The wiki path comes from the settings table; a missing
+// database falls back to the default, so repairs target the default wiki.
 func (d *doctorRunner) runChecks(dir string) []doctor.Check {
 	thDir, err := resolveThothDir(dir)
 	if err != nil {
 		return []doctor.Check{{Name: "home", OK: false, Message: err.Error()}}
 	}
-	d.cfgPath = filepath.Join(thDir, "config.toml")
 	d.dbPath = filepath.Join(thDir, "thoth.db")
-	cfg, _ := config.Load(d.cfgPath)
-	expanded, err := config.ExpandHome(cfg.WikiPath)
+	wikiPath := settings.DefaultWikiPath
+	if fileExists(d.dbPath) {
+		if r, err := settings.OpenRepo(d.dbPath); err == nil {
+			if value, found, err := r.Setting(settings.KeyWikiPath); err == nil && found && value != "" {
+				wikiPath = value
+			}
+			_ = r.Close()
+		}
+	}
+	expanded, err := config.ExpandHome(wikiPath)
 	d.wikiResolved = err == nil
 	if err != nil {
-		d.wikiPath = cfg.WikiPath
+		d.wikiPath = wikiPath
 	} else {
 		d.wikiPath = expanded
 	}
-	return doctor.Run(context.Background(), dir, d.log)
+	return doctor.Run(context.Background(), dir, "", d.log)
 }
 
 // resolveThothDir returns dir, or ~/.thoth when dir is empty. It mirrors the
@@ -113,19 +120,11 @@ func resolveThothDir(dir string) (string, error) {
 	return filepath.Join(home, ".thoth"), nil
 }
 
-// repair fixes what --fix is allowed to touch: a missing config file, a
-// missing wiki, and an out-of-sync index. It never touches the claude login.
-// It returns whether any fix was applied.
+// repair fixes what --fix is allowed to touch: a missing wiki and an
+// out-of-sync index. It never touches the claude login. It returns whether
+// any fix was applied.
 func (d *doctorRunner) repair(results []doctor.Check) bool {
 	fixed := false
-	if !fileExists(d.cfgPath) {
-		if err := config.Save(d.cfgPath, config.Default()); err != nil {
-			d.fixes = append(d.fixes, fmt.Sprintf("config: could not write %s: %v", d.cfgPath, err))
-		} else {
-			d.fixes = append(d.fixes, fmt.Sprintf("config: wrote default config to %s", d.cfgPath))
-			fixed = true
-		}
-	}
 	if d.wikiResolved && failed(results, "wiki") {
 		if err := wiki.Scaffold(d.wikiPath); err != nil {
 			d.fixes = append(d.fixes, fmt.Sprintf("wiki: could not scaffold %s: %v", d.wikiPath, err))

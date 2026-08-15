@@ -29,7 +29,7 @@ One binary. One directory (`~/.thoth`). No cloud, no auth, localhost only.
 
 | Path | Role |
 |---|---|
-| `~/.thoth/config.toml` | Settings (wiki path, host/port, claude binary, model) |
+| `thoth.db` `settings` table | Settings: `wiki_path`, `github_sync_*` keys |
 | `~/.thoth/thoth.db` | SQLite: search index + conversation history (derived data) |
 | `~/.thoth/wiki/` | The knowledge base — plain markdown you own |
 | `CLAUDE.md` (repo root) | Rules for working on this codebase |

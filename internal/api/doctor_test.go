@@ -2,37 +2,23 @@ package api
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
 	"log/slog"
-	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
 
-	"github.com/gorilla/websocket"
-	"github.com/shiv-source/thoth/internal/config"
 	"github.com/shiv-source/thoth/internal/index"
+	"github.com/shiv-source/thoth/internal/settings"
 	"github.com/shiv-source/thoth/internal/store"
 	"github.com/shiv-source/thoth/internal/wiki"
 )
 
-// freePort returns a port that was free at the moment of the call.
-func freePort(t *testing.T) int {
-	t.Helper()
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() { _ = ln.Close() }()
-	return ln.Addr().(*net.TCPAddr).Port
-}
-
 // healthyThothDir builds a fully healthy installation in a temp dir: a wiki
-// with one note, a synced index, a config with a free port, and a fake claude
-// on PATH. Returns the dir; d.ConfigPath must point at dir/config.toml.
+// with one note, a synced index, a settings row pointing at the wiki, and a
+// fake claude on PATH. Returns the dir; d.DataDir must point at it.
 func healthyThothDir(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()
@@ -69,10 +55,14 @@ func healthyThothDir(t *testing.T) string {
 	if err := ix.Close(); err != nil {
 		t.Fatal(err)
 	}
-	cfg := config.Default()
-	cfg.WikiPath = wikiRoot
-	cfg.Port = freePort(t)
-	if err := config.Save(filepath.Join(dir, "config.toml"), cfg); err != nil {
+	stg, err := settings.OpenRepo(dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := stg.SetSetting(settings.KeyWikiPath, wikiRoot); err != nil {
+		t.Fatal(err)
+	}
+	if err := stg.Close(); err != nil {
 		t.Fatal(err)
 	}
 	return dir
@@ -80,40 +70,11 @@ func healthyThothDir(t *testing.T) string {
 
 func TestDoctorEndpointHealthy(t *testing.T) {
 	d := testDeps(t)
-	dir := healthyThothDir(t)
-	d.ConfigPath = filepath.Join(dir, "config.toml")
+	d.DataDir = healthyThothDir(t)
 	e := New(d)
 
-	// The api check probes the configured address — in-flight that is this
-	// very server, so occupy the port with a stub serving the same REST
-	// health and websocket upgrade as the real server.
-	cfg, err := config.Load(d.ConfigPath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	ln, err := net.Listen("tcp", net.JoinHostPort("127.0.0.1", fmt.Sprintf("%d", cfg.Port)))
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() { _ = ln.Close() }()
-	upgrader := websocket.Upgrader{CheckOrigin: func(*http.Request) bool { return true }}
-	srv := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case "/api/health":
-			_, _ = w.Write([]byte(`{"status":"ok","claude":{"found":true,"path":"/fake/claude"},"wiki":{"path":"/fake/wiki","exists":true}}`))
-		case "/ws":
-			conn, err := upgrader.Upgrade(w, r, nil)
-			if err != nil {
-				return
-			}
-			_ = conn.Close()
-		default:
-			http.NotFound(w, r)
-		}
-	})}
-	go func() { _ = srv.Serve(ln) }()
-	t.Cleanup(func() { _ = srv.Close() })
-
+	// Nothing listens on the fixed port: the api check reports "not running"
+	// (OK) and the websocket check is skipped (OK) — zero port dependency.
 	req := httptest.NewRequest(http.MethodGet, "/api/doctor", nil)
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
@@ -130,7 +91,7 @@ func TestDoctorEndpointHealthy(t *testing.T) {
 	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
 		t.Fatal(err)
 	}
-	want := []string{"config", "wiki", "claude", "claude login", "database", "index", "api", "websocket"}
+	want := []string{"wiki", "claude", "claude login", "database", "index", "api", "websocket"}
 	if len(body.Checks) != len(want) {
 		t.Fatalf("got %d checks, want %d: %+v", len(body.Checks), len(want), body.Checks)
 	}

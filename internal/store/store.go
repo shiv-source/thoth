@@ -74,37 +74,6 @@ func (s *Store) EnsureMetadata() error {
 	return nil
 }
 
-// SyncState returns the recorded git sync outcome: the last successful sync
-// (empty when never) and the last error (empty when none).
-func (s *Store) SyncState() (lastSyncedAt, syncError string, err error) {
-	var l, e sql.NullString
-	err = s.db.QueryRow(`SELECT last_synced_at, sync_error FROM app_metadata`).Scan(&l, &e)
-	if errors.Is(err, sql.ErrNoRows) {
-		return "", "", nil
-	}
-	if err != nil {
-		return "", "", fmt.Errorf("read sync state: %w", err)
-	}
-	return l.String, e.String, nil
-}
-
-// SetSyncResult records the outcome of a git sync: success stamps
-// last_synced_at and clears sync_error; failure records the error and keeps
-// last_synced_at at the last successful sync.
-func (s *Store) SetSyncResult(ok bool, detail string) error {
-	var err error
-	if ok {
-		_, err = s.db.Exec(`UPDATE app_metadata SET last_synced_at = ?, sync_error = NULL WHERE id = 1`,
-			time.Now().UTC().Format(time.RFC3339))
-	} else {
-		_, err = s.db.Exec(`UPDATE app_metadata SET sync_error = ? WHERE id = 1`, detail)
-	}
-	if err != nil {
-		return fmt.Errorf("set sync result: %w", err)
-	}
-	return nil
-}
-
 func (s *Store) CreateConversation(title string) (string, error) {
 	id, err := newID()
 	if err != nil {

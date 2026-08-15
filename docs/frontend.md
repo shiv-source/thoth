@@ -27,7 +27,7 @@ web/src/
 | `Composer` | Textarea (Enter = send, Shift+Enter = newline); Send **and** Stop — sending while streaming supersedes the running turn |
 | `MessageItem` | User bubbles (plain text) vs assistant (react-markdown + GFM) with a streaming caret |
 | `NoteViewer` | Slide-over markdown panel (Esc or ✕ closes); "Copy raw" copies the note to the clipboard (+ success toast) |
-| `SettingsModal` | Tabbed: **General** (the 6 config fields + save, toasts on success/error), **Doctor** (shared check suite via `GET /api/doctor`, green ✓ / red ✗ rows, "Run checks"), **Git remote** (connect with a PAT → connected card with avatar/name/email + Disconnect; URL field with Save persisting `repo_url` to the DB, "Initialize & Push" calls `POST /api/git/setup`); backdrop, ✕, and Esc close |
+| `SettingsModal` | Tabbed: **General** (the wiki path — the only remaining field, persisted to the settings table), **Doctor** (shared check suite via `GET /api/doctor`, green ✓ / red ✗ rows, "Run checks"), **Git remote** (connect with a PAT → connected card with avatar/name/email + Disconnect; repo URL + an auto-sync toggle persisted to the settings table; "Initialize & Push" calls `POST /api/git/setup`); backdrop, ✕, and Esc close |
 | `SetupScreen` | Full-zone card shown while `/api/health` reports the Claude CLI missing: problem checklist with exact fix commands, "Re-check" button (spinner while rechecking) |
 | `Toast` | `ToastProvider` + `useToast()`; fixed bottom-center stack (z-50), surface cards with emerald (success) / red (error) dots, auto-dismiss after 3 s, click to close |
 

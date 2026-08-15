@@ -10,7 +10,7 @@ Starts the app on `host:port` from the config (default `127.0.0.1:8333`). No fla
 
 Startup sequence:
 
-1. Load `~/.thoth/config.toml` (persist defaults on first run)
+1. Open `thoth.db` (migrations) and read `wiki_path` from the settings table
 2. Scaffold the wiki if it doesn't exist
 3. Open `thoth.db` (index + store), rebuild the search index from the tree
 4. Start the fsnotify watcher
@@ -36,7 +36,7 @@ Runs six health checks and reports each. The checks live in the shared `internal
 
 | Check | What it verifies |
 |---|---|
-| config | `config.toml` parses |
+
 | wiki | wiki exists with all 8 folders + `CLAUDE.md` |
 | claude | binary found; `claude --version` works; login status confirmed |
 | database | db opens in WAL with `notes` + `notes_fts` tables |

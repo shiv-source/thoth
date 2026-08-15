@@ -5,8 +5,7 @@ import { SettingsModal } from './SettingsModal'
 import { ToastProvider } from './Toast'
 
 const settings = {
-  wiki_path: '~/.thoth/wiki', host: '127.0.0.1', port: 8333,
-  claude_bin: '', permission_mode: '', model: '', repo_url: '',
+  wiki_path: '~/.thoth/wiki', repo_url: '', sync_enabled: false,
 }
 
 const emptyGitHub = {
@@ -49,13 +48,13 @@ describe('SettingsModal', () => {
     stubAPI({
       'GET /api/settings': getSettings,
       'GET /api/github/auth': getEmptyGitHub,
-      'PUT /api/settings': () => new Response(JSON.stringify({ ...settings, port: 9444 }), { status: 200 }),
+      'PUT /api/settings': () => new Response(JSON.stringify({ ...settings, wiki_path: '/tmp/other/wiki' }), { status: 200 }),
     })
 
     renderModal()
-    const port = await screen.findByDisplayValue('8333')
-    await userEvent.clear(port)
-    await userEvent.type(port, '9444')
+    const wikiPath = await screen.findByDisplayValue('~/.thoth/wiki')
+    await userEvent.clear(wikiPath)
+    await userEvent.type(wikiPath, '/tmp/other/wiki')
     await userEvent.click(screen.getByRole('button', { name: /Save/ }))
     await waitFor(() => expect(screen.getByText(/Saved ✓/)).toBeInTheDocument())
     // The save also surfaces as a toast.
@@ -73,7 +72,7 @@ describe('SettingsModal', () => {
     stubAPI({ 'GET /api/settings': getSettings, 'GET /api/github/auth': getEmptyGitHub })
     const onClose = vi.fn()
     const { container } = render(<ToastProvider><SettingsModal onClose={onClose} /></ToastProvider>)
-    await screen.findByDisplayValue('8333')
+    await screen.findByDisplayValue('~/.thoth/wiki')
 
     await userEvent.keyboard('{Escape}')
     expect(onClose).toHaveBeenCalledTimes(1)
@@ -93,7 +92,7 @@ describe('SettingsModal', () => {
       'GET /api/github/auth': getEmptyGitHub,
       'GET /api/doctor': () => new Response(JSON.stringify({
         checks: [
-          { name: 'config', ok: true, message: '/tmp/config.toml parses' },
+          { name: 'wiki', ok: true, message: '/tmp/wiki exists' },
           { name: 'claude', ok: false, message: 'claude CLI not found on PATH' },
         ],
       }), { status: 200 }),
@@ -101,7 +100,7 @@ describe('SettingsModal', () => {
 
     renderModal()
     await userEvent.click(await screen.findByRole('tab', { name: 'Doctor' }))
-    expect(await screen.findByText('config')).toBeInTheDocument()
+    expect(await screen.findByText('wiki')).toBeInTheDocument()
     expect(screen.getByText('claude CLI not found on PATH')).toBeInTheDocument()
   })
 
@@ -187,5 +186,27 @@ describe('SettingsModal', () => {
     expect(await screen.findByPlaceholderText(/ghp_/)).toBeInTheDocument()
     expect(screen.getByText('GitHub disconnected')).toBeInTheDocument()
     expect(fetchMock.mock.calls.some(([u, init]) => u === '/api/github/auth' && init?.method === 'DELETE')).toBe(true)
+  })
+})
+
+describe('SettingsModal auto-sync', () => {
+  it('toggles sync_enabled in the Git tab and saves it', async () => {
+    const fetchMock = stubAPI({
+      'GET /api/settings': getSettings,
+      'GET /api/github/auth': () => new Response(JSON.stringify(connected), { status: 200 }),
+      'GET /api/github/repos': getRepos,
+      'PUT /api/settings': () => new Response(JSON.stringify({ ...settings, sync_enabled: true }), { status: 200 }),
+    })
+
+    renderModal()
+    await userEvent.click(await screen.findByRole('tab', { name: 'Git remote' }))
+    await userEvent.click(await screen.findByRole('checkbox'))
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(await screen.findByText('Settings saved')).toBeInTheDocument()
+    const put = fetchMock.mock.calls.find(
+      ([u, init]) => u === '/api/settings' && init?.method === 'PUT',
+    )?.[1]?.body
+    expect(typeof put === 'string' && put.includes('"sync_enabled":true')).toBe(true)
   })
 })

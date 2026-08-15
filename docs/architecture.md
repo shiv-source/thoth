@@ -15,7 +15,7 @@ flowchart LR
     end
     subgraph Data["Knowledge layer"]
         WIKI[~/.thoth/wiki — markdown + CLAUDE.md]
-        CFG[~/.thoth/config.toml]
+        ST[settings table (thoth.db)]
     end
     CC[Claude Code CLI process]
 
@@ -26,7 +26,7 @@ flowchart LR
     CC <-->|reads / writes notes| WIKI
     WATCH -->|fs events| INDEX
     API --> INDEX
-    INDEX --> CFG
+    INDEX --> ST
     CC -.->|"same directory, same rules"| WIKI
 ```
 
