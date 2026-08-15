@@ -44,14 +44,14 @@ install-bin: build ## build and copy the binary to $(PREFIX) (default /usr/local
 
 dev: web-sync ## run Vite (HMR) and the Go server together; Ctrl+C stops both
 	@trap 'kill 0' EXIT; \
-	( cd web && $(PNPM) dev ) & \
+	( $(PNPM) dev ) & \
 	$(GO) run ./cmd/thoth serve
 .PHONY: dev
 
 dev-web: ## Vite dev server only (proxies /api and /ws to 127.0.0.1:8333)
 .PHONY: dev-web
 dev-web:
-	cd web && $(PNPM) dev
+	$(PNPM) dev
 
 .PHONY: dev-server
 dev-server: web ## Go server only, with the embedded frontend
@@ -65,7 +65,7 @@ web: ## build the frontend and sync it into the Go embed
 .PHONY: web
 web:
 	$(PNPM) install --frozen-lockfile
-	cd web && $(PNPM) run build
+	$(PNPM) build
 	rm -rf $(EMBED_DIST)
 	cp -r web/dist $(EMBED_DIST)
 
