@@ -42,18 +42,24 @@ type PersistentClient struct {
 // hub guarantees at most one in-flight turn per session, so busy is a
 // boolean, not a counter.
 type proc struct {
-	mu        sync.Mutex // guards busy, evict, seq, w, stdin, idleTimer
+	mu        sync.Mutex // guards busy, evict, evicting, seq, w, stdin, idleTimer
 	cmd       *exec.Cmd
 	stdout    io.ReadCloser // read end; closing it unblocks the dispatcher
 	stdin     *bufio.Writer
 	busy      bool
 	evict     bool // eviction requested while busy → applied at turn end
+	evicting  bool // eviction in progress: never handed to a new turn
 	seq       int  // turn counter: dispatcher detects turn boundaries by it
 	w         EventWriter
 	idleTimer *time.Timer
 	tail      *stderrTail
 	turnDone  chan error // dispatcher → in-flight Start (buffered 1)
 }
+
+// errBusy marks a session whose pooled process is mid-turn. The hub never
+// overlaps same-session turns, so Start treats it as transient (a cancelled
+// turn's cleanup is still in flight) and retries briefly.
+var errBusy = errors.New("claude: session busy")
 
 // poolEntry pairs a session id with its process for lock-free batch work.
 type poolEntry struct {
@@ -80,12 +86,34 @@ func (c *PersistentClient) poolSize() int {
 
 // Start implements Client: the prompt travels over the process's stdin as a
 // stream-json control message and the turn ends at the CLI's result line.
+// A busy session is transient (a cancelled turn's cleanup is in flight), so
+// Start retries briefly before reporting it.
 func (c *PersistentClient) Start(ctx context.Context, sessionID, prompt string, w EventWriter, opts ...StartOption) error {
 	var cfg startConfig
 	for _, opt := range opts {
 		opt(&cfg)
 	}
-	p, err := c.getOrSpawn(sessionID, &cfg)
+	var busyErr error
+	for attempt := 0; attempt < 5; attempt++ {
+		if attempt > 0 {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-time.After(10 * time.Millisecond):
+			}
+		}
+		err := c.start(ctx, sessionID, prompt, w, &cfg)
+		if !errors.Is(err, errBusy) {
+			return err
+		}
+		busyErr = err
+	}
+	return busyErr
+}
+
+// start runs one turn on the pooled process for sessionID.
+func (c *PersistentClient) start(ctx context.Context, sessionID, prompt string, w EventWriter, cfg *startConfig) error {
+	p, err := c.getOrSpawn(sessionID, cfg)
 	if err != nil {
 		return err
 	}
@@ -93,7 +121,7 @@ func (c *PersistentClient) Start(ctx context.Context, sessionID, prompt string, 
 	p.mu.Lock()
 	if p.busy {
 		p.mu.Unlock()
-		return fmt.Errorf("claude: session %s is busy", sessionID)
+		return fmt.Errorf("%w %s", errBusy, sessionID)
 	}
 	p.busy = true
 	p.seq++
@@ -127,7 +155,13 @@ func (c *PersistentClient) Start(ctx context.Context, sessionID, prompt string, 
 	select {
 	case <-ctx.Done():
 		// No per-turn interrupt exists in the plain CLI: cancel kills the
-		// process and the next turn respawns.
+		// process and the next turn respawns. The cancelled turn still owns
+		// the process (busy stayed set), so it clears busy and marks the
+		// process evicting before the kill — later claims spawn fresh.
+		p.mu.Lock()
+		p.busy = false
+		p.evicting = true
+		p.mu.Unlock()
 		c.evict(sessionID, p, true)
 		return ctx.Err()
 	case err := <-p.turnDone:
@@ -162,7 +196,13 @@ func (c *PersistentClient) getOrSpawn(sessionID string, cfg *startConfig) (*proc
 		return nil, errors.New("claude: session id required")
 	}
 	if p, ok := c.procs[sessionID]; ok {
-		return p, nil
+		p.mu.Lock()
+		evicting := p.evicting
+		p.mu.Unlock()
+		if !evicting {
+			return p, nil
+		}
+		delete(c.procs, sessionID) // dying: spawn fresh below
 	}
 	p, err := c.spawnLocked(sessionID, cfg)
 	if err != nil {
@@ -299,6 +339,7 @@ func (c *PersistentClient) evict(sessionID string, p *proc, force bool) {
 		p.mu.Unlock()
 		return
 	}
+	p.evicting = true
 	p.mu.Unlock()
 
 	if p.cmd.Process != nil {

@@ -210,6 +210,44 @@ func TestPersistentCancelKillsAndRespawns(t *testing.T) {
 	}
 }
 
+// TestPersistentCancelRacesNextTurn hammers the cancel/claim overlap: a turn
+// cancelled mid-flight must never strand the pool in a state where the next
+// turn fails with a spurious busy error. Each iteration cancels a slow turn
+// and immediately claims the session again.
+func TestPersistentCancelRacesNextTurn(t *testing.T) {
+	bin := writeFakeCLIVariant(t, sleepOnceFake)
+	pc := NewPersistent(bin, t.TempDir())
+	t.Cleanup(func() { _ = pc.Close() })
+
+	for i := 0; i < 10; i++ {
+		ctx, cancel := context.WithCancel(context.Background())
+		done := make(chan error, 1)
+		go func() {
+			done <- pc.Start(ctx, "sess-1", "slow question", WriterFunc(func(Event) error { return nil }))
+		}()
+		time.Sleep(100 * time.Millisecond) // the turn is in flight
+		cancel()
+		// Claim the session again without waiting for the cancelled turn's
+		// cleanup — the exact overlap that used to strand the pool.
+		var got []Event
+		err := pc.Start(context.Background(), "sess-1", "quick question", WriterFunc(func(e Event) error {
+			got = append(got, e)
+			return nil
+		}))
+		if err != nil {
+			t.Fatalf("iteration %d: turn after cancel failed: %v", i, err)
+		}
+		select {
+		case <-done:
+		case <-time.After(10 * time.Second):
+			t.Fatalf("iteration %d: cancelled Start did not return", i)
+		}
+		if len(got) == 0 {
+			t.Fatalf("iteration %d: no deltas from the follow-up turn", i)
+		}
+	}
+}
+
 func TestPersistentIdleEviction(t *testing.T) {
 	bin := writePersistentFakeCLI(t)
 	pc := NewPersistent(bin, t.TempDir())
