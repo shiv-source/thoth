@@ -9,7 +9,9 @@ vi.mock('axios', () => axiosModuleMock(mocks))
 
 describe('useSearch', () => {
     beforeEach(() => {
-        vi.clearAllMocks()
+        // reset, not clear: clearAllMocks keeps once-implementations queued,
+        // which would leak between tests here.
+        vi.resetAllMocks()
     })
 
     it('returns results after the debounce', async () => {
@@ -60,6 +62,74 @@ describe('useSearch', () => {
             await Promise.resolve()
         })
         expect(result.current.results).toEqual([expect.objectContaining({ path: 'new.md' })])
+
+        vi.useRealTimers()
+    })
+
+    it('aborts the superseded request', () => {
+        vi.useFakeTimers()
+        mocks.get
+            .mockImplementationOnce(() => new Promise(() => {}))
+            .mockResolvedValueOnce({
+                data: { results: [{ path: 'new.md', title: 'New', kind: 'note', snippet: '…' }] }
+            })
+
+        const { rerender } = renderHook(({ q }) => useSearch(q), { initialProps: { q: 'first' } })
+        act(() => {
+            vi.advanceTimersByTime(300)
+        }) // first query fires its request
+        rerender({ q: 'second' })
+
+        // The cleanup of the first effect must abort the in-flight request.
+        const [, config] = mocks.get.mock.calls[0] as [string, { signal: AbortSignal } | undefined]
+        expect(config?.signal.aborted).toBe(true)
+        vi.useRealTimers()
+    })
+
+    it('aborts the request on unmount', () => {
+        vi.useFakeTimers()
+        mocks.get.mockImplementationOnce(() => new Promise(() => {}))
+
+        const { unmount } = renderHook(() => useSearch('query'))
+        act(() => {
+            vi.advanceTimersByTime(300)
+        }) // request fires
+        unmount()
+
+        const [, config] = mocks.get.mock.calls[0] as [string, { signal: AbortSignal } | undefined]
+        expect(config?.signal.aborted).toBe(true)
+        vi.useRealTimers()
+    })
+
+    it('clears results and loading when the query is emptied', async () => {
+        vi.useFakeTimers()
+        let resolveFirst!: (r: { data: { results: SearchResult[] } }) => void
+        mocks.get.mockImplementationOnce(
+            () =>
+                new Promise<{ data: { results: SearchResult[] } }>((resolve) => {
+                    resolveFirst = resolve
+                })
+        )
+
+        const { result, rerender } = renderHook(({ q }) => useSearch(q), { initialProps: { q: 'first' } })
+        act(() => {
+            vi.advanceTimersByTime(300)
+        }) // request fires, loading is true
+        rerender({ q: '' })
+        expect(result.current.loading).toBe(false)
+        expect(result.current.results).toEqual([])
+
+        // A late response must not resurrect results: the seq bump drops it.
+        await act(async () => {
+            await Promise.resolve()
+            resolveFirst({
+                data: { results: [{ path: 'stale.md', title: 'Stale', kind: 'note', snippet: '…' }] }
+            })
+        })
+        await act(async () => {
+            await Promise.resolve()
+        })
+        expect(result.current.results).toEqual([])
 
         vi.useRealTimers()
     })
