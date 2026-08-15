@@ -10,6 +10,8 @@ import {
 import { fetchSettings, saveSettings, selectSettings } from '../store'
 import { useAppDispatch, useAppSelector } from '../store/hooks'
 import { useToast } from './Toast'
+import { TopBar } from './TopBar'
+import { navigateSegment, useViewRoute } from '../hooks/useView'
 
 const blank: Settings = {
     wiki_path: '',
@@ -41,8 +43,20 @@ const field =
     'w-full rounded-lg border border-line bg-app px-3 py-2 text-sm text-ink outline-none placeholder:text-subtle focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500'
 const label = 'mb-1 block text-xs font-medium uppercase tracking-wide text-subtle'
 
-export function SettingsModal({ onClose }: { onClose: () => void }) {
-    const [tab, setTab] = useState<Tab>('general')
+export function SettingsView() {
+    const { segment } = useViewRoute()
+    // The active tab rides the URL (#/settings/<tab>) so it survives a
+    // reload; an unknown or missing segment falls back to General — and the
+    // default is written into the URL so the route is always explicit.
+    const [tab, setTab] = useState<Tab>(() => (tabs.some((t) => t.id === segment) ? (segment as Tab) : 'general'))
+
+    useEffect(() => {
+        if (segment !== null && tabs.some((t) => t.id === segment)) {
+            setTab(segment as Tab)
+        } else {
+            navigateSegment('settings', 'general')
+        }
+    }, [segment])
     const [form, setForm] = useState<Settings>(blank)
     const [modelOptions, setModelOptions] = useState<ModelOption[]>([])
 
@@ -90,14 +104,6 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
         if (settings.data) setForm(settings.data)
     }, [settings.data])
 
-    useEffect(() => {
-        const onKey = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') onClose()
-        }
-        window.addEventListener('keydown', onKey)
-        return () => window.removeEventListener('keydown', onKey)
-    }, [onClose])
-
     useEffect(
         () => () => {
             if (savedTimer.current) clearTimeout(savedTimer.current)
@@ -126,90 +132,96 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
     }
 
     return (
-        <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-sm"
-            onClick={onClose}
-        >
-            <div
-                role="dialog"
-                aria-modal="true"
-                aria-label="Settings"
-                onClick={(e) => e.stopPropagation()}
-                className="flex h-[36rem] max-h-full w-[48rem] max-w-full animate-[pop-in_150ms_ease-out] flex-col rounded-xl border border-line bg-surface shadow-lg"
-            >
-                <header className="shrink-0 border-b border-line px-5 pt-4">
-                    <div className="flex items-center justify-between">
-                        <h2 className="font-display text-lg font-semibold text-heading">Settings</h2>
-                        <button
-                            onClick={onClose}
-                            aria-label="Close settings"
-                            className="rounded-lg p-1.5 text-subtle transition hover:bg-raised hover:text-ink"
-                        >
-                            ✕
-                        </button>
-                    </div>
-                    <nav role="tablist" aria-label="Settings sections" className="mt-1 flex gap-1">
+        <div className="flex min-h-0 flex-1 flex-col">
+            <TopBar title="Settings" />
+            <div className="mx-auto flex min-h-0 w-full max-w-4xl flex-1 flex-col px-4 py-3">
+                <div className="flex min-h-0 flex-1">
+                    <nav
+                        role="tablist"
+                        aria-label="Settings sections"
+                        aria-orientation="vertical"
+                        className="w-44 shrink-0 space-y-1 border-r border-line pr-3"
+                    >
                         {tabs.map((t) => (
                             <button
                                 key={t.id}
                                 role="tab"
                                 aria-selected={tab === t.id}
-                                onClick={() => setTab(t.id)}
-                                className={`-mb-px border-b-2 px-3 py-2 text-sm transition ${tab === t.id ? 'border-accent font-medium text-ink' : 'border-transparent text-subtle hover:text-ink'}`}
+                                onClick={() => {
+                                    setTab(t.id)
+                                    navigateSegment('settings', t.id)
+                                }}
+                                className={`flex w-full items-center rounded-lg px-3 py-2 text-left text-sm transition ${
+                                    tab === t.id
+                                        ? 'bg-accent-soft font-medium text-accent'
+                                        : 'text-subtle hover:bg-raised hover:text-ink'
+                                }`}
                             >
                                 {t.label}
                             </button>
                         ))}
                     </nav>
-                </header>
-
-                {tab === 'general' && (
-                    <form onSubmit={handleSubmit} className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4">
-                        <div>
-                            <label className={label}>Wiki path</label>
-                            <input
-                                className={field}
-                                placeholder="~/.thoth/wiki"
-                                value={form.wiki_path}
-                                onChange={(e) => set('wiki_path', e.target.value)}
-                            />
-                        </div>
-                        <div>
-                            <label className={label}>AI model</label>
-                            <select className={field} value={form.model} onChange={(e) => set('model', e.target.value)}>
-                                {modelGroups.map((g) => (
-                                    <optgroup key={g.provider} label={g.provider}>
-                                        {g.options.map((m) => (
-                                            <option key={m.value || 'default'} value={m.value}>
-                                                {m.label}
-                                            </option>
-                                        ))}
-                                    </optgroup>
-                                ))}
-                            </select>
-                            <p className="mt-1 text-xs text-subtle">Applied to all chats after the app restarts.</p>
-                        </div>
-                        <div className="flex items-center justify-between border-t border-line pt-4">
-                            <div className="min-w-0 pr-3 text-xs">
-                                {status === 'saved' && (
-                                    <p className="text-emerald-600 dark:text-emerald-400">Saved ✓</p>
-                                )}
-                                {(status === 'error' || settings.error !== null) && (
-                                    <p className="text-red-600 dark:text-red-400">Could not save settings.</p>
-                                )}
-                            </div>
-                            <button
-                                type="submit"
-                                disabled={settings.saving}
-                                className="shrink-0 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-accent-ink transition hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-40"
+                    <div className="min-h-0 flex-1 overflow-y-auto pl-4">
+                        {tab === 'general' && (
+                            <form
+                                onSubmit={handleSubmit}
+                                className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4"
                             >
-                                {settings.saving ? 'Saving…' : 'Save'}
-                            </button>
-                        </div>
-                    </form>
-                )}
-                {tab === 'doctor' && <DoctorTab />}
-                {tab === 'git' && <GitTab form={form} set={set} save={save} github={github} setGitHub={setGitHub} />}
+                                <div>
+                                    <label className={label}>Wiki path</label>
+                                    <input
+                                        className={field}
+                                        placeholder="~/.thoth/wiki"
+                                        value={form.wiki_path}
+                                        onChange={(e) => set('wiki_path', e.target.value)}
+                                    />
+                                </div>
+                                <div>
+                                    <label className={label}>AI model</label>
+                                    <select
+                                        className={field}
+                                        value={form.model}
+                                        onChange={(e) => set('model', e.target.value)}
+                                    >
+                                        {modelGroups.map((g) => (
+                                            <optgroup key={g.provider} label={g.provider}>
+                                                {g.options.map((m) => (
+                                                    <option key={m.value || 'default'} value={m.value}>
+                                                        {m.label}
+                                                    </option>
+                                                ))}
+                                            </optgroup>
+                                        ))}
+                                    </select>
+                                    <p className="mt-1 text-xs text-subtle">
+                                        Applied to all chats after the app restarts.
+                                    </p>
+                                </div>
+                                <div className="flex items-center justify-between border-t border-line pt-4">
+                                    <div className="min-w-0 pr-3 text-xs">
+                                        {status === 'saved' && (
+                                            <p className="text-emerald-600 dark:text-emerald-400">Saved ✓</p>
+                                        )}
+                                        {(status === 'error' || settings.error !== null) && (
+                                            <p className="text-red-600 dark:text-red-400">Could not save settings.</p>
+                                        )}
+                                    </div>
+                                    <button
+                                        type="submit"
+                                        disabled={settings.saving}
+                                        className="shrink-0 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-accent-ink transition hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-40"
+                                    >
+                                        {settings.saving ? 'Saving…' : 'Save'}
+                                    </button>
+                                </div>
+                            </form>
+                        )}
+                        {tab === 'doctor' && <DoctorTab />}
+                        {tab === 'git' && (
+                            <GitTab form={form} set={set} save={save} github={github} setGitHub={setGitHub} />
+                        )}
+                    </div>
+                </div>
             </div>
         </div>
     )

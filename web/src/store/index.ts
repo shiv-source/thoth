@@ -4,6 +4,7 @@ import { settingsSlice } from './slices/settingsSlice'
 import { conversationsSlice } from './slices/conversationsSlice'
 import { chatSlice } from './slices/chatSlice'
 import { connectionSlice } from './slices/connectionSlice'
+import { notificationsSlice } from './slices/notificationsSlice'
 
 export function makeStore() {
     return configureStore({
@@ -12,7 +13,8 @@ export function makeStore() {
             settings: settingsSlice.reducer,
             conversations: conversationsSlice.reducer,
             chat: chatSlice.reducer,
-            connection: connectionSlice.reducer
+            connection: connectionSlice.reducer,
+            notifications: notificationsSlice.reducer
         }
     })
 }
@@ -48,3 +50,11 @@ export {
     selectThinkingText
 } from './slices/chatSlice'
 export { setStatus, selectConnectionStatus } from './slices/connectionSlice'
+export {
+    notify,
+    markNotificationRead,
+    markAllRead,
+    dismissNotification,
+    selectNotifications,
+    selectUnreadCount
+} from './slices/notificationsSlice'

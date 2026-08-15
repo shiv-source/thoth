@@ -1,30 +1,63 @@
+import { useEffect, useRef, useState } from 'react'
+import { Bell, Settings } from 'lucide-react'
+import { IconButton } from './IconButton'
+import { selectUnreadCount } from '../store'
+import { useAppSelector } from '../store/hooks'
+import { NotificationPanel } from './NotificationPanel'
 import { Tooltip } from './Tooltip'
 
-export function TopBar({ title, onOpenSettings }: {
-  title: string
-  onOpenSettings: () => void
-}) {
-  return (
-    <header className="flex h-14 shrink-0 items-center justify-between gap-4 border-b border-line bg-surface px-4">
-      <h1 className="truncate text-sm font-medium text-ink">{title}</h1>
-      <div className="flex shrink-0 items-center gap-1">
-        <Tooltip label="Settings">
-          <button onClick={onOpenSettings} aria-label="Settings"
-            className="rounded-lg p-2 text-subtle transition hover:bg-raised hover:text-ink">
-            <GearIcon />
-          </button>
-        </Tooltip>
-      </div>
-    </header>
-  )
-}
+export function TopBar({ title, onOpenSettings }: { title: string; onOpenSettings?: () => void }) {
+    const unread = useAppSelector(selectUnreadCount)
+    const [panelOpen, setPanelOpen] = useState(false)
+    const headerRef = useRef<HTMLElement>(null)
 
-function GearIcon() {
-  return (
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"
-      className="h-4 w-4">
-      <circle cx="10" cy="10" r="3" />
-      <path d="M19 10a9 9 0 0 0-.2-1.8l-2.1-.6a7 7 0 0 0-1.1-1.9l.6-2.1a9 9 0 0 0-3.2-1.8l-1.6 1.5a7 7 0 0 0-1.4-.2 7 7 0 0 0-1.4.2l-1.6-1.5A9 9 0 0 0 3.8 3.6l.6 2.1a7 7 0 0 0-1.1 1.9l-2.1.6A9 9 0 0 0 1 10c0 .6.1 1.2.2 1.8l2.1.6a7 7 0 0 0 1.1 1.9l-.6 2.1a9 9 0 0 0 3.2 1.8l1.6-1.5c.4.1 1 .2 1.4.2s1-.1 1.4-.2l1.6 1.5a9 9 0 0 0 3.2-1.8l-.6-2.1a7 7 0 0 0 1.1-1.9l2.1-.6A9 9 0 0 0 19 10Z" />
-    </svg>
-  )
+    // While the panel is open: Escape closes it, and a press anywhere
+    // outside the header (which owns both the bell and the panel) closes it.
+    useEffect(() => {
+        if (!panelOpen) return
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') setPanelOpen(false)
+        }
+        const onDown = (e: MouseEvent) => {
+            if (headerRef.current && !headerRef.current.contains(e.target as Node)) setPanelOpen(false)
+        }
+        document.addEventListener('keydown', onKey)
+        document.addEventListener('mousedown', onDown)
+        return () => {
+            document.removeEventListener('keydown', onKey)
+            document.removeEventListener('mousedown', onDown)
+        }
+    }, [panelOpen])
+
+    return (
+        <header
+            ref={headerRef}
+            className="relative flex h-14 shrink-0 items-center justify-between gap-4 border-b border-line bg-surface px-4"
+        >
+            <h1 className="truncate text-sm font-medium text-ink">{title}</h1>
+            <div className="flex shrink-0 items-center gap-1">
+                <span className="relative">
+                    <IconButton label="Notifications" onClick={() => setPanelOpen((o) => !o)}>
+                        <Bell className="h-4 w-4" aria-hidden="true" />
+                    </IconButton>
+                    {unread > 0 && (
+                        <span
+                            aria-label={`${unread} unread`}
+                            className="absolute right-0.5 top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-medium text-accent-ink"
+                        >
+                            {unread}
+                        </span>
+                    )}
+                </span>
+                {onOpenSettings && (
+                    <Tooltip label="Settings">
+                        <IconButton label="Settings" onClick={onOpenSettings}>
+                            <Settings className="h-4 w-4" aria-hidden="true" />
+                        </IconButton>
+                    </Tooltip>
+                )}
+            </div>
+            {panelOpen && <NotificationPanel onClose={() => setPanelOpen(false)} />}
+        </header>
+    )
 }

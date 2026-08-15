@@ -75,12 +75,10 @@ const conversations = {
     ]
 }
 
-const noTree = () => ({ nodes: [] })
-
 function renderSidebar(health: Health | null = healthy, loading = false) {
     return renderWithStore(
         <ToastProvider>
-            <Sidebar openPath={null} onOpenNote={() => {}} health={health} loading={loading} />
+            <Sidebar health={health} loading={loading} />
         </ToastProvider>
     )
 }
@@ -92,8 +90,7 @@ describe('Sidebar chats section', () => {
 
     it('groups the conversation history by day with dates on hover', async () => {
         stubAPI({
-            '/api/conversations': () => conversations,
-            '/api/wiki/tree': noTree
+            '/api/conversations': () => conversations
         })
         renderSidebar()
 
@@ -106,10 +103,10 @@ describe('Sidebar chats section', () => {
 
     it('navigates to a conversation when its row is clicked', async () => {
         stubAPI({
-            '/api/conversations': () => conversations,
-            '/api/wiki/tree': noTree
+            '/api/conversations': () => conversations
         })
         renderSidebar()
+        window.history.pushState(null, '', '/notes')
         await userEvent.click(await screen.findByText('Today chat'))
         expect(window.location.pathname).toBe('/chat/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1')
     })
@@ -117,7 +114,6 @@ describe('Sidebar chats section', () => {
     it('deletes a conversation via the API and removes it from the list', async () => {
         stubAPI({
             '/api/conversations': () => conversations,
-            '/api/wiki/tree': noTree,
             [`DELETE /api/conversations/${conversations.conversations[0]?.id}`]: () => ({ ok: true })
         })
         renderSidebar()
@@ -130,8 +126,7 @@ describe('Sidebar chats section', () => {
 
     it('keeps the conversation and toasts when the delete fails', async () => {
         stubAPI({
-            '/api/conversations': () => conversations,
-            '/api/wiki/tree': noTree
+            '/api/conversations': () => conversations
         })
         renderSidebar()
         await screen.findByText('Today chat')
@@ -143,18 +138,17 @@ describe('Sidebar chats section', () => {
 
     it('navigates to the root when New chat is clicked', async () => {
         stubAPI({
-            '/api/conversations': () => conversations,
-            '/api/wiki/tree': noTree
+            '/api/conversations': () => conversations
         })
         renderSidebar()
+        window.history.pushState(null, '', '/dashboard')
         await userEvent.click(await screen.findByRole('button', { name: /New chat/ }))
-        expect(window.location.pathname).toBe('/')
+        expect(window.location.pathname).toBe('/chat')
     })
 
     it('shows empty and error states', async () => {
         stubAPI({
-            '/api/conversations': () => ({ conversations: [] }),
-            '/api/wiki/tree': noTree
+            '/api/conversations': () => ({ conversations: [] })
         })
         const { unmount } = renderSidebar()
         expect(await screen.findByText(/No conversations yet/)).toBeInTheDocument()
@@ -170,8 +164,7 @@ describe('Sidebar chats section', () => {
 describe('Sidebar health footer', () => {
     it('shows the healthy state with the version', async () => {
         stubAPI({
-            '/api/conversations': () => ({ conversations: [] }),
-            '/api/wiki/tree': noTree
+            '/api/conversations': () => ({ conversations: [] })
         })
         renderSidebar(healthy)
         expect(await screen.findByText('All systems go')).toBeInTheDocument()
@@ -180,8 +173,7 @@ describe('Sidebar health footer', () => {
 
     it('shows the missing-claude state', async () => {
         stubAPI({
-            '/api/conversations': () => ({ conversations: [] }),
-            '/api/wiki/tree': noTree
+            '/api/conversations': () => ({ conversations: [] })
         })
         renderSidebar({ ...healthy, claude: { found: false, path: 'claude' } })
         expect(await screen.findByText('Claude CLI missing')).toBeInTheDocument()
@@ -189,36 +181,9 @@ describe('Sidebar health footer', () => {
 
     it('shows the loading state', async () => {
         stubAPI({
-            '/api/conversations': () => ({ conversations: [] }),
-            '/api/wiki/tree': noTree
+            '/api/conversations': () => ({ conversations: [] })
         })
         renderSidebar(null, true)
         expect(await screen.findByText('Checking…')).toBeInTheDocument()
-    })
-})
-
-describe('Sidebar wiki controls', () => {
-    it('expand-all reveals every folder; the same toggle collapses them again', async () => {
-        stubAPI({
-            '/api/conversations': () => ({ conversations: [] }),
-            '/api/wiki/tree': () => ({
-                nodes: [
-                    {
-                        name: 'meetings',
-                        path: 'meetings',
-                        is_dir: true,
-                        children: [{ name: 'standup.md', path: 'meetings/standup.md', is_dir: false, children: null }]
-                    }
-                ]
-            })
-        })
-        renderSidebar()
-
-        await userEvent.click(await screen.findByRole('button', { name: 'Expand all folders' }))
-        expect(screen.getByText('standup.md')).toBeInTheDocument()
-        expect(screen.getByRole('button', { name: 'Collapse all folders' })).toBeInTheDocument()
-
-        await userEvent.click(screen.getByRole('button', { name: 'Collapse all folders' }))
-        expect(screen.queryByText('standup.md')).not.toBeInTheDocument()
     })
 })

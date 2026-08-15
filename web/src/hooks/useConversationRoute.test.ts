@@ -7,7 +7,7 @@ import type { ChatMessage } from './useChat'
 import { useConversationRoute } from './useConversationRoute'
 
 vi.mock('../api/client', () => ({
-  api: { getConversation: vi.fn() },
+    api: { getConversation: vi.fn() }
 }))
 const getConversation = vi.mocked(api.getConversation)
 
@@ -15,100 +15,103 @@ const ID_A = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
 const ID_B = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
 
 function message(content: string) {
-  return { id: 1, conversation_id: 'x', role: 'user' as const, content, created_at: '2026-08-15T00:00:00Z' }
+    return { id: 1, conversation_id: 'x', role: 'user' as const, content, created_at: '2026-08-15T00:00:00Z' }
 }
 
 // Emulates ChatPanel: load/reset update the same state the hook receives as
 // conversationId (like useChat does), so URL→state round trips are faithful.
 function renderRoute(initialId: string | null = null) {
-  const open = vi.fn()
-  const socket = { open } as unknown as ChatSocket
-  const load = vi.fn()
-  const reset = vi.fn()
-  const onError = vi.fn()
-  const utils = renderHook(() => {
-    const [conv, setConv] = useState(initialId)
-    const loadImpl = useCallback((msgs: ChatMessage[], cid: string) => {
-      load(msgs, cid)
-      setConv(cid)
-    }, [load])
-    const resetImpl = useCallback(() => {
-      reset()
-      setConv(null)
-    }, [reset])
-    useConversationRoute({ socket, conversationId: conv, load: loadImpl, reset: resetImpl, onError })
-    return { conv, setConv }
-  })
-  return { ...utils, open, load, reset, onError }
+    const open = vi.fn()
+    const socket = { open } as unknown as ChatSocket
+    const load = vi.fn()
+    const reset = vi.fn()
+    const onError = vi.fn()
+    const utils = renderHook(() => {
+        const [conv, setConv] = useState(initialId)
+        const loadImpl = useCallback(
+            (msgs: ChatMessage[], cid: string) => {
+                load(msgs, cid)
+                setConv(cid)
+            },
+            [load]
+        )
+        const resetImpl = useCallback(() => {
+            reset()
+            setConv(null)
+        }, [reset])
+        useConversationRoute({ socket, conversationId: conv, load: loadImpl, reset: resetImpl, onError })
+        return { conv, setConv }
+    })
+    return { ...utils, open, load, reset, onError }
 }
 
 const flush = () => act(async () => {})
 
 describe('useConversationRoute', () => {
-  beforeEach(() => {
-    window.history.pushState(null, '', '/')
-    getConversation.mockReset()
-  })
-
-  it('loads the deep-linked conversation on mount', async () => {
-    window.history.pushState(null, '', `/chat/${ID_A}`)
-    getConversation.mockResolvedValue({ conversation: {} as never, messages: [message('hi')] })
-    const { open, load } = renderRoute()
-
-    await flush()
-    expect(getConversation).toHaveBeenCalledWith(ID_A)
-    expect(load).toHaveBeenCalledWith([{ role: 'user', content: 'hi' }], ID_A)
-    expect(open).toHaveBeenCalledWith(ID_A)
-    expect(window.location.pathname).toBe(`/chat/${ID_A}`)
-  })
-
-  it('stays a fresh chat on the root path', async () => {
-    const { load, reset } = renderRoute()
-
-    await flush()
-    expect(getConversation).not.toHaveBeenCalled()
-    expect(load).not.toHaveBeenCalled()
-    expect(reset).not.toHaveBeenCalled()
-  })
-
-  it('falls back to a fresh chat when the deep link id is unknown', async () => {
-    window.history.pushState(null, '', `/chat/${ID_A}`)
-    getConversation.mockRejectedValue(new Error('404 Not Found'))
-    const { onError, reset } = renderRoute()
-
-    await flush()
-    expect(onError).toHaveBeenCalledWith('Conversation not found')
-    expect(window.location.pathname).toBe('/')
-    expect(reset).toHaveBeenCalled()
-  })
-
-  it('pushes /chat/<id> when the conversation id changes', async () => {
-    const { result } = renderRoute()
-    await flush()
-
-    // turn_done in useChat sets the conversation id.
-    act(() => result.current.setConv(ID_A))
-    expect(window.location.pathname).toBe(`/chat/${ID_A}`)
-
-    // New chat resets the URL back to the root.
-    act(() => result.current.setConv(null))
-    expect(window.location.pathname).toBe('/')
-  })
-
-  it('loads the conversation the browser navigates back to', async () => {
-    window.history.pushState(null, '', `/chat/${ID_A}`)
-    const { load } = renderRoute(ID_A)
-    await flush()
-
-    getConversation.mockResolvedValue({ conversation: {} as never, messages: [message('back')] })
-    act(() => {
-      window.history.pushState(null, '', `/chat/${ID_B}`)
-      window.dispatchEvent(new PopStateEvent('popstate'))
+    beforeEach(() => {
+        window.history.pushState(null, '', '/')
+        getConversation.mockReset()
     })
-    await flush()
 
-    expect(getConversation).toHaveBeenCalledWith(ID_B)
-    expect(load).toHaveBeenCalledWith([{ role: 'user', content: 'back' }], ID_B)
-    expect(window.location.pathname).toBe(`/chat/${ID_B}`)
-  })
+    it('loads the deep-linked conversation on mount', async () => {
+        window.history.pushState(null, '', `/chat/${ID_A}`)
+        getConversation.mockResolvedValue({ conversation: {} as never, messages: [message('hi')] })
+        const { open, load } = renderRoute()
+
+        await flush()
+        expect(getConversation).toHaveBeenCalledWith(ID_A)
+        expect(load).toHaveBeenCalledWith([{ role: 'user', content: 'hi' }], ID_A)
+        expect(open).toHaveBeenCalledWith(ID_A)
+        expect(window.location.pathname).toBe(`/chat/${ID_A}`)
+    })
+
+    it('stays a fresh chat on the root path', async () => {
+        const { load, reset } = renderRoute()
+
+        await flush()
+        expect(getConversation).not.toHaveBeenCalled()
+        expect(load).not.toHaveBeenCalled()
+        expect(reset).not.toHaveBeenCalled()
+    })
+
+    it('falls back to a fresh chat when the deep link id is unknown', async () => {
+        window.history.pushState(null, '', `/chat/${ID_A}`)
+        getConversation.mockRejectedValue(new Error('404 Not Found'))
+        const { onError, reset } = renderRoute()
+
+        await flush()
+        expect(onError).toHaveBeenCalledWith('Conversation not found')
+        expect(window.location.pathname).toBe('/chat')
+        expect(reset).toHaveBeenCalled()
+    })
+
+    it('pushes /chat/<id> when the conversation id changes', async () => {
+        const { result } = renderRoute()
+        await flush()
+
+        // turn_done in useChat sets the conversation id.
+        act(() => result.current.setConv(ID_A))
+        expect(window.location.pathname).toBe(`/chat/${ID_A}`)
+
+        // New chat resets the URL to the fresh-chat path.
+        act(() => result.current.setConv(null))
+        expect(window.location.pathname).toBe('/chat')
+    })
+
+    it('loads the conversation the browser navigates back to', async () => {
+        window.history.pushState(null, '', `/chat/${ID_A}`)
+        const { load } = renderRoute(ID_A)
+        await flush()
+
+        getConversation.mockResolvedValue({ conversation: {} as never, messages: [message('back')] })
+        act(() => {
+            window.history.pushState(null, '', `/chat/${ID_B}`)
+            window.dispatchEvent(new PopStateEvent('popstate'))
+        })
+        await flush()
+
+        expect(getConversation).toHaveBeenCalledWith(ID_B)
+        expect(load).toHaveBeenCalledWith([{ role: 'user', content: 'back' }], ID_B)
+        expect(window.location.pathname).toBe(`/chat/${ID_B}`)
+    })
 })

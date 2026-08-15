@@ -1,7 +1,7 @@
 import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it, vi } from 'vitest'
-import { SettingsModal } from './SettingsModal'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { SettingsView } from './SettingsView'
 import { ToastProvider } from './Toast'
 import { renderWithStore } from '../test/renderWithStore'
 
@@ -107,15 +107,15 @@ const getRepos = () => ({
     ]
 })
 
-function renderModal() {
+function renderSettings() {
     return renderWithStore(
         <ToastProvider>
-            <SettingsModal onClose={() => {}} />
+            <SettingsView />
         </ToastProvider>
     )
 }
 
-describe('SettingsModal', () => {
+describe('SettingsView', () => {
     it('loads current settings and saves edits', async () => {
         stubAPI({
             'GET /api/settings': getSettings,
@@ -123,7 +123,7 @@ describe('SettingsModal', () => {
             'PUT /api/settings': () => ({ ...settings, wiki_path: '/tmp/other/wiki' })
         })
 
-        renderModal()
+        renderSettings()
         const wikiPath = await screen.findByDisplayValue('~/.thoth/wiki')
         await userEvent.clear(wikiPath)
         await userEvent.type(wikiPath, '/tmp/other/wiki')
@@ -146,7 +146,7 @@ describe('SettingsModal', () => {
             'PUT /api/settings': () => ({ ...settings })
         })
 
-        renderModal()
+        renderSettings()
         const select = await screen.findByRole('combobox')
         await userEvent.selectOptions(select, 'deepseek-v4-flash')
         await userEvent.click(screen.getByRole('button', { name: /Save/ }))
@@ -161,7 +161,7 @@ describe('SettingsModal', () => {
         })
         mocks.put.mockRejectedValueOnce(axiosError(500, { error: 'boom' }))
 
-        renderModal()
+        renderSettings()
         const wikiPath = await screen.findByDisplayValue('~/.thoth/wiki')
         await userEvent.clear(wikiPath)
         await userEvent.type(wikiPath, '/tmp/other/wiki')
@@ -169,35 +169,6 @@ describe('SettingsModal', () => {
 
         // The message renders inline (with a period) and as a toast.
         expect((await screen.findAllByText(/Could not save settings/)).length).toBeGreaterThan(0)
-    })
-
-    it('keeps the dialog at a fixed width and height', async () => {
-        stubAPI({ 'GET /api/settings': getSettings, 'GET /api/github/auth': getEmptyGitHub })
-        renderModal()
-        const dialog = await screen.findByRole('dialog')
-        expect(dialog).toHaveClass('h-[36rem]', 'w-[48rem]')
-    })
-
-    it('closes on escape and on backdrop click', async () => {
-        stubAPI({ 'GET /api/settings': getSettings, 'GET /api/github/auth': getEmptyGitHub })
-        const onClose = vi.fn()
-        const { container } = renderWithStore(
-            <ToastProvider>
-                <SettingsModal onClose={onClose} />
-            </ToastProvider>
-        )
-        await screen.findByDisplayValue('~/.thoth/wiki')
-
-        await userEvent.keyboard('{Escape}')
-        expect(onClose).toHaveBeenCalledTimes(1)
-
-        // The backdrop is the modal's root element; a click on it must close,
-        // while a click inside the dialog card must not.
-        await userEvent.click(container.firstElementChild!)
-        expect(onClose).toHaveBeenCalledTimes(2)
-
-        await userEvent.click(screen.getByRole('dialog'))
-        expect(onClose).toHaveBeenCalledTimes(2)
     })
 
     it('runs the doctor checks in the Doctor tab', async () => {
@@ -212,7 +183,7 @@ describe('SettingsModal', () => {
             })
         })
 
-        renderModal()
+        renderSettings()
         await userEvent.click(await screen.findByRole('tab', { name: 'Doctor' }))
         expect(await screen.findByText('wiki')).toBeInTheDocument()
         expect(screen.getByText('claude CLI not found on PATH')).toBeInTheDocument()
@@ -226,7 +197,7 @@ describe('SettingsModal', () => {
             'POST /api/git/setup': () => ({ ok: true })
         })
 
-        renderModal()
+        renderSettings()
         await userEvent.click(await screen.findByRole('tab', { name: 'Git remote' }))
         // The connected account's repos are offered as a dropdown the width of
         // the input; picking the private repo fills the field.
@@ -251,7 +222,7 @@ describe('SettingsModal', () => {
             'POST /api/github/auth': () => connected
         })
 
-        renderModal()
+        renderSettings()
         await userEvent.click(await screen.findByRole('tab', { name: 'Git remote' }))
         await userEvent.type(await screen.findByPlaceholderText(/ghp_/), 'ghp_secret123')
         await userEvent.click(screen.getByRole('button', { name: 'Connect' }))
@@ -274,7 +245,7 @@ describe('SettingsModal', () => {
         })
         mocks.post.mockRejectedValueOnce(axiosError(400, { error: 'github rejected the token' }))
 
-        renderModal()
+        renderSettings()
         await userEvent.click(await screen.findByRole('tab', { name: 'Git remote' }))
         await userEvent.type(await screen.findByPlaceholderText(/ghp_/), 'bad-token')
         await userEvent.click(screen.getByRole('button', { name: 'Connect' }))
@@ -291,7 +262,7 @@ describe('SettingsModal', () => {
             'DELETE /api/github/auth': () => ({ ok: true })
         })
 
-        renderModal()
+        renderSettings()
         await userEvent.click(await screen.findByRole('tab', { name: 'Git remote' }))
         expect(await screen.findByText('Octo Cat')).toBeInTheDocument()
         await userEvent.click(screen.getByRole('button', { name: 'Disconnect' }))
@@ -302,7 +273,7 @@ describe('SettingsModal', () => {
     })
 })
 
-describe('SettingsModal auto-sync', () => {
+describe('SettingsView auto-sync', () => {
     it('toggles sync_enabled in the Git tab and saves it', async () => {
         stubAPI({
             'GET /api/settings': getSettings,
@@ -311,7 +282,7 @@ describe('SettingsModal auto-sync', () => {
             'PUT /api/settings': () => ({ ...settings, sync_enabled: true })
         })
 
-        renderModal()
+        renderSettings()
         await userEvent.click(await screen.findByRole('tab', { name: 'Git remote' }))
         await userEvent.click(await screen.findByRole('checkbox'))
         await userEvent.click(screen.getByRole('button', { name: 'Save' }))
@@ -322,7 +293,7 @@ describe('SettingsModal auto-sync', () => {
     })
 })
 
-describe('SettingsModal public repo guard', () => {
+describe('SettingsView public repo guard', () => {
     it('warns and blocks push when a public repo is picked', async () => {
         stubAPI({
             'GET /api/settings': getSettings,
@@ -330,7 +301,7 @@ describe('SettingsModal public repo guard', () => {
             'GET /api/github/repos': getRepos
         })
 
-        renderModal()
+        renderSettings()
         await userEvent.click(await screen.findByRole('tab', { name: 'Git remote' }))
         const url = await screen.findByPlaceholderText(/github\.com/)
         await userEvent.type(url, 'octo/public')
@@ -339,5 +310,40 @@ describe('SettingsModal public repo guard', () => {
         expect(url).toHaveValue('https://github.com/octo/public-wiki.git')
         expect(await screen.findByText(/public repository is blocked/)).toBeInTheDocument()
         expect(screen.getByRole('button', { name: 'Initialize & Push' })).toBeDisabled()
+    })
+})
+
+describe('SettingsView tab routing', () => {
+    afterEach(() => {
+        window.history.pushState(null, '', '/')
+    })
+
+    it('restores the active tab from the hash', async () => {
+        window.history.pushState(null, '', '/settings/doctor')
+        stubAPI({ 'GET /api/settings': getSettings, 'GET /api/github/auth': getEmptyGitHub })
+        renderSettings()
+        expect(await screen.findByRole('tab', { name: 'Doctor' })).toHaveAttribute('aria-selected', 'true')
+    })
+
+    it('writes the clicked tab into the hash', async () => {
+        window.history.pushState(null, '', '/settings')
+        stubAPI({ 'GET /api/settings': getSettings, 'GET /api/github/auth': getEmptyGitHub })
+        renderSettings()
+        await userEvent.click(await screen.findByRole('tab', { name: 'Git remote' }))
+        expect(window.location.pathname).toBe('/settings/git')
+    })
+})
+
+describe('SettingsView default tab route', () => {
+    afterEach(() => {
+        window.history.pushState(null, '', '/')
+    })
+
+    it('writes the General default into the URL when arriving at bare #/settings', async () => {
+        window.history.pushState(null, '', '/settings')
+        stubAPI({ 'GET /api/settings': getSettings, 'GET /api/github/auth': getEmptyGitHub })
+        renderSettings()
+        expect(await screen.findByRole('tab', { name: 'General' })).toHaveAttribute('aria-selected', 'true')
+        await waitFor(() => expect(window.location.pathname).toBe('/settings/general'))
     })
 })
