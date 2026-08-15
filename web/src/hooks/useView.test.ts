@@ -41,7 +41,7 @@ describe('useView', () => {
     })
 
     it('navigateView writes the hash for every view', () => {
-        const views: View[] = ['chat', 'notes', 'dashboard', 'search']
+        const views: View[] = ['chat', 'notes', 'dashboard', 'search', 'settings']
         for (const v of views) {
             act(() => navigateView(v))
             expect(window.location.hash).toBe(`#/${v}`)

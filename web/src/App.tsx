@@ -5,11 +5,11 @@ import { NavRail } from './components/NavRail'
 import { NotesView } from './components/NotesView'
 import { DashboardView } from './components/DashboardView'
 import { SearchView } from './components/SearchView'
+import { SettingsView } from './components/SettingsView'
 import { NoteViewer } from './components/NoteViewer'
 import { SetupScreen } from './components/SetupScreen'
-import { SettingsModal } from './components/SettingsModal'
 import { ToastProvider } from './components/Toast'
-import { useView } from './hooks/useView'
+import { navigateView, useView } from './hooks/useView'
 import { fetchHealth } from './store'
 import { useAppDispatch, useAppSelector } from './store/hooks'
 import { selectHealth, selectHealthLoading } from './store'
@@ -17,12 +17,11 @@ import { selectHealth, selectHealthLoading } from './store'
 export default function App() {
     const view = useView()
     const [openNote, setOpenNote] = useState<string | null>(null)
-    const [settingsOpen, setSettingsOpen] = useState(false)
     const dispatch = useAppDispatch()
     const health = useAppSelector(selectHealth)
     const loading = useAppSelector(selectHealthLoading)
     const recheck = () => void dispatch(fetchHealth())
-    const openSettings = () => setSettingsOpen(true)
+    const openSettings = () => navigateView('settings')
 
     return (
         <ToastProvider>
@@ -45,13 +44,13 @@ export default function App() {
                             )}
                             {view === 'dashboard' && <DashboardView onOpenSettings={openSettings} />}
                             {view === 'search' && <SearchView onOpenNote={setOpenNote} onOpenSettings={openSettings} />}
+                            {view === 'settings' && <SettingsView />}
                         </>
                     ) : (
                         <SetupScreen health={health} loading={loading} onRecheck={() => void recheck()} />
                     )}
                 </main>
                 {view !== 'notes' && openNote && <NoteViewer path={openNote} onClose={() => setOpenNote(null)} />}
-                {settingsOpen && <SettingsModal onClose={() => setSettingsOpen(false)} />}
             </div>
         </ToastProvider>
     )

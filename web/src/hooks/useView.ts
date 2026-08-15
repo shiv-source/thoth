@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 
-export type View = 'chat' | 'notes' | 'dashboard' | 'search'
+export type View = 'chat' | 'notes' | 'dashboard' | 'search' | 'settings'
 
-const VIEW_HASH = /^#\/(chat|notes|dashboard|search)/
+const VIEW_HASH = /^#\/(chat|notes|dashboard|search|settings)/
 
 function viewFromHash(hash: string): View {
     const m = VIEW_HASH.exec(hash)

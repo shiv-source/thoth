@@ -10,6 +10,7 @@ import {
 import { fetchSettings, saveSettings, selectSettings } from '../store'
 import { useAppDispatch, useAppSelector } from '../store/hooks'
 import { useToast } from './Toast'
+import { TopBar } from './TopBar'
 
 const blank: Settings = {
     wiki_path: '',
@@ -41,7 +42,7 @@ const field =
     'w-full rounded-lg border border-line bg-app px-3 py-2 text-sm text-ink outline-none placeholder:text-subtle focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500'
 const label = 'mb-1 block text-xs font-medium uppercase tracking-wide text-subtle'
 
-export function SettingsModal({ onClose }: { onClose: () => void }) {
+export function SettingsView() {
     const [tab, setTab] = useState<Tab>('general')
     const [form, setForm] = useState<Settings>(blank)
     const [modelOptions, setModelOptions] = useState<ModelOption[]>([])
@@ -90,14 +91,6 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
         if (settings.data) setForm(settings.data)
     }, [settings.data])
 
-    useEffect(() => {
-        const onKey = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') onClose()
-        }
-        window.addEventListener('keydown', onKey)
-        return () => window.removeEventListener('keydown', onKey)
-    }, [onClose])
-
     useEffect(
         () => () => {
             if (savedTimer.current) clearTimeout(savedTimer.current)
@@ -126,42 +119,22 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
     }
 
     return (
-        <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-sm"
-            onClick={onClose}
-        >
-            <div
-                role="dialog"
-                aria-modal="true"
-                aria-label="Settings"
-                onClick={(e) => e.stopPropagation()}
-                className="flex h-[36rem] max-h-full w-[48rem] max-w-full animate-[pop-in_150ms_ease-out] flex-col rounded-xl border border-line bg-surface shadow-lg"
-            >
-                <header className="shrink-0 border-b border-line px-5 pt-4">
-                    <div className="flex items-center justify-between">
-                        <h2 className="font-display text-lg font-semibold text-heading">Settings</h2>
+        <div className="flex min-h-0 flex-1 flex-col">
+            <TopBar title="Settings" />
+            <div className="mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col px-4 py-3">
+                <nav role="tablist" aria-label="Settings sections" className="flex shrink-0 gap-1 border-b border-line">
+                    {tabs.map((t) => (
                         <button
-                            onClick={onClose}
-                            aria-label="Close settings"
-                            className="rounded-lg p-1.5 text-subtle transition hover:bg-raised hover:text-ink"
+                            key={t.id}
+                            role="tab"
+                            aria-selected={tab === t.id}
+                            onClick={() => setTab(t.id)}
+                            className={`-mb-px border-b-2 px-3 py-2 text-sm transition ${tab === t.id ? 'border-accent font-medium text-ink' : 'border-transparent text-subtle hover:text-ink'}`}
                         >
-                            ✕
+                            {t.label}
                         </button>
-                    </div>
-                    <nav role="tablist" aria-label="Settings sections" className="mt-1 flex gap-1">
-                        {tabs.map((t) => (
-                            <button
-                                key={t.id}
-                                role="tab"
-                                aria-selected={tab === t.id}
-                                onClick={() => setTab(t.id)}
-                                className={`-mb-px border-b-2 px-3 py-2 text-sm transition ${tab === t.id ? 'border-accent font-medium text-ink' : 'border-transparent text-subtle hover:text-ink'}`}
-                            >
-                                {t.label}
-                            </button>
-                        ))}
-                    </nav>
-                </header>
+                    ))}
+                </nav>
 
                 {tab === 'general' && (
                     <form onSubmit={handleSubmit} className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4">

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Bell, FileText, LayoutDashboard, MessageSquare, Search } from 'lucide-react'
+import { Bell, FileText, LayoutDashboard, MessageSquare, Search, Settings } from 'lucide-react'
 import { navigateView, useView, type View } from '../hooks/useView'
 import { selectUnreadCount } from '../store'
 import { useAppSelector } from '../store/hooks'
@@ -56,6 +56,17 @@ export function NavRail() {
                             {unread}
                         </span>
                     )}
+                </button>
+                <button
+                    type="button"
+                    onClick={() => navigateView('settings')}
+                    aria-label="Settings"
+                    aria-current={view === 'settings' ? 'page' : undefined}
+                    className={`flex h-10 w-10 items-center justify-center rounded-lg transition ${
+                        view === 'settings' ? 'bg-accent text-accent-ink' : 'text-subtle hover:bg-raised hover:text-ink'
+                    }`}
+                >
+                    <Settings className="h-5 w-5" aria-hidden="true" />
                 </button>
             </div>
             {panelOpen && <NotificationPanel onClose={() => setPanelOpen(false)} />}
