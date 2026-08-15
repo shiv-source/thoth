@@ -166,7 +166,7 @@ export function Sidebar({ openPath, onOpenNote }: {
         </button>
       </div>
       <ChatsList />
-      <div className="min-h-0 flex-1 border-t border-line px-3">
+      <div className="flex min-h-0 flex-1 flex-col border-t border-line px-3">
         <div className="px-0 pb-1.5 pt-4 text-[11px] font-semibold uppercase tracking-wider text-subtle">
           Wiki
         </div>
