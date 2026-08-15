@@ -1,0 +1,9 @@
+{
+  "models": [
+    { "value": "", "label": "Default (CLI)" },
+    { "value": "claude-opus-5", "label": "Opus 5 — deepest reasoning" },
+    { "value": "claude-sonnet-5", "label": "Sonnet 5 — balanced" },
+    { "value": "claude-haiku-4-5-20251001", "label": "Haiku 4.5 — fastest" },
+    { "value": "claude-fable-5", "label": "Fable 5" }
+  ]
+}

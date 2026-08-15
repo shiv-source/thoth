@@ -1,14 +1,17 @@
-package claude
+package assets
 
 import "testing"
 
-func TestModelOptions(t *testing.T) {
-	opts := ModelOptions()
+func TestModelOptionsParse(t *testing.T) {
+	opts, err := ModelOptions()
+	if err != nil {
+		t.Fatalf("ModelOptions: %v", err)
+	}
 	if len(opts) < 2 {
-		t.Fatalf("expected at least the default and one model, got %+v", opts)
+		t.Fatalf("expected several models, got %+v", opts)
 	}
 	if opts[0].Value != "" {
-		t.Fatalf("first option must be the empty default value, got %q", opts[0].Value)
+		t.Fatalf("first option must be the empty default, got %q", opts[0].Value)
 	}
 	seen := map[string]bool{}
 	for _, o := range opts {

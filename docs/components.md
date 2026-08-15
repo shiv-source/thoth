@@ -9,6 +9,7 @@ The Go backend is organized as small packages with one purpose each, communicati
 | `internal/claude` | **The blast wall** — the only package that knows CLI flags, stream parsing, and process kill mechanics | `Client`, `CLIClient`, `PersistentClient`, `Event`, `ParseLine`, `FakeClient` |
 | `internal/wiki` | The file contract: scaffolding, parsing, path safety, tree | `Scaffold`, `ParseNote`, `SafePath`, `Wiki`, `Rulebook` |
 | `internal/index` | SQLite + FTS5 + watcher | `Index`, `Sync`, `Watch`, `Search` |
+| `internal/assets` | Static data files served by the API (embedded) | `models.json` → `ModelOptions` (the Settings model picker list) |
 | `internal/store` | Conversations and messages (same db file) | `Store` |
 | `internal/api` | Echo server: routes, WS hub, handlers | `Deps`, `New`, `Hub` |
 | `internal/config` | Localhost bind constants (`127.0.0.1:8333`) + `ExpandHome` path helper | `DefaultHost`, `DefaultPort`, `ExpandHome` |
