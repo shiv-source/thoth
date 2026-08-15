@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Plus, Trash2 } from 'lucide-react'
+import { ChevronsDownUp, ChevronsUpDown, Plus, Trash2 } from 'lucide-react'
 import { api, type Conversation, type Health } from '../api/client'
 import { navigate } from '../hooks/useConversationRoute'
 import { useToast } from './Toast'
@@ -173,6 +173,9 @@ export function Sidebar({ openPath, onOpenNote, health, loading }: {
   health: Health | null
   loading: boolean
 }) {
+  const [expandedKeys, setExpandedKeys] = useState<Set<string>>(() => new Set())
+  const [allDirs, setAllDirs] = useState<Set<string>>(() => new Set())
+  const allExpanded = allDirs.size > 0 && expandedKeys.size >= allDirs.size
   return (
     <aside className="flex w-72 shrink-0 flex-col border-r border-line bg-app">
       <div className="flex h-14 shrink-0 items-center gap-2.5 px-4">
@@ -194,13 +197,32 @@ export function Sidebar({ openPath, onOpenNote, health, loading }: {
         </div>
       </div>
       <div className="flex min-h-0 flex-1 flex-col border-t border-line px-3">
-        <div className="px-0 pb-1.5 pt-4 text-[11px] font-semibold uppercase tracking-wider text-subtle">
-          Wiki (Your Knowledge)
+        <div className="flex shrink-0 items-center justify-between pb-1.5 pt-4">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-subtle">
+            Wiki (Your Knowledge)
+          </span>
+          <button
+            type="button"
+            onClick={() => setExpandedKeys(allExpanded ? new Set() : new Set(allDirs))}
+            aria-label={allExpanded ? 'Collapse all folders' : 'Expand all folders'}
+            title={allExpanded ? 'Collapse all' : 'Expand all'}
+            className="rounded p-1 text-subtle transition hover:bg-raised hover:text-ink"
+          >
+            {allExpanded
+              ? <ChevronsDownUp className="h-4 w-4" />
+              : <ChevronsUpDown className="h-4 w-4" />}
+          </button>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto pb-3">
           <SearchPanel onOpen={onOpenNote} />
           <div className="mt-3">
-            <WikiTree openPath={openPath} onOpenNote={onOpenNote} />
+            <WikiTree
+              openPath={openPath}
+              onOpenNote={onOpenNote}
+              expandedKeys={expandedKeys}
+              onExpandedChange={setExpandedKeys}
+              onDirsChange={setAllDirs}
+            />
           </div>
         </div>
       </div>

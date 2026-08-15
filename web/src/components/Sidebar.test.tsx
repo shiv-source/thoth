@@ -147,3 +147,26 @@ describe('Sidebar health footer', () => {
     expect(await screen.findByText('Checking…')).toBeInTheDocument()
   })
 })
+
+describe('Sidebar wiki controls', () => {
+  it('expand-all reveals every folder; the same toggle collapses them again', async () => {
+    stubAPI({
+      '/api/conversations': () => new Response(JSON.stringify({ conversations: [] }), { status: 200 }),
+      '/api/wiki/tree': () => new Response(JSON.stringify({
+        nodes: [
+          { name: 'meetings', path: 'meetings', is_dir: true, children: [
+            { name: 'standup.md', path: 'meetings/standup.md', is_dir: false, children: null },
+          ] },
+        ],
+      }), { status: 200 }),
+    })
+    renderSidebar()
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Expand all folders' }))
+    expect(screen.getByText('standup.md')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Collapse all folders' })).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Collapse all folders' }))
+    expect(screen.queryByText('standup.md')).not.toBeInTheDocument()
+  })
+})

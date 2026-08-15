@@ -1,15 +1,22 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ChevronsDownUp, ChevronsUpDown, FileText, Folder, FolderOpen } from 'lucide-react'
+import { FileText, Folder, FolderOpen } from 'lucide-react'
 import { api, type TreeNode } from '../api/client'
 import { Tree } from './Tree'
 
 // WikiTree renders the wiki directory as a folder tree via the reusable
 // Tree component: folders collapse with chevrons, files open the note.
-// Expand/collapse-all buttons and per-folder note counts live in its header.
-export function WikiTree({ openPath, onOpenNote }: { openPath: string | null; onOpenNote: (path: string) => void }) {
+// Expansion is controlled by the caller (the sidebar header owns the
+// expand/collapse-all toggle); onDirsChange reports the dir keys so the
+// caller can expand everything.
+export function WikiTree({ openPath, onOpenNote, expandedKeys, onExpandedChange, onDirsChange }: {
+  openPath: string | null
+  onOpenNote: (path: string) => void
+  expandedKeys: Set<string>
+  onExpandedChange: (next: Set<string>) => void
+  onDirsChange?: (dirs: Set<string>) => void
+}) {
   const [nodes, setNodes] = useState<TreeNode[] | null>(null)
   const [error, setError] = useState(false)
-  const [expandedKeys, setExpandedKeys] = useState<Set<string>>(() => new Set())
 
   useEffect(() => {
     api.tree()
@@ -39,7 +46,9 @@ export function WikiTree({ openPath, onOpenNote }: { openPath: string | null; on
     return { allDirs: dirs, fileCounts: counts }
   }, [nodes])
 
-  const allExpanded = allDirs.size > 0 && expandedKeys.size >= allDirs.size
+  useEffect(() => {
+    if (nodes !== null) onDirsChange?.(allDirs)
+  }, [allDirs, nodes, onDirsChange])
 
   if (error) {
     return <p className="px-1 text-sm text-red-600 dark:text-red-400">Could not load the wiki tree</p>
@@ -53,19 +62,6 @@ export function WikiTree({ openPath, onOpenNote }: { openPath: string | null; on
 
   return (
     <div>
-      <div className="mb-1 flex items-center justify-end">
-        <button
-          type="button"
-          onClick={() => setExpandedKeys(allExpanded ? new Set() : new Set(allDirs))}
-          aria-label={allExpanded ? 'Collapse all folders' : 'Expand all folders'}
-          title={allExpanded ? 'Collapse all' : 'Expand all'}
-          className="rounded p-1 text-subtle transition hover:bg-raised hover:text-ink"
-        >
-          {allExpanded
-            ? <ChevronsDownUp className="h-4 w-4" />
-            : <ChevronsUpDown className="h-4 w-4" />}
-        </button>
-      </div>
       <Tree<TreeNode>
         nodes={nodes}
         getKey={(n) => n.path}
@@ -87,7 +83,7 @@ export function WikiTree({ openPath, onOpenNote }: { openPath: string | null; on
         onSelect={(n) => { if (!n.is_dir) onOpenNote(n.path) }}
         selectedKey={openPath}
         expandedKeys={expandedKeys}
-        onExpandedChange={setExpandedKeys}
+        onExpandedChange={onExpandedChange}
       />
     </div>
   )
