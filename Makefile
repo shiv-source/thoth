@@ -98,20 +98,20 @@ fmt: ## format and autofix the Go tree (gofmt/goimports + autofixable linters)
 fmt:
 	golangci-lint run --fix
 
-test: ## unit tests
+test: ## unit tests (fail-fast)
 .PHONY: test
 test:
-	$(GO) test ./...
+	$(GO) test -failfast ./...
 
-race: ## tests under the race detector
+race: ## tests under the race detector (fail-fast)
 .PHONY: race
 race:
-	$(GO) test -race ./...
+	$(GO) test -race -failfast ./...
 
 cover: ## coverage report with the CI gate (>= 80%)
 .PHONY: cover
 cover:
-	$(GO) test -coverprofile=coverage.out ./internal/... ./cmd/...
+	$(GO) test -failfast -coverprofile=coverage.out ./internal/... ./cmd/...
 	$(GO) tool cover -func=coverage.out | tail -1
 	@$(GO) tool cover -func=coverage.out | awk -F'\t' '/^total:/ { gsub(/%/,"",$$NF); if ($$NF+0 < 80) { print "FAIL: coverage below 80% floor"; exit 1 } }'
 
