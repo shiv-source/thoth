@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { ChevronsDownUp, ChevronsUpDown } from 'lucide-react'
+import { EmptyState } from './EmptyState'
 import { NoteViewer } from './NoteViewer'
 import { Tooltip } from './Tooltip'
 import { TopBar } from './TopBar'
@@ -57,13 +58,11 @@ export function NotesView({
                     {openPath ? (
                         <NoteViewer path={openPath} onClose={() => onOpenNote(null)} />
                     ) : (
-                        <div className="flex flex-1 flex-col items-center justify-center gap-3 text-subtle">
-                            <span className="text-3xl" aria-hidden="true">
-                                🦉
-                            </span>
-                            <p className="text-sm">Select a note to read it here</p>
-                            <p className="max-w-sm text-center text-xs">Backlinks land in the wiring pass.</p>
-                        </div>
+                        <EmptyState
+                            icon="🦉"
+                            title="Select a note to read it here"
+                            hint="Backlinks land in the wiring pass."
+                        />
                     )}
                 </main>
             </div>

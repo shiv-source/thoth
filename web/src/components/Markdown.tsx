@@ -1,6 +1,11 @@
+import type { ReactNode } from 'react'
 import ReactMarkdown, { type Components } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { CodeBlock } from './CodeBlock'
+
+// PROSE is the shared typography wrapper for every markdown surface.
+const PROSE =
+    'prose prose-sm max-w-none prose-headings:font-display prose-headings:text-heading prose-code:before:content-none prose-code:after:content-none prose-pre:rounded-lg dark:prose-invert'
 
 // Fenced code blocks route through Shiki (CodeBlock); inline code keeps the
 // default prose styling. The pre wrapper is unwrapped so the highlight's own
@@ -17,12 +22,24 @@ const components: Components = {
     }
 }
 
-// Markdown renders GFM markdown with Shiki-highlighted code blocks. Prose
-// styling comes from the caller's wrapper (prose classes), not here.
-export function Markdown({ children }: { children: string }) {
+// Markdown renders GFM markdown with Shiki-highlighted code blocks inside the
+// shared prose wrapper. `trailing` renders after the content (e.g. the
+// streaming caret in chat); `className` is appended to the wrapper.
+export function Markdown({
+    children,
+    trailing,
+    className = ''
+}: {
+    children: string
+    trailing?: ReactNode
+    className?: string
+}) {
     return (
-        <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
-            {children}
-        </ReactMarkdown>
+        <div className={`${PROSE} ${className}`}>
+            <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
+                {children}
+            </ReactMarkdown>
+            {trailing}
+        </div>
     )
 }

@@ -3,14 +3,8 @@ import { X } from 'lucide-react'
 import { dismissNotification, selectNotifications } from '../store'
 import { useAppDispatch, useAppSelector } from '../store/hooks'
 import type { NotificationKind } from '../store/slices/notificationsSlice'
-
-const KIND_ICON: Record<NotificationKind, string> = {
-    sync: '🔄',
-    note: '📝',
-    rulebook: '📜',
-    chat: '💬',
-    doctor: '🩺'
-}
+import { IconButton } from './IconButton'
+import { NotificationIcon } from './notifications'
 
 const TOAST_MS = 5000
 
@@ -69,21 +63,16 @@ function ToastCard({
             role="status"
             className="pointer-events-auto flex items-start gap-2 rounded-xl border border-line bg-surface px-3 py-2.5 shadow-lg"
         >
-            <span aria-hidden="true" className="mt-0.5 text-sm">
-                {KIND_ICON[kind]}
+            <span className="mt-0.5">
+                <NotificationIcon kind={kind} />
             </span>
             <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium text-ink">{title}</p>
                 {body && <p className="mt-0.5 text-xs text-subtle">{body}</p>}
             </div>
-            <button
-                type="button"
-                onClick={onDismiss}
-                aria-label={`Dismiss: ${title}`}
-                className="rounded-md p-1 text-subtle transition hover:bg-raised hover:text-ink"
-            >
+            <IconButton label={`Dismiss: ${title}`} onClick={onDismiss}>
                 <X className="h-3.5 w-3.5" aria-hidden="true" />
-            </button>
+            </IconButton>
         </div>
     )
 }

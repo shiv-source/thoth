@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { Search } from 'lucide-react'
 import { useSearch } from '../hooks/useSearch'
 import { useViewRoute } from '../hooks/useView'
+import { EmptyState } from './EmptyState'
 
 export function SearchPanel({ onOpen }: { onOpen: (path: string) => void }) {
     const { segment } = useViewRoute()
@@ -71,7 +72,9 @@ export function SearchPanel({ onOpen }: { onOpen: (path: string) => void }) {
             {query && (
                 <div className="mt-1.5">
                     {loading && <p className="px-1 text-xs text-subtle">Searching…</p>}
-                    {!loading && results.length === 0 && <p className="px-1 text-xs text-subtle">No notes match.</p>}
+                    {!loading && results.length === 0 && (
+                        <EmptyState icon="🔍" title="No notes match." className="py-4 text-xs" />
+                    )}
                     {results.length > 0 && (
                         <ul className="space-y-0.5">
                             {results.map((r, i) => (

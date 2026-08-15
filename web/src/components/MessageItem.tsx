@@ -1,22 +1,10 @@
-import { useState } from 'react'
-import { Check, Copy } from 'lucide-react'
 import type { ChatMessage } from '../hooks/useChat'
+import { CopyButton } from './CopyButton'
 import { Markdown } from './Markdown'
 import { Tooltip } from './Tooltip'
 
 export function MessageItem({ message, streaming }: { message: ChatMessage; streaming?: boolean }) {
     const isUser = message.role === 'user'
-    const [copied, setCopied] = useState(false)
-
-    const copy = async () => {
-        try {
-            await navigator.clipboard.writeText(message.content)
-            setCopied(true)
-            setTimeout(() => setCopied(false), 1500)
-        } catch {
-            // Clipboard unavailable — the button simply does nothing.
-        }
-    }
 
     return (
         <div className={`flex items-start gap-2.5 ${isUser ? 'justify-end' : 'justify-start'}`}>
@@ -29,30 +17,29 @@ export function MessageItem({ message, streaming }: { message: ChatMessage; stre
                 }
             >
                 {!isUser && !streaming && (
-                    <Tooltip label={copied ? 'Copied' : 'Copy message'}>
-                        <button
-                            type="button"
-                            onClick={() => void copy()}
-                            aria-label="Copy message"
-                            className="absolute right-2 top-2 rounded-md p-1 text-subtle transition hover:bg-raised hover:text-ink"
-                        >
-                            {copied ? (
-                                <Check className="h-3.5 w-3.5 text-emerald-500" aria-hidden="true" />
-                            ) : (
-                                <Copy className="h-3.5 w-3.5" aria-hidden="true" />
-                            )}
-                        </button>
+                    <Tooltip label="Copy message">
+                        <span className="absolute right-2 top-2">
+                            <CopyButton
+                                text={message.content}
+                                label="Copy message"
+                                toast="Message copied to clipboard"
+                            />
+                        </span>
                     </Tooltip>
                 )}
                 {isUser ? (
                     <p className="whitespace-pre-wrap text-sm leading-relaxed">{message.content}</p>
                 ) : (
-                    <div className="prose prose-sm max-w-none pr-6 prose-headings:font-display prose-headings:text-heading prose-code:before:content-none prose-code:after:content-none prose-pre:rounded-lg dark:prose-invert">
-                        <Markdown>{message.content}</Markdown>
-                        {streaming && (
-                            <span className="ml-0.5 inline-block h-4 w-1.5 animate-pulse rounded bg-accent align-text-bottom" />
-                        )}
-                    </div>
+                    <Markdown
+                        className="pr-6"
+                        trailing={
+                            streaming ? (
+                                <span className="ml-0.5 inline-block h-4 w-1.5 animate-pulse rounded bg-accent align-text-bottom" />
+                            ) : undefined
+                        }
+                    >
+                        {message.content}
+                    </Markdown>
                 )}
             </div>
         </div>
