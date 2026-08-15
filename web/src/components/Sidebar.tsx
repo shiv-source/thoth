@@ -183,7 +183,6 @@ export function Sidebar({ openPath, onOpenNote, health, loading }: {
       <div className="flex h-14 shrink-0 items-center gap-2.5 px-4">
         <span className="text-xl leading-none">🦉</span>
         <span className="font-display text-lg font-semibold tracking-tight text-heading">Thoth</span>
-        <span className="ml-auto h-2 w-2 rounded-full bg-accent" aria-hidden="true" />
       </div>
       <div className="flex min-h-0 flex-1 flex-col">
         <div className="flex shrink-0 items-center justify-between px-3 pb-1">

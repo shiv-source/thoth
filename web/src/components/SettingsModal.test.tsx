@@ -1,8 +1,59 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { SettingsModal } from './SettingsModal'
 import { ToastProvider } from './Toast'
+
+// The client creates its axios instance via axios.create; the mocks are
+// hoisted so the (also hoisted) vi.mock factory can close over them.
+const mocks = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() }))
+
+vi.mock('axios', () => ({
+  default: {
+    create: () => ({
+      get: mocks.get,
+      post: mocks.post,
+      put: mocks.put,
+      delete: mocks.delete,
+    }),
+    isAxiosError: (e: unknown) => !!(e && typeof e === 'object' && (e as { isAxiosError?: boolean }).isAxiosError === true),
+  },
+}))
+
+// axiosError builds a rejection value shaped like an axios error response.
+function axiosError(status: number, body: unknown) {
+  return Object.assign(new Error(`${status}`), {
+    isAxiosError: true,
+    response: { status, statusText: String(status), data: body },
+  })
+}
+
+// stubAPI wires the mocks to the handlers keyed by "METHOD /path"; handlers
+// return the response BODY directly — axios wraps it as `{ data }`, which
+// the client parses via zod.
+function stubAPI(handlers: Record<string, () => unknown>) {
+  const respond = (method: string, url: string) => {
+    const make = handlers[`${method} ${url}`] ?? handlers[url]
+    if (!make) {
+      return Promise.reject(Object.assign(new Error(`unhandled ${method} ${url}`), {
+        isAxiosError: true,
+        response: { status: 500, statusText: 'Internal Server Error' },
+      }))
+    }
+    return Promise.resolve({ data: make() })
+  }
+  mocks.get.mockImplementation((url: string) => respond('GET', url))
+  mocks.post.mockImplementation((url: string) => respond('POST', url))
+  mocks.put.mockImplementation((url: string) => respond('PUT', url))
+  mocks.delete.mockImplementation((url: string) => respond('DELETE', url))
+  return mocks
+}
+
+// Body of the most recent call to `method url` (calls accumulate across
+// tests; mock call args are `any`, so narrow them through `unknown`).
+function lastBody(method: 'get' | 'post' | 'put' | 'delete', url: string): unknown {
+  return [...mocks[method].mock.calls].reverse().find(([u]) => u === url)?.[1] as unknown
+}
 
 const settings = {
   wiki_path: '~/.thoth/wiki', repo_url: '', sync_enabled: false,
@@ -18,40 +69,25 @@ const connected = {
   account_created_at: '2018-05-01T10:00:00Z', account_updated_at: '2026-08-01T10:00:00Z',
 }
 
-// stubAPI answers fetches by "METHOD path" with canned responses and returns
-// the mock so tests can assert on the calls.
-function stubAPI(handlers: Record<string, () => Response>) {
-  const fetchMock = vi.fn((url: string, init?: RequestInit) => {
-    const key = `${init?.method ?? 'GET'} ${url}`
-    const make = handlers[key]
-    if (make) return Promise.resolve(make())
-    return Promise.resolve(new Response('not found', { status: 404 }))
-  })
-  vi.stubGlobal('fetch', fetchMock)
-  return fetchMock
-}
-
-const getSettings = () => new Response(JSON.stringify(settings), { status: 200 })
-const getEmptyGitHub = () => new Response(JSON.stringify(emptyGitHub), { status: 200 })
-const getRepos = () => new Response(JSON.stringify({
+const getSettings = () => settings
+const getEmptyGitHub = () => emptyGitHub
+const getRepos = () => ({
   repos: [
     { full_name: 'octo/wiki', clone_url: 'https://github.com/octo/wiki.git', private: true, description: 'My personal knowledge base' },
     { full_name: 'octo/public-wiki', clone_url: 'https://github.com/octo/public-wiki.git', private: false, description: '' },
   ],
-}), { status: 200 })
+})
 
 function renderModal() {
   return render(<ToastProvider><SettingsModal onClose={() => {}} /></ToastProvider>)
 }
-
-afterEach(() => vi.unstubAllGlobals())
 
 describe('SettingsModal', () => {
   it('loads current settings and saves edits', async () => {
     stubAPI({
       'GET /api/settings': getSettings,
       'GET /api/github/auth': getEmptyGitHub,
-      'PUT /api/settings': () => new Response(JSON.stringify({ ...settings, wiki_path: '/tmp/other/wiki' }), { status: 200 }),
+      'PUT /api/settings': () => ({ ...settings, wiki_path: '/tmp/other/wiki' }),
     })
 
     renderModal()
@@ -93,12 +129,12 @@ describe('SettingsModal', () => {
     stubAPI({
       'GET /api/settings': getSettings,
       'GET /api/github/auth': getEmptyGitHub,
-      'GET /api/doctor': () => new Response(JSON.stringify({
+      'GET /api/doctor': () => ({
         checks: [
           { name: 'wiki', ok: true, message: '/tmp/wiki exists' },
           { name: 'claude', ok: false, message: 'claude CLI not found on PATH' },
         ],
-      }), { status: 200 }),
+      }),
     })
 
     renderModal()
@@ -108,11 +144,11 @@ describe('SettingsModal', () => {
   })
 
   it('stores the git remote URL and pushes', async () => {
-    const fetchMock = stubAPI({
+    stubAPI({
       'GET /api/settings': getSettings,
-      'GET /api/github/auth': () => new Response(JSON.stringify(connected), { status: 200 }),
+      'GET /api/github/auth': () => connected,
       'GET /api/github/repos': getRepos,
-      'POST /api/git/setup': () => new Response(JSON.stringify({ ok: true }), { status: 200 }),
+      'POST /api/git/setup': () => ({ ok: true }),
     })
 
     renderModal()
@@ -128,16 +164,16 @@ describe('SettingsModal', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Initialize & Push' }))
     expect(await screen.findByText('Wiki pushed to remote')).toBeInTheDocument()
     // The setup call carried the URL.
-    const gitBody = fetchMock.mock.calls.find(([u]) => u === '/api/git/setup')?.[1]?.body
-    expect(typeof gitBody === 'string' && gitBody.includes('https://github.com/octo/wiki.git')).toBe(true)
+    const gitBody = lastBody('post', '/api/git/setup')
+    expect(gitBody != null && JSON.stringify(gitBody).includes('https://github.com/octo/wiki.git')).toBe(true)
   })
 
   it('connects a GitHub account with a token', async () => {
-    const fetchMock = stubAPI({
+    stubAPI({
       'GET /api/settings': getSettings,
       'GET /api/github/auth': getEmptyGitHub,
       'GET /api/github/repos': getRepos,
-      'POST /api/github/auth': () => new Response(JSON.stringify(connected), { status: 200 }),
+      'POST /api/github/auth': () => connected,
     })
 
     renderModal()
@@ -152,18 +188,16 @@ describe('SettingsModal', () => {
     // The remote URL input appears once connected.
     expect(await screen.findByPlaceholderText(/github\.com/)).toBeInTheDocument()
     // The POST carried the token.
-    const connectBody = fetchMock.mock.calls.find(
-      ([u, init]) => u === '/api/github/auth' && init?.method === 'POST',
-    )?.[1]?.body
-    expect(typeof connectBody === 'string' && connectBody.includes('ghp_secret123')).toBe(true)
+    const connectBody = lastBody('post', '/api/github/auth')
+    expect(connectBody != null && JSON.stringify(connectBody).includes('ghp_secret123')).toBe(true)
   })
 
   it('shows the connect error', async () => {
     stubAPI({
       'GET /api/settings': getSettings,
       'GET /api/github/auth': getEmptyGitHub,
-      'POST /api/github/auth': () => new Response(JSON.stringify({ error: 'github rejected the token' }), { status: 400 }),
     })
+    mocks.post.mockRejectedValueOnce(axiosError(400, { error: 'github rejected the token' }))
 
     renderModal()
     await userEvent.click(await screen.findByRole('tab', { name: 'Git remote' }))
@@ -175,11 +209,11 @@ describe('SettingsModal', () => {
   })
 
   it('disconnects a GitHub account', async () => {
-    const fetchMock = stubAPI({
+    stubAPI({
       'GET /api/settings': getSettings,
-      'GET /api/github/auth': () => new Response(JSON.stringify(connected), { status: 200 }),
+      'GET /api/github/auth': () => connected,
       'GET /api/github/repos': getRepos,
-      'DELETE /api/github/auth': () => new Response(JSON.stringify({ ok: true }), { status: 200 }),
+      'DELETE /api/github/auth': () => ({ ok: true }),
     })
 
     renderModal()
@@ -189,17 +223,17 @@ describe('SettingsModal', () => {
 
     expect(await screen.findByPlaceholderText(/ghp_/)).toBeInTheDocument()
     expect(screen.getByText('GitHub disconnected')).toBeInTheDocument()
-    expect(fetchMock.mock.calls.some(([u, init]) => u === '/api/github/auth' && init?.method === 'DELETE')).toBe(true)
+    expect(mocks.delete.mock.calls.some(([u]) => u === '/api/github/auth')).toBe(true)
   })
 })
 
 describe('SettingsModal auto-sync', () => {
   it('toggles sync_enabled in the Git tab and saves it', async () => {
-    const fetchMock = stubAPI({
+    stubAPI({
       'GET /api/settings': getSettings,
-      'GET /api/github/auth': () => new Response(JSON.stringify(connected), { status: 200 }),
+      'GET /api/github/auth': () => connected,
       'GET /api/github/repos': getRepos,
-      'PUT /api/settings': () => new Response(JSON.stringify({ ...settings, sync_enabled: true }), { status: 200 }),
+      'PUT /api/settings': () => ({ ...settings, sync_enabled: true }),
     })
 
     renderModal()
@@ -208,10 +242,8 @@ describe('SettingsModal auto-sync', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Save' }))
 
     expect(await screen.findByText('Settings saved')).toBeInTheDocument()
-    const put = fetchMock.mock.calls.find(
-      ([u, init]) => u === '/api/settings' && init?.method === 'PUT',
-    )?.[1]?.body
-    expect(typeof put === 'string' && put.includes('"sync_enabled":true')).toBe(true)
+    const put = lastBody('put', '/api/settings')
+    expect(put != null && JSON.stringify(put).includes('"sync_enabled":true')).toBe(true)
   })
 })
 
@@ -219,7 +251,7 @@ describe('SettingsModal public repo guard', () => {
   it('warns and blocks push when a public repo is picked', async () => {
     stubAPI({
       'GET /api/settings': getSettings,
-      'GET /api/github/auth': () => new Response(JSON.stringify(connected), { status: 200 }),
+      'GET /api/github/auth': () => connected,
       'GET /api/github/repos': getRepos,
     })
 

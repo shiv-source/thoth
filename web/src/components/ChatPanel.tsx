@@ -77,7 +77,7 @@ export function ChatPanel() {
             <div className="font-display text-3xl font-semibold text-heading">Thoth</div>
             <p className="mt-2 max-w-sm text-sm text-subtle">
               Ask anything — “what did we decide in Tuesday's standup?” or
-              “save this: the deploy uses port 9090”.
+              “save this: the client approved the new roadmap.”
             </p>
           </div>
         )}

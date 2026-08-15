@@ -1,8 +1,30 @@
 import { useState } from 'react'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { WikiTree } from './WikiTree'
+
+const mocks = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() }))
+
+vi.mock('axios', () => ({
+  default: {
+    create: () => ({
+      get: mocks.get,
+      post: mocks.post,
+      put: mocks.put,
+      delete: mocks.delete,
+    }),
+    isAxiosError: (e: unknown) => !!(e && typeof e === 'object' && (e as { isAxiosError?: boolean }).isAxiosError === true),
+  },
+}))
+
+// axiosError builds a rejection value shaped like an axios error response.
+function axiosError(status: number, body: unknown) {
+  return Object.assign(new Error(`${status}`), {
+    isAxiosError: true,
+    response: { status, statusText: String(status), data: body },
+  })
+}
 
 // Harness: WikiTree is controlled from the sidebar now; keep the expanded
 // state in the test so interactions behave like production.
@@ -34,10 +56,8 @@ const treeResponse = {
 }
 
 describe('WikiTree', () => {
-  afterEach(() => vi.unstubAllGlobals())
-
   it('renders the nested wiki structure', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(treeResponse), { status: 200 })))
+    mocks.get.mockResolvedValueOnce({ data: treeResponse })
     renderWikiTree()
 
     expect(screen.getByText('Loading…')).toBeInTheDocument()
@@ -48,7 +68,7 @@ describe('WikiTree', () => {
   })
 
   it('opens the clicked note and marks it selected', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(treeResponse), { status: 200 })))
+    mocks.get.mockResolvedValueOnce({ data: treeResponse })
     const { onOpenNote } = renderWikiTree()
 
     await userEvent.click(await screen.findByRole('button', { name: 'Expand meetings' }))
@@ -57,7 +77,7 @@ describe('WikiTree', () => {
   })
 
   it('collapsing a folder hides its files', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(treeResponse), { status: 200 })))
+    mocks.get.mockResolvedValueOnce({ data: treeResponse })
     renderWikiTree()
 
     await userEvent.click(await screen.findByRole('button', { name: 'Expand meetings' }))
@@ -67,7 +87,7 @@ describe('WikiTree', () => {
   })
 
   it('shows per-folder note-count badges', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(treeResponse), { status: 200 })))
+    mocks.get.mockResolvedValueOnce({ data: treeResponse })
     renderWikiTree()
     // Badges: one file under each folder (recursive counts).
     expect((await screen.findByText('meetings')).parentElement?.textContent).toContain('1')
@@ -75,7 +95,7 @@ describe('WikiTree', () => {
   })
 
   it('shows an error state when the tree fetch fails', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('boom', { status: 500 })))
+    mocks.get.mockRejectedValueOnce(axiosError(500, 'boom'))
     renderWikiTree()
 
     expect(await screen.findByText('Could not load the wiki tree')).toBeInTheDocument()
