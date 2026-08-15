@@ -35,7 +35,7 @@ export function MessageItem({ message, streaming }: { message: ChatMessage; stre
               type="button"
               onClick={() => void copy()}
               aria-label="Copy message"
-              className="absolute right-2 top-2 rounded-md p-1 text-subtle opacity-0 transition group-hover:opacity-100 hover:bg-raised hover:text-ink"
+              className="absolute right-2 top-2 rounded-md p-1 text-subtle transition hover:bg-raised hover:text-ink"
             >
               {copied ? <Check className="h-3.5 w-3.5 text-emerald-500" aria-hidden="true" /> : <Copy className="h-3.5 w-3.5" aria-hidden="true" />}
             </button>
