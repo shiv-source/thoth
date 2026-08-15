@@ -4,6 +4,7 @@ import { api, type Conversation, type Health } from '../api/client'
 import { navigate } from '../hooks/useConversationRoute'
 import { useToast } from './Toast'
 import { SearchPanel } from './SearchPanel'
+import { Tooltip } from './Tooltip'
 import { WikiTree } from './WikiTree'
 
 // ChatsList renders the conversation history grouped by day. Clicking an
@@ -201,17 +202,18 @@ export function Sidebar({ openPath, onOpenNote, health, loading }: {
           <span className="text-[11px] font-semibold uppercase tracking-wider text-subtle">
             Wiki (Your Knowledge)
           </span>
-          <button
-            type="button"
-            onClick={() => setExpandedKeys(allExpanded ? new Set() : new Set(allDirs))}
-            aria-label={allExpanded ? 'Collapse all folders' : 'Expand all folders'}
-            title={allExpanded ? 'Collapse all' : 'Expand all'}
-            className="rounded p-1 text-subtle transition hover:bg-raised hover:text-ink"
-          >
-            {allExpanded
-              ? <ChevronsDownUp className="h-4 w-4" />
-              : <ChevronsUpDown className="h-4 w-4" />}
-          </button>
+          <Tooltip label={allExpanded ? 'Collapse all' : 'Expand all'}>
+            <button
+              type="button"
+              onClick={() => setExpandedKeys(allExpanded ? new Set() : new Set(allDirs))}
+              aria-label={allExpanded ? 'Collapse all folders' : 'Expand all folders'}
+              className="rounded p-1 text-subtle transition hover:bg-raised hover:text-ink"
+            >
+              {allExpanded
+                ? <ChevronsDownUp className="h-4 w-4" />
+                : <ChevronsUpDown className="h-4 w-4" />}
+            </button>
+          </Tooltip>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto pb-3">
           <SearchPanel onOpen={onOpenNote} />
