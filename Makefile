@@ -48,7 +48,7 @@ dev: web-sync ## run Vite (HMR) and the Go server together; Ctrl+C stops both
 	$(GO) run ./cmd/thoth serve
 .PHONY: dev
 
-## Vite dev server only (proxies /api and /ws to 127.0.0.1:8333)
+dev-web: ## Vite dev server only (proxies /api and /ws to 127.0.0.1:8333)
 .PHONY: dev-web
 dev-web:
 	cd web && $(PNPM) dev
@@ -64,7 +64,8 @@ dev-server: web ## Go server only, with the embedded frontend
 web: ## build the frontend and sync it into the Go embed
 .PHONY: web
 web:
-	cd web && $(PNPM) install --frozen-lockfile && $(PNPM) run build
+	$(PNPM) install --frozen-lockfile
+	cd web && $(PNPM) run build
 	rm -rf $(EMBED_DIST)
 	cp -r web/dist $(EMBED_DIST)
 
@@ -92,11 +93,10 @@ release: web test ## cross-compile all five targets into dist/ (stamped with VER
 # Quality gates — what CI enforces
 # -----------------------------------------------------------------------------
 
-fmt: ## format and vet the Go tree
+fmt: ## format and autofix the Go tree (gofmt/goimports + autofixable linters)
 .PHONY: fmt
 fmt:
-	gofmt -w $$(find . -name '*.go' -not -path './web/node_modules/*')
-	$(GO) vet ./...
+	golangci-lint run --fix
 
 test: ## unit tests
 .PHONY: test
@@ -119,9 +119,15 @@ lint: ## backend and frontend static analysis
 .PHONY: lint
 lint:
 	golangci-lint run
-	cd web && $(PNPM) run lint && $(PNPM) exec tsc --noEmit
+	$(PNPM) lint
+	$(PNPM) typecheck
 
-check: fmt lint race cover build ## everything CI runs, locally
+web-test: ## frontend unit tests
+.PHONY: web-test
+web-test:
+	$(PNPM) test
+
+check: fmt lint race cover web-test build ## everything CI runs, locally
 .PHONY: check
 
 # -----------------------------------------------------------------------------
