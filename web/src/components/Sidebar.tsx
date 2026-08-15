@@ -96,26 +96,30 @@ function ChatsList() {
 function groupByDay(conversations: Conversation[]): [string, Conversation[]][] {
   const now = new Date()
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
-  const buckets: [string, Conversation[]][] = [
-    ['Today', []],
-    ['Yesterday', []],
-    ['Previous 7 days', []],
-    ['Older', []],
-  ]
+  const todayItems: Conversation[] = []
+  const yesterdayItems: Conversation[] = []
+  const weekItems: Conversation[] = []
+  const olderItems: Conversation[] = []
   for (const c of conversations) {
     const t = new Date(c.created_at).getTime()
     if (Number.isNaN(t)) {
-      buckets[3][1].push(c)
+      olderItems.push(c)
     } else if (t >= today) {
-      buckets[0][1].push(c)
+      todayItems.push(c)
     } else if (t >= today - 86400000) {
-      buckets[1][1].push(c)
+      yesterdayItems.push(c)
     } else if (t >= today - 7 * 86400000) {
-      buckets[2][1].push(c)
+      weekItems.push(c)
     } else {
-      buckets[3][1].push(c)
+      olderItems.push(c)
     }
   }
+  const buckets: [string, Conversation[]][] = [
+    ['Today', todayItems],
+    ['Yesterday', yesterdayItems],
+    ['Previous 7 days', weekItems],
+    ['Older', olderItems],
+  ]
   return buckets.filter(([, items]) => items.length > 0)
 }
 
