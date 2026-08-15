@@ -1,9 +1,10 @@
 {
   "models": [
     { "value": "", "label": "Default (CLI)" },
-    { "value": "claude-opus-5", "label": "Opus 5 — deepest reasoning" },
-    { "value": "claude-sonnet-5", "label": "Sonnet 5 — balanced" },
-    { "value": "claude-haiku-4-5-20251001", "label": "Haiku 4.5 — fastest" },
-    { "value": "claude-fable-5", "label": "Fable 5" }
+    { "value": "deepseek-v4-pro[1m]", "label": "DeepSeek V4 Pro — main" },
+    { "value": "deepseek-v4-flash", "label": "DeepSeek V4 Flash — fastest" },
+    { "value": "opus", "label": "Opus alias (env → deepseek-v4-pro[1m])" },
+    { "value": "sonnet", "label": "Sonnet alias (env → deepseek-v4-pro[1m])" },
+    { "value": "haiku", "label": "Haiku alias (env → deepseek-v4-flash)" }
   ]
 }
