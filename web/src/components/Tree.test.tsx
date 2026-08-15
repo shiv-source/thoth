@@ -79,6 +79,14 @@ describe('Tree', () => {
     expect(onSelect).toHaveBeenCalledWith(expect.objectContaining({ id: 'daily/b.md' }))
   })
 
+  it('toggles a folder by clicking its row', async () => {
+    renderTree()
+    await userEvent.click(screen.getByText('inbox'))
+    expect(screen.getByText('a.md')).toBeInTheDocument()
+    await userEvent.click(screen.getByText('inbox'))
+    expect(screen.queryByText('a.md')).not.toBeInTheDocument()
+  })
+
   it('moves focus with arrow keys', async () => {
     renderTree()
     focusRow('inbox')

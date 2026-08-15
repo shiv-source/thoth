@@ -44,13 +44,14 @@ export function Tree<T>({ nodes, getKey, getLabel, isDir, getChildren, renderIco
     setFocusedKey((current) => {
       const idx = rows.current.findIndex((n) => getKey(n) === current)
       const next = rows.current[idx + dir]
-      const key = next ? getKey(next) : current
+      if (!next) return current
+      const key = getKey(next)
       rowRefs.current.get(key)?.focus()
       return key
     })
   }
 
-  const onKeyDown = useCallback((e: KeyboardEvent<HTMLUListElement>, n: T) => {
+  const onKeyDown = useCallback((e: KeyboardEvent<HTMLElement>, n: T) => {
     const dir = isDir(n)
     switch (e.key) {
       case 'ArrowDown':
@@ -107,7 +108,7 @@ export function Tree<T>({ nodes, getKey, getLabel, isDir, getChildren, renderIco
               tabIndex={focusedKey === key ? 0 : -1}
               onFocus={() => setFocusedKey(key)}
               onKeyDown={(e) => onKeyDown(e, n)}
-              onClick={() => onSelect(n)}
+              onClick={() => (dir ? toggle(n) : onSelect(n))}
               className={`flex w-full cursor-pointer items-center gap-1 rounded-md px-1.5 py-1 transition ${
                 selected ? 'bg-accent-soft font-medium text-accent' : 'text-ink hover:bg-raised'
               }`}
