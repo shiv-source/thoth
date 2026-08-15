@@ -48,7 +48,7 @@ func writeFakeCLIVariant(t *testing.T, script string) string {
 const sleepOnceFake = `#!/bin/sh
 echo "$@" >> "$(dirname "$0")/argv.txt"
 marker="$(dirname "$0")/sleep-done"
-if [ ! -f "$marker" ]; then touch "$marker"; sleep 30; fi
+if [ ! -f "$marker" ]; then touch "$marker"; sleep 5; fi
 n=0
 while IFS= read -r line; do
   case "$line" in
@@ -198,13 +198,15 @@ func TestPersistentCancelKillsAndRespawns(t *testing.T) {
 	}
 	waitFor(t, 10*time.Second, func() bool { return pc.poolSize() == 0 })
 
-	// The next turn respawns (marker makes the fake answer this time).
+	// The next turn respawns (marker makes the fake answer this time). A
+	// fresh pooled process is the deterministic respawn proof — the fake's
+	// argv file can miss a killed spawn's line.
 	events := startTurn(t, pc, "sess-1", "again")
 	if len(events) == 0 || events[0].Text != "turn-1" {
 		t.Fatalf("respawned turn deltas: %+v", events)
 	}
-	if n := spawnCount(t, bin); n != 2 {
-		t.Fatalf("expected a respawn after cancel, got %d spawns", n)
+	if pc.poolSize() != 1 {
+		t.Fatalf("pool size after respawned turn = %d, want 1", pc.poolSize())
 	}
 }
 
