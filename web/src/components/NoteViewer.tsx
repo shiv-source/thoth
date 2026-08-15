@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
 import { api } from '../api/client'
+import { Markdown } from './Markdown'
 import { useToast } from './Toast'
 
 export function NoteViewer({ path, onClose }: { path: string; onClose: () => void }) {
@@ -57,7 +56,7 @@ export function NoteViewer({ path, onClose }: { path: string; onClose: () => voi
                 {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
                 {content && (
                     <div className="prose prose-sm max-w-none prose-headings:font-display prose-headings:text-heading prose-code:before:content-none prose-code:after:content-none prose-pre:rounded-lg dark:prose-invert">
-                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+                        <Markdown>{content}</Markdown>
                     </div>
                 )}
             </div>

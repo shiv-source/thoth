@@ -1,8 +1,7 @@
 import { useState } from 'react'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
 import { Check, Copy } from 'lucide-react'
 import type { ChatMessage } from '../hooks/useChat'
+import { Markdown } from './Markdown'
 import { Tooltip } from './Tooltip'
 
 export function MessageItem({ message, streaming }: { message: ChatMessage; streaming?: boolean }) {
@@ -49,7 +48,7 @@ export function MessageItem({ message, streaming }: { message: ChatMessage; stre
                     <p className="whitespace-pre-wrap text-sm leading-relaxed">{message.content}</p>
                 ) : (
                     <div className="prose prose-sm max-w-none pr-6 prose-headings:font-display prose-headings:text-heading prose-code:before:content-none prose-code:after:content-none prose-pre:rounded-lg dark:prose-invert">
-                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
+                        <Markdown>{message.content}</Markdown>
                         {streaming && (
                             <span className="ml-0.5 inline-block h-4 w-1.5 animate-pulse rounded bg-accent align-text-bottom" />
                         )}
