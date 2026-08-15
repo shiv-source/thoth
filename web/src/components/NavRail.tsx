@@ -1,9 +1,5 @@
-import { useState } from 'react'
-import { Bell, FileText, LayoutDashboard, MessageSquare, Search, Settings } from 'lucide-react'
+import { FileText, LayoutDashboard, MessageSquare, Search, Settings } from 'lucide-react'
 import { navigateView, useView, type View } from '../hooks/useView'
-import { selectUnreadCount } from '../store'
-import { useAppSelector } from '../store/hooks'
-import { NotificationPanel } from './NotificationPanel'
 
 const VIEWS: { view: View; label: string; icon: typeof MessageSquare }[] = [
     { view: 'chat', label: 'Chat', icon: MessageSquare },
@@ -17,8 +13,6 @@ const VIEWS: { view: View; label: string; icon: typeof MessageSquare }[] = [
 // and deep links keep working.
 export function NavRail() {
     const view = useView()
-    const unread = useAppSelector(selectUnreadCount)
-    const [panelOpen, setPanelOpen] = useState(false)
 
     return (
         <nav
@@ -42,23 +36,6 @@ export function NavRail() {
             <div className="mt-auto flex flex-col items-center">
                 <button
                     type="button"
-                    onClick={() => setPanelOpen((o) => !o)}
-                    aria-label="Notifications"
-                    aria-expanded={panelOpen}
-                    className="relative flex h-10 w-10 items-center justify-center rounded-lg text-subtle transition hover:bg-raised hover:text-ink"
-                >
-                    <Bell className="h-5 w-5" aria-hidden="true" />
-                    {unread > 0 && (
-                        <span
-                            aria-label={`${unread} unread`}
-                            className="absolute right-0.5 top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-medium text-accent-ink"
-                        >
-                            {unread}
-                        </span>
-                    )}
-                </button>
-                <button
-                    type="button"
                     onClick={() => navigateView('settings')}
                     aria-label="Settings"
                     aria-current={view === 'settings' ? 'page' : undefined}
@@ -69,7 +46,6 @@ export function NavRail() {
                     <Settings className="h-5 w-5" aria-hidden="true" />
                 </button>
             </div>
-            {panelOpen && <NotificationPanel onClose={() => setPanelOpen(false)} />}
         </nav>
     )
 }

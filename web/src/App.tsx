@@ -9,6 +9,7 @@ import { SettingsView } from './components/SettingsView'
 import { NoteViewer } from './components/NoteViewer'
 import { SetupScreen } from './components/SetupScreen'
 import { ToastProvider } from './components/Toast'
+import { NotificationToasts } from './components/NotificationToasts'
 import { navigateView, useView } from './hooks/useView'
 import { fetchHealth } from './store'
 import { useAppDispatch, useAppSelector } from './store/hooks'
@@ -51,6 +52,7 @@ export default function App() {
                     )}
                 </main>
                 {view !== 'notes' && openNote && <NoteViewer path={openNote} onClose={() => setOpenNote(null)} />}
+                <NotificationToasts />
             </div>
         </ToastProvider>
     )

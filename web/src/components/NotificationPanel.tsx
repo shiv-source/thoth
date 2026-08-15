@@ -19,7 +19,7 @@ export function NotificationPanel({ onClose }: { onClose: () => void }) {
         <div
             role="dialog"
             aria-label="Notifications"
-            className="absolute left-full top-0 z-40 ml-1 flex max-h-96 w-80 flex-col rounded-xl border border-line bg-surface shadow-lg"
+            className="absolute right-2 top-full z-40 mt-1 flex max-h-96 w-80 flex-col rounded-xl border border-line bg-surface shadow-lg"
         >
             <header className="flex items-center justify-between border-b border-line px-3 py-2">
                 <span className="text-sm font-medium text-ink">Notifications</span>

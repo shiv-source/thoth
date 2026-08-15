@@ -1,11 +1,36 @@
+import { useState } from 'react'
+import { Bell } from 'lucide-react'
+import { selectUnreadCount } from '../store'
+import { useAppSelector } from '../store/hooks'
+import { NotificationPanel } from './NotificationPanel'
 import { Tooltip } from './Tooltip'
 
 export function TopBar({ title, onOpenSettings }: { title: string; onOpenSettings?: () => void }) {
+    const unread = useAppSelector(selectUnreadCount)
+    const [panelOpen, setPanelOpen] = useState(false)
+
     return (
-        <header className="flex h-14 shrink-0 items-center justify-between gap-4 border-b border-line bg-surface px-4">
+        <header className="relative flex h-14 shrink-0 items-center justify-between gap-4 border-b border-line bg-surface px-4">
             <h1 className="truncate text-sm font-medium text-ink">{title}</h1>
-            {onOpenSettings && (
-                <div className="flex shrink-0 items-center gap-1">
+            <div className="flex shrink-0 items-center gap-1">
+                <button
+                    type="button"
+                    onClick={() => setPanelOpen((o) => !o)}
+                    aria-label="Notifications"
+                    aria-expanded={panelOpen}
+                    className="relative rounded-lg p-2 text-subtle transition hover:bg-raised hover:text-ink"
+                >
+                    <Bell className="h-4 w-4" aria-hidden="true" />
+                    {unread > 0 && (
+                        <span
+                            aria-label={`${unread} unread`}
+                            className="absolute right-0.5 top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-medium text-accent-ink"
+                        >
+                            {unread}
+                        </span>
+                    )}
+                </button>
+                {onOpenSettings && (
                     <Tooltip label="Settings">
                         <button
                             onClick={onOpenSettings}
@@ -15,8 +40,9 @@ export function TopBar({ title, onOpenSettings }: { title: string; onOpenSetting
                             <GearIcon />
                         </button>
                     </Tooltip>
-                </div>
-            )}
+                )}
+            </div>
+            {panelOpen && <NotificationPanel onClose={() => setPanelOpen(false)} />}
         </header>
     )
 }
