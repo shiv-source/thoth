@@ -44,7 +44,7 @@ export function MessageItem({ message, streaming }: { message: ChatMessage; stre
         {isUser ? (
           <p className="whitespace-pre-wrap text-sm leading-relaxed">{message.content}</p>
         ) : (
-          <div className="prose prose-sm max-w-none prose-headings:font-display prose-headings:text-heading prose-code:before:content-none prose-code:after:content-none prose-pre:rounded-lg dark:prose-invert">
+          <div className="prose prose-sm max-w-none pr-6 prose-headings:font-display prose-headings:text-heading prose-code:before:content-none prose-code:after:content-none prose-pre:rounded-lg dark:prose-invert">
             <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
             {streaming && <span className="ml-0.5 inline-block h-4 w-1.5 animate-pulse rounded bg-accent align-text-bottom" />}
           </div>
