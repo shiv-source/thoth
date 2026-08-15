@@ -7,7 +7,7 @@ This file governs the app repo. Note-taking behavior is governed by the wiki's o
 ## Toolchain
 
 - Go 1.26.1 (go.mod is authoritative — read it, don't hardcode elsewhere)
-- Node 24.14.0 (nvm) · pnpm 11.7.0
+- Node 24.14.0 (nvm) · pnpm 11.7.0 — pnpm workspace at the repo root (`pnpm-workspace.yaml` registers `web/`; the single lockfile is the root `pnpm-lock.yaml`; root `.npmrc` pins save-exact)
 - Go frameworks: Echo 4.15.4 · Cobra 1.10.2 · gorilla/websocket 1.5.3 · modernc.org/sqlite 1.56.0 · fsnotify 1.10.1 · go-toml/v2 2.4.3 · yaml.v3 3.0.1
 - Frontend: React 19.2 · TypeScript 6.0 · Vite 8.2 · Tailwind 4.3 · Vitest 4.1 · zod 4.4 · react-markdown 10.1 (web/package.json is authoritative)
 - Dependencies stay latest (`go get …@latest`, `pnpm add …`); lockfiles (`go.sum`, `pnpm-lock.yaml`) are committed; CI verifies every bump.

@@ -1,0 +1,14 @@
+#!/bin/sh
+set -e
+
+go_staged=$(git diff --cached --name-only --diff-filter=ACM | grep -c '\.go$' || true)
+
+# Go: vet + golangci-lint + tests when Go files are staged (gofmt/goimports
+# and autofixes ran via lint-staged's golangci-lint --fix)
+if [ "$go_staged" -gt 0 ]; then
+  go vet ./...
+  golangci-lint run
+  go test ./...
+fi
+
+pnpm lint-staged

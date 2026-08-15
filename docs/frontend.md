@@ -8,7 +8,9 @@ React 19 + TypeScript (strict) + Vite + Tailwind CSS v4, bundled and embedded in
 web/src/
 ├── api/client.ts        # typed REST client, zod-validated responses
 ├── ws/chat.ts           # ChatSocket: protocol frames, reconnect/resume
-├── hooks/               # useChat, useHealth, useSearch
+├── hooks/               # useChat, useSearch, useConversationRoute
+├── store/               # Redux Toolkit: slices (health, settings,
+│                        # conversations, chat, connection) + typed hooks
 ├── components/          # ChatPanel, Composer, MessageItem, TopBar,
 │                        # Sidebar (Chats + Wiki), SearchPanel, NoteViewer,
 │                        # SettingsModal, SetupScreen, Toast, Sidebar
@@ -36,9 +38,20 @@ web/src/
 
 ## Hooks
 
-- **useChat** — messages + streaming + conversationId state; maps server frames to UI messages; `error` frames render as a visible ⚠️ message; tracks `conversation_id` from `turn_done`; `tool_activity` exposes `lastTool` (path when the input JSON carries one, else the tool name), cleared on `turn_done`/`error`; `load(messages, conversationId)` replaces the whole conversation (history fetch — local only, the caller pins the server side with `socket.open`); `reset()` clears everything locally without a server call
-- **useHealth** — fetches `GET /api/health` (claude found + wiki state) with loading/error states; `recheck()` refetches (the setup screen's Re-check button)
+- **useChat** — thin adapter over the chat slice: maps server frames to chat actions, `send`/`cancel` call the socket; the conversation state itself (messages, streaming, conversationId, thinking, lastTool) lives in the Redux `chat` slice and survives component remounts. `load(messages, conversationId)` replaces the whole conversation (history fetch — local only, the caller pins the server side with `socket.open`); `reset()` clears locally and sends `new_chat` to unpin the server
 - **useSearch** — 300 ms debounce with a sequence guard, so slow older responses can't overwrite newer ones
+
+## State
+
+Redux Toolkit owns the server-backed and shared state. Slices live in `store/slices/` with their thunks/actions and selectors co-located; `makeStore()` wires them and `store/hooks.ts` exports the typed `useAppDispatch`/`useAppSelector`:
+
+- **health** — fetched at boot (`main.tsx`), re-checked by the setup screen
+- **settings** — loaded when the settings modal mounts, saved through the slice (the submit button reflects `saving`)
+- **conversations** — refetched on URL changes and when a new chat is created; deletes filter the list in the slice
+- **chat** — the live conversation (messages, streaming, thinking, lastTool, conversationId), fed by WS frames via `useChat`
+- **connection** — the WebSocket status, reported by `ChatSocket` and read by `ChatPanel`
+
+Component-local state — form fields while editing, tree expansion, search debounce, `openNote` — stays in hooks/components; only shared or screen-spanning data lives in the store.
 
 ## WebSocket client
 

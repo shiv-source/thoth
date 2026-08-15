@@ -11,7 +11,6 @@ runs:
       with:
         node-version: lts/*
         cache: pnpm
-        cache-dependency-path: web/pnpm-lock.yaml
+        cache-dependency-path: pnpm-lock.yaml
     - run: pnpm install --frozen-lockfile
-      working-directory: web
       shell: bash
