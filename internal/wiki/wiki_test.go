@@ -43,6 +43,13 @@ func TestWikiReadAndTree(t *testing.T) {
 	if projects == nil || !projects.IsDir || len(projects.Children) != 1 {
 		t.Fatalf("expected projects dir with one child, got %+v", projects)
 	}
+	// The root rulebook is not a note — hidden from the tree. A nested
+	// CLAUDE.md still shows (only the root-level one is excluded).
+	for i := range tree {
+		if tree[i].Name == "CLAUDE.md" {
+			t.Fatalf("root CLAUDE.md must be hidden from the tree: %+v", tree[i])
+		}
+	}
 }
 
 func TestWikiNotExists(t *testing.T) {

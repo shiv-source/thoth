@@ -1,0 +1,6 @@
+# Only web/src is formatted — everything else is left alone.
+*
+.*
+!web/
+!web/src/
+!web/src/**

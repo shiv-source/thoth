@@ -294,3 +294,38 @@ func TestFreshOpenRunsAllMigrations(t *testing.T) {
 		t.Fatalf("seeded settings = %q/%q/%q", wikiPath, repoURL, syncEnabled)
 	}
 }
+
+func TestDeleteConversation(t *testing.T) {
+	s, err := Open(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = s.Close() })
+
+	id, err := s.CreateConversation("to delete")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.AddMessage(id, "user", "hello"); err != nil {
+		t.Fatal(err)
+	}
+	other, err := s.CreateConversation("to keep")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := s.DeleteConversation(id); err != nil {
+		t.Fatal(err)
+	}
+	convs, err := s.ListConversations()
+	if err != nil || len(convs) != 1 || convs[0].ID != other {
+		t.Fatalf("after delete: %v %+v", err, convs)
+	}
+	if msgs, err := s.Messages(id); err != nil || len(msgs) != 0 {
+		t.Fatalf("messages not deleted: %v %+v", err, msgs)
+	}
+	// Idempotent.
+	if err := s.DeleteConversation(id); err != nil {
+		t.Fatalf("second delete: %v", err)
+	}
+}

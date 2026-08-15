@@ -1,154 +1,115 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect } from 'react'
+import {
+    assistantDelta,
+    assistantStart,
+    assistantThinking,
+    chatError,
+    loadChat,
+    resetChat,
+    selectConversationId,
+    selectLastTool,
+    selectMessages,
+    selectStreaming,
+    selectThinking,
+    selectThinkingText,
+    stopStreaming,
+    toolActivity,
+    turnDone,
+    userMessage
+} from '../store'
+import { useAppDispatch, useAppSelector } from '../store/hooks'
+import type { ChatMessage } from '../store/slices/chatSlice'
 import { ChatSocket, type ServerMessage } from '../ws/chat'
 
-export interface ChatMessage { role: 'user' | 'assistant'; content: string }
+export type { ChatMessage }
 
+// useChat adapts the chat slice to the socket: WS frames become dispatches
+// into the store's chat state machine, and send/cancel call into the wire.
+// The conversation state lives in Redux, so it outlives the component.
 export function useChat(socket: ChatSocket | null) {
-  const [messages, setMessages] = useState<ChatMessage[]>([])
-  const [streaming, setStreaming] = useState(false)
-  const [conversationId, setConversationId] = useState<string | null>(null)
-  const [lastTool, setLastTool] = useState<string | null>(null)
-  const [thinking, setThinking] = useState(false)
-  const [thinkingText, setThinkingText] = useState('')
-  const messagesRef = useRef<ChatMessage[]>([])
-  const streamingRef = useRef(false)
-  const conversationIdRef = useRef<string | null>(null)
-  const thinkingRef = useRef(false)
+    const dispatch = useAppDispatch()
+    const messages = useAppSelector(selectMessages)
+    const streaming = useAppSelector(selectStreaming)
+    const conversationId = useAppSelector(selectConversationId)
+    const lastTool = useAppSelector(selectLastTool)
+    const thinking = useAppSelector(selectThinking)
+    const thinkingText = useAppSelector(selectThinkingText)
 
-  const push = useCallback((m: ChatMessage) => {
-    messagesRef.current = [...messagesRef.current, m]
-    setMessages(messagesRef.current)
-  }, [])
+    const send = useCallback(
+        (text: string) => {
+            dispatch(userMessage(text))
+            socket?.send(text)
+        },
+        [dispatch, socket]
+    )
 
-  const appendAssistant = useCallback((delta: string) => {
-    const cur = messagesRef.current
-    const last = cur[cur.length - 1]
-    if (last && last.role === 'assistant') {
-      const next = [...cur.slice(0, -1), { ...last, content: last.content + delta }]
-      messagesRef.current = next
-    } else {
-      messagesRef.current = [...cur, { role: 'assistant', content: delta }]
-    }
-    setMessages(messagesRef.current)
-  }, [])
+    const cancel = useCallback(() => {
+        socket?.cancel()
+        dispatch(stopStreaming())
+    }, [dispatch, socket])
 
-  const send = useCallback((text: string) => {
-    push({ role: 'user', content: text })
-    streamingRef.current = true
-    setStreaming(true)
-    socket?.send(text)
-  }, [push, socket])
+    const handle = useCallback(
+        (m: ServerMessage) => {
+            switch (m.type) {
+                case 'assistant_start':
+                    dispatch(assistantStart())
+                    break
+                case 'assistant_thinking':
+                    dispatch(assistantThinking(m.text))
+                    break
+                case 'assistant_delta':
+                    dispatch(assistantDelta(m.text))
+                    break
+                case 'tool_activity':
+                    dispatch(toolActivity(toolLabel(m.tool, m.detail)))
+                    break
+                case 'turn_done':
+                    // The server sends the conversation id on every finished turn; keep
+                    // it so a reconnect can resume this conversation.
+                    dispatch(turnDone(m.conversation_id ?? null))
+                    break
+                case 'error':
+                    // Surface cancelled/crash feedback as a visible assistant message so
+                    // the user knows the turn did not complete.
+                    dispatch(chatError(m.message))
+                    break
+            }
+        },
+        [dispatch]
+    )
 
-  const cancel = useCallback(() => {
-    socket?.cancel()
-    streamingRef.current = false
-    setStreaming(false)
-  }, [socket])
+    // load replaces the whole conversation with history fetched from the server.
+    // Local only — the caller pins the server side via socket.open(conversationId).
+    const load = useCallback(
+        (msgs: ChatMessage[], convId: string) => {
+            dispatch(loadChat({ messages: msgs, conversationId: convId }))
+        },
+        [dispatch]
+    )
 
-  const handle = useCallback((m: ServerMessage) => {
-    switch (m.type) {
-      case 'assistant_start':
-        streamingRef.current = true
-        setStreaming(true)
-        thinkingRef.current = true
-        setThinking(true)
-        break
-      case 'assistant_thinking':
-        thinkingRef.current = true
-        setThinking(true)
-        setThinkingText(m.text)
-        break
-      case 'assistant_delta':
-        thinkingRef.current = false
-        setThinking(false)
-        setThinkingText('')
-        appendAssistant(m.text)
-        break
-      case 'tool_activity':
-        // The detail carries the raw tool-input JSON; surface the path it
-        // reads/writes (e.g. "meetings/…") and fall back to the tool name.
-        thinkingRef.current = false
-        setThinking(false)
-        setThinkingText('')
-        setLastTool(toolLabel(m.tool, m.detail))
-        break
-      case 'turn_done':
-        // The server sends the conversation id on every finished turn; keep
-        // it so a reconnect can resume this conversation.
-        if (m.conversation_id) {
-          conversationIdRef.current = m.conversation_id
-          setConversationId(m.conversation_id)
-        }
-        streamingRef.current = false
-        setStreaming(false)
-        setLastTool(null)
-        thinkingRef.current = false
-        setThinking(false)
-        setThinkingText('')
-        break
-      case 'error':
-        // Surface cancelled/crash feedback as a visible assistant message so
-        // the user knows the turn did not complete.
-        push({ role: 'assistant', content: `⚠️ ${m.message}` })
-        streamingRef.current = false
-        setStreaming(false)
-        setLastTool(null)
-        thinkingRef.current = false
-        setThinking(false)
-        setThinkingText('')
-        break
-      default:
-        break
-    }
-  }, [appendAssistant, push])
+    const reset = useCallback(() => {
+        // Unpin the server too: without the frame the server keeps the old
+        // pinned conversation and the next send would continue it (interfering
+        // chats into each other's history).
+        socket?.newChat()
+        dispatch(resetChat())
+    }, [dispatch, socket])
 
-  // load replaces the whole conversation with history fetched from the server.
-  // Local only — the caller pins the server side via socket.open(conversationId).
-  const load = useCallback((msgs: ChatMessage[], convId: string) => {
-    messagesRef.current = msgs
-    setMessages(msgs)
-    streamingRef.current = false
-    setStreaming(false)
-    conversationIdRef.current = convId
-    setConversationId(convId)
-    setLastTool(null)
-    thinkingRef.current = false
-    setThinking(false)
-    setThinkingText('')
-  }, [])
+    useEffect(() => {
+        if (socket) socket.onMessage(handle)
+    }, [socket, handle])
 
-  const reset = useCallback(() => {
-    // Unpin the server too: without the frame the server keeps the old
-    // pinned conversation and the next send would continue it (interfering
-    // chats into each other's history).
-    socket?.newChat()
-    messagesRef.current = []
-    setMessages([])
-    streamingRef.current = false
-    setStreaming(false)
-    conversationIdRef.current = null
-    setConversationId(null)
-    setLastTool(null)
-    thinkingRef.current = false
-    setThinking(false)
-    setThinkingText('')
-  }, [socket])
-
-  useEffect(() => {
-    if (socket) socket.onMessage(handle)
-  }, [socket, handle])
-
-  return { messages, streaming, conversationId, lastTool, thinking, thinkingText, send, cancel, load, reset }
+    return { messages, streaming, conversationId, lastTool, thinking, thinkingText, send, cancel, load, reset }
 }
 
 /** Pick the label for the tool status line: a path from the input JSON when
  *  present, otherwise the tool name itself. */
 function toolLabel(tool: string, detail: string): string {
-  try {
-    const input = JSON.parse(detail) as { path?: unknown }
-    if (typeof input.path === 'string' && input.path) return input.path
-  } catch {
-    // detail is not JSON — fall through to the tool name
-  }
-  return tool
+    try {
+        const input = JSON.parse(detail) as { path?: unknown }
+        if (typeof input.path === 'string' && input.path) return input.path
+    } catch {
+        // detail is not JSON — fall through to the tool name
+    }
+    return tool
 }

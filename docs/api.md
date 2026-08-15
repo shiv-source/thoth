@@ -6,7 +6,7 @@ The server exposes REST for everything except the live chat, which is a WebSocke
 
 | Method + Path | Request | Response |
 |---|---|---|
-| `GET /api/health` | — | `{status, claude:{found,path}, wiki:{path,exists}}` |
+| `GET /api/health` | — | `{status, claude:{found,path}, wiki:{path,exists}, version}` |
 | `GET /api/search?q=&limit=` | q required; limit default 20, clamped 1–100 | `{results:[{path,title,kind,snippet}]}` — snippet is HTML-escaped with safe `<mark>` highlights |
 | `GET /api/notes?path=` | wiki-relative path | `{path, content}` |
 | `GET /api/wiki/tree` | — | `{nodes:[{name,path,is_dir,children}]}` |
@@ -20,6 +20,7 @@ The server exposes REST for everything except the live chat, which is a WebSocke
 | `GET /api/conversations` | — | `{conversations:[{id,title,created_at}]}` |
 | `POST /api/conversations` | `{title}` | `{id,title}` |
 | `GET /api/conversations/:id` | — | `{conversation, messages:[…]}` |
+| `DELETE /api/conversations/:id` | — | `{ok:true}` — removes the conversation and its messages (idempotent) |
 | `POST /api/git/setup` | `{url}` | `{ok:true}` or `{ok:false, error}` — inits a repo in the wiki dir if needed, points `origin` at `url`, commits the tree, and pushes `HEAD`; each git command has a 15 s timeout, errors are sanitized (never echo credentials/URLs) |
 
 **Errors:** JSON `{"error":"<msg>"}` — 400 for client errors, 404 not found, 500 always the generic `{"error":"internal error"}` (details go to the server log only).

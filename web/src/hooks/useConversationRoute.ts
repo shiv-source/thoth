@@ -11,6 +11,14 @@ function chatIdFromPath(pathname: string): string | null {
   return m ? (m[1] ?? null) : null
 }
 
+// navigate changes the URL the way a user link would, so the route hook's
+// applyRoute handles loading/pinning/reset — pushState alone does not fire
+// popstate, so dispatch it explicitly.
+export function navigate(path: string): void {
+  window.history.pushState(null, '', path)
+  window.dispatchEvent(new PopStateEvent('popstate'))
+}
+
 export interface ConversationRouteOptions {
   socket: ChatSocket | null
   conversationId: string | null

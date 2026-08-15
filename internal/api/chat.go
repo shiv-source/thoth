@@ -302,8 +302,10 @@ func (h *Hub) runTurn(convID, prompt string, write func(serverMsg)) {
 	}
 	h.persistTurn(convID, sb.String())
 	m := serverMsg{Type: "turn_done", ConversationID: convID}
-	write(m)
+	// Record before writing: once the client has seen this frame it may
+	// already be resuming, and the replay must include everything sent.
 	h.record(convID, m)
+	write(m)
 }
 
 // sessionID resolves the CLI session for a conversation: the stored
@@ -327,20 +329,20 @@ func (h *Hub) turnWriter(sb *strings.Builder, write func(serverMsg), convID stri
 		switch ev.Type {
 		case claude.EventDelta:
 			sb.WriteString(ev.Text)
-			write(serverMsg{Type: "assistant_delta", Text: ev.Text})
 			h.record(convID, serverMsg{Type: "assistant_delta", Text: ev.Text})
+			write(serverMsg{Type: "assistant_delta", Text: ev.Text})
 		case claude.EventThinking:
 			// The thinking text rides the frame so the UI can show what the
-			// model is working on. Recorded so a reconnect mid-thinking
-			// resumes the state.
-			write(serverMsg{Type: "assistant_thinking", Text: ev.Text})
+			// model is working on. Recorded before writing, so a reconnect
+			// mid-thinking resumes the exact state that was shown.
 			h.record(convID, serverMsg{Type: "assistant_thinking", Text: ev.Text})
+			write(serverMsg{Type: "assistant_thinking", Text: ev.Text})
 		case claude.EventTool:
-			write(serverMsg{Type: "tool_activity", Tool: ev.Tool, Detail: ev.Detail})
 			h.record(convID, serverMsg{Type: "tool_activity", Tool: ev.Tool, Detail: ev.Detail})
+			write(serverMsg{Type: "tool_activity", Tool: ev.Tool, Detail: ev.Detail})
 		case claude.EventError:
-			write(serverMsg{Type: "error", Message: ev.Detail})
 			h.record(convID, serverMsg{Type: "error", Message: ev.Detail})
+			write(serverMsg{Type: "error", Message: ev.Detail})
 		}
 		return nil
 	})
@@ -354,8 +356,8 @@ func (h *Hub) finishTurn(convID string, err error, write func(serverMsg)) bool {
 		write(serverMsg{Type: "error", Message: "cancelled"})
 		return true
 	case err != nil:
-		write(serverMsg{Type: "error", Message: err.Error()})
 		h.record(convID, serverMsg{Type: "error", Message: err.Error()})
+		write(serverMsg{Type: "error", Message: err.Error()})
 		return true
 	}
 	return false

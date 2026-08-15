@@ -1,14 +1,12 @@
 bin/
 /thoth
-web/node_modules/
+node_modules/
 web/dist/
 *.db
 *.db-wal
 *.db-shm
 coverage.out
 .DS_Store
-docs/superpowers/
-.superpowers/
 internal/webui/dist/
 /thoth
 /thoth.exe

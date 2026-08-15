@@ -105,6 +105,27 @@ func (s *Store) ConversationSessionID(convID string) (string, error) {
 	return sid, nil
 }
 
+// DeleteConversation removes the conversation and its messages; deleting a
+// missing conversation is not an error. Messages go first so a future
+// PRAGMA foreign_keys=ON stays satisfied.
+func (s *Store) DeleteConversation(convID string) error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return fmt.Errorf("begin delete conversation: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }() // no-op after Commit
+	if _, err := tx.Exec(`DELETE FROM messages WHERE conversation_id = ?`, convID); err != nil {
+		return fmt.Errorf("delete messages: %w", err)
+	}
+	if _, err := tx.Exec(`DELETE FROM conversations WHERE id = ?`, convID); err != nil {
+		return fmt.Errorf("delete conversation: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit delete conversation: %w", err)
+	}
+	return nil
+}
+
 // SetClaudeSessionID stores the Claude CLI session id for the conversation
 // (rotation writes a fresh id after forking away from a stale-locked one).
 func (s *Store) SetClaudeSessionID(convID, sessionID string) error {

@@ -135,15 +135,18 @@ func runServe(cmd *cobra.Command, _ []string) error {
 		GitHub:          &github.Service{Client: github.New(http.DefaultClient), Repo: gh},
 		Settings:        stg,
 		DataDir:         dir,
+		Version:         Version(),
 		Wiki:            w,
 		Index:           ix,
 		OnSettingsSaved: onSettingsSaved(log, root, w, ix, startWatcher),
 		Ctx:             ctx,
 	})
 
-	addr := net.JoinHostPort(config.DefaultHost, strconv.Itoa(config.DefaultPort))
-	log.Info("thoth listening", "addr", addr, "wiki", w.Root)
-	return serveUntilShutdown(e, addr, ctx)
+	host, port := config.DefaultHost, config.DefaultPort
+	// The banner owns its trailing newline — Fprint, not Fprintln, so the
+	// panel ends flush with the next prompt line.
+	fmt.Fprint(os.Stderr, startupBanner(Version(), host, port, w.Root, isTerminal(os.Stderr)))
+	return serveUntilShutdown(e, net.JoinHostPort(host, strconv.Itoa(port)), ctx)
 }
 
 // thothDir returns ~/.thoth, creating it if needed.

@@ -10,28 +10,39 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-go-web
       - run: go vet ./...
-      - run: go test -race ./...
+      - run: go test -race -failfast ./...
       - name: coverage gate (>= 80% on internal/ and cmd/)
         run: |
-          go test -coverprofile=coverage.out ./internal/... ./cmd/...
+          go test -failfast -coverprofile=coverage.out ./internal/... ./cmd/...
           go tool cover -func=coverage.out | awk -F'\t' '/^total:/ { gsub(/%/, "", $NF); if ($NF+0 < 80) { print "coverage", $NF "%", "below 80% floor"; exit 1 } }'
 
   backend-lint:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-go-web
+      # golangci-lint keeps its analysis cache here; runner.tool_cache does
+      # not persist on hosted runners, so cache it (plus the downloaded
+      # binary) explicitly. The version is in the key so upgrades miss.
+      - name: cache golangci-lint results and binary
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cache/golangci-lint
+            ~/.local/bin/golangci-lint-2.12.2-linux-amd64
+          key: golangci-lint-2.12.2-${{ hashFiles('.golangci.yml') }}
       - name: golangci-lint v2.12.2 (direct binary)
-        env:
-          GOLANGCI_LINT_CACHE: ${{ runner.tool_cache }}/golangci-lint
         run: |
           mkdir -p "$HOME/.local/bin"
-          curl -sSL https://github.com/golangci/golangci-lint/releases/download/v2.12.2/golangci-lint-2.12.2-linux-amd64.tar.gz | tar xz -C "$HOME/.local/bin"
-          ln -sf "$HOME/.local/bin/golangci-lint-2.12.2-linux-amd64/golangci-lint" "$HOME/.local/bin/golangci-lint"
+          bin="$HOME/.local/bin/golangci-lint-2.12.2-linux-amd64/golangci-lint"
+          if [ ! -x "$bin" ]; then
+            curl -sSL https://github.com/golangci/golangci-lint/releases/download/v2.12.2/golangci-lint-2.12.2-linux-amd64.tar.gz | tar xz -C "$HOME/.local/bin"
+          fi
+          ln -sf "$bin" "$HOME/.local/bin/golangci-lint"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
           golangci-lint --version
           golangci-lint run --timeout 5m
@@ -43,7 +54,7 @@ jobs:
       run:
         working-directory: web
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-web
       - run: pnpm exec vitest run
 
@@ -54,7 +65,7 @@ jobs:
       run:
         working-directory: web
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-web
       - run: pnpm run lint
 
@@ -65,6 +76,6 @@ jobs:
       run:
         working-directory: web
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-web
       - run: pnpm exec tsc --noEmit

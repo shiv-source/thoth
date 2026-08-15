@@ -1,3 +1,4 @@
+import axios from 'axios'
 import { z } from 'zod'
 
 const SearchResult = z.object({ path: z.string(), title: z.string(), kind: z.string(), snippet: z.string() })
@@ -51,23 +52,33 @@ export const Health = z.object({
   status: z.string(),
   claude: z.object({ found: z.boolean(), path: z.string() }),
   wiki: z.object({ path: z.string(), exists: z.boolean() }),
+  version: z.string(),
 })
 export type Health = z.infer<typeof Health>
 
 export const DoctorCheck = z.object({ name: z.string(), ok: z.boolean(), message: z.string() })
 export type DoctorCheck = z.infer<typeof DoctorCheck>
 
+// The single axios instance every request goes through.
+const http = axios.create({ timeout: 10000 })
+
 async function get<T>(url: string, schema: z.ZodType<T>): Promise<T> {
-  const res = await fetch(url)
-  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
-  return schema.parse(await res.json())
+  const res = await http.get(url)
+  return schema.parse(res.data)
+}
+
+function parseBody<T>(res: { data: unknown }, schema: z.ZodType<T>): T {
+  return schema.parse(res.data)
 }
 
 /** Reads the server's {"error":"<msg>"} body, falling back to the status. */
-async function errorMessage(res: Response): Promise<string> {
-  const body = (await res.json()) as { error?: unknown }
-  if (typeof body.error === 'string') return body.error
-  return `${res.status} ${res.statusText}`
+function axiosErrorMessage(err: unknown): string {
+  if (axios.isAxiosError(err)) {
+    const body = err.response?.data as { error?: unknown } | undefined
+    if (typeof body?.error === 'string') return body.error
+    if (err.response) return `${err.response.status} ${err.response.statusText}`
+  }
+  return 'request failed'
 }
 
 export const api = {
@@ -76,28 +87,35 @@ export const api = {
   tree: () => get('/api/wiki/tree', z.object({ nodes: z.array(TreeNodeSchema) })),
   settings: () => get('/api/settings', Settings),
   saveSettings: async (s: Settings): Promise<Settings> => {
-    const res = await fetch('/api/settings', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(s) })
-    if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
-    return Settings.parse(await res.json())
+    const res = await http.put('/api/settings', s)
+    return parseBody(res, Settings)
   },
   health: () => get('/api/health', Health),
   doctor: () => get('/api/doctor', z.object({ checks: z.array(DoctorCheck) })),
   listConversations: () => get('/api/conversations', z.object({ conversations: z.array(Conversation) })),
+  deleteConversation: async (id: string): Promise<void> => {
+    await http.delete(`/api/conversations/${encodeURIComponent(id)}`)
+  },
   getConversation: (id: string) => get(`/api/conversations/${encodeURIComponent(id)}`, z.object({ conversation: Conversation, messages: z.array(Message) })),
   gitSetup: async (url: string): Promise<{ ok: boolean; error?: string }> => {
-    const res = await fetch('/api/git/setup', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ url }) })
-    if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
-    return z.object({ ok: z.boolean(), error: z.string().optional() }).parse(await res.json())
+    const res = await http.post('/api/git/setup', { url })
+    return parseBody(res, z.object({ ok: z.boolean(), error: z.string().optional() }))
   },
   githubAuth: () => get('/api/github/auth', GitHubIdentity),
   githubRepos: () => get('/api/github/repos', z.object({ repos: z.array(GitHubRepo) })),
   connectGitHub: async (token: string): Promise<GitHubIdentity> => {
-    const res = await fetch('/api/github/auth', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ token }) })
-    if (!res.ok) throw new Error(await errorMessage(res))
-    return GitHubIdentity.parse(await res.json())
+    try {
+      const res = await http.post('/api/github/auth', { token })
+      return parseBody(res, GitHubIdentity)
+    } catch (err) {
+      throw new Error(axiosErrorMessage(err), { cause: err })
+    }
   },
   disconnectGitHub: async (): Promise<void> => {
-    const res = await fetch('/api/github/auth', { method: 'DELETE' })
-    if (!res.ok) throw new Error(await errorMessage(res))
+    try {
+      await http.delete('/api/github/auth')
+    } catch (err) {
+      throw new Error(axiosErrorMessage(err), { cause: err })
+    }
   },
 }

@@ -49,6 +49,7 @@ func testDeps(t *testing.T) Deps {
 		GitHub:   &github.Service{Repo: gh},
 		Settings: stg,
 		DataDir:  t.TempDir(),
+		Version:  "test-version",
 		Wiki:     wiki.New(t.TempDir()),
 		Index:    ix,
 	}
@@ -63,9 +64,13 @@ func TestHealth(t *testing.T) {
 		t.Fatalf("status %d", rec.Code)
 	}
 	var body struct {
-		Status string `json:"status"`
+		Status  string `json:"status"`
+		Version string `json:"version"`
 	}
 	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil || body.Status != "ok" {
 		t.Fatalf("body: %v %s", err, rec.Body.String())
+	}
+	if body.Version != "test-version" {
+		t.Fatalf("version = %q, want test-version", body.Version)
 	}
 }
