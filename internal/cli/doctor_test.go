@@ -6,10 +6,13 @@ import (
 	"io"
 	"log/slog"
 	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/gorilla/websocket"
 
 	"github.com/shiv-source/thoth/internal/index"
 	"github.com/shiv-source/thoth/internal/settings"
@@ -102,8 +105,39 @@ func executeDoctor(t *testing.T, dir string, fix bool) (string, error) {
 	return out, err
 }
 
+// serveThothOnFixedPort binds the fixed 127.0.0.1:8333 address and serves a
+// minimal Thoth (health + websocket upgrade) so healthy doctor runs are
+// deterministic; skips when a real server occupies the port.
+func serveThothOnFixedPort(t *testing.T) {
+	t.Helper()
+	ln, err := net.Listen("tcp", "127.0.0.1:8333")
+	if err != nil {
+		t.Skip("port 8333 is occupied — cannot run the healthy doctor deterministically")
+	}
+	upgrader := websocket.Upgrader{CheckOrigin: func(*http.Request) bool { return true }}
+	srv := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/health":
+			_, _ = w.Write([]byte(`{"status":"ok","claude":{"found":true,"path":"/fake/claude"},"wiki":{"path":"/fake/wiki","exists":true}}`))
+		case "/ws":
+			conn, err := upgrader.Upgrade(w, r, nil)
+			if err != nil {
+				return
+			}
+			_ = conn.Close()
+		default:
+			http.NotFound(w, r)
+		}
+	})}
+	go func() { _ = srv.Serve(ln) }()
+	t.Cleanup(func() { _ = srv.Close() })
+}
+
 func TestDoctorHealthy(t *testing.T) {
 	dir := healthyEnv(t, 0)
+	// The api/websocket checks probe the fixed port; serve a stub Thoth on it
+	// so the healthy run is deterministic (skips if 8333 is busy).
+	serveThothOnFixedPort(t)
 	out, err := executeDoctor(t, dir, false)
 	if err != nil {
 		t.Fatalf("Execute: %v\n%s", err, out)
@@ -128,6 +162,9 @@ func TestDoctorHealthy(t *testing.T) {
 }
 
 func TestDoctorMissingWikiAndFix(t *testing.T) {
+	// The post-fix run asserts a fully green suite incl. the fixed-port api
+	// check — serve a stub Thoth there (skips if 8333 is busy).
+	serveThothOnFixedPort(t)
 	dir := t.TempDir()
 	claude := writeFakeClaude(t, 0)
 	t.Setenv("PATH", filepath.Dir(claude))
@@ -182,6 +219,9 @@ func TestDoctorMissingWikiAndFix(t *testing.T) {
 }
 
 func TestDoctorFixesOutOfSyncIndex(t *testing.T) {
+	// The post-fix run asserts a fully green suite incl. the fixed-port api
+	// check — serve a stub Thoth there (skips if 8333 is busy).
+	serveThothOnFixedPort(t)
 	dir := healthyEnv(t, 0)
 	// Add a second note the index does not know about.
 	if err := os.WriteFile(filepath.Join(dir, "wiki", "inbox", "later.md"),

@@ -26,6 +26,18 @@ func testLog() *slog.Logger {
 	return slog.New(slog.NewTextHandler(io.Discard, nil))
 }
 
+// freeAddr returns a 127.0.0.1:port address that was free at the moment of
+// the call.
+func freeAddr(t *testing.T) string {
+	t.Helper()
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = ln.Close() }()
+	return ln.Addr().String()
+}
+
 // seedSettingsRaw creates thoth.db in the given journal mode containing ONLY
 // the settings table with the wiki_path row — simulating a partial or
 // misconfigured database without running the store's migrations (which would
@@ -133,7 +145,10 @@ func byName(t *testing.T, checks []Check, name string) Check {
 }
 
 func TestRunHealthy(t *testing.T) {
-	checks := Run(context.Background(), healthyThothDir(t), "", testLog())
+	// A free address keeps the healthy run deterministic: nothing answers
+	// there, so api reports "not running" (OK) and websocket is skipped (OK)
+	// regardless of what occupies the fixed port on the machine.
+	checks := Run(context.Background(), healthyThothDir(t), freeAddr(t), testLog())
 	want := []string{"wiki", "claude", "claude login", "database", "index", "api", "websocket"}
 	if len(checks) != len(want) {
 		t.Fatalf("got %d checks, want %d: %+v", len(checks), len(want), checks)
