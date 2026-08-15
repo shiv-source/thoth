@@ -84,9 +84,9 @@ function ChatsList() {
                       {relativeDate(c.created_at)}
                     </span>
                   </button>
+                  <Tooltip label="Delete chat">
                   <button
                     aria-label={`Delete ${c.title}`}
-                    title="Delete chat"
                     onClick={() => {
                       void (async () => {
                         try {
@@ -103,6 +103,7 @@ function ChatsList() {
                   >
                     <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
                   </button>
+                  </Tooltip>
                 </li>
               )
             })}
@@ -187,11 +188,13 @@ export function Sidebar({ openPath, onOpenNote, health, loading }: {
       <div className="flex min-h-0 flex-1 flex-col">
         <div className="flex shrink-0 items-center justify-between px-3 pb-1">
           <span className="text-[11px] font-semibold uppercase tracking-wider text-subtle">Chats</span>
-          <button onClick={() => navigate('/')}
-            className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-accent transition hover:bg-accent-soft">
-            <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-            New chat
-          </button>
+          <Tooltip label="Start a new chat">
+            <button onClick={() => navigate('/')}
+              className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-accent transition hover:bg-accent-soft">
+              <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+              New chat
+            </button>
+          </Tooltip>
         </div>
         <div className="min-h-0 flex-1">
           <ChatsList />

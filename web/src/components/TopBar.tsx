@@ -1,3 +1,5 @@
+import { Tooltip } from './Tooltip'
+
 export function TopBar({ title, onOpenSettings }: {
   title: string
   onOpenSettings: () => void
@@ -6,10 +8,12 @@ export function TopBar({ title, onOpenSettings }: {
     <header className="flex h-14 shrink-0 items-center justify-between gap-4 border-b border-line bg-surface px-4">
       <h1 className="truncate text-sm font-medium text-ink">{title}</h1>
       <div className="flex shrink-0 items-center gap-1">
-        <button onClick={onOpenSettings} aria-label="Settings" title="Settings"
-          className="rounded-lg p-2 text-subtle transition hover:bg-raised hover:text-ink">
-          <GearIcon />
-        </button>
+        <Tooltip label="Settings">
+          <button onClick={onOpenSettings} aria-label="Settings"
+            className="rounded-lg p-2 text-subtle transition hover:bg-raised hover:text-ink">
+            <GearIcon />
+          </button>
+        </Tooltip>
       </div>
     </header>
   )

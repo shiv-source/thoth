@@ -3,6 +3,7 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Check, Copy } from 'lucide-react'
 import type { ChatMessage } from '../hooks/useChat'
+import { Tooltip } from './Tooltip'
 
 export function MessageItem({ message, streaming }: { message: ChatMessage; streaming?: boolean }) {
   const isUser = message.role === 'user'
@@ -29,15 +30,16 @@ export function MessageItem({ message, streaming }: { message: ChatMessage; stre
         }
       >
         {!isUser && !streaming && (
-          <button
-            type="button"
-            onClick={() => void copy()}
-            aria-label="Copy message"
-            title="Copy message"
-            className="absolute right-2 top-2 rounded-md p-1 text-subtle opacity-0 transition group-hover:opacity-100 hover:bg-raised hover:text-ink"
-          >
-            {copied ? <Check className="h-3.5 w-3.5 text-emerald-500" aria-hidden="true" /> : <Copy className="h-3.5 w-3.5" aria-hidden="true" />}
-          </button>
+          <Tooltip label={copied ? 'Copied' : 'Copy message'}>
+            <button
+              type="button"
+              onClick={() => void copy()}
+              aria-label="Copy message"
+              className="absolute right-2 top-2 rounded-md p-1 text-subtle opacity-0 transition group-hover:opacity-100 hover:bg-raised hover:text-ink"
+            >
+              {copied ? <Check className="h-3.5 w-3.5 text-emerald-500" aria-hidden="true" /> : <Copy className="h-3.5 w-3.5" aria-hidden="true" />}
+            </button>
+          </Tooltip>
         )}
         {isUser ? (
           <p className="whitespace-pre-wrap text-sm leading-relaxed">{message.content}</p>
