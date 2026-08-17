@@ -115,10 +115,9 @@ Apply the standard principles — modular, composable, boring code that's easy t
 - **Don't break existing functionality** — the commit gates live in the go quality reference and the git-workflow skill; exported signatures change only with all call sites + tests updated.
 - **Every behavior change ships with a test** — table-driven; assert real outcomes, not mocks of yourself.
 - **Naming** — clear, no stutter (`wiki.New` not `wiki.NewWiki`), Go idiom; camelCase in TS.
-- **Errors** — wrap with `%w`, never swallow silently, no panics in library code.
+- **Errors** — wrap with `%w`, never swallow silently.
 - **Logging** — structured `slog` with lowercase keys; warn paths always carry `path` and `err`.
-- **Type safety** — TS `strict`, zero `any`; zod at the API boundary.
-- **Security** — security-sensitive changes consult `docs/security.md` (the threat model); wiki filesystem access routes through `SafePath`; the wiki never stores secrets.
+- **Security** — security-sensitive changes consult `docs/security.md` (the threat model); wiki filesystem access routes through `SafePath`.
 - **No magic values** — numbers and strings with meaning get named constants; no unexplained literals in logic.
 - **Go doc comments** — exported symbols carry doc comments (Go idiom; no linter enforces it here, so the rule must).
 - **Match surrounding style** when editing; don't reformat code you're not changing.
