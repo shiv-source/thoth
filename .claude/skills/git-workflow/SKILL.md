@@ -29,7 +29,7 @@ description: >-
 ### 1. Start a change (branch)
 1. Never commit to main (CLAUDE.md § Repo rules) — sync and branch first:
    `git switch main && git pull --ff-only && git switch -c <type>/<scope>/<slug>`
-2. `<type>` is a conventional-commit prefix: feat, fix, ci, docs, refactor, test, chore (CONTRIBUTING.md § Workflow)
+2. `<type>` is a conventional-commit prefix: feat, fix, perf, ci, docs, refactor, test, chore — `perf` maps to the `performance` type label (CONTRIBUTING.md § Workflow)
 3. `<scope>` is the short area name (web, api, index, skills, …); `<slug>` is short kebab-case (lowercase letters, digits, hyphens) — the branch mirrors the commit message `<type>(<scope>): <summary>`, e.g. fix/web/reject-empty-titles
 4. Large or cross-package change? Write the design doc first — see workflow 5
 
