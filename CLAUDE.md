@@ -107,6 +107,7 @@ Apply the standard principles — modular, composable, boring code that's easy t
 - **DRY — don't repeat yourself.** Every rule, protocol, and convention lives in exactly one place and everything else imports it (rulebook == `Rulebook()`, CLI flags == `client.go`, WS types shared Go/TS). Copy-paste a block and you've created a divergence bug.
 - **Modular & composable** — small units with one clear purpose behind a narrow interface; build features by composing units, not growing them. Split before a file outgrows its intent.
 - **SOLID** — single responsibility per type/function; depend on interfaces (only at real seams); inject dependencies via constructors, never reach for globals.
+- **Patterns over novelty** — reuse the codebase's established patterns (package idioms in `docs/components.md`: hub, process pool, repository, slice, hook); a new pattern or dependency needs a stated reason (YAGNI).
 - **KISS** — the simplest thing that passes the tests; no speculative abstraction, no speculative error handling.
 - **YAGNI** — build what's asked, nothing more; a new dependency needs a stated reason.
 - **Small functions** — target ≤ 40 lines; at ~60, split into named helpers (what, not how).
@@ -168,9 +169,9 @@ Apply the standard principles — modular, composable, boring code that's easy t
 ## Skills
 
 - `.claude/skills/` holds the go (backend), react
-  (frontend), and git-workflow (contribution workflow) procedure
-  skills. Rules stay in this file; procedures live there; `docs/`
-  owns detail.
+  (frontend), git-workflow (contribution workflow), and code-quality
+  (pre-PR gates) procedure skills. Rules stay in this file;
+  procedures live there; `docs/` owns detail.
 
 ## graphify
 

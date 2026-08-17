@@ -20,7 +20,7 @@ description: >-
 - .claude/skills/go/references/quality.md — the gate details and floors
 - .husky/pre-commit — what already runs at commit time
 - .github/workflows/quality.yml + final-gate.yml — what CI re-runs on the PR
-- references/review-checklist.md — the yes/no checklist data
+- references/ — the checklists: shared.md (both layers), go.md (backend), react.md (frontend), documentation.md (docs + delivery)
 
 ## Workflows
 
@@ -35,7 +35,7 @@ Run each gate; every one must pass before the PR:
 Details and floors: .claude/skills/go/references/quality.md
 
 ### 2. Walk the review checklist
-1. Read references/review-checklist.md — walk **Shared** plus the section for the layer(s) your change touches (Go backend / React frontend); skip the other
+1. Read references/shared.md plus the domain file(s) your change touches — go.md for backend, react.md for frontend — and documentation.md; skip the untouched domain
 2. Each item is yes/no — any "no" gets fixed before the PR, not after
 3. Then fill the PR template's "How verified" checkboxes with only what actually ran
 4. If you fixed something, re-run the covering gates (workflow 1), not just the one you touched
