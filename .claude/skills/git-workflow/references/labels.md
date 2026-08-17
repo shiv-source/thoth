@@ -33,6 +33,7 @@ Usage rules:
 | ui | web/src components/hooks |
 | webui | internal/webui embed |
 | wiki | internal/wiki — file contract |
+| tooling | .claude/ skills/settings, .github/, .husky/, lint/config files |
 
 ## Priority (issues only)
 | Label |
