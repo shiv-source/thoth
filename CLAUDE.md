@@ -133,7 +133,7 @@ Apply the standard principles — modular, composable, boring code that's easy t
 
 ## Token Efficiency & Better Results
 
-- **Read this file, then go straight to the target** — the layout tree above replaces broad exploration; open only the package your task touches.
+- **Read this file, then go straight to the target** — the layout tree above replaces broad exploration, and `graphify query "<question>"` replaces raw grep for codebase questions (see the graphify section); open only the package your task touches.
 - **Check the code before answering** — never guess; cite `file:line`.
 - **Reuse before adding** — existing helpers/packages first; new dependency only with a stated reason (YAGNI).
 - **Focused tests while iterating** (`go test ./internal/<pkg>/ -run TestX -v`); full suite once, just before commit.
