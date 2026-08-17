@@ -10,7 +10,7 @@ This file governs the app repo. Note-taking behavior is governed by the wiki's o
 - Node 24.14.0 (nvm) · pnpm 11.7.0 — pnpm workspace at the repo root (`pnpm-workspace.yaml` registers `web/`; the single lockfile is the root `pnpm-lock.yaml`; root `.npmrc` pins save-exact)
 - Go frameworks: Echo 4.15.4 · Cobra 1.10.2 · gorilla/websocket 1.5.3 · modernc.org/sqlite 1.56.0 · fsnotify 1.10.1 · go-toml/v2 2.4.3 · yaml.v3 3.0.1
 - Frontend: React 19.2 · TypeScript 6.0 · Vite 8.2 · Tailwind 4.3 · Vitest 4.1 · zod 4.4 · react-markdown 10.1 (web/package.json is authoritative)
-- Dependencies stay latest (`go get …@latest`, `pnpm add …`); lockfiles (`go.sum`, `pnpm-lock.yaml`) are committed; CI verifies every bump.
+- Dependencies stay latest — the bump procedure is the go skill's quality reference.
 
 ## Commands
 
@@ -21,12 +21,12 @@ make web            # frontend build + embed sync (REQUIRED before go build/test
 make build          # bin/thoth (VERSION=v1.2.3 stamps it)
 make release        # all five cross-compile targets into dist/
 make install        # one command: deps + embed + binary into $(GOBIN)
-make check          # everything CI enforces, locally (fmt lint race cover build)
+make check          # everything CI enforces, locally (gate list: .claude/skills/go/references/quality.md)
 make doctor         # diagnose the local setup
 # coverage gate (CI-enforced floor): make cover
 ```
 
-Frontend: `pnpm <cmd>` from the repo root (workspace proxies) or `cd web && pnpm <cmd>` — **pnpm only**, never npm; `pnpm dev|test|typecheck|lint|format` (format is prettier, scoped to `web/src/`). Commits: the root `pnpm-lock.yaml` is committed, nothing else generated. Husky pre-commit runs lint-staged (`eslint --fix` + prettier on `web/src`, `golangci-lint --fix` on Go) and gates Go commits on `go vet` + `golangci-lint` + `go test`.
+Frontend: `pnpm <cmd>` from the repo root (workspace proxies) or `cd web && pnpm <cmd>` — **pnpm only**, never npm; `pnpm dev|test|typecheck|lint|format` (format is prettier, scoped to `web/src/`). Commits: the root `pnpm-lock.yaml` is committed, nothing else generated. Husky pre-commit: procedure in the git-workflow skill (§ Commit).
 
 ## Layout
 
@@ -56,11 +56,11 @@ thoth/
 │   └── src/
 │       ├── api/          # typed REST client (axios + zod)
 │       ├── ws/           # ChatSocket: protocol frames, reconnect/resume
-│       ├── hooks/        # useChat (chat-slice adapter), useSearch, useConversationRoute
+│       ├── hooks/        # useChat, useSearch, useConversationRoute, useView, useViewShortcuts
 │       ├── store/        # Redux Toolkit: makeStore + re-exports, typed hooks,
 │       │   └── slices/   #   one slice per feature (health, settings, conversations,
-│       │                 #   chat, connection) with co-located tests
-│       ├── components/   # ChatPanel, Sidebar, SettingsModal, SetupScreen, …
+│       │                 #   chat, connection, notifications, searchHistory) with co-located tests
+│       ├── components/   # ChatPanel, Sidebar, SettingsView, SetupScreen, …
 │       ├── test/         # mockAxios, fakeWS, renderWithStore, setup
 │       └── App.tsx / main.tsx / index.css
 ├── docs/                 # committed documentation (index.md hub)
@@ -86,7 +86,7 @@ thoth/
 ├── LICENSE               # MIT
 ├── Makefile              # web | build | run | test | race | lint | clean | check
 ├── go.mod / go.sum       # Go module (authoritative toolchain versions)
-├── package.json          # workspace root: proxy scripts, devDeps, lint-staged config
+├── package.json          # workspace root: proxy scripts, devDeps; lint-staged config in lint-staged.config.mjs
 ├── pnpm-workspace.yaml   # registers web/
 ├── pnpm-lock.yaml        # workspace lockfile (committed)
 ├── .npmrc                # save-exact
@@ -107,7 +107,7 @@ Apply the standard principles — modular, composable, boring code that's easy t
 - **Small functions** — target ≤ 40 lines; at ~60, split into named helpers (what, not how).
 - **Few parameters** — ≤ 3; at 4+, group into a typed struct/options.
 - **Fail fast, guard early** — validate at the boundary, return early, keep the happy path flat.
-- **Don't break existing functionality** — before committing: `go test -race ./...`, coverage ≥ 80%, frontend tsc/lint/vitest; exported signatures change only with all call sites + tests updated.
+- **Don't break existing functionality** — the commit gates live in the go quality reference and the git-workflow skill; exported signatures change only with all call sites + tests updated.
 - **Every behavior change ships with a test** — table-driven; assert real outcomes, not mocks of yourself.
 - **Naming** — clear, no stutter (`wiki.New` not `wiki.NewWiki`), Go idiom; camelCase in TS.
 - **Errors** — wrap with `%w`, never swallow silently, no panics in library code.
@@ -162,7 +162,6 @@ Apply the standard principles — modular, composable, boring code that's easy t
   (frontend), and git-workflow (contribution workflow) procedure
   skills. Rules stay in this file; procedures live there; `docs/`
   owns detail.
-
 
 ## graphify
 
