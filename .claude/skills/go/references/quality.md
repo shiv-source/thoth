@@ -1,7 +1,7 @@
 # Quality gates — how this repo verifies work
 
 ## make check — everything CI enforces, locally
-`make check` runs, in order: fmt, lint, race, cover, build.
+`make check` runs, in order: fmt, lint, race, cover, web-test, build.
 CI (.github/ workflows) runs: vet → race → 80% coverage gate → lint →
 5 cross-compiles → frontend.
 

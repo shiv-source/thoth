@@ -7,12 +7,12 @@ internal/ plus cmd/thoth — a missing package means this index is stale.
 - path: cmd/thoth/main.go
 - purpose: Thin binary entrypoint — calls the CLI and exits
 - api: main
-- canonical: docs/components.md §cmd/thoth · cmd/thoth/main.go
+- canonical: docs/components.md package table · cmd/thoth/main.go
 
 ## internal/cli
 - path: internal/cli/
 - purpose: Cobra commands — serve, init, version, doctor
-- api: Execute(); serve helpers: loadConfig, ensureWiki, openStores, resolveClaudeBin, onSettingsSaved, serveUntilShutdown
+- api: Execute(); serve helpers: ensureWiki, resolveClaudeBin, onSettingsSaved, serveUntilShutdown
 - canonical: docs/components.md §internal/cli · internal/cli/root.go
 
 ## internal/claude — the blast wall
@@ -38,12 +38,12 @@ internal/ plus cmd/thoth — a missing package means this index is stale.
 - path: internal/assets/
 - purpose: Embedded static data — models.json → ModelOptions (Settings model picker)
 - api: ModelOptions
-- canonical: docs/components.md §internal/assets · internal/assets/assets.go
+- canonical: docs/components.md package table · internal/assets/assets.go
 
 ## internal/store
 - path: internal/store/
 - purpose: Conversations + messages (same db file); migrations/ = all DDL
-- api: Store (Open, ListConversations, Messages, Close), EnsureMetadata, SetSyncResult
+- api: Store (Open, ListConversations, Messages, Close), EnsureMetadata
 - canonical: docs/components.md §internal/store · internal/store/store.go
 
 ## internal/api
@@ -56,7 +56,7 @@ internal/ plus cmd/thoth — a missing package means this index is stale.
 - path: internal/config/
 - purpose: Localhost bind constants + path helper
 - api: DefaultHost, DefaultPort (127.0.0.1:8333), ExpandHome
-- canonical: docs/components.md §internal/config · internal/config/config.go
+- canonical: docs/components.md package table · internal/config/config.go
 
 ## internal/doctor
 - path: internal/doctor/
@@ -80,7 +80,7 @@ internal/ plus cmd/thoth — a missing package means this index is stale.
 - path: internal/webui/
 - purpose: Embedded frontend (generated dist; //go:embed all:dist)
 - api: Register
-- canonical: docs/components.md §internal/webui · internal/webui/embed.go
+- canonical: docs/components.md package table · internal/webui/embed.go
 
 Stale if: a new package appears in internal/, an export listed above is
 renamed, or docs/components.md's package table gains a row this index

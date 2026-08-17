@@ -97,7 +97,7 @@ description: >-
 - Errors wrap with %w; slog keys are lowercase; no panics in library code
 
 ## Canonical docs
-- docs/components.md — every Go package deep-dived
+- docs/components.md — package table + package deep dives
 - docs/api.md — REST endpoints + WS protocol
 - docs/schema.md — every table, column, settings key
 - docs/indexing.md — FTS5 + watcher mechanics

@@ -31,7 +31,7 @@ Go code issues no DDL of its own.
 - Sync(root, log): reconciles the index with the tree in one transaction; malformed notes skipped
 - Watch(ctx, root, ix, log): fsnotify with 200 ms debounce, new-directory rescan
 
-## Rules that matter here (source: CLAUDE.md)
+## Rules that matter here
 - thoth.db is derived data — files are the source of truth; deleting thoth.db is a supported upgrade path
 - IDs are RFC 4122 v4 UUIDs (google/uuid) because the Claude CLI requires UUIDs for --session-id
 - Timestamps are stored UTC so ordering is chronological
