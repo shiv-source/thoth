@@ -74,12 +74,16 @@ thoth/
 │   ├── knowledge-base.md # wiki layout, conventions, the rulebook
 │   ├── frontend.md       # React structure, design system, hooks, state
 │   ├── security.md       # threat model and mechanisms
-│   └── development.md    # toolchain, commands, gates, dev tools, CI
+│   ├── development.md    # toolchain, commands, gates, dev tools, CI
+│   ├── superpowers/specs/# skills-suite design specs (existing files tracked; dir gitignored)
+│   └── specs/            # working design docs (untracked — convention)
+├── .claude/              # project skills (go, react, git-workflow) + local settings
 ├── .github/              # CI workflows (vet → race → 80% coverage gate → lint →
 │   │                     #   5 cross-compiles → frontend) + composite actions
 │   └── actions/          # setup-go-web, setup-web (workspace-root install)
 ├── .husky/               # pre-commit: lint-staged + Go vet/lint/test gate
 ├── scripts/              # repo helper scripts (tooling area) — see scripts/README.md
+├── graphify-out/         # knowledge graph (generated — query via `graphify query`)
 ├── CLAUDE.md             # rules for working on this codebase (this file)
 ├── CONTRIBUTING.md       # contribution guidelines
 ├── README.md             # project overview
@@ -92,6 +96,7 @@ thoth/
 ├── .npmrc                # save-exact
 ├── .prettierrc           # formatting rules (repo style); .prettierignore scopes it to web/src
 ├── .golangci.yml         # golangci-lint v2 config
+├── lint-staged.config.mjs # lint-staged config (web/src autofixes + Go lint-fix)
 └── .gitignore
 ```
 
