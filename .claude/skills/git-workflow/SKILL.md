@@ -50,7 +50,7 @@ description: >-
    - ## How verified — check the boxes you ran: gofmt/vet clean, go test -race ./..., coverage >= 80% (make cover), golangci-lint run, frontend tsc --noEmit / lint / vitest run, docs updated
    - ## Notes — optional; design decisions, follow-ups
 3. Run `make check` before opening — it is everything CI enforces, locally (CONTRIBUTING.md § Before you push)
-4. ci-pr quality gates run automatically; final-gate posts its report as a PR comment and must pass before merging — don't ask for a merge while it's red
+4. ci-pr quality gates run automatically; final-gate posts its report as a PR comment and must pass before the human merges — don't hand off a red PR
 
 ### 4. Label issues and PRs
 1. Every issue/PR carries exactly one type label and one label per area it touches; issues also carry one priority label (CLAUDE.md § Repo rules)
@@ -65,11 +65,11 @@ description: >-
 2. The spec in docs/specs/ is the working authority for that change until it lands
 3. Small, single-package changes skip it
 
-### 6. Squash-merge and the final gate
-1. PRs are squash-merged "unless the commit history is meaningful" (CONTRIBUTING.md § Workflow)
-2. Every PR is reviewed — request a review before merging (CONTRIBUTING.md § Workflow)
+### 6. Merge is human-only — squash by default
+1. A session never merges — it delivers: reviewed PR, green final-gate, labels applied. The human merges (human-in-the-loop delivery; squash by default, "unless the commit history is meaningful" — CONTRIBUTING.md § Workflow)
+2. Every PR is reviewed — request a review before handing off (CONTRIBUTING.md § Workflow)
 3. final-gate is the single required check: it always renders a per-job report (step summary; on PRs a `<!-- thoth-ci-report -->` tagged comment, updated in place) and fails unless every other job succeeded (docs/development.md § CI)
-4. After merging, sync back: `git switch main && git pull --ff-only`
+4. After the human merges, the next change starts with workflow 1's sync: `git switch main && git pull --ff-only`
 
 ## Gotchas
 - The pre-commit hook can rewrite your staged files (eslint/prettier/golangci-lint --fix) — re-run tests after any hook-triggered edit

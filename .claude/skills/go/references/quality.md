@@ -27,7 +27,7 @@ CI (.github/ workflows) runs: vet → race → 80% coverage gate → lint →
 - A bump must not lower the coverage floor or break any cross-compile target
 
 ## Commit hygiene
-- Conventional commits on a branch; squash-merge via PR; ci-pr gates every PR to main
+- Conventional commits on a branch; PRs land via human squash-merge; ci-pr gates every PR to main
 - Never commit to main directly (CLAUDE.md repo rules)
 
 ## Style rules (source: CLAUDE.md — the single home)
