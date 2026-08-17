@@ -144,19 +144,24 @@ Apply the standard principles — modular, composable, boring code that's easy t
 
 ## Repo rules
 
-- **Branch workflow** — `main` is always deployable; never commit to it directly. Start every change by syncing and branching: `git switch main && git pull --ff-only && git switch -c <type>/<slug>`, where `<type>` is a conventional-commit prefix (`feat`, `fix`, `ci`, `docs`, `refactor`, `test`, `chore`) and `<slug>` is short kebab-case (e.g. `fix/settings-modal-size`, `ci/parallel-pipeline`). Commit with conventional messages on the branch, then squash-merge back via PR — `ci-pr` gates every PR to `main`.
+- **Branch workflow** — `main` is always deployable; never commit to it directly. Changes live on `<type>/<scope>/<slug>` branches with conventional-commit messages and land via reviewed, squash-merged PRs. The full procedure — sync-and-branch commands, commit conventions, PR template sections, label application, squash-merge specifics, and the `ci-pr`/`final-gate` expectations — is the `git-workflow` skill (`.claude/skills/git-workflow/SKILL.md`).
 - **No secrets in the repo** — never commit real credentials, tokens, or keys in code, configs, tests, or docs; env vars or placeholders only.
 - **Design authority** — specs live (untracked) in `docs/specs/`; read the Thoth spec before large or cross-package changes.
 - **Project docs** — committed documentation lives in `docs/` (`index.md` is the hub: architecture, API, CLI, indexing, frontend, security, development). Update the relevant page when behavior changes.
-- **Issue/PR labels** — the repo uses a three-tier label set on GitHub; every issue/PR carries one type, every touched area, and (issues) a priority:
-  - Types (mirror the conventional-commit prefixes): `bug` · `feature` · `enhancement` · `documentation` · `chore` · `refactor` · `test` · `performance` · `ci`
-  - Areas (package-aligned): `api` · `chat` · `cli` · `github` · `index` · `search` · `settings` · `store` · `sync` · `ui` · `webui` · `wiki`
-  - Priority: `p-critical` · `p-high` · `p-medium` · `p-low`
+- **Issue/PR labels** — three tiers on GitHub: types, areas, priority. Every issue/PR carries exactly one type and one label per area it touches; issues also carry a priority. The label lists are `.claude/skills/git-workflow/references/labels.md`.
 - Generated/ignored: `bin/`, `web/dist/`, `internal/webui/dist/`, `node_modules/`, `*.db`.
 
 ## Runtime data
 
 `~/.thoth/`: `thoth.db` (all settings live in the `settings` KV table) and `wiki/` (default). Localhost-only, no auth. `thoth doctor` diagnoses the setup; `--fix` repairs wiki/index only.
+
+## Skills
+
+- `.claude/skills/` holds the go (backend), react
+  (frontend), and git-workflow (contribution workflow) procedure
+  skills. Rules stay in this file; procedures live there; `docs/`
+  owns detail.
+
 
 ## graphify
 
@@ -171,6 +176,3 @@ Rules:
 - Fallback ladder: if the graph misses the target (SQL migrations, dotfiles, dangling-edge areas), fall back to wiki, then direct file reads. Never answer "not found" from a graph miss alone; verify critical claims against the source file.
 - Staleness: before answering about code modified since the last `graphify update .`, run the update first or read the files directly — files are the source of truth, the graph is derived.
 
-- **Skills** — `.claude/skills/` holds the go (backend) and react
-  (frontend) procedure skills. Rules stay in this file; procedures
-  live there; `docs/` owns detail.

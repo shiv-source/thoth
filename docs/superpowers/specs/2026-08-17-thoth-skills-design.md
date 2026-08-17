@@ -46,6 +46,7 @@ own procedure + pointers.**
 | Design doc location | `docs/superpowers/specs/` (committed) — not the untracked `docs/specs/` convention, since this governs the committed skills dir |
 | Skill placement | `.claude/skills/<name>/SKILL.md` + `references/`, committed |
 | CLAUDE.md change | One pointer line under the graphify section; nothing else |
+| 2026-08-18 follow-on | Added third skill `git-workflow` (contribution workflow) + CLAUDE.md Repo-rules trim to invariants; supersedes "one pointer line, nothing else" and the "no workflow skill" out-of-scope line for this skill |
 
 ## Inventory
 

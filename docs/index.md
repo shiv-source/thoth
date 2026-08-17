@@ -34,4 +34,5 @@ One binary. One directory (`~/.thoth`). No cloud, no auth, localhost only.
 | `~/.thoth/thoth.db` | SQLite: search index + conversation history (derived data) |
 | `~/.thoth/wiki/` | The knowledge base — plain markdown you own |
 | `CLAUDE.md` (repo root) | Rules for working on this codebase |
+| `.claude/skills/` | Procedure skills: go (backend), react (frontend), git-workflow (branching, commits, PRs, labels) |
 | `CLAUDE.md` (wiki root) | Rules Claude follows when reading/writing your notes |
