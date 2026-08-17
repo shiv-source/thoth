@@ -110,12 +110,14 @@ Apply the standard principles — modular, composable, boring code that's easy t
 - **KISS** — the simplest thing that passes the tests; no speculative abstraction, no speculative error handling.
 - **YAGNI** — build what's asked, nothing more; a new dependency needs a stated reason.
 - **Small functions** — target ≤ 40 lines; at ~60, split into named helpers (what, not how).
-- **Few parameters** — ≤ 3; at 4+, group into a typed struct/options.
+- **Few parameters** — ≤ 3; at 4+, group into a typed struct/options; a function never takes 7+ parameters — convert it to an object/struct.
 - **Fail fast, guard early** — validate at the boundary, return early, keep the happy path flat.
 - **Don't break existing functionality** — the commit gates live in the go quality reference and the git-workflow skill; exported signatures change only with all call sites + tests updated.
 - **Every behavior change ships with a test** — table-driven; assert real outcomes, not mocks of yourself.
 - **Naming** — clear, no stutter (`wiki.New` not `wiki.NewWiki`), Go idiom; camelCase in TS.
-- **Errors** — wrap with `%w`, never swallow silently.
+- **Errors** — wrap with `%w`, never swallow silently; compare wrapped errors with `errors.Is`/`errors.As`, never `==`.
+- **Interfaces at the consumer** — small (1–3 methods), defined where they're used, not where they're implemented.
+- **context.Context first** — first parameter, never stored in structs; goroutines and long-lived loops select on `ctx.Done()`.
 - **Logging** — structured `slog` with lowercase keys; warn paths always carry `path` and `err`.
 - **Security** — security-sensitive changes consult `docs/security.md` (the threat model); wiki filesystem access routes through `SafePath`.
 - **No magic values** — numbers and strings with meaning get named constants; no unexplained literals in logic.
