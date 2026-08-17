@@ -79,6 +79,7 @@ thoth/
 │   │                     #   5 cross-compiles → frontend) + composite actions
 │   └── actions/          # setup-go-web, setup-web (workspace-root install)
 ├── .husky/               # pre-commit: lint-staged + Go vet/lint/test gate
+├── scripts/              # repo helper scripts (tooling area) — see scripts/README.md
 ├── CLAUDE.md             # rules for working on this codebase (this file)
 ├── CONTRIBUTING.md       # contribution guidelines
 ├── README.md             # project overview
