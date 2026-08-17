@@ -135,7 +135,7 @@ Apply the standard principles — modular, composable, boring code that's easy t
 - **Check the code before answering** — never guess; cite `file:line`.
 - **Reuse before adding** — existing helpers/packages first; new dependency only with a stated reason (YAGNI).
 - **Focused tests while iterating** (`go test ./internal/<pkg>/ -run TestX -v`); full suite once, just before commit.
-- **Don't re-read what you just wrote**; don't reformat code you aren't changing; keep diffs minimal and scoped.
+- **Don't re-read what you just wrote** — enforced by the read-guard hooks (`scripts/token-guard.sh`); don't reformat code you aren't changing; keep diffs minimal and scoped.
 - **Chat output: code-first, prose minimal** — say what changed and why in one line; let the commit message carry detail.
 - **Verify, don't assume** — a claim about behavior needs the test output or the `file:line` behind it.
 
