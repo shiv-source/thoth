@@ -43,6 +43,11 @@ Usage rules:
 | p-medium |
 | p-low |
 
+## Kept GitHub defaults (outside the three-tier model)
+Stock labels intentionally kept on the repo but not part of the
+types/areas/priority workflow: duplicate, good first issue, help wanted,
+invalid, question, wontfix.
+
 Canonical: CLAUDE.md § Repo rules (usage rule) · live GitHub repo labels
 
 Stale if: the label set on GitHub changes (added, renamed, removed), or
