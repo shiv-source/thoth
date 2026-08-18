@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -71,10 +72,25 @@ func healthyThothDir(t *testing.T) string {
 func TestDoctorEndpointHealthy(t *testing.T) {
 	d := testDeps(t)
 	d.DataDir = healthyThothDir(t)
+
+	// Point the api/websocket probes at a port this test controls: CI runners
+	// occasionally have something squatting on 127.0.0.1:8333, which flips
+	// the api check from the expected "not running" (OK) to "occupied by a
+	// non-thoth process" (not OK). A just-closed free port makes the check
+	// deterministic without depending on the fixed port being free.
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	d.DoctorAddr = ln.Addr().String()
+	if err := ln.Close(); err != nil {
+		t.Fatal(err)
+	}
+
 	e := New(d)
 
-	// Nothing listens on the fixed port: the api check reports "not running"
-	// (OK) and the websocket check is skipped (OK) — zero port dependency.
+	// Nothing listens on the probed port: the api check reports "not running"
+	// (OK) and the websocket check is skipped (OK) — zero fixed-port dependency.
 	req := httptest.NewRequest(http.MethodGet, "/api/doctor", nil)
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, req)

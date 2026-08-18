@@ -20,6 +20,6 @@ func doctorHandler(c echo.Context, d Deps) error {
 	defer cancel()
 	// The api check probes the configured address — in-flight that is this
 	// very server, so it self-checks the health payload and websocket.
-	checks := doctor.Run(ctx, d.DataDir, "", d.Log)
+	checks := doctor.Run(ctx, d.DataDir, d.DoctorAddr, d.Log)
 	return c.JSON(http.StatusOK, map[string]any{"checks": checks})
 }
