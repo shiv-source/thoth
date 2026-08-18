@@ -20,9 +20,9 @@ make dev       # Vite HMR + Go server together (http://127.0.0.1:8333)
 
 1. **Never commit to `main`.** Sync and branch first:
    ```sh
-   git switch main && git pull --ff-only && git switch -c <type>/<slug>
+   git switch main && git pull --ff-only && git switch -c <type>/<scope>/<slug>
    ```
-2. **Conventional commits** (`feat:`, `fix:`, `chore:`, `docs:`, `refactor:`, `test:`, `ci:`).
+2. **Conventional commits** — `<type>(<scope>): <summary>`; prefixes: `feat:`, `fix:`, `perf:`, `chore:`, `docs:`, `refactor:`, `test:`, `ci:` (`perf` maps to the `performance` type label).
 3. **Open a PR** using the template — conventional title, a summary that gives the full picture (bullets when it helps), files changed, and the verification checklist. The `ci-pr` quality gates run automatically; `final-gate` posts its report as a comment and must pass before merging.
 4. **Squash-merge** PRs unless the commit history is meaningful.
 5. **Every PR is reviewed.** Large or cross-package changes go through a design doc in `docs/specs/` (untracked working docs — never committed) *before* implementation.

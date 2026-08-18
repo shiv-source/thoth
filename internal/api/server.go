@@ -21,6 +21,7 @@ type Deps struct {
 	GitHub          *github.Service
 	Settings        *settings.Repo
 	DataDir         string // thoth dir (~/.thoth) — the doctor handler probes it
+	DoctorAddr      string // host:port for the doctor's api/websocket probes ("" → 127.0.0.1:8333); tests point it at a free port
 	Version         string // build version, shown in /api/health and the UI footer
 	Wiki            *wiki.Wiki
 	Index           *index.Index

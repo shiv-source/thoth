@@ -68,7 +68,7 @@ Conversations and messages in the same `thoth.db` (separate `*sql.DB`, WAL makes
 
 ## internal/doctor
 
-`Run(ctx, dir, addr, log)` runs the six install checks (wiki, claude, database, index, api, websocket) and returns `[]Check`, each carrying `Name`/`OK`/`Message`. The dashboard's Settings → Doctor tab runs the same suite via `GET /api/doctor` (details: [CLI](cli.md)).
+`Run(ctx, dir, addr, log)` runs the seven install checks (wiki, claude, claude login, database, index, api, websocket) and returns `[]Check`, each carrying `Name`/`OK`/`Message`. The dashboard's Settings → Doctor tab runs the same suite via `GET /api/doctor` (details: [CLI](cli.md)).
 
 ## internal/github
 

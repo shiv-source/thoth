@@ -10,7 +10,7 @@ This file governs the app repo. Note-taking behavior is governed by the wiki's o
 - Node 24.14.0 (nvm) · pnpm 11.7.0 — pnpm workspace at the repo root (`pnpm-workspace.yaml` registers `web/`; the single lockfile is the root `pnpm-lock.yaml`; root `.npmrc` pins save-exact)
 - Go frameworks: Echo 4.15.4 · Cobra 1.10.2 · gorilla/websocket 1.5.3 · modernc.org/sqlite 1.56.0 · fsnotify 1.10.1 · go-toml/v2 2.4.3 · yaml.v3 3.0.1
 - Frontend: React 19.2 · TypeScript 6.0 · Vite 8.2 · Tailwind 4.3 · Vitest 4.1 · zod 4.4 · react-markdown 10.1 (web/package.json is authoritative)
-- Dependencies stay latest (`go get …@latest`, `pnpm add …`); lockfiles (`go.sum`, `pnpm-lock.yaml`) are committed; CI verifies every bump.
+- Dependencies stay latest — the bump procedures are the go skill (§ 7) and the react skill (§ 7).
 
 ## Commands
 
@@ -21,12 +21,12 @@ make web            # frontend build + embed sync (REQUIRED before go build/test
 make build          # bin/thoth (VERSION=v1.2.3 stamps it)
 make release        # all five cross-compile targets into dist/
 make install        # one command: deps + embed + binary into $(GOBIN)
-make check          # everything CI enforces, locally (fmt lint race cover build)
+make check          # everything CI enforces, locally (gate list: .claude/skills/go/references/quality.md)
 make doctor         # diagnose the local setup
 # coverage gate (CI-enforced floor): make cover
 ```
 
-Frontend: `pnpm <cmd>` from the repo root (workspace proxies) or `cd web && pnpm <cmd>` — **pnpm only**, never npm; `pnpm dev|test|typecheck|lint|format` (format is prettier, scoped to `web/src/`). Commits: the root `pnpm-lock.yaml` is committed, nothing else generated. Husky pre-commit runs lint-staged (`eslint --fix` + prettier on `web/src`, `golangci-lint --fix` on Go) and gates Go commits on `go vet` + `golangci-lint` + `go test`.
+Frontend: `pnpm <cmd>` from the repo root (workspace proxies) or `cd web && pnpm <cmd>` — **pnpm only**, never npm; `pnpm dev|test|typecheck|lint|format` (format is prettier, scoped to `web/src/`). Commits: the root `pnpm-lock.yaml` is committed, nothing else generated. Husky pre-commit: procedure in the git-workflow skill (§ Commit).
 
 ## Layout
 
@@ -35,6 +35,7 @@ thoth/
 ├── cmd/thoth/            # thin binary entrypoint (main.go)
 ├── internal/
 │   ├── api/              # Echo: WS chat (/ws) + REST; Deps carries all wiring
+│   ├── assets/           # embedded models.json (Settings model picker)
 │   ├── claude/           # BLAST WALL — ALL CLI flags live only in client.go
 │   │                     #   (per-turn + persistent-mode); verify against
 │   │                     #   `claude --help` when the CLI upgrades;
@@ -56,11 +57,11 @@ thoth/
 │   └── src/
 │       ├── api/          # typed REST client (axios + zod)
 │       ├── ws/           # ChatSocket: protocol frames, reconnect/resume
-│       ├── hooks/        # useChat (chat-slice adapter), useSearch, useConversationRoute
+│       ├── hooks/        # useChat, useSearch, useConversationRoute, useView, useViewShortcuts
 │       ├── store/        # Redux Toolkit: makeStore + re-exports, typed hooks,
 │       │   └── slices/   #   one slice per feature (health, settings, conversations,
-│       │                 #   chat, connection) with co-located tests
-│       ├── components/   # ChatPanel, Sidebar, SettingsModal, SetupScreen, …
+│       │                 #   chat, connection, notifications, searchHistory) with co-located tests
+│       ├── components/   # ChatPanel, Sidebar, SettingsView, SetupScreen, …
 │       ├── test/         # mockAxios, fakeWS, renderWithStore, setup
 │       └── App.tsx / main.tsx / index.css
 ├── docs/                 # committed documentation (index.md hub)
@@ -74,23 +75,29 @@ thoth/
 │   ├── knowledge-base.md # wiki layout, conventions, the rulebook
 │   ├── frontend.md       # React structure, design system, hooks, state
 │   ├── security.md       # threat model and mechanisms
-│   └── development.md    # toolchain, commands, gates, dev tools, CI
+│   ├── development.md    # toolchain, commands, gates, dev tools, CI
+│   ├── superpowers/specs/# skills-suite design specs
+│   └── specs/            # working design docs (untracked — convention)
+├── .claude/              # project skills (go, react, git-workflow, code-quality) + local settings
 ├── .github/              # CI workflows (vet → race → 80% coverage gate → lint →
 │   │                     #   5 cross-compiles → frontend) + composite actions
 │   └── actions/          # setup-go-web, setup-web (workspace-root install)
 ├── .husky/               # pre-commit: lint-staged + Go vet/lint/test gate
+├── scripts/              # repo helper scripts (tooling area) — see scripts/README.md
+├── graphify-out/         # knowledge graph (generated — query via `graphify query`)
 ├── CLAUDE.md             # rules for working on this codebase (this file)
 ├── CONTRIBUTING.md       # contribution guidelines
 ├── README.md             # project overview
 ├── LICENSE               # MIT
 ├── Makefile              # web | build | run | test | race | lint | clean | check
 ├── go.mod / go.sum       # Go module (authoritative toolchain versions)
-├── package.json          # workspace root: proxy scripts, devDeps, lint-staged config
+├── package.json          # workspace root: proxy scripts, devDeps; lint-staged config in lint-staged.config.mjs
 ├── pnpm-workspace.yaml   # registers web/
 ├── pnpm-lock.yaml        # workspace lockfile (committed)
 ├── .npmrc                # save-exact
 ├── .prettierrc           # formatting rules (repo style); .prettierignore scopes it to web/src
 ├── .golangci.yml         # golangci-lint v2 config
+├── lint-staged.config.mjs # lint-staged config (web/src autofixes + Go lint-fix)
 └── .gitignore
 ```
 
@@ -101,17 +108,22 @@ Apply the standard principles — modular, composable, boring code that's easy t
 - **DRY — don't repeat yourself.** Every rule, protocol, and convention lives in exactly one place and everything else imports it (rulebook == `Rulebook()`, CLI flags == `client.go`, WS types shared Go/TS). Copy-paste a block and you've created a divergence bug.
 - **Modular & composable** — small units with one clear purpose behind a narrow interface; build features by composing units, not growing them. Split before a file outgrows its intent.
 - **SOLID** — single responsibility per type/function; depend on interfaces (only at real seams); inject dependencies via constructors, never reach for globals.
+- **Patterns over novelty** — reuse the codebase's established patterns (package idioms in `docs/components.md`: hub, process pool, repository, slice, hook); a new pattern or dependency needs a stated reason (YAGNI).
 - **KISS** — the simplest thing that passes the tests; no speculative abstraction, no speculative error handling.
 - **YAGNI** — build what's asked, nothing more; a new dependency needs a stated reason.
 - **Small functions** — target ≤ 40 lines; at ~60, split into named helpers (what, not how).
-- **Few parameters** — ≤ 3; at 4+, group into a typed struct/options.
+- **Few parameters** — ≤ 3; at 4+, group into a typed struct/options; a function never takes 7+ parameters — convert it to an object/struct.
 - **Fail fast, guard early** — validate at the boundary, return early, keep the happy path flat.
-- **Don't break existing functionality** — before committing: `go test -race ./...`, coverage ≥ 80%, frontend tsc/lint/vitest; exported signatures change only with all call sites + tests updated.
+- **Don't break existing functionality** — the commit gates live in the go quality reference and the git-workflow skill; exported signatures change only with all call sites + tests updated.
 - **Every behavior change ships with a test** — table-driven; assert real outcomes, not mocks of yourself.
 - **Naming** — clear, no stutter (`wiki.New` not `wiki.NewWiki`), Go idiom; camelCase in TS.
-- **Errors** — wrap with `%w`, never swallow silently, no panics in library code.
+- **Errors** — wrap with `%w`, never swallow silently; compare wrapped errors with `errors.Is`/`errors.As`, never `==`.
+- **Interfaces at the consumer** — small (1–3 methods), defined where they're used, not where they're implemented.
+- **context.Context first** — first parameter, never stored in structs; goroutines and long-lived loops select on `ctx.Done()`.
 - **Logging** — structured `slog` with lowercase keys; warn paths always carry `path` and `err`.
-- **Type safety** — TS `strict`, zero `any`; zod at the API boundary.
+- **Security** — security-sensitive changes consult `docs/security.md` (the threat model); wiki filesystem access routes through `SafePath`.
+- **No magic values** — numbers and strings with meaning get named constants; no unexplained literals in logic.
+- **Go doc comments** — exported symbols carry doc comments (Go idiom; no linter enforces it here, so the rule must).
 - **Match surrounding style** when editing; don't reformat code you're not changing.
 
 ## Memory & Resources (no leaks)
@@ -125,11 +137,11 @@ Apply the standard principles — modular, composable, boring code that's easy t
 
 ## Token Efficiency & Better Results
 
-- **Read this file, then go straight to the target** — the layout tree above replaces broad exploration; open only the package your task touches.
+- **Read this file, then go straight to the target** — the layout tree above replaces broad exploration, and `graphify query "<question>"` replaces raw grep for codebase questions (see the graphify section); open only the package your task touches.
 - **Check the code before answering** — never guess; cite `file:line`.
 - **Reuse before adding** — existing helpers/packages first; new dependency only with a stated reason (YAGNI).
 - **Focused tests while iterating** (`go test ./internal/<pkg>/ -run TestX -v`); full suite once, just before commit.
-- **Don't re-read what you just wrote**; don't reformat code you aren't changing; keep diffs minimal and scoped.
+- **Don't re-read what you just wrote** — enforced by the read-guard hooks (`scripts/token-guard.sh`); don't reformat code you aren't changing; keep diffs minimal and scoped.
 - **Chat output: code-first, prose minimal** — say what changed and why in one line; let the commit message carry detail.
 - **Verify, don't assume** — a claim about behavior needs the test output or the `file:line` behind it.
 
@@ -144,16 +156,34 @@ Apply the standard principles — modular, composable, boring code that's easy t
 
 ## Repo rules
 
-- **Branch workflow** — `main` is always deployable; never commit to it directly. Start every change by syncing and branching: `git switch main && git pull --ff-only && git switch -c <type>/<slug>`, where `<type>` is a conventional-commit prefix (`feat`, `fix`, `ci`, `docs`, `refactor`, `test`, `chore`) and `<slug>` is short kebab-case (e.g. `fix/settings-modal-size`, `ci/parallel-pipeline`). Commit with conventional messages on the branch, then squash-merge back via PR — `ci-pr` gates every PR to `main`.
+- **Branch workflow** — `main` is always deployable; never commit to it directly. Changes live on `<type>/<scope>/<slug>` branches with conventional-commit messages and land via reviewed PRs that a human squash-merges — a session never merges. The full procedure — sync-and-branch commands, commit conventions, PR template sections, label application, squash-merge specifics, and the `ci-pr`/`final-gate` expectations — is the `git-workflow` skill (`.claude/skills/git-workflow/SKILL.md`).
 - **No secrets in the repo** — never commit real credentials, tokens, or keys in code, configs, tests, or docs; env vars or placeholders only.
 - **Design authority** — specs live (untracked) in `docs/specs/`; read the Thoth spec before large or cross-package changes.
 - **Project docs** — committed documentation lives in `docs/` (`index.md` is the hub: architecture, API, CLI, indexing, frontend, security, development). Update the relevant page when behavior changes.
-- **Issue/PR labels** — the repo uses a three-tier label set on GitHub; every issue/PR carries one type, every touched area, and (issues) a priority:
-  - Types (mirror the conventional-commit prefixes): `bug` · `feature` · `enhancement` · `documentation` · `chore` · `refactor` · `test` · `performance` · `ci`
-  - Areas (package-aligned): `api` · `chat` · `cli` · `github` · `index` · `search` · `settings` · `store` · `sync` · `ui` · `webui` · `wiki`
-  - Priority: `p-critical` · `p-high` · `p-medium` · `p-low`
+- **Issue/PR labels** — three tiers on GitHub: types, areas, priority. Every issue/PR carries exactly one type and one label per area it touches; issues also carry a priority. The label lists are `.claude/skills/git-workflow/references/labels.md`.
 - Generated/ignored: `bin/`, `web/dist/`, `internal/webui/dist/`, `node_modules/`, `*.db`.
 
 ## Runtime data
 
 `~/.thoth/`: `thoth.db` (all settings live in the `settings` KV table) and `wiki/` (default). Localhost-only, no auth. `thoth doctor` diagnoses the setup; `--fix` repairs wiki/index only.
+
+## Skills
+
+- `.claude/skills/` holds the go (backend), react
+  (frontend), git-workflow (contribution workflow), and code-quality
+  (pre-PR gates) procedure skills. Rules stay in this file;
+  procedures live there; `docs/` owns detail.
+
+## graphify
+
+This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
+
+Rules:
+- For codebase questions, first run `graphify query "<question>"` when graphify-out/graph.json exists. Use `graphify path "<A>" "<B>"` for relationships and `graphify explain "<concept>"` for focused concepts. These return a scoped subgraph, usually much smaller than GRAPH_REPORT.md or raw grep output.
+- If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
+- Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
+- After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).
+- Show the source: begin every codebase answer with a tag — `[graph]` (query/path/explain), `[wiki]`, or `[fs]` (direct file reads) — and when the answer comes from the graph, name the nodes/communities consulted. Tag per section when sources mix (`[graph] … [fs] …`).
+- Fallback ladder: if the graph misses the target (SQL migrations, dotfiles, dangling-edge areas), fall back to wiki, then direct file reads. Never answer "not found" from a graph miss alone; verify critical claims against the source file.
+- Staleness: before answering about code modified since the last `graphify update .`, run the update first or read the files directly — files are the source of truth, the graph is derived.
+
