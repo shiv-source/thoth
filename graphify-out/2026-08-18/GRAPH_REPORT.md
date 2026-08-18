@@ -1,7 +1,7 @@
 # Graph Report - thoth  (2026-08-18)
 
 ## Corpus Check
-- 227 files · ~102,354 words
+- 227 files · ~102,457 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
@@ -10,7 +10,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `b27a135d`
+- Built from commit: `e600972a`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -72,12 +72,13 @@
 - fake_claude.sh
 - report job (summary + gate)
 - github.com/shiv-source/thoth
-- Sidebar.test.tsx
+- SearchPanel.tsx
 - Open
 - Redux store (web/src/store)
 - Thoth Project Skills Suite — Design
 - web/package.json
 - react.md
+- @fontsource-variable/fraunces
 - CLIClient
 - Quality gates — how this repo verifies work
 - Code quality — the pre-PR gate
@@ -92,7 +93,6 @@
 - token-guard.sh
 - Tree.tsx
 - eslint
-- react-chartjs-2
 - react-dom
 - remark-gfm
 - @types/react
@@ -130,11 +130,11 @@
   web/README.md → docs/frontend.md
 
 ## Import Cycles
-- 2-file cycle: `web/src/store/index.ts -> web/src/store/slices/conversationsSlice.ts -> web/src/store/index.ts`
-- 2-file cycle: `web/src/store/index.ts -> web/src/store/slices/searchHistorySlice.ts -> web/src/store/index.ts`
 - 2-file cycle: `web/src/store/index.ts -> web/src/store/slices/connectionSlice.ts -> web/src/store/index.ts`
-- 2-file cycle: `web/src/store/index.ts -> web/src/store/slices/healthSlice.ts -> web/src/store/index.ts`
+- 2-file cycle: `web/src/store/index.ts -> web/src/store/slices/searchHistorySlice.ts -> web/src/store/index.ts`
+- 2-file cycle: `web/src/store/index.ts -> web/src/store/slices/conversationsSlice.ts -> web/src/store/index.ts`
 - 2-file cycle: `web/src/store/index.ts -> web/src/store/slices/chatSlice.ts -> web/src/store/index.ts`
+- 2-file cycle: `web/src/store/index.ts -> web/src/store/slices/healthSlice.ts -> web/src/store/index.ts`
 - 2-file cycle: `web/src/store/index.ts -> web/src/store/slices/notificationsSlice.ts -> web/src/store/index.ts`
 - 2-file cycle: `web/src/store/index.ts -> web/src/store/slices/settingsSlice.ts -> web/src/store/index.ts`
 
@@ -157,8 +157,8 @@ Cohesion: 0.06
 Nodes (51): claudeState, Deps, githubIdentity, healthResponse, settingsDTO, wikiState, Option, echo.MiddlewareFunc (+43 more)
 
 ### Community 2 - "renderWithStore"
-Cohesion: 0.07
-Nodes (26): mocks, mocks, renderPanel(), renderBlock(), renderCopy(), ChartStub, conversations, mocks (+18 more)
+Cohesion: 0.06
+Nodes (24): renderBlock(), renderCopy(), ChartStub, conversations, mocks, renderDashboard(), connected, emptyGitHub (+16 more)
 
 ### Community 3 - "Open"
 Cohesion: 0.07
@@ -182,11 +182,11 @@ Nodes (32): Conversation, ChatsList(), groupByDay(), relativeDate(), Sidebar(), 
 
 ### Community 8 - "dependencies"
 Cohesion: 0.07
-Nodes (27): axios, chart.js, @fontsource-variable/fraunces, lucide-react, @radix-ui/react-tooltip, react, react-markdown, react-redux (+19 more)
+Nodes (27): axios, chart.js, lucide-react, @radix-ui/react-tooltip, react, react-chartjs-2, react-markdown, react-redux (+19 more)
 
 ### Community 9 - "client.ts"
-Cohesion: 0.06
-Nodes (31): api, DoctorCheck, GitHubIdentity, GitHubRepo, http, Message, ModelOption, Note (+23 more)
+Cohesion: 0.08
+Nodes (27): api, DoctorCheck, GitHubIdentity, GitHubRepo, http, Message, ModelOption, Note (+19 more)
 
 ### Community 10 - "devDependencies"
 Cohesion: 0.08
@@ -221,8 +221,8 @@ Cohesion: 0.08
 Nodes (24): DOM, src, vite/client, compilerOptions, allowArbitraryExtensions, allowImportingTsExtensions, jsx, lib (+16 more)
 
 ### Community 18 - "useAppSelector"
-Cohesion: 0.13
-Nodes (21): SearchResult, EmptyState(), IconButton(), NotificationPanel(), NOTIFICATION_ICONS, NotificationIcon(), NotificationToasts(), SearchPanel() (+13 more)
+Cohesion: 0.19
+Nodes (15): IconButton(), NotificationPanel(), NOTIFICATION_ICONS, NotificationIcon(), NotificationToasts(), TopBar(), useAppDispatch, useAppSelector (+7 more)
 
 ### Community 19 - "Components (web/src/components)"
 Cohesion: 0.04
@@ -241,8 +241,8 @@ Cohesion: 0.08
 Nodes (24): ChatPanel(), createSocket(), Composer(), freshSocket(), renderChatHook(), toolLabel(), useChat(), chatIdFromPath() (+16 more)
 
 ### Community 24 - "react"
-Cohesion: 0.11
-Nodes (20): react, cache, CodeBlock(), highlight(), mocks, CopyButton(), components, Markdown() (+12 more)
+Cohesion: 0.08
+Nodes (27): react, cache, CodeBlock(), highlight(), mocks, CopyButton(), EmptyState(), components (+19 more)
 
 ### Community 25 - "Toolchain versions (go.mod / package.json authoritative)"
 Cohesion: 0.13
@@ -344,9 +344,9 @@ Nodes (4): web workspace package, pnpm workspace root, Thoth web entry (index.ht
 Cohesion: 0.13
 Nodes (14): 1. Add a component, 2. Add a Redux slice, 3. Add a hook, 4. Wire an API call, 5. Test a component/slice, 6. Touch the WS client, 7. Bump a frontend dependency, Canonical docs (+6 more)
 
-### Community 61 - "Sidebar.test.tsx"
-Cohesion: 0.18
-Nodes (7): conversations, healthy, mocks, older, renderSidebar(), today, yesterday
+### Community 61 - "SearchPanel.tsx"
+Cohesion: 0.15
+Nodes (12): SearchResult, mocks, mocks, renderPanel(), SearchPanel(), mocks, SearchView(), mocks (+4 more)
 
 ### Community 62 - "Open"
 Cohesion: 0.24
