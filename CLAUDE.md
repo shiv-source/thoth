@@ -177,14 +177,67 @@ Apply the standard principles — modular, composable, boring code that's easy t
 
 ## graphify
 
-This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
+This repository has a derived knowledge graph at `graphify-out/`.
 
-Rules:
-- For codebase questions, first run `graphify query "<question>"` when graphify-out/graph.json exists. Use `graphify path "<A>" "<B>"` for relationships and `graphify explain "<concept>"` for focused concepts. These return a scoped subgraph, usually much smaller than GRAPH_REPORT.md or raw grep output.
-- If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
-- Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
-- After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).
-- Show the source: begin every codebase answer with a tag — `[graph]` (query/path/explain), `[wiki]`, or `[fs]` (direct file reads) — and when the answer comes from the graph, name the nodes/communities consulted. Tag per section when sources mix (`[graph] … [fs] …`).
-- Fallback ladder: if the graph misses the target (SQL migrations, dotfiles, dangling-edge areas), fall back to wiki, then direct file reads. Never answer "not found" from a graph miss alone; verify critical claims against the source file.
-- Staleness: before answering about code modified since the last `graphify update .`, run the update first or read the files directly — files are the source of truth, the graph is derived.
+### Mandatory routing
 
+* **Every codebase question MUST start with Graphify when `graphify-out/graph.json` exists.**
+* Before reading source files, using broad `grep`/`rg`, searching the repository, or reasoning from source, run the appropriate Graphify command:
+
+  * `graphify query "<question>"` — default for codebase questions.
+  * `graphify path "<A>" "<B>"` — when the task concerns a relationship or dependency between two known concepts.
+  * `graphify explain "<concept>"` — when investigating one focused concept.
+* Do **not** skip Graphify merely because the target file or symbol seems obvious.
+* Do **not** replace the initial Graphify query with raw filesystem exploration.
+
+### Narrow fallback
+
+Graphify is a navigation/indexing layer; **files remain the source of truth**.
+
+After the initial Graphify query:
+
+1. Use the returned nodes/paths to identify the smallest relevant source scope.
+2. Read only the files needed to verify or modify the result.
+3. If Graphify does not surface the target, use the fallback ladder:
+   `Graphify → wiki → targeted file read`.
+4. Never conclude "not found" from a Graphify miss alone.
+
+For areas Graphify does not represent well (for example SQL migrations, dotfiles, generated/configuration files, or dangling-edge areas), targeted filesystem reads are allowed **after the Graphify attempt**.
+
+### Token discipline
+
+* Run **one focused Graphify query first**, not multiple exploratory queries.
+* Prefer `query`, `path`, or `explain` over reading `GRAPH_REPORT.md`.
+* Do not read `graphify-out/GRAPH_REPORT.md` unless the task requires broad architecture understanding or the focused query/path/explain result is insufficient.
+* If `graphify-out/wiki/index.md` exists, use it for broad navigation instead of raw source browsing.
+* Do not dump the entire graph into context.
+* Do not repeat the same Graphify query unless the first result was insufficient.
+* After Graphify identifies the relevant scope, stop exploring and work directly on that scope.
+
+### Staleness
+
+* Files are the source of truth.
+* `graphify-out/graph.json` is derived data and may be stale.
+* If the task concerns code modified since the graph was last updated, either run `graphify update .` before relying on the graph or verify the affected files directly.
+* Do **not** run `graphify update .` after every edit automatically.
+* Run `graphify update .` when the graph is stale and another Graphify query is required, or when explicitly requested.
+
+### Source attribution
+
+Begin each codebase answer with exactly one source tag:
+
+* `[graph]` — information obtained from Graphify.
+* `[graphifyWiki]` — information obtained from `graphify-out/wiki/index.md`.
+* `[fs]` — information obtained directly from source files.
+
+When sources are mixed, tag the relevant section.
+
+For `[graph]` answers, name the important nodes, communities, or relationships consulted.
+
+### Explicit `/graphify`
+
+When the user invokes `/graphify`:
+
+1. Use the installed Graphify skill.
+2. Follow its instructions before performing other codebase exploration.
+3. Do not bypass the skill with direct repository-wide searching.
