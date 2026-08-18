@@ -1,14 +1,14 @@
 import { useEffect, useRef } from 'react'
-import { X } from 'lucide-react'
+import { Alert, Button } from 'antd'
+import { CloseOutlined } from '@ant-design/icons'
 import { dismissNotification, selectNotifications } from '../store'
 import { useAppDispatch, useAppSelector } from '../store/hooks'
 import type { NotificationKind } from '../store/slices/notificationsSlice'
-import { IconButton } from './IconButton'
 import { NotificationIcon } from './notifications'
 
 const TOAST_MS = 5000
 
-// NotificationToasts shows NEW notifications as transient cards in the
+// NotificationToasts shows NEW notifications as transient alerts in the
 // top-left corner. Notifications that existed on mount are considered
 // history (they live in the bell panel) and are not re-toasted.
 export function NotificationToasts() {
@@ -27,7 +27,7 @@ export function NotificationToasts() {
             className="pointer-events-none absolute left-3 top-3 z-50 flex w-80 flex-col gap-2"
         >
             {toasts.map((n) => (
-                <ToastCard
+                <ToastAlert
                     key={n.id}
                     kind={n.kind}
                     title={n.title}
@@ -39,7 +39,7 @@ export function NotificationToasts() {
     )
 }
 
-function ToastCard({
+function ToastAlert({
     kind,
     title,
     body,
@@ -50,29 +50,29 @@ function ToastCard({
     body?: string
     onDismiss: () => void
 }) {
-    const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
     useEffect(() => {
-        timer.current = setTimeout(onDismiss, TOAST_MS)
-        return () => {
-            if (timer.current) clearTimeout(timer.current)
-        }
+        const timer = setTimeout(onDismiss, TOAST_MS)
+        return () => clearTimeout(timer)
     }, [onDismiss])
 
     return (
-        <div
-            role="status"
-            className="pointer-events-auto flex items-start gap-2 rounded-xl border border-line bg-surface px-3 py-2.5 shadow-lg"
-        >
-            <span className="mt-0.5">
-                <NotificationIcon kind={kind} />
-            </span>
-            <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-ink">{title}</p>
-                {body && <p className="mt-0.5 text-xs text-subtle">{body}</p>}
-            </div>
-            <IconButton label={`Dismiss: ${title}`} onClick={onDismiss}>
-                <X className="h-3.5 w-3.5" aria-hidden="true" />
-            </IconButton>
-        </div>
+        <Alert
+            className="pointer-events-auto shadow-lg"
+            type="info"
+            showIcon
+            icon={<span aria-hidden="true">{<NotificationIcon kind={kind} />}</span>}
+            message={title}
+            description={body}
+            closable
+            closeIcon={
+                <Button
+                    type="text"
+                    size="small"
+                    aria-label={`Dismiss: ${title}`}
+                    icon={<CloseOutlined aria-hidden="true" />}
+                />
+            }
+            onClose={onDismiss}
+        />
     )
 }

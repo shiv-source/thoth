@@ -21,7 +21,7 @@ describe('settingsSlice', () => {
 
     it('starts empty and loading', () => {
         const store = makeStore()
-        expect(store.getState().settings).toEqual({ data: null, loading: true, saving: false, error: null })
+        expect(store.getState().settings).toEqual({ data: null, loading: true, saving: false, error: null, models: [] })
     })
 
     it('loads settings', async () => {

@@ -2,9 +2,7 @@ import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Sidebar } from './Sidebar'
-import { ToastProvider } from './Toast'
 import { renderWithStore } from '../test/renderWithStore'
-import type { Health } from '../api/client'
 
 // The client creates its axios instance via axios.create; the mocks are
 // hoisted so the (also hoisted) vi.mock factory can close over them.
@@ -55,13 +53,6 @@ function stubAPI(handlers: Record<string, () => unknown>) {
     return mocks
 }
 
-const healthy: Health = {
-    status: 'ok',
-    claude: { found: true, path: '/usr/local/bin/claude' },
-    wiki: { path: '/tmp/wiki', exists: true },
-    version: '1.2.3'
-}
-
 const today = new Date()
 const yesterday = new Date(Date.now() - 86400000)
 const older = new Date(Date.now() - 40 * 86400000)
@@ -75,12 +66,8 @@ const conversations = {
     ]
 }
 
-function renderSidebar(health: Health | null = healthy, loading = false) {
-    return renderWithStore(
-        <ToastProvider>
-            <Sidebar health={health} loading={loading} />
-        </ToastProvider>
-    )
+function renderSidebar() {
+    return renderWithStore(<Sidebar />)
 }
 
 describe('Sidebar chats section', () => {
@@ -158,32 +145,5 @@ describe('Sidebar chats section', () => {
         mocks.get.mockRejectedValueOnce(axiosError(500, 'boom'))
         renderSidebar()
         expect(await screen.findByText('Could not load conversations')).toBeInTheDocument()
-    })
-})
-
-describe('Sidebar health footer', () => {
-    it('shows the healthy state with the version', async () => {
-        stubAPI({
-            '/api/conversations': () => ({ conversations: [] })
-        })
-        renderSidebar(healthy)
-        expect(await screen.findByText('All systems go')).toBeInTheDocument()
-        expect(screen.getByText('v1.2.3')).toBeInTheDocument()
-    })
-
-    it('shows the missing-claude state', async () => {
-        stubAPI({
-            '/api/conversations': () => ({ conversations: [] })
-        })
-        renderSidebar({ ...healthy, claude: { found: false, path: 'claude' } })
-        expect(await screen.findByText('Claude CLI missing')).toBeInTheDocument()
-    })
-
-    it('shows the loading state', async () => {
-        stubAPI({
-            '/api/conversations': () => ({ conversations: [] })
-        })
-        renderSidebar(null, true)
-        expect(await screen.findByText('Checking…')).toBeInTheDocument()
     })
 })

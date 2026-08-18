@@ -1,47 +1,37 @@
-import { useEffect, useRef, useState } from 'react'
-import { api, type SearchResult } from '../api/client'
+import { useEffect, useRef } from 'react'
+import { clearSearch, searchNotes, selectSearchLoading, selectSearchResults } from '../store'
+import { useAppDispatch, useAppSelector } from '../store/hooks'
 
+// useSearch debounces the query (300 ms) and dispatches it into the search
+// slice with an AbortController, so a superseded request stops server-side
+// and its late response is dropped by the slice's query guard. Clearing the
+// query resets the slice immediately.
 export function useSearch(query: string) {
-    const [results, setResults] = useState<SearchResult[]>([])
-    const [loading, setLoading] = useState(false)
+    const dispatch = useAppDispatch()
+    const results = useAppSelector(selectSearchResults)
+    const loading = useAppSelector(selectSearchLoading)
     const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
     const abort = useRef<AbortController | null>(null)
-    const seq = useRef(0)
 
     useEffect(() => {
         const q = query.trim()
         if (!q) {
-            // A cleared query invalidates everything in flight: the seq bump makes
-            // any late response stale, the abort stops the request server-side.
-            seq.current++
             abort.current?.abort()
-            setResults([])
-            setLoading(false)
+            dispatch(clearSearch())
             return
         }
-        const id = ++seq.current
-        setLoading(true)
         timer.current = setTimeout(() => {
             const controller = new AbortController()
             abort.current = controller
-            api.search(q, controller.signal)
-                .then((r) => {
-                    if (id === seq.current) setResults(r.results)
-                })
-                .catch(() => {
-                    if (id === seq.current) setResults([])
-                })
-                .finally(() => {
-                    if (id === seq.current) setLoading(false)
-                })
+            void dispatch(searchNotes(q, { signal: controller.signal }))
         }, 300)
         return () => {
             clearTimeout(timer.current)
-            // Covers both the next keystroke and unmount: a superseded request is
-            // cancelled instead of running to completion server-side.
+            // Covers both the next keystroke and unmount: a superseded
+            // request is cancelled instead of running to completion.
             abort.current?.abort()
         }
-    }, [query])
+    }, [query, dispatch])
 
-    return { results, loading }
+    return { results: results ?? [], loading }
 }

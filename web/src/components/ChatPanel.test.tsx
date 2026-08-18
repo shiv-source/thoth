@@ -6,7 +6,6 @@ import { act, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ChatPanel } from './ChatPanel'
-import { ToastProvider } from './Toast'
 import { FakeWS } from '../test/fakeWS'
 import { renderWithStore } from '../test/renderWithStore'
 
@@ -17,11 +16,7 @@ const mocks = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), put: vi.fn(), del
 vi.mock('axios', () => axiosModuleMock(mocks))
 
 function renderPanel() {
-    return renderWithStore(
-        <ToastProvider>
-            <ChatPanel onOpenSettings={() => {}} />
-        </ToastProvider>
-    )
+    return renderWithStore(<ChatPanel onOpenSettings={() => {}} />)
 }
 
 describe('ChatPanel', () => {

@@ -3,7 +3,6 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { axiosModuleMock, stubAPI } from '../test/mockAxios'
 import { renderWithStore } from '../test/renderWithStore'
-import { ToastProvider } from './Toast'
 import { NoteViewer } from './NoteViewer'
 
 const mocks = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() }))
@@ -11,11 +10,7 @@ vi.mock('axios', () => axiosModuleMock(mocks))
 
 function renderViewer() {
     const onClose = vi.fn()
-    const utils = renderWithStore(
-        <ToastProvider>
-            <NoteViewer path="knowledge/note.md" onClose={onClose} />
-        </ToastProvider>
-    )
+    const utils = renderWithStore(<NoteViewer path="knowledge/note.md" onClose={onClose} />)
     return { onClose, ...utils }
 }
 
@@ -43,6 +38,13 @@ describe('NoteViewer', () => {
     it('closes via the close button', async () => {
         const { onClose } = renderViewer()
         await userEvent.click(screen.getByRole('button', { name: 'Close note' }))
+        expect(onClose).toHaveBeenCalled()
+    })
+
+    it('closes on Escape', async () => {
+        const { onClose } = renderViewer()
+        await screen.findByText('Hello')
+        await userEvent.keyboard('{Escape}')
         expect(onClose).toHaveBeenCalled()
     })
 

@@ -1,52 +1,20 @@
-import { useState } from 'react'
 import { act, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it, vi } from 'vitest'
-import { assistantStart, turnDone } from '../store'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { axiosModuleMock, axiosError, stubAPI } from '../test/mockAxios'
 import { renderWithStore } from '../test/renderWithStore'
+import { assistantStart, turnDone } from '../store'
 import { WikiTree } from './WikiTree'
 
 const mocks = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() }))
+vi.mock('axios', () => axiosModuleMock(mocks))
 
-vi.mock('axios', () => ({
-    default: {
-        create: () => ({
-            get: mocks.get,
-            post: mocks.post,
-            put: mocks.put,
-            delete: mocks.delete
-        }),
-        isAxiosError: (e: unknown) =>
-            !!(e && typeof e === 'object' && (e as { isAxiosError?: boolean }).isAxiosError === true)
-    }
-}))
-
-// axiosError builds a rejection value shaped like an axios error response.
-function axiosError(status: number, body: unknown) {
-    return Object.assign(new Error(`${status}`), {
-        isAxiosError: true,
-        response: { status, statusText: String(status), data: body }
-    })
-}
-
-// Harness: WikiTree is controlled from the sidebar now; keep the expanded
-// state in the test so interactions behave like production. A fresh store
-// per render backs the chat-slice subscription (turn-completion refetch).
+// A fresh store per render backs the wiki and ui slices (tree data,
+// expansion, chat-streaming subscription).
 function renderWikiTree(openPath: string | null = null) {
     const onOpenNote = vi.fn()
-    function Wrapper() {
-        const [expandedKeys, setExpandedKeys] = useState<Set<string>>(() => new Set())
-        return (
-            <WikiTree
-                openPath={openPath}
-                onOpenNote={onOpenNote}
-                expandedKeys={expandedKeys}
-                onExpandedChange={setExpandedKeys}
-            />
-        )
-    }
-    const { store, ...utils } = renderWithStore(<Wrapper />)
-    return { onOpenNote, store, ...utils }
+    const utils = renderWithStore(<WikiTree openPath={openPath} onOpenNote={onOpenNote} />)
+    return { onOpenNote, ...utils }
 }
 
 const treeResponse = {
@@ -67,8 +35,12 @@ const treeResponse = {
 }
 
 describe('WikiTree', () => {
+    beforeEach(() => {
+        vi.clearAllMocks()
+    })
+
     it('renders the nested wiki structure', async () => {
-        mocks.get.mockResolvedValueOnce({ data: treeResponse })
+        stubAPI(mocks, { '/api/wiki/tree': () => treeResponse })
         renderWikiTree()
 
         expect(screen.getByText('Loading…')).toBeInTheDocument()
@@ -79,26 +51,26 @@ describe('WikiTree', () => {
     })
 
     it('opens the clicked note and marks it selected', async () => {
-        mocks.get.mockResolvedValueOnce({ data: treeResponse })
+        stubAPI(mocks, { '/api/wiki/tree': () => treeResponse })
         const { onOpenNote } = renderWikiTree()
 
-        await userEvent.click(await screen.findByRole('button', { name: 'Expand meetings' }))
-        await userEvent.click(screen.getByText('standup.md'))
+        await userEvent.click(await screen.findByText('meetings'))
+        await userEvent.click(await screen.findByText('standup.md'))
         expect(onOpenNote).toHaveBeenCalledWith('meetings/standup.md')
     })
 
     it('collapsing a folder hides its files', async () => {
-        mocks.get.mockResolvedValueOnce({ data: treeResponse })
+        stubAPI(mocks, { '/api/wiki/tree': () => treeResponse })
         renderWikiTree()
 
-        await userEvent.click(await screen.findByRole('button', { name: 'Expand meetings' }))
-        expect(screen.getByText('standup.md')).toBeInTheDocument()
-        await userEvent.click(screen.getByRole('button', { name: 'Collapse meetings' }))
+        await userEvent.click(await screen.findByText('meetings'))
+        expect(await screen.findByText('standup.md')).toBeInTheDocument()
+        await userEvent.click(screen.getByText('meetings'))
         await waitFor(() => expect(screen.queryByText('standup.md')).not.toBeInTheDocument())
     })
 
     it('shows the file count in a hover tooltip', async () => {
-        mocks.get.mockResolvedValueOnce({ data: treeResponse })
+        stubAPI(mocks, { '/api/wiki/tree': () => treeResponse })
         renderWikiTree()
         await userEvent.hover(await screen.findByText('meetings'))
         expect(await screen.findByRole('tooltip')).toHaveTextContent('1 file')
@@ -107,13 +79,11 @@ describe('WikiTree', () => {
     it('shows an error state when the tree fetch fails', async () => {
         mocks.get.mockRejectedValueOnce(axiosError(500, 'boom'))
         renderWikiTree()
-
         expect(await screen.findByText('Could not load the wiki tree')).toBeInTheDocument()
     })
 
     it('refetches the tree when a chat turn completes', async () => {
-        mocks.get.mockClear() // earlier tests' calls would pollute the count
-        mocks.get.mockResolvedValue({ data: treeResponse })
+        stubAPI(mocks, { '/api/wiki/tree': () => treeResponse })
         const { store } = renderWikiTree()
         await screen.findByText('meetings')
         expect(mocks.get).toHaveBeenCalledTimes(1)
@@ -132,8 +102,7 @@ describe('WikiTree', () => {
     })
 
     it('refetches the tree when the window regains focus', async () => {
-        mocks.get.mockClear() // earlier tests' calls would pollute the count
-        mocks.get.mockResolvedValue({ data: treeResponse })
+        stubAPI(mocks, { '/api/wiki/tree': () => treeResponse })
         renderWikiTree()
         await screen.findByText('meetings')
         expect(mocks.get).toHaveBeenCalledTimes(1)

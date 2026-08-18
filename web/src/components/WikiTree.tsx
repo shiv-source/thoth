@@ -1,123 +1,104 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { FileText, Folder, FolderOpen } from 'lucide-react'
-import { api, type TreeNode } from '../api/client'
-import { selectStreaming } from '../store'
-import { useAppSelector } from '../store/hooks'
-import { Tree } from './Tree'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
+import { Tooltip, Tree } from 'antd'
+import type { DataNode } from 'antd/es/tree'
+import { FileTextOutlined, FolderOpenOutlined, FolderOutlined } from '@ant-design/icons'
+import type { TreeNode } from '../api/client'
+import {
+    collectTreeInfo,
+    fetchTree,
+    selectNotesExpandedKeys,
+    selectStreaming,
+    selectWikiError,
+    selectWikiLoading,
+    selectWikiNodes,
+    setNotesExpandedKeys
+} from '../store'
+import { useAppDispatch, useAppSelector } from '../store/hooks'
 
-// WikiTree renders the wiki directory as a folder tree via the reusable
-// Tree component: folders collapse with chevrons, files open the note.
-// Expansion is controlled by the caller (the sidebar header owns the
-// expand/collapse-all toggle); onDirsChange reports the dir keys so the
-// caller can expand everything.
-export function WikiTree({
-    openPath,
-    onOpenNote,
-    expandedKeys,
-    onExpandedChange,
-    onDirsChange
-}: {
-    openPath: string | null
-    onOpenNote: (path: string) => void
-    expandedKeys: Set<string>
-    onExpandedChange: (next: Set<string>) => void
-    onDirsChange?: (dirs: Set<string>) => void
-}) {
-    const [nodes, setNodes] = useState<TreeNode[] | null>(null)
-    const [error, setError] = useState(false)
+// WikiDataNode carries the per-directory file count alongside antd's own
+// fields so the title renderer can show the hover tooltip.
+interface WikiDataNode extends DataNode {
+    fileCount?: number
+}
+
+// toTreeData maps the API nodes onto antd's shape, tagging directories
+// with their recursive file counts.
+function toTreeData(nodes: TreeNode[], counts: Map<string, number>): WikiDataNode[] {
+    return nodes.map((n) => ({
+        key: n.path,
+        title: n.name,
+        isLeaf: !n.is_dir,
+        children: n.is_dir ? toTreeData(n.children ?? [], counts) : undefined,
+        fileCount: n.is_dir ? counts.get(n.path) : undefined
+    }))
+}
+
+// WikiTree renders the wiki directory through antd's DirectoryTree: folder
+// clicks expand/collapse, file clicks open the note. The tree data and the
+// expansion state both live in Redux (wikiSlice + uiSlice), so the tree
+// survives view switches and the expand-all toggle in NotesView works
+// without prop drilling.
+export function WikiTree({ openPath, onOpenNote }: { openPath: string | null; onOpenNote: (path: string) => void }) {
+    const dispatch = useAppDispatch()
+    const nodes = useAppSelector(selectWikiNodes)
+    const loading = useAppSelector(selectWikiLoading)
+    const error = useAppSelector(selectWikiError)
     const streaming = useAppSelector(selectStreaming)
+    const expandedKeys = useAppSelector(selectNotesExpandedKeys)
     const prevStreaming = useRef(streaming)
 
-    // load fetches the tree; stable so the refetch effects can reuse it.
-    const load = useCallback(() => {
-        api.tree()
-            .then((r) => setNodes(r.nodes))
-            .catch(() => setError(true))
-    }, [])
-
     useEffect(() => {
-        load()
-    }, [load])
+        void dispatch(fetchTree())
+    }, [dispatch])
 
     // A completed chat turn may have saved notes: refetch so new files
     // appear in the tree without a page refresh.
     useEffect(() => {
-        if (prevStreaming.current && !streaming) load()
+        if (prevStreaming.current && !streaming) void dispatch(fetchTree())
         prevStreaming.current = streaming
-    }, [streaming, load])
+    }, [streaming, dispatch])
 
     // Notes written outside the app (terminal Claude, vim) show up when the
     // window regains focus.
     useEffect(() => {
+        const load = () => void dispatch(fetchTree())
         window.addEventListener('focus', load)
         return () => window.removeEventListener('focus', load)
-    }, [load])
+    }, [dispatch])
 
-    // One pass: every dir key plus the recursive file count per dir.
-    const { allDirs, fileCounts } = useMemo(() => {
-        const dirs = new Set<string>()
-        const counts = new Map<string, number>()
-        const walk = (list: TreeNode[]): number => {
-            let files = 0
-            for (const n of list) {
-                if (n.is_dir) {
-                    dirs.add(n.path)
-                    const sub = walk(n.children ?? [])
-                    counts.set(n.path, sub)
-                    files += sub
-                } else {
-                    files++
-                }
-            }
-            return files
+    const { fileCounts } = useMemo(() => collectTreeInfo(nodes ?? []), [nodes])
+    const treeData = useMemo(() => toTreeData(nodes ?? [], fileCounts), [nodes, fileCounts])
+
+    // One icon per row: directories replace the default caret with an
+    // open/closed folder (switcherIcon), files show a document icon in the
+    // title. Directories also carry a hover tooltip with their recursive
+    // file count.
+    const renderTitle = useCallback((node: WikiDataNode) => {
+        const title = node.title as string
+        if (node.isLeaf) {
+            return (
+                <span className="inline-flex items-center gap-1.5">
+                    <FileTextOutlined aria-hidden="true" className="text-subtle" />
+                    <span>{title}</span>
+                </span>
+            )
         }
-        walk(nodes ?? [])
-        return { allDirs: dirs, fileCounts: counts }
-    }, [nodes])
+        const count = node.fileCount ?? 0
+        return <Tooltip title={`${count} file${count === 1 ? '' : 's'}`}>{title}</Tooltip>
+    }, [])
 
-    useEffect(() => {
-        if (nodes !== null) onDirsChange?.(allDirs)
-    }, [allDirs, nodes, onDirsChange])
-
-    // Stable accessors are the contract Tree's memoized rows rely on: without
-    // them every WikiTree render (e.g. each openNote change) re-renders every
-    // visible row. Declared before the early returns — hooks must run on every
-    // render regardless of state.
-    const getKey = useCallback((n: TreeNode) => n.path, [])
-    const getLabel = useCallback((n: TreeNode) => n.name, [])
-    const isDir = useCallback((n: TreeNode) => n.is_dir, [])
-    const getChildren = useCallback((n: TreeNode) => n.children ?? [], [])
-    const renderIcon = useCallback(
-        (n: TreeNode, expanded: boolean) =>
-            n.is_dir ? (
-                expanded ? (
-                    <FolderOpen className="h-4 w-4" />
-                ) : (
-                    <Folder className="h-4 w-4" />
-                )
-            ) : (
-                <FileText className="h-4 w-4" />
-            ),
-        []
-    )
-    const renderTooltip = useCallback(
-        (n: TreeNode) =>
-            n.is_dir
-                ? `${fileCounts.get(n.path) ?? 0} file${(fileCounts.get(n.path) ?? 0) === 1 ? '' : 's'}`
-                : undefined,
-        [fileCounts]
-    )
-    const onSelect = useCallback(
-        (n: TreeNode) => {
-            if (!n.is_dir) onOpenNote(n.path)
-        },
-        [onOpenNote]
-    )
+    const renderSwitcher = useCallback((props: { expanded?: boolean }) => {
+        return props.expanded ? (
+            <FolderOpenOutlined aria-hidden="true" className="text-subtle" />
+        ) : (
+            <FolderOutlined aria-hidden="true" className="text-subtle" />
+        )
+    }, [])
 
     if (error) {
-        return <p className="px-1 text-sm text-red-600 dark:text-red-400">Could not load the wiki tree</p>
+        return <p className="px-1 text-sm text-red-600">Could not load the wiki tree</p>
     }
-    if (nodes === null) {
+    if (nodes === null || loading) {
         return <p className="px-1 text-sm text-subtle">Loading…</p>
     }
     if (nodes.length === 0) {
@@ -125,20 +106,28 @@ export function WikiTree({
     }
 
     return (
-        <div>
-            <Tree<TreeNode>
-                nodes={nodes}
-                getKey={getKey}
-                getLabel={getLabel}
-                isDir={isDir}
-                getChildren={getChildren}
-                renderIcon={renderIcon}
-                renderTooltip={renderTooltip}
-                onSelect={onSelect}
-                selectedKey={openPath}
-                expandedKeys={expandedKeys}
-                onExpandedChange={onExpandedChange}
-            />
-        </div>
+        <Tree.DirectoryTree
+            treeData={treeData}
+            titleRender={renderTitle}
+            switcherIcon={renderSwitcher}
+            // DirectoryTree defaults showIcon on and would render its own
+            // folder glyph next to the custom switcher — one icon per row
+            // means turning its icon slot off (files carry theirs in the
+            // title renderer).
+            showIcon={false}
+            expandedKeys={expandedKeys}
+            onExpand={(keys) => dispatch(setNotesExpandedKeys(keys as string[]))}
+            selectedKeys={openPath ? [openPath] : []}
+            onSelect={(_keys, { node }) => {
+                if (node.isLeaf) onOpenNote(node.key as string)
+            }}
+            // A local wiki tree is small — virtualization buys nothing and
+            // its height measurement does not work under jsdom. Motion is
+            // off for the same reason (its leave callbacks never complete
+            // under jsdom) and because instant expand/collapse feels
+            // snappier for a local file tree.
+            virtual={false}
+            motion={false}
+        />
     )
 }

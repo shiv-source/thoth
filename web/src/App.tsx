@@ -1,12 +1,12 @@
+import { Layout, Spin } from 'antd'
+import { AppSider } from './components/AppSider'
 import { Sidebar } from './components/Sidebar'
 import { ChatPanel } from './components/ChatPanel'
-import { NavRail } from './components/NavRail'
 import { NotesView } from './components/NotesView'
 import { DashboardView } from './components/DashboardView'
 import { SearchView } from './components/SearchView'
 import { SettingsView } from './components/SettingsView'
 import { SetupScreen } from './components/SetupScreen'
-import { ToastProvider } from './components/Toast'
 import { NotificationToasts } from './components/NotificationToasts'
 import { navigateNote, navigateView, useViewRoute } from './hooks/useView'
 import { useViewShortcuts } from './hooks/useViewShortcuts'
@@ -28,17 +28,14 @@ export default function App() {
     const openNoteHere = (path: string | null) => navigateNote(path)
 
     return (
-        <ToastProvider>
-            <div className="flex h-screen bg-app font-sans text-ink">
-                <NavRail />
-                {view === 'chat' && <Sidebar health={health} loading={loading} />}
-                <main className="relative flex min-w-0 flex-1 flex-col">
+        <Layout className="h-screen bg-app font-sans text-ink">
+            <AppSider />
+            <Layout hasSider>
+                {view === 'chat' && <Sidebar />}
+                <Layout.Content className="relative flex min-w-0 flex-1 flex-col">
                     {loading && !health ? (
                         <div className="flex flex-1 items-center justify-center" role="status" aria-label="Loading">
-                            <span
-                                aria-hidden="true"
-                                className="h-8 w-8 animate-spin rounded-full border-2 border-line border-t-accent"
-                            />
+                            <Spin size="large" />
                         </div>
                     ) : health?.claude.found ? (
                         <>
@@ -56,8 +53,8 @@ export default function App() {
                         <SetupScreen health={health} loading={loading} onRecheck={() => void recheck()} />
                     )}
                     <NotificationToasts />
-                </main>
-            </div>
-        </ToastProvider>
+                </Layout.Content>
+            </Layout>
+        </Layout>
     )
 }

@@ -3,14 +3,9 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { renderWithStore } from '../test/renderWithStore'
 import { CopyButton } from './CopyButton'
-import { ToastProvider } from './Toast'
 
 function renderCopy(text = 'hello', toast?: string) {
-    return renderWithStore(
-        <ToastProvider>
-            <CopyButton text={text} label="Copy code" toast={toast} />
-        </ToastProvider>
-    )
+    return renderWithStore(<CopyButton text={text} label="Copy code" toast={toast} />)
 }
 
 describe('CopyButton', () => {

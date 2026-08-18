@@ -11,9 +11,9 @@ a missing hook means this index is stale.
 
 ## useSearch
 - path: web/src/hooks/useSearch.ts
-- purpose: Debounced (300 ms) search with abort + sequence guards so slow responses can't overwrite newer ones
-- props/api: `useSearch(query: string) => { results: SearchResult[], loading: boolean }`
-- canonical: useSearch.ts:4 · docs/frontend.md §Hooks
+- purpose: Debounced (300 ms) search with abort (AbortController); dispatches searchNotes into the search slice (the slice's query guard drops stale responses); clearing the query dispatches clearSearch
+- props/api: `useSearch(query: string) => { results: SearchResult[], loading: boolean }` — values read from the search slice, so the hook needs the Redux Provider
+- canonical: useSearch.ts:9 · docs/frontend.md §Hooks
 
 ## useConversationRoute
 - path: web/src/hooks/useConversationRoute.ts

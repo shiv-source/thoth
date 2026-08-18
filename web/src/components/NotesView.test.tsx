@@ -5,7 +5,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { axiosModuleMock } from '../test/mockAxios'
 import { renderWithStore } from '../test/renderWithStore'
 import { NotesView } from './NotesView'
-import { ToastProvider } from './Toast'
 
 const mocks = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() }))
 vi.mock('axios', () => axiosModuleMock(mocks))
@@ -23,11 +22,7 @@ const tree = () => ({
 
 function renderNotes(openPath: string | null = null) {
     const onOpenNote = vi.fn()
-    const utils = renderWithStore(
-        <ToastProvider>
-            <NotesView openPath={openPath} onOpenNote={onOpenNote} onOpenSettings={vi.fn()} />
-        </ToastProvider>
-    )
+    const utils = renderWithStore(<NotesView openPath={openPath} onOpenNote={onOpenNote} onOpenSettings={vi.fn()} />)
     return { onOpenNote, ...utils }
 }
 
@@ -48,11 +43,11 @@ describe('NotesView', () => {
     it('expand-all reveals every folder; the same toggle collapses them again', async () => {
         renderNotes()
         await userEvent.click(await screen.findByRole('button', { name: 'Expand all folders' }))
-        expect(screen.getByText('standup.md')).toBeInTheDocument()
+        expect(await screen.findByText('standup.md')).toBeInTheDocument()
         expect(screen.getByRole('button', { name: 'Collapse all folders' })).toBeInTheDocument()
 
         await userEvent.click(screen.getByRole('button', { name: 'Collapse all folders' }))
-        expect(screen.queryByText('standup.md')).not.toBeInTheDocument()
+        await waitFor(() => expect(screen.queryByText('standup.md')).not.toBeInTheDocument())
     })
 
     it('expands the open note’s ancestor folders automatically', async () => {
@@ -83,12 +78,7 @@ describe('NotesView', () => {
             }
             return Promise.reject(new Error(`unhandled ${url}`))
         })
-        const onOpenNote = vi.fn()
-        renderWithStore(
-            <ToastProvider>
-                <NotesView openPath="meetings/standup.md" onOpenNote={onOpenNote} onOpenSettings={vi.fn()} />
-            </ToastProvider>
-        )
+        renderNotes('meetings/standup.md')
         // No expand-all click needed: the ancestor folder is already open.
         expect(await screen.findByText('standup.md')).toBeInTheDocument()
     })
@@ -104,11 +94,7 @@ describe('NotesView', () => {
         // A stateful wrapper mirrors App: onOpenNote(null) clears openPath.
         function Wrapper() {
             const [open, setOpen] = useState<string | null>('meetings/standup.md')
-            return (
-                <ToastProvider>
-                    <NotesView openPath={open} onOpenNote={setOpen} onOpenSettings={vi.fn()} />
-                </ToastProvider>
-            )
+            return <NotesView openPath={open} onOpenNote={setOpen} onOpenSettings={vi.fn()} />
         }
         renderWithStore(<Wrapper />)
 
