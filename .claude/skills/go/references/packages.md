@@ -60,7 +60,7 @@ internal/ plus cmd/thoth — a missing package means this index is stale.
 
 ## internal/doctor
 - path: internal/doctor/
-- purpose: The six shared install checks (CLI + Settings → Doctor tab)
+- purpose: The seven shared install checks (CLI + Settings → Doctor tab)
 - api: Run(ctx, dir, addr, log) []Check; Check{Name, OK, Message}
 - canonical: docs/components.md §internal/doctor · internal/doctor/doctor.go
 

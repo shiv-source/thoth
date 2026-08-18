@@ -52,7 +52,7 @@ useAppDispatch/useAppSelector, never the bare versions.
 - path: searchHistorySlice.ts
 - purpose: The last committed searches (strings) — cap 10, deduped, most-recent-first; lazy localStorage load + persistSearchHistory middleware writes back
 - props/api: actions commitSearch(q), clearSearchHistory(); selector selectSearchHistory
-- canonical: searchHistorySlice.ts:24 · docs/frontend.md §Components
+- canonical: searchHistorySlice.ts:24 · docs/frontend.md §State
 
 Stale if: a slice appears or disappears in web/src/store/slices/, makeStore
 wiring changes, or docs/frontend.md's state list gains an entry this

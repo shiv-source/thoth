@@ -3,7 +3,7 @@ name: code-quality
 description: >-
   Thoth pre-PR quality gates — the six gate checks, coverage, lint,
   review checklist, failing-gate triage. Fires on: quality gates, before
-  commit, pre-PR review, coverage, lint, checklist.
+  commit, pre-PR review, coverage, lint, checklist, make check, race, CI.
 ---
 
 # Code quality — the pre-PR gate
@@ -51,6 +51,7 @@ Details and floors: .claude/skills/go/references/quality.md
 ## Gotchas
 - The pre-commit hook autofixes staged files (eslint/prettier/golangci-lint --fix) — re-run the gates after any hook-triggered edit
 - ci-pr runs the quality gates but NOT the cross-compiles — those run only on push to main, so a PR can be green and a main push red (docs/development.md § CI)
+- "Six gate checks" here are the local commands; CI's quality.yml runs them as 5 jobs (vet+race+coverage, golangci-lint, vitest, eslint, tsc) — same gates, different packaging
 - New code must be covered to keep the total ≥ 80% on internal/ + cmd/ — a large feature with thin tests fails CI
 - Pre-commit runs the full Go suite when Go files are staged — keep focused tests while iterating, full suite once before commit (CLAUDE.md § Token Efficiency)
 

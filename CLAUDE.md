@@ -10,7 +10,7 @@ This file governs the app repo. Note-taking behavior is governed by the wiki's o
 - Node 24.14.0 (nvm) · pnpm 11.7.0 — pnpm workspace at the repo root (`pnpm-workspace.yaml` registers `web/`; the single lockfile is the root `pnpm-lock.yaml`; root `.npmrc` pins save-exact)
 - Go frameworks: Echo 4.15.4 · Cobra 1.10.2 · gorilla/websocket 1.5.3 · modernc.org/sqlite 1.56.0 · fsnotify 1.10.1 · go-toml/v2 2.4.3 · yaml.v3 3.0.1
 - Frontend: React 19.2 · TypeScript 6.0 · Vite 8.2 · Tailwind 4.3 · Vitest 4.1 · zod 4.4 · react-markdown 10.1 (web/package.json is authoritative)
-- Dependencies stay latest — the bump procedure is the go skill's quality reference.
+- Dependencies stay latest — the bump procedures are the go skill (§ 7) and the react skill (§ 7).
 
 ## Commands
 
@@ -35,6 +35,7 @@ thoth/
 ├── cmd/thoth/            # thin binary entrypoint (main.go)
 ├── internal/
 │   ├── api/              # Echo: WS chat (/ws) + REST; Deps carries all wiring
+│   ├── assets/           # embedded models.json (Settings model picker)
 │   ├── claude/           # BLAST WALL — ALL CLI flags live only in client.go
 │   │                     #   (per-turn + persistent-mode); verify against
 │   │                     #   `claude --help` when the CLI upgrades;
@@ -75,9 +76,9 @@ thoth/
 │   ├── frontend.md       # React structure, design system, hooks, state
 │   ├── security.md       # threat model and mechanisms
 │   ├── development.md    # toolchain, commands, gates, dev tools, CI
-│   ├── superpowers/specs/# skills-suite design specs (existing files tracked; dir gitignored)
+│   ├── superpowers/specs/# skills-suite design specs
 │   └── specs/            # working design docs (untracked — convention)
-├── .claude/              # project skills (go, react, git-workflow) + local settings
+├── .claude/              # project skills (go, react, git-workflow, code-quality) + local settings
 ├── .github/              # CI workflows (vet → race → 80% coverage gate → lint →
 │   │                     #   5 cross-compiles → frontend) + composite actions
 │   └── actions/          # setup-go-web, setup-web (workspace-root install)

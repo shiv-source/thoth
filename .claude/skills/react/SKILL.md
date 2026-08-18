@@ -63,6 +63,12 @@ description: >-
 3. Reconnect behavior: exactly once after 1 s, resume from onopen — changing it changes chat recovery semantics
 4. Test with fakeWS; update docs/api.md in the same commit
 
+### 7. Bump a frontend dependency
+1. `pnpm add <pkg>@latest` from the repo root (workspace proxies) — pnpm only, never npm; never hand-edit versions in web/package.json
+2. The root pnpm-lock.yaml is committed — CI verifies the bump
+3. Run `pnpm typecheck && pnpm lint && pnpm test`, then `make web` to re-sync the embed
+4. If a framework version changed, update the version in CLAUDE.md's Toolchain section
+
 ## Gotchas
 - pnpm only — never npm; the workspace lockfile (root pnpm-lock.yaml) is committed
 - TS strict, zero any — eslint enforces; zod at the API boundary

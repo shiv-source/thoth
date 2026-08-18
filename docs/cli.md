@@ -32,7 +32,7 @@ Prints `thoth <version>` (`dev` in development builds).
 
 ### `thoth doctor`
 
-Runs six health checks and reports each. The checks live in the shared `internal/doctor` package — the dashboard's Settings → Doctor tab runs the same suite over `GET /api/doctor`:
+Runs seven health checks and reports each. The checks live in the shared `internal/doctor` package — the dashboard's Settings → Doctor tab runs the same suite over `GET /api/doctor`:
 
 | Check | What it verifies |
 |---|---|

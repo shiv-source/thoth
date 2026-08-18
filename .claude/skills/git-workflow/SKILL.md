@@ -3,7 +3,7 @@ name: git-workflow
 description: >-
   Thoth contribution workflow — branching, commits, PRs, labels, squash
   merge, CI gates. Fires on: commit, PR, pull request, branch, labels,
-  squash merge.
+  squash merge, merge.
 ---
 
 # Git workflow — contribution procedures & expectations
@@ -55,9 +55,9 @@ description: >-
 ### 4. Label issues and PRs
 1. Every issue/PR carries exactly one type label and one label per area it touches; issues also carry one priority label (CLAUDE.md § Repo rules)
 2. Types: bug, feature, enhancement, documentation, chore, refactor, test, performance, ci
-3. Areas (package-aligned): api, chat, cli, github, index, search, settings, store, sync, ui, webui, wiki
+3. Areas (package-aligned): api, chat, cli, github, index, search, settings, store, sync, ui, webui, wiki, tooling
 4. Priorities (issues only): p-critical, p-high, p-medium, p-low
-5. Branch prefixes (7) and type labels (9) overlap but are not identical — choose labels from the label set, not the prefix list
+5. Branch prefixes (8) and type labels (9) overlap but are not identical — choose labels from the label set, not the prefix list
 6. Full data: references/labels.md
 
 ### 5. Design doc first (large or cross-package changes)

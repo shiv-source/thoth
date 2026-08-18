@@ -2,7 +2,7 @@
 
 - Date: 2026-08-17
 - Status: Approved (brainstorm 2026-08-17)
-- Scope: `.claude/skills/` — two skills, `go` and `react`
+- Scope: `.claude/skills/` — four skills: `go`, `react`, `git-workflow`, `code-quality`
 
 ## Purpose
 
@@ -42,11 +42,12 @@ own procedure + pointers.**
 | Scope | Core pair: `go` + `react` (not pilot-only, not full suite) |
 | Purpose | Procedure + expertise (not expertise-only, not enforcement-only) |
 | Approach | C, hybrid (above) |
-| Workflow depth | go: 8 workflows; react: 6; routine ones 3–5 lines, invariant-adjacent ones 8–10 |
+| Workflow depth | go: 11 workflows; react: 7; routine ones 3–5 lines, invariant-adjacent ones 8–10 |
 | Design doc location | `docs/superpowers/specs/` (committed) — not the untracked `docs/specs/` convention, since this governs the committed skills dir |
 | Skill placement | `.claude/skills/<name>/SKILL.md` + `references/`, committed |
 | CLAUDE.md change | One pointer line under the graphify section; nothing else |
 | 2026-08-18 follow-on | Added third skill `git-workflow` (contribution workflow) + CLAUDE.md Repo-rules trim to invariants; supersedes "one pointer line, nothing else" and the "no workflow skill" out-of-scope line for this skill |
+| 2026-08-18 follow-on | Added fourth skill `code-quality` (pre-PR gates + domain checklists); branch convention settled as `<type>/<scope>/<slug>`; merge policy: human merges only |
 
 ## Inventory
 
@@ -112,7 +113,7 @@ the same commit; go skill also: verify flags against `claude --help`.
 
 ### Workflow lists
 
-go (8):
+go (11):
 1. Add a REST endpoint
 2. Extend the WS protocol — server AND `web/src/ws/chat.ts` (shared types)
 3. Add a store migration
@@ -121,14 +122,18 @@ go (8):
 6. Extend the wiki contract
 7. Bump a dependency (CI verifies)
 8. Add a doctor install check
+9. Extend indexing/search
+10. Diagnose/repair an install
+11. Cut a release
 
-react (6):
+react (7):
 1. Add a component
 2. Add a Redux slice
 3. Add a hook
 4. Wire an API call (zod boundary)
 5. Test a component/slice
 6. Touch the WS client
+7. Bump a frontend dependency
 
 ## Reference file anatomy
 
@@ -178,7 +183,7 @@ Three rules keep references honest:
 
 ## Out of scope
 
-- No testing/CI skill, no workflow skill, no wiki skill — CLAUDE.md and
-  `docs/` already cover them; revisit only if a real gap shows.
+- No wiki skill — the wiki rulebook covers it; revisit only if a real
+  gap shows. (The workflow and quality skills were added by follow-on
+  decisions, recorded below.)
 - No user-global skills; project-local only.
-- No changes to app code or existing docs in this work item.
