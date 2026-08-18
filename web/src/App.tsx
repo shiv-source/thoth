@@ -1,13 +1,17 @@
+import { lazy, Suspense } from 'react'
 import { Layout, Spin } from 'antd'
 import { AppSider } from './components/AppSider'
 import { Sidebar } from './components/Sidebar'
 import { ChatPanel } from './components/ChatPanel'
-import { NotesView } from './components/NotesView'
-import { DashboardView } from './components/DashboardView'
-import { SearchView } from './components/SearchView'
-import { SettingsView } from './components/SettingsView'
-import { SetupScreen } from './components/SetupScreen'
 import { NotificationToasts } from './components/NotificationToasts'
+
+// Heavy views load on demand — Dashboard pulls chart.js, Settings and Notes
+// pull their own trees. Chat (the default view) stays eager for first paint.
+const NotesView = lazy(() => import('./components/NotesView').then((m) => ({ default: m.NotesView })))
+const DashboardView = lazy(() => import('./components/DashboardView').then((m) => ({ default: m.DashboardView })))
+const SearchView = lazy(() => import('./components/SearchView').then((m) => ({ default: m.SearchView })))
+const SettingsView = lazy(() => import('./components/SettingsView').then((m) => ({ default: m.SettingsView })))
+const SetupScreen = lazy(() => import('./components/SetupScreen').then((m) => ({ default: m.SetupScreen })))
 import { navigateNote, navigateView, useViewRoute } from './hooks/useView'
 import { useViewShortcuts } from './hooks/useViewShortcuts'
 import { fetchHealth } from './store'
@@ -38,7 +42,17 @@ export default function App() {
                             <Spin size="large" />
                         </div>
                     ) : health?.claude.found ? (
-                        <>
+                        <Suspense
+                            fallback={
+                                <div
+                                    className="flex flex-1 items-center justify-center"
+                                    role="status"
+                                    aria-label="Loading"
+                                >
+                                    <Spin size="large" />
+                                </div>
+                            }
+                        >
                             {view === 'chat' && <ChatPanel onOpenSettings={openSettings} />}
                             {view === 'notes' && (
                                 <NotesView openPath={segment} onOpenNote={openNoteHere} onOpenSettings={openSettings} />
@@ -48,9 +62,11 @@ export default function App() {
                                 <SearchView onOpenNote={openNoteHere} onOpenSettings={openSettings} />
                             )}
                             {view === 'settings' && <SettingsView />}
-                        </>
+                        </Suspense>
                     ) : (
-                        <SetupScreen health={health} loading={loading} onRecheck={() => void recheck()} />
+                        <Suspense fallback={<Spin size="large" />}>
+                            <SetupScreen health={health} loading={loading} onRecheck={() => void recheck()} />
+                        </Suspense>
                     )}
                     <NotificationToasts />
                 </Layout.Content>

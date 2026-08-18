@@ -1,5 +1,6 @@
 import { memo } from 'react'
-import { Flex, Tooltip } from 'antd'
+import { Avatar, Flex, Tooltip, theme } from 'antd'
+import { RobotOutlined } from '@ant-design/icons'
 import type { ChatMessage } from '../hooks/useChat'
 import { CopyButton } from './CopyButton'
 import { Markdown } from './Markdown'
@@ -58,15 +59,19 @@ export const MessageItem = memo(function MessageItem({
 // AssistantIcon is the small avatar shown to the left of every assistant
 // message, mirroring the app's accent color.
 function AssistantIcon() {
+    const { token } = theme.useToken()
     return (
-        <span
+        <Avatar
             aria-hidden="true"
-            className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-accent text-accent-ink shadow-sm ring-1 ring-accent/20"
-        >
-            <svg viewBox="0 0 16 16" fill="currentColor" className="h-4 w-4 drop-shadow-sm">
-                <path d="M8 0l1.9 4.1L14 6l-4.1 1.9L8 12l-1.9-4.1L2 6l4.1-1.9L8 0z" />
-                <path d="M12.5 10l.9 2 2 .9-2 .9-.9 2-.9-2-2-.9 2-.9.9-2z" opacity="0.7" />
-            </svg>
-        </span>
+            size={28}
+            shape="square"
+            icon={<RobotOutlined />}
+            className="mt-0.5 shrink-0 shadow-sm"
+            style={{
+                borderRadius: token.borderRadius,
+                backgroundColor: token.colorPrimary,
+                color: token.colorTextLightSolid
+            }}
+        />
     )
 }

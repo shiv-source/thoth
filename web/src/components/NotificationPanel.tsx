@@ -1,4 +1,4 @@
-import { Button, Empty, List, Typography } from 'antd'
+import { Badge, Button, Empty, List, Typography } from 'antd'
 import { CheckOutlined, DeleteOutlined, CloseOutlined } from '@ant-design/icons'
 import { dismissNotification, markAllRead, selectNotifications } from '../store'
 import { useAppDispatch, useAppSelector } from '../store/hooks'
@@ -53,7 +53,11 @@ export function NotificationPanel({ onClose }: { onClose: () => void }) {
                             ]}
                         >
                             <List.Item.Meta
-                                avatar={<span className="text-base">{<NotificationIcon kind={n.kind} />}</span>}
+                                avatar={
+                                    <Badge dot={!n.read} offset={[-2, 4]}>
+                                        <NotificationIcon kind={n.kind} />
+                                    </Badge>
+                                }
                                 title={
                                     <Typography.Text strong={!n.read} type={n.read ? 'secondary' : undefined}>
                                         {n.title}

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Alert, App } from 'antd'
+import { Alert, App, Flex } from 'antd'
 import { useChat } from '../hooks/useChat'
 import { useConversationRoute } from '../hooks/useConversationRoute'
 import { fetchConversations, selectConnectionStatus, setStatus } from '../store'
@@ -89,20 +89,26 @@ export function ChatPanel({ onOpenSettings }: { onOpenSettings: () => void }) {
                     }
                 />
             )}
-            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 py-5">
-                {messages.length === 0 && (
-                    <div className="flex h-full flex-col items-center justify-center text-center">
-                        <div className="font-display text-3xl font-semibold text-heading">Thoth</div>
-                        <p className="mt-2 max-w-sm text-sm text-subtle">
-                            Ask anything — “what did we decide in Tuesday's standup?” or “save this: the client approved
-                            the new roadmap.”
-                        </p>
-                    </div>
-                )}
-                {messages.map((m, i) => (
-                    <MessageItem key={i} message={m} streaming={streaming && i === messages.length - 1} />
-                ))}
-                <div ref={endRef} />
+            {/* Scroll + padding live on a plain div: antd Flex's cssinjs
+                reset zeroes both margin AND padding on .ant-flex children,
+                so layout utilities must not ride on the Flex element itself.
+                Message spacing comes from the Flex's own gap. */}
+            <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+                <Flex vertical gap={16}>
+                    {messages.length === 0 && (
+                        <div className="flex h-full flex-col items-center justify-center text-center">
+                            <div className="font-display text-3xl font-semibold text-heading">Thoth</div>
+                            <p className="mt-2 max-w-sm text-sm text-subtle">
+                                Ask anything — “what did we decide in Tuesday's standup?” or “save this: the client
+                                approved the new roadmap.”
+                            </p>
+                        </div>
+                    )}
+                    {messages.map((m, i) => (
+                        <MessageItem key={i} message={m} streaming={streaming && i === messages.length - 1} />
+                    ))}
+                    <div ref={endRef} />
+                </Flex>
             </div>
             <Composer onSend={send} onCancel={cancel} streaming={streaming} />
         </div>

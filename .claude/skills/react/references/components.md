@@ -128,9 +128,9 @@ from lucide-react (aria-hidden).
 
 ## notifications.tsx
 - path: web/src/components/notifications.tsx
-- purpose: Single source for per-kind notification emoji icons, shared by panel + toasts
-- props/api: `NotificationIcon({kind})` + `NOTIFICATION_ICONS: Record<NotificationKind, string>`
-- canonical: notifications.tsx:13
+- purpose: Single source for per-kind notification icons — antd icons inside tinted circular Avatars (semantic token pair per kind), shared by panel + toasts
+- props/api: `NotificationIcon({kind})` + `NOTIFICATION_ICONS: Record<NotificationKind, ComponentType>`
+- canonical: notifications.tsx:9
 
 ## Charts (Chart.js)
 ## chartSetup.ts
@@ -165,9 +165,9 @@ from lucide-react (aria-hidden).
 
 ## useThemeColors.ts
 - path: web/src/components/useThemeColors.ts
-- purpose: Chart colors read once from the CSS variables (light-only, no OS-theme listener)
-- props/api: `useThemeColors(): ChartColors` + `chartColors()` + `interface ChartColors {accent, accentHover, subtle, ink, surface, series: string[]}`
-- canonical: useThemeColors.ts:37
+- purpose: Chart colors derived from the antd theme tokens via theme.useToken() (accent/hover/subtle/ink/surface); series hues read from the :root categorical palette
+- props/api: `useThemeColors(): ChartColors` + `interface ChartColors {accent, accentHover, subtle, ink, surface, series: string[]}`
+- canonical: useThemeColors.ts:19
 
 ## Data
 ## dashboardMock.ts
