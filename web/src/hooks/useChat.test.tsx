@@ -1,11 +1,20 @@
-import { act, renderHook } from '@testing-library/react'
+import { act, renderHook, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { Provider } from 'react-redux'
-import { afterAll, afterEach, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, describe, expect, it, vi } from 'vitest'
+// Import the axios double before anything that transitively pulls axios
+// (./useChat → ../store → api/client): the vi.mock factory below runs the
+// moment axios is first required.
+import { axiosModuleMock, stubAPI } from '../test/mockAxios'
 import { ChatSocket } from '../ws/chat'
 import { useChat } from './useChat'
 import { FakeWS } from '../test/fakeWS'
 import { makeStore } from '../store'
+
+// useChat dispatches fetchTree on wiki_changed frames, which calls the REST
+// client — the axios double keeps that off the real transport.
+const mocks = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() }))
+vi.mock('axios', () => axiosModuleMock(mocks))
 
 const original = globalThis.WebSocket
 globalThis.WebSocket = FakeWS as unknown as typeof WebSocket
@@ -140,6 +149,22 @@ describe('useChat', () => {
         expect(result.current.lastTool).toBeNull()
         // load is local-only: no frame left the socket
         expect(FakeWS.instances[0]!.sent).toEqual([JSON.stringify({ type: 'send', text: 'hello' })])
+    })
+
+    it('refetches the wiki tree when a wiki_changed frame arrives', async () => {
+        stubAPI(mocks, { '/api/wiki/tree': () => ({ nodes: [] }) })
+        const socket = freshSocket()
+        renderChatHook(socket)
+
+        const ws = FakeWS.instances[0]!
+        act(() =>
+            ws?.onmessage?.({
+                data: JSON.stringify({ type: 'wiki_changed', changes: [{ op: 'write', path: 'notes/a.md' }] })
+            })
+        )
+
+        await waitFor(() => expect(mocks.get).toHaveBeenCalledWith('/api/wiki/tree'))
+        expect(mocks.get).toHaveBeenCalledTimes(1)
     })
 
     it('reset() clears locally and unpins the server', () => {

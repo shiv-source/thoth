@@ -42,7 +42,7 @@ Cancelling `ctx` kills the CLI's process group (unix) or direct child (windows) 
 - `Rulebook()` — the single source of the rulebook text (embedded template)
 - `ParseNote(content)` — splits frontmatter, requires `title`, returns `NoteMeta` + body
 - `SafePath(root, rel)` — rejects absolute paths and `..` escapes; every filesystem access routes through it
-- `Wiki` — `New`, `Exists`, `Read`, `Tree` (dirs first, dotfiles skipped)
+- `Wiki` — `New`, `Exists`, `Read`, `Tree` (dirs first, dotfiles and the root rulebook skipped via the shared `Visible` predicate); `Change`/`Changed` + op constants are the watcher's event-bus payload
 
 ## internal/index — search and sync
 
@@ -50,13 +50,13 @@ Cancelling `ctx` kills the CLI's process group (unix) or direct child (windows) 
 - `Upsert` / `Delete` / `DeletePrefix` — with FTS5 triggers keeping the index in sync
 - `Search(q, limit)` — bm25 ranking (title 8×) and body snippets, HTML-escaped
 - `Sync(root, log)` — reconciles the index with the tree in one transaction (unchanged files skipped, missing files deleted); malformed notes skipped
-- `Watch(ctx, root, ix, log)` — fsnotify with 200 ms debounce and new-directory rescan
+- `Watch(ctx, root, ix, log, opts ...WatchOption)` — fsnotify with 200 ms debounce and new-directory rescan; `WithPublisher` hooks one `wiki.Changed` batch per flush (startup publishes an empty one) for event-bus consumers
 
 Full mechanics: [Indexing & search](indexing.md).
 
 ## internal/api — the server
 
-`Deps` carries every dependency; `New(d Deps) *echo.Echo` wires all routes. `Hub` owns the WebSocket lifecycle: one active turn per conversation, supersede-on-send, cancel, and a 500-message replay buffer for reconnects. Protocol details: [API](api.md).
+`Deps` carries every dependency; `New(d Deps) *echo.Echo` wires all routes. `Hub` owns the WebSocket lifecycle: one active turn per conversation, supersede-on-send, cancel, and a 500-message replay buffer for reconnects. It also keeps a client registry and `Broadcast`s server-push frames (non-blocking; slow clients are skipped). When `Deps.Events` carries the event bus (`go-warehouse/events`, built in `internal/cli/serve.go`), `newServer` subscribes and forwards every `wiki.Changed` batch to all clients as a `wiki_changed` frame. Protocol details: [API](api.md).
 
 ## internal/store
 

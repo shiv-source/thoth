@@ -13,10 +13,30 @@ import (
 	"github.com/shiv-source/thoth/internal/wiki"
 )
 
+// WatchOption tunes Watch; see WithPublisher.
+type WatchOption func(*watchConfig)
+
+type watchConfig struct {
+	publisher func(context.Context, wiki.Changed)
+}
+
+// WithPublisher registers a hook that receives one wiki.Changed batch per
+// debounce flush — only paths the wiki tree would display — plus one empty
+// batch when watching starts (so a watcher restart after a wiki-path change
+// also refreshes clients). A nil hook disables publishing.
+func WithPublisher(p func(context.Context, wiki.Changed)) WatchOption {
+	return func(c *watchConfig) { c.publisher = p }
+}
+
 // Watch keeps ix in sync with root until ctx is cancelled. Directories
 // created after startup are watched and rescanned immediately, so notes
 // written into them at creation time are indexed as well.
-func Watch(ctx context.Context, root string, ix *Index, log *slog.Logger) error {
+func Watch(ctx context.Context, root string, ix *Index, log *slog.Logger, opts ...WatchOption) error {
+	cfg := &watchConfig{}
+	for _, o := range opts {
+		o(cfg)
+	}
+
 	w, err := fsnotify.NewWatcher()
 	if err != nil {
 		return fmt.Errorf("create watcher: %w", err)
@@ -35,16 +55,29 @@ func Watch(ctx context.Context, root string, ix *Index, log *slog.Logger) error 
 	if err != nil {
 		return fmt.Errorf("watch tree: %w", err)
 	}
+	if cfg.publisher != nil {
+		cfg.publisher(ctx, wiki.Changed{})
+	}
 
-	pending := map[string]bool{}
+	pending := map[string]fsnotify.Op{}
 	debounce := time.NewTimer(time.Hour)
 	debounce.Stop()
 	defer debounce.Stop()
 
 	flush := func() {
-		for p := range pending {
+		changes := make([]wiki.Change, 0, len(pending))
+		for p, mask := range pending {
 			apply(ix, root, p, log)
+			if rel, err := filepath.Rel(root, p); err == nil {
+				rel = filepath.ToSlash(rel)
+				if wiki.Visible(rel) {
+					changes = append(changes, wiki.Change{Op: opName(mask), Path: rel})
+				}
+			}
 			delete(pending, p)
+		}
+		if len(changes) > 0 && cfg.publisher != nil {
+			cfg.publisher(ctx, wiki.Changed{Changes: changes})
 		}
 	}
 
@@ -72,6 +105,10 @@ func Watch(ctx context.Context, root string, ix *Index, log *slog.Logger) error 
 				return nil
 			}
 			apply(ix, root, q, log)
+			// The file may have been created before the new directory's
+			// watch took effect, so its own event never fired: record it so
+			// the pending flush also publishes it as a tree change.
+			pending[q] |= fsnotify.Create
 			return nil
 		}); err != nil {
 			log.Warn("index: cannot rescan new directory", "path", p, "err", err)
@@ -94,7 +131,7 @@ func Watch(ctx context.Context, root string, ix *Index, log *slog.Logger) error 
 						watchNewDir(ev.Name)
 					}
 				}
-				pending[ev.Name] = true
+				pending[ev.Name] |= ev.Op
 				debounce.Reset(200 * time.Millisecond)
 			}
 		case <-w.Errors:
@@ -152,5 +189,20 @@ func apply(ix *Index, root, p string, log *slog.Logger) {
 		Tags: meta.Tags, Body: string(b), UpdatedAt: info.ModTime(),
 	}); err != nil {
 		log.Warn("index: upsert failed", "path", p, "err", err)
+	}
+}
+
+// opName maps an fsnotify mask onto the wiki change operations. Masks are
+// OR'd across events within one debounce window; the more specific ops win.
+func opName(mask fsnotify.Op) string {
+	switch {
+	case mask&fsnotify.Create != 0:
+		return wiki.OpCreate
+	case mask&fsnotify.Rename != 0:
+		return wiki.OpRename
+	case mask&fsnotify.Remove != 0:
+		return wiki.OpRemove
+	default:
+		return wiki.OpWrite
 	}
 }

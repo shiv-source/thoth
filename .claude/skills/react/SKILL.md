@@ -97,7 +97,7 @@ tokens with `@theme inline`, never `:root`), and antd 6.6 deprecates
 - pnpm only — never npm; the workspace lockfile (root pnpm-lock.yaml) is committed
 - TS strict, zero any — eslint enforces; zod at the API boundary
 - make web is REQUIRED before go build/test — frontend changes don't reach the binary without it
-- WS is chat-only transport; REST for everything else
+- WS is chat + server-push transport (`wiki_changed` frames); REST for everything else
 - Light theme only — no dark mode; colors flow from the antd tokens in web/src/theme.ts
 - Every useEffect has cleanup; no setInterval without clearInterval
 

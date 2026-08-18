@@ -6,14 +6,15 @@ import type { TreeNode } from '../api/client'
 import {
     collectTreeInfo,
     fetchTree,
+    selectConnectionStatus,
     selectNotesExpandedKeys,
-    selectStreaming,
     selectWikiError,
     selectWikiLoading,
     selectWikiNodes,
     setNotesExpandedKeys
 } from '../store'
 import { useAppDispatch, useAppSelector } from '../store/hooks'
+import type { ConnectionStatus } from '../ws/chat'
 
 // WikiDataNode carries the per-directory file count alongside antd's own
 // fields so the title renderer can show the hover tooltip.
@@ -43,23 +44,21 @@ export function WikiTree({ openPath, onOpenNote }: { openPath: string | null; on
     const nodes = useAppSelector(selectWikiNodes)
     const loading = useAppSelector(selectWikiLoading)
     const error = useAppSelector(selectWikiError)
-    const streaming = useAppSelector(selectStreaming)
+    const status = useAppSelector(selectConnectionStatus)
     const expandedKeys = useAppSelector(selectNotesExpandedKeys)
-    const prevStreaming = useRef(streaming)
+    const prevStatus = useRef<ConnectionStatus | null>(null)
 
+    // Fetch once per connection: the initial 'connected' state covers mount,
+    // and a reconnect edge reseeds the tree because wiki_changed frames may
+    // have been missed while the socket was down. Per-change refetches ride
+    // the wiki_changed frames (useChat), so no polling is needed here.
     useEffect(() => {
-        void dispatch(fetchTree())
-    }, [dispatch])
+        if (prevStatus.current !== 'connected' && status === 'connected') void dispatch(fetchTree())
+        prevStatus.current = status
+    }, [status, dispatch])
 
-    // A completed chat turn may have saved notes: refetch so new files
-    // appear in the tree without a page refresh.
-    useEffect(() => {
-        if (prevStreaming.current && !streaming) void dispatch(fetchTree())
-        prevStreaming.current = streaming
-    }, [streaming, dispatch])
-
-    // Notes written outside the app (terminal Claude, vim) show up when the
-    // window regains focus.
+    // Notes written outside the app (terminal Claude, vim) while no socket is
+    // connected show up when the window regains focus.
     useEffect(() => {
         const load = () => void dispatch(fetchTree())
         window.addEventListener('focus', load)

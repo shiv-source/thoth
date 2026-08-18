@@ -89,3 +89,27 @@ func TestWikiReadMissingNote(t *testing.T) {
 		t.Fatal("expected error reading a missing note")
 	}
 }
+
+func TestVisible(t *testing.T) {
+	tests := []struct {
+		name string
+		rel  string
+		want bool
+	}{
+		{"note", "notes/a.md", true},
+		{"nested note", "projects/thoth/project.md", true},
+		{"non-markdown file", "images/logo.png", true},
+		{"root rulebook", "CLAUDE.md", false},
+		{"dotfile", ".gitkeep", false},
+		{"hidden directory", ".git/config", false},
+		{"hidden note inside visible dir", "notes/.draft.md", false},
+		{"directory", "notes", true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := Visible(tt.rel); got != tt.want {
+				t.Fatalf("Visible(%q) = %v, want %v", tt.rel, got, tt.want)
+			}
+		})
+	}
+}

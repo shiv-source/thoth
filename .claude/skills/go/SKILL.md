@@ -108,7 +108,7 @@ description: >-
 
 ## Gotchas
 - Fresh clone: run make web before go build/test (embed)
-- WS is chat-only transport; REST for everything else (CLAUDE.md invariant)
+- WS is chat + server-push transport (`wiki_changed` frames); REST for everything else (CLAUDE.md invariant)
 - ctx cancel = the stop button; every goroutine must end (CLAUDE.md memory rules)
 - thoth.db is derived data; wiki files are the source of truth
 - All five cross-compile targets must build — process-group code is build-tagged (proc_unix.go / proc_windows.go)

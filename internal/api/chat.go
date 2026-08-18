@@ -14,6 +14,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/shiv-source/thoth/internal/claude"
 	"github.com/shiv-source/thoth/internal/store"
+	"github.com/shiv-source/thoth/internal/wiki"
 )
 
 // clientMsg / serverMsg are the wire protocol (see Task 13 interfaces).
@@ -24,12 +25,13 @@ type clientMsg struct {
 }
 
 type serverMsg struct {
-	Type           string `json:"type"`
-	Text           string `json:"text,omitempty"`
-	Tool           string `json:"tool,omitempty"`
-	Detail         string `json:"detail,omitempty"`
-	Message        string `json:"message,omitempty"`
-	ConversationID string `json:"conversation_id,omitempty"`
+	Type           string        `json:"type"`
+	Text           string        `json:"text,omitempty"`
+	Tool           string        `json:"tool,omitempty"`
+	Detail         string        `json:"detail,omitempty"`
+	Message        string        `json:"message,omitempty"`
+	ConversationID string        `json:"conversation_id,omitempty"`
+	Changes        []wiki.Change `json:"changes,omitempty"`
 }
 
 var upgrader = websocket.Upgrader{
@@ -72,6 +74,9 @@ type Hub struct {
 	mu     sync.Mutex
 	turns  map[string]*turn
 	recent map[string][]serverMsg // latest turn only, capped per conversation
+	// clients are the write buffers of connected sockets, keyed by channel;
+	// Broadcast targets them for server-push frames (wiki_changed).
+	clients map[chan serverMsg]struct{}
 }
 
 type turn struct {
@@ -87,12 +92,13 @@ func NewHub(c claude.Client, st *store.Store, log *slog.Logger, ctx context.Cont
 		ctx = context.Background()
 	}
 	return &Hub{
-		claude: c,
-		store:  st,
-		log:    log,
-		ctx:    ctx,
-		turns:  map[string]*turn{},
-		recent: map[string][]serverMsg{},
+		claude:  c,
+		store:   st,
+		log:     log,
+		ctx:     ctx,
+		turns:   map[string]*turn{},
+		recent:  map[string][]serverMsg{},
+		clients: map[chan serverMsg]struct{}{},
 	}
 }
 
@@ -110,6 +116,39 @@ func (h *Hub) replay(convID string) []serverMsg {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	return append([]serverMsg(nil), h.recent[convID]...)
+}
+
+// addClient registers a connection's write buffer so Broadcast reaches it.
+func (h *Hub) addClient(out chan serverMsg) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.clients[out] = struct{}{}
+}
+
+// removeClient drops a connection from the broadcast registry.
+func (h *Hub) removeClient(out chan serverMsg) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	delete(h.clients, out)
+}
+
+// Broadcast fans a server-push frame out to every connected client.
+// Delivery is non-blocking: a client whose write buffer is full is skipped
+// (the frame is dropped for it, and the next push catches up), so a dead
+// socket can never stall the publisher.
+func (h *Hub) Broadcast(m serverMsg) {
+	h.mu.Lock()
+	outs := make([]chan serverMsg, 0, len(h.clients))
+	for out := range h.clients {
+		outs = append(outs, out)
+	}
+	h.mu.Unlock()
+	for _, out := range outs {
+		select {
+		case out <- m:
+		default:
+		}
+	}
 }
 
 func (h *Hub) cancelTurn(convID string) {
@@ -131,7 +170,9 @@ func (h *Hub) chat(c echo.Context) error {
 	// Turns run in their own goroutines (the read loop must stay free to
 	// receive cancel frames), so every socket write funnels through one
 	// writer goroutine to stay race-free.
-	write, quit := writeLoop(ws)
+	write, out, quit := writeLoop(ws)
+	h.addClient(out)
+	defer h.removeClient(out)
 
 	convID := ""
 	for {
@@ -173,9 +214,10 @@ func (h *Hub) chat(c echo.Context) error {
 
 // writeLoop owns the socket: every write goes through it so concurrent turn
 // goroutines never race on the connection. The returned write blocks until
-// the message is handed off (or the loop has quit).
-func writeLoop(ws *websocket.Conn) (write func(serverMsg), quit chan struct{}) {
-	out := make(chan serverMsg, 64)
+// the message is handed off (or the loop has quit); out is the buffer the
+// caller registers with the hub so Broadcast can target this connection.
+func writeLoop(ws *websocket.Conn) (write func(serverMsg), out chan serverMsg, quit chan struct{}) {
+	out = make(chan serverMsg, 64)
 	quit = make(chan struct{})
 	go func() {
 		for {
@@ -193,7 +235,7 @@ func writeLoop(ws *websocket.Conn) (write func(serverMsg), quit chan struct{}) {
 		case <-quit:
 		}
 	}
-	return write, quit
+	return write, out, quit
 }
 
 // handleSend persists the user message and starts a turn, creating the

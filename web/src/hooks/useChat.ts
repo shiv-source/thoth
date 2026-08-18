@@ -4,6 +4,7 @@ import {
     assistantStart,
     assistantThinking,
     chatError,
+    fetchTree,
     loadChat,
     resetChat,
     selectConversationId,
@@ -67,6 +68,11 @@ export function useChat(socket: ChatSocket | null) {
                     // The server sends the conversation id on every finished turn; keep
                     // it so a reconnect can resume this conversation.
                     dispatch(turnDone(m.conversation_id ?? null))
+                    break
+                case 'wiki_changed':
+                    // The watcher saw wiki files change: the tree is stale,
+                    // refetch it instead of polling on every turn.
+                    void dispatch(fetchTree())
                     break
                 case 'error':
                     // Surface cancelled/crash feedback as a visible assistant message so

@@ -42,7 +42,7 @@ semantic tokens.
 | `CodeBlock` | Fenced code via Shiki (`github-light`, module-level 200-entry cache) + copy button, plain `<pre>` fallback |
 | `CopyButton` | Shared copy control: antd text Button, clipboard write, check flip for 2 s, optional `message.success` toast |
 | `NotesView` | Browse-and-read surface: wiki tree left (expand/collapse-all toggle dispatches the ui slice), note reader rendered inline in the content area (the URL `/notes/<path>` owns the open note); `Empty` placeholder |
-| `WikiTree` | The wiki directory rendered through antd `Tree.DirectoryTree` (`virtual={false}`, `motion={false}` — small local tree, jsdom-compatible); tree data from the wiki slice, expansion from the ui slice; refetches on mount, chat-turn end, window focus; per-folder file-count Tooltips |
+| `WikiTree` | The wiki directory rendered through antd `Tree.DirectoryTree` (`virtual={false}`, `motion={false}` — small local tree, jsdom-compatible); tree data from the wiki slice, expansion from the ui slice; refetches when the WS connection (re)connects, on window focus; per-folder file-count Tooltips. Per-change refetches ride the `wiki_changed` frame (see useChat), so no polling lives here |
 | `NoteViewer` | Inline note reader filling the content area (Esc or ✕ closes — the open note is the URL, not an overlay): note content from the note slice (stale-path responses discarded), Skeleton loading, Alert errors, Copy raw |
 | `SearchPanel` | antd `Input.Search` synced to the URL `?q=` — 300 ms debounced `useSearch` dispatches into the search slice, results in an antd `List` (server-sanitized `<mark>` snippets), keyboard nav via the ui slice, `Empty` state, recent-search history (`Button` rows + Clear) |
 | `SettingsView` | antd `Tabs` (`tabPlacement="start"` left rail; the active tab gets a primary pill via the `.settings-tabs` CSS rule + `Tabs` tokens in theme.ts; the tab rides the URL `/settings/<tab>`). Each tab is one Card with icon'd `SectionHeading` sections, `Divider`s, and responsive two-column section grids: **General** (Wiki path `Input` + model `Select` grouped by provider, save with loading state, saved/error `Alert`s), **Doctor** (pass `Progress` summary, Run checks button, `CheckRow` status rows), **Git remote** (`Input.Password` PAT connect, account section with `Avatar` + scope `Tag`s, `AutoComplete` repo picker with private-repo guard, `Switch` auto-sync, Initialize & Push) — all async state in the git/settings/doctor slices |
@@ -54,7 +54,7 @@ semantic tokens.
 
 ## Hooks
 
-- **useChat** — thin adapter over the chat slice: maps server frames to chat actions, `send`/`cancel` call the socket; the conversation state itself (messages, streaming, conversationId, thinking, lastTool) lives in the Redux `chat` slice and survives component remounts. `load(messages, conversationId)` replaces the whole conversation (history fetch — local only, the caller pins the server side with `socket.open`); `reset()` clears locally and sends `new_chat` to unpin the server
+- **useChat** — thin adapter over the chat slice: maps server frames to chat actions, `send`/`cancel` call the socket; the conversation state itself (messages, streaming, conversationId, thinking, lastTool) lives in the Redux `chat` slice and survives component remounts. A `wiki_changed` frame dispatches the wiki slice's `fetchTree` (server-pushed refetch instead of turn-end polling). `load(messages, conversationId)` replaces the whole conversation (history fetch — local only, the caller pins the server side with `socket.open`); `reset()` clears locally and sends `new_chat` to unpin the server
 - **useSearch** — 300 ms debounce with abort (AbortController); dispatches `searchNotes` into the search slice (the slice's query guard drops stale responses); clearing the query dispatches `clearSearch`
 
 ## State
@@ -65,11 +65,11 @@ Redux Toolkit owns the server-backed, shared, and screen-spanning state. Slices 
 - **settings** — loaded on mount, saved through the slice (submit button reflects `saving`); also holds the `/api/models` picker list
 - **conversations** — refetched on URL changes and when a new chat is created; deletes filter the list in the slice
 - **chat** — the live conversation (messages, streaming, thinking, lastTool, conversationId), fed by WS frames via `useChat`
-- **connection** — the WebSocket status, reported by `ChatSocket` and read by `ChatPanel`
+- **connection** — the WebSocket status, reported by `ChatSocket` and read by `ChatPanel` (and `WikiTree`, which seeds the tree on the reconnect edge)
 - **notifications** — the capped ring of 50; panel + toasts both consume it
 - **searchHistory** — committed searches (cap 10, deduped, most-recent first); loaded from `localStorage` at store creation and written back by `persistSearchHistory` middleware on every commit/clear
 - **ui** — screen-spanning chrome: notification-panel open, notes-tree expansion, search keyboard selection
-- **wiki** — the wiki tree (`fetchTree`; refetch on focus/turn-end)
+- **wiki** — the wiki tree (`fetchTree`; refetch on WS connect/reconnect, `wiki_changed` frames, and window focus)
 - **note** — the open note's content (`fetchNote(path)`; stale-path responses discarded)
 - **search** — live search results (`searchNotes` with signal; abort is not an error)
 - **doctor** — the doctor check rows (`runDoctor`)

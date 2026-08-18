@@ -4,7 +4,17 @@ export type ServerMessage =
     | { type: 'assistant_delta'; text: string }
     | { type: 'tool_activity'; tool: string; detail: string }
     | { type: 'turn_done'; conversation_id?: string }
+    | { type: 'wiki_changed'; changes?: WikiChange[] }
     | { type: 'error'; message: string }
+
+// wiki_changed is the server push for wiki filesystem changes: the watcher
+// batches one frame per debounce flush (changes may be empty on startup).
+export type WikiChangeOp = 'create' | 'write' | 'remove' | 'rename'
+
+export interface WikiChange {
+    op: WikiChangeOp
+    path: string
+}
 
 export type ConnectionStatus = 'connected' | 'reconnecting' | 'disconnected'
 

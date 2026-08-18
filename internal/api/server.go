@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 
+	"github.com/go-warehouse/events"
 	"github.com/labstack/echo/v4"
 	"github.com/shiv-source/thoth/internal/claude"
 	"github.com/shiv-source/thoth/internal/github"
@@ -27,6 +28,10 @@ type Deps struct {
 	Index           *index.Index
 	OnSettingsSaved func(wikiPath string) error
 	Ctx             context.Context // cancelled on shutdown; reaps in-flight turns
+	// Events is the in-process event bus. When set, wiki change batches are
+	// forwarded to connected clients as wiki_changed frames; nil disables
+	// the push (tests without a bus).
+	Events *events.Bus
 }
 
 // ctx returns d.Ctx, defaulting to background for embedders that do not
@@ -72,6 +77,15 @@ func newServer(d Deps) (*echo.Echo, *Hub) {
 	e.GET("/api/github/repos", func(c echo.Context) error { return listGitHubRepos(c, d) })
 
 	hub := NewHub(d.Claude, d.Store, d.Log, d.ctx())
+	if d.Events != nil {
+		// Forward wiki change batches to every connected client, so the UI
+		// refetches the tree only when files actually changed.
+		if err := events.Subscribe(d.Events, d.ctx(), func(e events.Event[wiki.Changed]) {
+			hub.Broadcast(serverMsg{Type: "wiki_changed", Changes: e.Data.Changes})
+		}); err != nil {
+			d.Log.Error("subscribe wiki events", "err", err)
+		}
+	}
 	e.GET("/ws", hub.chat)
 
 	webui.Register(e, d.Log)
