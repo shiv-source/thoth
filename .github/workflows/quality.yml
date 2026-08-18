@@ -6,6 +6,15 @@ permissions:
   contents: read
 
 jobs:
+  # The committed graph must match the committed tree — a PR that changed
+  # Go/TS without refreshing the graph fails here (scripts/graph-check.sh).
+  graph-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - run: ./scripts/graph-check.sh
+
   backend-test:
     runs-on: ubuntu-latest
     timeout-minutes: 10

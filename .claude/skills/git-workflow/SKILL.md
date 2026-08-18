@@ -18,7 +18,7 @@ description: >-
 ## Key files
 - CONTRIBUTING.md — the workflow page: § Workflow, § Before you push
 - .github/pull_request_template.md — the PR body shape (Summary / Files changed / How verified / Notes)
-- .github/workflows/ — ci-pr.yml (PR gates) · quality.yml (the five quality gates) · final-gate.yml (single required check + PR report comment) · ci.yml (push to main adds 5 cross-compiles + frontend build) · pr-assignee.yml (auto-assigns PR committers)
+- .github/workflows/ — ci-pr.yml (PR gates) · quality.yml (the quality gates, incl. the graph freshness check) · final-gate.yml (single required check + PR report comment) · ci.yml (push to main adds 5 cross-compiles + frontend build) · pr-assignee.yml (auto-assigns PR committers)
 - .husky/pre-commit — the commit gate: lint-staged autofixes, plus Go vet/lint/test when Go is staged
 - docs/development.md — § Gates (what make check enforces), § CI (workflow mechanics)
 - docs/specs/ — untracked design docs for large or cross-package changes (convention, may be empty)
