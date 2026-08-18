@@ -7,8 +7,13 @@ permissions:
   contents: read
   actions: read
   pull-requests: write
+  issues: write
 
 jobs:
+  # Default assignee: whoever created the PR.
+  assignee:
+    uses: ./.github/workflows/pr-assignee.yml
+
   # Minimal pre-merge feedback: the same quality gates that run on main
   # (via the shared workflow), without the OS builds.
   quality:

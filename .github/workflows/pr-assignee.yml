@@ -1,0 +1,31 @@
+name: pr-assignee
+
+on:
+  workflow_call:
+
+permissions:
+  issues: write
+  pull-requests: write
+
+jobs:
+  assign-authors:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: assign the PR committers
+        env:
+          GH_TOKEN: ${{ github.token }}
+        # Everyone who pushed to the PR is a default assignee; the caller's
+        # pull_request trigger (opened/synchronize/reopened) keeps the set
+        # current. Adds, never replaces — manual assignments survive
+        # (assignees live on the issues API — hence issues: write).
+        # Convenience only: never fails the run.
+        run: |
+          authors="$(gh api "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/commits" \
+            --jq '[.[].author.login | select(. != null)] | unique | .[]')"
+          args="-f assignees[]=${{ github.event.pull_request.user.login }}"
+          for author in $authors; do
+            args="$args -f assignees[]=$author"
+          done
+          gh api --method POST "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/assignees" $args \
+            || echo "warning: auto-assign failed"
