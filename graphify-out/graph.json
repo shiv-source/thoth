@@ -133,6 +133,19 @@
       "norm_label": "conversationsstate"
     },
     {
+      "label": "TreeNode",
+      "file_type": "code",
+      "source_file": "web/src/api/client.ts",
+      "source_location": "L15",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "id": "web_src_api_client_treenode",
+      "community": 18,
+      "community_name": "useAppSelector",
+      "norm_label": "treenode"
+    },
+    {
       "label": "AppDispatch",
       "file_type": "code",
       "source_file": "web/src/store/index.ts",
@@ -146,56 +159,17 @@
       "norm_label": "appdispatch"
     },
     {
-      "label": "RootState",
+      "label": "AxiosMethodMocks",
       "file_type": "code",
-      "source_file": "web/src/store/index.ts",
-      "source_location": "L26",
+      "source_file": "web/src/test/mockAxios.ts",
+      "source_location": "L3",
       "_callable": true,
       "_callable_class": true,
       "_origin": "ast",
-      "id": "web_src_store_index_rootstate",
-      "community": 18,
-      "community_name": "useAppSelector",
-      "norm_label": "rootstate"
-    },
-    {
-      "label": "Notification",
-      "file_type": "code",
-      "source_file": "web/src/store/slices/notificationsSlice.ts",
-      "source_location": "L6",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "id": "web_src_store_slices_notificationsslice_notification",
-      "community": 18,
-      "community_name": "useAppSelector",
-      "norm_label": "notification"
-    },
-    {
-      "label": "NotificationKind",
-      "file_type": "code",
-      "source_file": "web/src/store/slices/notificationsSlice.ts",
-      "source_location": "L4",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "id": "web_src_store_slices_notificationsslice_notificationkind",
-      "community": 18,
-      "community_name": "useAppSelector",
-      "norm_label": "notificationkind"
-    },
-    {
-      "label": "NotificationsState",
-      "file_type": "code",
-      "source_file": "web/src/store/slices/notificationsSlice.ts",
-      "source_location": "L14",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "id": "web_src_store_slices_notificationsslice_notificationsstate",
-      "community": 18,
-      "community_name": "useAppSelector",
-      "norm_label": "notificationsstate"
+      "id": "web_src_test_mockaxios_axiosmethodmocks",
+      "community": 2,
+      "community_name": "renderWithStore",
+      "norm_label": "axiosmethodmocks"
     },
     {
       "label": "ConversationRouteOptions",
@@ -222,19 +196,6 @@
       "community": 23,
       "community_name": "ChatPanel.tsx",
       "norm_label": "chatmessage"
-    },
-    {
-      "label": "ChatSocket",
-      "file_type": "code",
-      "source_file": "web/src/ws/chat.ts",
-      "source_location": "L11",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "id": "web_src_ws_chat_chatsocket",
-      "community": 23,
-      "community_name": "ChatPanel.tsx",
-      "norm_label": "chatsocket"
     },
     {
       "label": "ToastContextValue",
@@ -276,6 +237,32 @@
       "norm_label": "toastkind"
     },
     {
+      "label": "Health",
+      "file_type": "code",
+      "source_file": "web/src/api/client.ts",
+      "source_location": "L60",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "id": "web_src_api_client_health",
+      "community": 41,
+      "community_name": "App.tsx",
+      "norm_label": "health"
+    },
+    {
+      "label": "Problem",
+      "file_type": "code",
+      "source_file": "web/src/components/SetupScreen.tsx",
+      "source_location": "L3",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "id": "web_src_components_setupscreen_problem",
+      "community": 41,
+      "community_name": "App.tsx",
+      "norm_label": "problem"
+    },
+    {
       "label": "View",
       "file_type": "code",
       "source_file": "web/src/hooks/useView.ts",
@@ -302,6 +289,32 @@
       "norm_label": "viewroute"
     },
     {
+      "label": "RootState",
+      "file_type": "code",
+      "source_file": "web/src/store/index.ts",
+      "source_location": "L26",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "id": "web_src_store_index_rootstate",
+      "community": 41,
+      "community_name": "App.tsx",
+      "norm_label": "rootstate"
+    },
+    {
+      "label": "HealthState",
+      "file_type": "code",
+      "source_file": "web/src/store/slices/healthSlice.ts",
+      "source_location": "L7",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "id": "web_src_store_slices_healthslice_healthstate",
+      "community": 41,
+      "community_name": "App.tsx",
+      "norm_label": "healthstate"
+    },
+    {
       "label": "ResizeObserverStub",
       "file_type": "code",
       "source_file": "web/src/test/setup.ts",
@@ -315,160 +328,43 @@
       "norm_label": "resizeobserverstub"
     },
     {
-      "label": "DoctorCheck",
+      "label": "Notification",
       "file_type": "code",
-      "source_file": "web/src/api/client.ts",
-      "source_location": "L68",
+      "source_file": "web/src/store/slices/notificationsSlice.ts",
+      "source_location": "L6",
       "_callable": true,
       "_callable_class": true,
       "_origin": "ast",
-      "id": "web_src_api_client_doctorcheck",
+      "id": "web_src_store_slices_notificationsslice_notification",
       "community": 61,
-      "community_name": "client.ts",
-      "norm_label": "doctorcheck"
+      "community_name": "NotificationToasts.tsx",
+      "norm_label": "notification"
     },
     {
-      "label": "GitHubRepo",
+      "label": "NotificationKind",
       "file_type": "code",
-      "source_file": "web/src/api/client.ts",
-      "source_location": "L40",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "id": "web_src_api_client_githubrepo",
-      "community": 61,
-      "community_name": "client.ts",
-      "norm_label": "githubrepo"
-    },
-    {
-      "label": "Health",
-      "file_type": "code",
-      "source_file": "web/src/api/client.ts",
-      "source_location": "L60",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "id": "web_src_api_client_health",
-      "community": 61,
-      "community_name": "client.ts",
-      "norm_label": "health"
-    },
-    {
-      "label": "Message",
-      "file_type": "code",
-      "source_file": "web/src/api/client.ts",
-      "source_location": "L51",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "id": "web_src_api_client_message",
-      "community": 61,
-      "community_name": "client.ts",
-      "norm_label": "message"
-    },
-    {
-      "label": "Note",
-      "file_type": "code",
-      "source_file": "web/src/api/client.ts",
-      "source_location": "L7",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "id": "web_src_api_client_note",
-      "community": 61,
-      "community_name": "client.ts",
-      "norm_label": "note"
-    },
-    {
-      "label": "SearchResult",
-      "file_type": "code",
-      "source_file": "web/src/api/client.ts",
+      "source_file": "web/src/store/slices/notificationsSlice.ts",
       "source_location": "L4",
       "_callable": true,
       "_callable_class": true,
       "_origin": "ast",
-      "id": "web_src_api_client_searchresult",
+      "id": "web_src_store_slices_notificationsslice_notificationkind",
       "community": 61,
-      "community_name": "client.ts",
-      "norm_label": "searchresult"
+      "community_name": "NotificationToasts.tsx",
+      "norm_label": "notificationkind"
     },
     {
-      "label": "TreeNode",
+      "label": "NotificationsState",
       "file_type": "code",
-      "source_file": "web/src/api/client.ts",
-      "source_location": "L15",
+      "source_file": "web/src/store/slices/notificationsSlice.ts",
+      "source_location": "L14",
       "_callable": true,
       "_callable_class": true,
       "_origin": "ast",
-      "id": "web_src_api_client_treenode",
+      "id": "web_src_store_slices_notificationsslice_notificationsstate",
       "community": 61,
-      "community_name": "client.ts",
-      "norm_label": "treenode"
-    },
-    {
-      "label": "TreeNodeShape",
-      "file_type": "code",
-      "source_file": "web/src/api/client.ts",
-      "source_location": "L10",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "id": "web_src_api_client_treenodeshape",
-      "community": 61,
-      "community_name": "client.ts",
-      "norm_label": "treenodeshape"
-    },
-    {
-      "label": "Problem",
-      "file_type": "code",
-      "source_file": "web/src/components/SetupScreen.tsx",
-      "source_location": "L3",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "id": "web_src_components_setupscreen_problem",
-      "community": 61,
-      "community_name": "client.ts",
-      "norm_label": "problem"
-    },
-    {
-      "label": "HealthState",
-      "file_type": "code",
-      "source_file": "web/src/store/slices/healthSlice.ts",
-      "source_location": "L7",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "id": "web_src_store_slices_healthslice_healthstate",
-      "community": 61,
-      "community_name": "client.ts",
-      "norm_label": "healthstate"
-    },
-    {
-      "label": "ResizeObserverMock",
-      "file_type": "code",
-      "source_file": "web/src/components/Tooltip.test.tsx",
-      "source_location": "L7",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "id": "web_src_components_tooltip_test_resizeobservermock",
-      "community": 62,
-      "community_name": "NotesView.tsx",
-      "norm_label": "resizeobservermock"
-    },
-    {
-      "label": "AxiosMethodMocks",
-      "file_type": "code",
-      "source_file": "web/src/test/mockAxios.ts",
-      "source_location": "L3",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "id": "web_src_test_mockaxios_axiosmethodmocks",
-      "community": 67,
-      "community_name": "healthSlice.test.ts",
-      "norm_label": "axiosmethodmocks"
+      "community_name": "NotificationToasts.tsx",
+      "norm_label": "notificationsstate"
     },
     {
       "label": "AppStore",
@@ -571,8 +467,21 @@
       "_origin": "ast",
       "id": "web_src_test_fakews_fakews",
       "community": 81,
-      "community_name": "ChatPanel.test.tsx",
+      "community_name": "ChatSocket",
       "norm_label": "fakews"
+    },
+    {
+      "label": "ChatSocket",
+      "file_type": "code",
+      "source_file": "web/src/ws/chat.ts",
+      "source_location": "L11",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "id": "web_src_ws_chat_chatsocket",
+      "community": 81,
+      "community_name": "ChatSocket",
+      "norm_label": "chatsocket"
     },
     {
       "label": "Node",
@@ -627,6 +536,19 @@
       "norm_label": "chartstub"
     },
     {
+      "label": "DoctorCheck",
+      "file_type": "code",
+      "source_file": "web/src/api/client.ts",
+      "source_location": "L68",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "id": "web_src_api_client_doctorcheck",
+      "community": 9,
+      "community_name": "client.ts",
+      "norm_label": "doctorcheck"
+    },
+    {
       "label": "GitHubIdentity",
       "file_type": "code",
       "source_file": "web/src/api/client.ts",
@@ -636,8 +558,34 @@
       "_origin": "ast",
       "id": "web_src_api_client_githubidentity",
       "community": 9,
-      "community_name": "SettingsView.tsx",
+      "community_name": "client.ts",
       "norm_label": "githubidentity"
+    },
+    {
+      "label": "GitHubRepo",
+      "file_type": "code",
+      "source_file": "web/src/api/client.ts",
+      "source_location": "L40",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "id": "web_src_api_client_githubrepo",
+      "community": 9,
+      "community_name": "client.ts",
+      "norm_label": "githubrepo"
+    },
+    {
+      "label": "Message",
+      "file_type": "code",
+      "source_file": "web/src/api/client.ts",
+      "source_location": "L51",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "id": "web_src_api_client_message",
+      "community": 9,
+      "community_name": "client.ts",
+      "norm_label": "message"
     },
     {
       "label": "ModelOption",
@@ -649,8 +597,34 @@
       "_origin": "ast",
       "id": "web_src_api_client_modeloption",
       "community": 9,
-      "community_name": "SettingsView.tsx",
+      "community_name": "client.ts",
       "norm_label": "modeloption"
+    },
+    {
+      "label": "Note",
+      "file_type": "code",
+      "source_file": "web/src/api/client.ts",
+      "source_location": "L7",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "id": "web_src_api_client_note",
+      "community": 9,
+      "community_name": "client.ts",
+      "norm_label": "note"
+    },
+    {
+      "label": "SearchResult",
+      "file_type": "code",
+      "source_file": "web/src/api/client.ts",
+      "source_location": "L4",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "id": "web_src_api_client_searchresult",
+      "community": 9,
+      "community_name": "client.ts",
+      "norm_label": "searchresult"
     },
     {
       "label": "Settings",
@@ -662,8 +636,21 @@
       "_origin": "ast",
       "id": "web_src_api_client_settings",
       "community": 9,
-      "community_name": "SettingsView.tsx",
+      "community_name": "client.ts",
       "norm_label": "settings"
+    },
+    {
+      "label": "TreeNodeShape",
+      "file_type": "code",
+      "source_file": "web/src/api/client.ts",
+      "source_location": "L10",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "id": "web_src_api_client_treenodeshape",
+      "community": 9,
+      "community_name": "client.ts",
+      "norm_label": "treenodeshape"
     },
     {
       "label": "Tab",
@@ -675,7 +662,7 @@
       "_origin": "ast",
       "id": "web_src_components_settingsview_tab",
       "community": 9,
-      "community_name": "SettingsView.tsx",
+      "community_name": "client.ts",
       "norm_label": "tab"
     },
     {
@@ -688,8 +675,21 @@
       "_origin": "ast",
       "id": "web_src_store_slices_settingsslice_settingsstate",
       "community": 9,
-      "community_name": "SettingsView.tsx",
+      "community_name": "client.ts",
       "norm_label": "settingsstate"
+    },
+    {
+      "label": "ResizeObserverMock",
+      "file_type": "code",
+      "source_file": "web/src/components/Tooltip.test.tsx",
+      "source_location": "L7",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "id": "web_src_components_tooltip_test_resizeobservermock",
+      "community": 99,
+      "community_name": "ResizeObserverMock",
+      "norm_label": "resizeobservermock"
     },
     {
       "label": "ActivityChart()",
@@ -932,6 +932,18 @@
       "norm_label": "iconbutton()"
     },
     {
+      "label": "NoteViewer()",
+      "file_type": "code",
+      "source_file": "web/src/components/NoteViewer.tsx",
+      "source_location": "L7",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "web_src_components_noteviewer_noteviewer",
+      "community": 18,
+      "community_name": "useAppSelector",
+      "norm_label": "noteviewer()"
+    },
+    {
       "label": "NotificationPanel()",
       "file_type": "code",
       "source_file": "web/src/components/NotificationPanel.tsx",
@@ -942,42 +954,6 @@
       "community": 18,
       "community_name": "useAppSelector",
       "norm_label": "notificationpanel()"
-    },
-    {
-      "label": "NotificationIcon()",
-      "file_type": "code",
-      "source_file": "web/src/components/notifications.tsx",
-      "source_location": "L13",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "web_src_components_notifications_notificationicon",
-      "community": 18,
-      "community_name": "useAppSelector",
-      "norm_label": "notificationicon()"
-    },
-    {
-      "label": "NotificationToasts()",
-      "file_type": "code",
-      "source_file": "web/src/components/NotificationToasts.tsx",
-      "source_location": "L14",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "web_src_components_notificationtoasts_notificationtoasts",
-      "community": 18,
-      "community_name": "useAppSelector",
-      "norm_label": "notificationtoasts()"
-    },
-    {
-      "label": "ToastCard()",
-      "file_type": "code",
-      "source_file": "web/src/components/NotificationToasts.tsx",
-      "source_location": "L42",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "web_src_components_notificationtoasts_toastcard",
-      "community": 18,
-      "community_name": "useAppSelector",
-      "norm_label": "toastcard()"
     },
     {
       "label": "SearchPanel()",
@@ -992,6 +968,18 @@
       "norm_label": "searchpanel()"
     },
     {
+      "label": "SearchView()",
+      "file_type": "code",
+      "source_file": "web/src/components/SearchView.tsx",
+      "source_location": "L6",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "web_src_components_searchview_searchview",
+      "community": 18,
+      "community_name": "useAppSelector",
+      "norm_label": "searchview()"
+    },
+    {
       "label": "TopBar()",
       "file_type": "code",
       "source_file": "web/src/components/TopBar.tsx",
@@ -1004,16 +992,28 @@
       "norm_label": "topbar()"
     },
     {
-      "label": "selectNotifications()",
+      "label": "axiosError()",
       "file_type": "code",
-      "source_file": "web/src/store/slices/notificationsSlice.ts",
-      "source_location": "L55",
+      "source_file": "web/src/components/WikiTree.test.tsx",
+      "source_location": "L25",
       "_callable": true,
       "_origin": "ast",
-      "id": "web_src_store_slices_notificationsslice_selectnotifications",
+      "id": "web_src_components_wikitree_test_axioserror",
       "community": 18,
       "community_name": "useAppSelector",
-      "norm_label": "selectnotifications()"
+      "norm_label": "axioserror()"
+    },
+    {
+      "label": "WikiTree()",
+      "file_type": "code",
+      "source_file": "web/src/components/WikiTree.tsx",
+      "source_location": "L13",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "web_src_components_wikitree_wikitree",
+      "community": 18,
+      "community_name": "useAppSelector",
+      "norm_label": "wikitree()"
     },
     {
       "label": "selectUnreadCount()",
@@ -1028,6 +1028,18 @@
       "norm_label": "selectunreadcount()"
     },
     {
+      "label": "renderPanel()",
+      "file_type": "code",
+      "source_file": "web/src/components/ChatPanel.test.tsx",
+      "source_location": "L19",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "web_src_components_chatpanel_test_renderpanel",
+      "community": 2,
+      "community_name": "renderWithStore",
+      "norm_label": "renderpanel()"
+    },
+    {
       "label": "renderDashboard()",
       "file_type": "code",
       "source_file": "web/src/components/DashboardView.test.tsx",
@@ -1038,6 +1050,18 @@
       "community": 2,
       "community_name": "renderWithStore",
       "norm_label": "renderdashboard()"
+    },
+    {
+      "label": "NotesView()",
+      "file_type": "code",
+      "source_file": "web/src/components/NotesView.tsx",
+      "source_location": "L12",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "web_src_components_notesview_notesview",
+      "community": 2,
+      "community_name": "renderWithStore",
+      "norm_label": "notesview()"
     },
     {
       "label": "renderNotes()",
@@ -1088,16 +1112,16 @@
       "norm_label": "renderviewer()"
     },
     {
-      "label": "axiosError()",
+      "label": "stubSearch()",
       "file_type": "code",
-      "source_file": "web/src/components/WikiTree.test.tsx",
-      "source_location": "L25",
+      "source_file": "web/src/components/SearchPanel.test.tsx",
+      "source_location": "L11",
       "_callable": true,
       "_origin": "ast",
-      "id": "web_src_components_wikitree_test_axioserror",
+      "id": "web_src_components_searchpanel_test_stubsearch",
       "community": 2,
       "community_name": "renderWithStore",
-      "norm_label": "axioserror()"
+      "norm_label": "stubsearch()"
     },
     {
       "label": "renderWikiTree()",
@@ -1122,6 +1146,30 @@
       "community": 2,
       "community_name": "renderWithStore",
       "norm_label": "wrapper()"
+    },
+    {
+      "label": "axiosModuleMock()",
+      "file_type": "code",
+      "source_file": "web/src/test/mockAxios.ts",
+      "source_location": "L17",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "web_src_test_mockaxios_axiosmodulemock",
+      "community": 2,
+      "community_name": "renderWithStore",
+      "norm_label": "axiosmodulemock()"
+    },
+    {
+      "label": "stubAPI()",
+      "file_type": "code",
+      "source_file": "web/src/test/mockAxios.ts",
+      "source_location": "L35",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "web_src_test_mockaxios_stubapi",
+      "community": 2,
+      "community_name": "renderWithStore",
+      "norm_label": "stubapi()"
     },
     {
       "label": "renderWithStore()",
@@ -1172,16 +1220,40 @@
       "norm_label": "composer()"
     },
     {
-      "label": "freshSocket()",
+      "label": "GitTab()",
       "file_type": "code",
-      "source_file": "web/src/hooks/useChat.test.tsx",
-      "source_location": "L13",
+      "source_file": "web/src/components/SettingsView.tsx",
+      "source_location": "L315",
       "_callable": true,
       "_origin": "ast",
-      "id": "web_src_hooks_usechat_test_freshsocket",
+      "id": "web_src_components_settingsview_gittab",
       "community": 23,
       "community_name": "ChatPanel.tsx",
-      "norm_label": "freshsocket()"
+      "norm_label": "gittab()"
+    },
+    {
+      "label": "ErrorHarness()",
+      "file_type": "code",
+      "source_file": "web/src/components/Toast.test.tsx",
+      "source_location": "L10",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "web_src_components_toast_test_errorharness",
+      "community": 23,
+      "community_name": "ChatPanel.tsx",
+      "norm_label": "errorharness()"
+    },
+    {
+      "label": "useToast()",
+      "file_type": "code",
+      "source_file": "web/src/components/Toast.tsx",
+      "source_location": "L61",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "web_src_components_toast_usetoast",
+      "community": 23,
+      "community_name": "ChatPanel.tsx",
+      "norm_label": "usetoast()"
     },
     {
       "label": "chatIdFromPath()",
@@ -1244,222 +1316,6 @@
       "norm_label": "useconversationroute()"
     },
     {
-      "label": "selectConnectionStatus()",
-      "file_type": "code",
-      "source_file": "web/src/store/slices/connectionSlice.ts",
-      "source_location": "L23",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "web_src_store_slices_connectionslice_selectconnectionstatus",
-      "community": 23,
-      "community_name": "ChatPanel.tsx",
-      "norm_label": "selectconnectionstatus()"
-    },
-    {
-      "label": ".cancel()",
-      "file_type": "code",
-      "source_file": "web/src/ws/chat.ts",
-      "source_location": "L75",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "web_src_ws_chat_chatsocket_cancel",
-      "community": 23,
-      "community_name": "ChatPanel.tsx",
-      "norm_label": ".cancel()"
-    },
-    {
-      "label": ".close()",
-      "file_type": "code",
-      "source_file": "web/src/ws/chat.ts",
-      "source_location": "L107",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "web_src_ws_chat_chatsocket_close",
-      "community": 23,
-      "community_name": "ChatPanel.tsx",
-      "norm_label": ".close()"
-    },
-    {
-      "label": ".connect()",
-      "file_type": "code",
-      "source_file": "web/src/ws/chat.ts",
-      "source_location": "L25",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "web_src_ws_chat_chatsocket_connect",
-      "community": 23,
-      "community_name": "ChatPanel.tsx",
-      "norm_label": ".connect()"
-    },
-    {
-      "label": ".constructor()",
-      "file_type": "code",
-      "source_file": "web/src/ws/chat.ts",
-      "source_location": "L23",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "web_src_ws_chat_chatsocket_constructor",
-      "community": 23,
-      "community_name": "ChatPanel.tsx",
-      "norm_label": ".constructor()"
-    },
-    {
-      "label": ".handler()",
-      "file_type": "code",
-      "source_file": "web/src/ws/chat.ts",
-      "source_location": "L13",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "web_src_ws_chat_chatsocket_handler",
-      "community": 23,
-      "community_name": "ChatPanel.tsx",
-      "norm_label": ".handler()"
-    },
-    {
-      "label": ".newChat()",
-      "file_type": "code",
-      "source_file": "web/src/ws/chat.ts",
-      "source_location": "L97",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "web_src_ws_chat_chatsocket_newchat",
-      "community": 23,
-      "community_name": "ChatPanel.tsx",
-      "norm_label": ".newchat()"
-    },
-    {
-      "label": ".onMessage()",
-      "file_type": "code",
-      "source_file": "web/src/ws/chat.ts",
-      "source_location": "L71",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "web_src_ws_chat_chatsocket_onmessage",
-      "community": 23,
-      "community_name": "ChatPanel.tsx",
-      "norm_label": ".onmessage()"
-    },
-    {
-      "label": ".onStatusChange()",
-      "file_type": "code",
-      "source_file": "web/src/ws/chat.ts",
-      "source_location": "L72",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "web_src_ws_chat_chatsocket_onstatuschange",
-      "community": 23,
-      "community_name": "ChatPanel.tsx",
-      "norm_label": ".onstatuschange()"
-    },
-    {
-      "label": ".open()",
-      "file_type": "code",
-      "source_file": "web/src/ws/chat.ts",
-      "source_location": "L85",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "web_src_ws_chat_chatsocket_open",
-      "community": 23,
-      "community_name": "ChatPanel.tsx",
-      "norm_label": ".open()"
-    },
-    {
-      "label": ".resume()",
-      "file_type": "code",
-      "source_file": "web/src/ws/chat.ts",
-      "source_location": "L76",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "web_src_ws_chat_chatsocket_resume",
-      "community": 23,
-      "community_name": "ChatPanel.tsx",
-      "norm_label": ".resume()"
-    },
-    {
-      "label": ".send()",
-      "file_type": "code",
-      "source_file": "web/src/ws/chat.ts",
-      "source_location": "L74",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "web_src_ws_chat_chatsocket_send",
-      "community": 23,
-      "community_name": "ChatPanel.tsx",
-      "norm_label": ".send()"
-    },
-    {
-      "label": ".statusHandler()",
-      "file_type": "code",
-      "source_file": "web/src/ws/chat.ts",
-      "source_location": "L14",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "web_src_ws_chat_chatsocket_statushandler",
-      "community": 23,
-      "community_name": "ChatPanel.tsx",
-      "norm_label": ".statushandler()"
-    },
-    {
-      "label": "CodeBlock()",
-      "file_type": "code",
-      "source_file": "web/src/components/CodeBlock.tsx",
-      "source_location": "L24",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "web_src_components_codeblock_codeblock",
-      "community": 24,
-      "community_name": "Toast.tsx",
-      "norm_label": "codeblock()"
-    },
-    {
-      "label": "highlight()",
-      "file_type": "code",
-      "source_file": "web/src/components/CodeBlock.tsx",
-      "source_location": "L10",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "web_src_components_codeblock_highlight",
-      "community": 24,
-      "community_name": "Toast.tsx",
-      "norm_label": "highlight()"
-    },
-    {
-      "label": "renderBlock()",
-      "file_type": "code",
-      "source_file": "web/src/components/CodeBlock.test.tsx",
-      "source_location": "L11",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "web_src_components_codeblock_test_renderblock",
-      "community": 24,
-      "community_name": "Toast.tsx",
-      "norm_label": "renderblock()"
-    },
-    {
-      "label": "CopyButton()",
-      "file_type": "code",
-      "source_file": "web/src/components/CopyButton.tsx",
-      "source_location": "L9",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "web_src_components_copybutton_copybutton",
-      "community": 24,
-      "community_name": "Toast.tsx",
-      "norm_label": "copybutton()"
-    },
-    {
-      "label": "renderCopy()",
-      "file_type": "code",
-      "source_file": "web/src/components/CopyButton.test.tsx",
-      "source_location": "L8",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "web_src_components_copybutton_test_rendercopy",
-      "community": 24,
-      "community_name": "Toast.tsx",
-      "norm_label": "rendercopy()"
-    },
-    {
       "label": "MessageItem()",
       "file_type": "code",
       "source_file": "web/src/components/MessageItem.tsx",
@@ -1470,6 +1326,18 @@
       "community": 24,
       "community_name": "Toast.tsx",
       "norm_label": "messageitem()"
+    },
+    {
+      "label": "Harness()",
+      "file_type": "code",
+      "source_file": "web/src/components/Toast.test.tsx",
+      "source_location": "L5",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "web_src_components_toast_test_harness",
+      "community": 24,
+      "community_name": "Toast.tsx",
+      "norm_label": "harness()"
     },
     {
       "label": "ToastProvider()",
@@ -1508,16 +1376,28 @@
       "norm_label": "navrail()"
     },
     {
-      "label": "SearchView()",
+      "label": "problemsFromHealth()",
       "file_type": "code",
-      "source_file": "web/src/components/SearchView.tsx",
-      "source_location": "L6",
+      "source_file": "web/src/components/SetupScreen.tsx",
+      "source_location": "L10",
       "_callable": true,
       "_origin": "ast",
-      "id": "web_src_components_searchview_searchview",
+      "id": "web_src_components_setupscreen_problemsfromhealth",
       "community": 41,
       "community_name": "App.tsx",
-      "norm_label": "searchview()"
+      "norm_label": "problemsfromhealth()"
+    },
+    {
+      "label": "SetupScreen()",
+      "file_type": "code",
+      "source_file": "web/src/components/SetupScreen.tsx",
+      "source_location": "L31",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "web_src_components_setupscreen_setupscreen",
+      "community": 41,
+      "community_name": "App.tsx",
+      "norm_label": "setupscreen()"
     },
     {
       "label": "navigateNote()",
@@ -1664,6 +1544,18 @@
       "norm_label": "selecthealthloading()"
     },
     {
+      "label": "axiosError()",
+      "file_type": "code",
+      "source_file": "web/src/test/mockAxios.ts",
+      "source_location": "L61",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "web_src_test_mockaxios_axioserror",
+      "community": 41,
+      "community_name": "App.tsx",
+      "norm_label": "axioserror()"
+    },
+    {
       "label": ".disconnect()",
       "file_type": "code",
       "source_file": "web/src/test/setup.ts",
@@ -1700,88 +1592,76 @@
       "norm_label": ".unobserve()"
     },
     {
-      "label": "axiosErrorMessage()",
+      "label": "NotificationIcon()",
       "file_type": "code",
-      "source_file": "web/src/api/client.ts",
-      "source_location": "L86",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "web_src_api_client_axioserrormessage",
-      "community": 61,
-      "community_name": "client.ts",
-      "norm_label": "axioserrormessage()"
-    },
-    {
-      "label": "get()",
-      "file_type": "code",
-      "source_file": "web/src/api/client.ts",
-      "source_location": "L74",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "web_src_api_client_get",
-      "community": 61,
-      "community_name": "client.ts",
-      "norm_label": "get()"
-    },
-    {
-      "label": "parseBody()",
-      "file_type": "code",
-      "source_file": "web/src/api/client.ts",
-      "source_location": "L81",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "web_src_api_client_parsebody",
-      "community": 61,
-      "community_name": "client.ts",
-      "norm_label": "parsebody()"
-    },
-    {
-      "label": "problemsFromHealth()",
-      "file_type": "code",
-      "source_file": "web/src/components/SetupScreen.tsx",
-      "source_location": "L10",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "web_src_components_setupscreen_problemsfromhealth",
-      "community": 61,
-      "community_name": "client.ts",
-      "norm_label": "problemsfromhealth()"
-    },
-    {
-      "label": "SetupScreen()",
-      "file_type": "code",
-      "source_file": "web/src/components/SetupScreen.tsx",
-      "source_location": "L31",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "web_src_components_setupscreen_setupscreen",
-      "community": 61,
-      "community_name": "client.ts",
-      "norm_label": "setupscreen()"
-    },
-    {
-      "label": "WikiTree()",
-      "file_type": "code",
-      "source_file": "web/src/components/WikiTree.tsx",
+      "source_file": "web/src/components/notifications.tsx",
       "source_location": "L13",
       "_callable": true,
       "_origin": "ast",
-      "id": "web_src_components_wikitree_wikitree",
+      "id": "web_src_components_notifications_notificationicon",
       "community": 61,
-      "community_name": "client.ts",
-      "norm_label": "wikitree()"
+      "community_name": "NotificationToasts.tsx",
+      "norm_label": "notificationicon()"
     },
     {
-      "label": "useSearch()",
+      "label": "NotificationToasts()",
       "file_type": "code",
-      "source_file": "web/src/hooks/useSearch.ts",
-      "source_location": "L4",
+      "source_file": "web/src/components/NotificationToasts.tsx",
+      "source_location": "L14",
       "_callable": true,
       "_origin": "ast",
-      "id": "web_src_hooks_usesearch_usesearch",
+      "id": "web_src_components_notificationtoasts_notificationtoasts",
       "community": 61,
-      "community_name": "client.ts",
-      "norm_label": "usesearch()"
+      "community_name": "NotificationToasts.tsx",
+      "norm_label": "notificationtoasts()"
+    },
+    {
+      "label": "ToastCard()",
+      "file_type": "code",
+      "source_file": "web/src/components/NotificationToasts.tsx",
+      "source_location": "L42",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "web_src_components_notificationtoasts_toastcard",
+      "community": 61,
+      "community_name": "NotificationToasts.tsx",
+      "norm_label": "toastcard()"
+    },
+    {
+      "label": "selectNotifications()",
+      "file_type": "code",
+      "source_file": "web/src/store/slices/notificationsSlice.ts",
+      "source_location": "L55",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "web_src_store_slices_notificationsslice_selectnotifications",
+      "community": 61,
+      "community_name": "NotificationToasts.tsx",
+      "norm_label": "selectnotifications()"
+    },
+    {
+      "label": "CopyButton()",
+      "file_type": "code",
+      "source_file": "web/src/components/CopyButton.tsx",
+      "source_location": "L9",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "web_src_components_copybutton_copybutton",
+      "community": 62,
+      "community_name": "MessageItem.tsx",
+      "norm_label": "copybutton()"
+    },
+    {
+      "label": "renderCopy()",
+      "file_type": "code",
+      "source_file": "web/src/components/CopyButton.test.tsx",
+      "source_location": "L8",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "web_src_components_copybutton_test_rendercopy",
+      "community": 62,
+      "community_name": "MessageItem.tsx",
+      "norm_label": "rendercopy()"
     },
     {
       "label": "Markdown()",
@@ -1792,7 +1672,7 @@
       "_origin": "ast",
       "id": "web_src_components_markdown_markdown",
       "community": 62,
-      "community_name": "NotesView.tsx",
+      "community_name": "MessageItem.tsx",
       "norm_label": "markdown()"
     },
     {
@@ -1804,68 +1684,8 @@
       "_origin": "ast",
       "id": "web_src_components_messageitem_assistanticon",
       "community": 62,
-      "community_name": "NotesView.tsx",
+      "community_name": "MessageItem.tsx",
       "norm_label": "assistanticon()"
-    },
-    {
-      "label": "NotesView()",
-      "file_type": "code",
-      "source_file": "web/src/components/NotesView.tsx",
-      "source_location": "L12",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "web_src_components_notesview_notesview",
-      "community": 62,
-      "community_name": "NotesView.tsx",
-      "norm_label": "notesview()"
-    },
-    {
-      "label": "NoteViewer()",
-      "file_type": "code",
-      "source_file": "web/src/components/NoteViewer.tsx",
-      "source_location": "L7",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "web_src_components_noteviewer_noteviewer",
-      "community": 62,
-      "community_name": "NotesView.tsx",
-      "norm_label": "noteviewer()"
-    },
-    {
-      "label": ".disconnect()",
-      "file_type": "code",
-      "source_file": "web/src/components/Tooltip.test.tsx",
-      "source_location": "L10",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "web_src_components_tooltip_test_resizeobservermock_disconnect",
-      "community": 62,
-      "community_name": "NotesView.tsx",
-      "norm_label": ".disconnect()"
-    },
-    {
-      "label": ".observe()",
-      "file_type": "code",
-      "source_file": "web/src/components/Tooltip.test.tsx",
-      "source_location": "L8",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "web_src_components_tooltip_test_resizeobservermock_observe",
-      "community": 62,
-      "community_name": "NotesView.tsx",
-      "norm_label": ".observe()"
-    },
-    {
-      "label": ".unobserve()",
-      "file_type": "code",
-      "source_file": "web/src/components/Tooltip.test.tsx",
-      "source_location": "L9",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "web_src_components_tooltip_test_resizeobservermock_unobserve",
-      "community": 62,
-      "community_name": "NotesView.tsx",
-      "norm_label": ".unobserve()"
     },
     {
       "label": "Tooltip()",
@@ -1876,56 +1696,8 @@
       "_origin": "ast",
       "id": "web_src_components_tooltip_tooltip",
       "community": 62,
-      "community_name": "NotesView.tsx",
+      "community_name": "MessageItem.tsx",
       "norm_label": "tooltip()"
-    },
-    {
-      "label": "stubSearch()",
-      "file_type": "code",
-      "source_file": "web/src/components/SearchPanel.test.tsx",
-      "source_location": "L11",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "web_src_components_searchpanel_test_stubsearch",
-      "community": 67,
-      "community_name": "healthSlice.test.ts",
-      "norm_label": "stubsearch()"
-    },
-    {
-      "label": "axiosError()",
-      "file_type": "code",
-      "source_file": "web/src/test/mockAxios.ts",
-      "source_location": "L61",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "web_src_test_mockaxios_axioserror",
-      "community": 67,
-      "community_name": "healthSlice.test.ts",
-      "norm_label": "axioserror()"
-    },
-    {
-      "label": "axiosModuleMock()",
-      "file_type": "code",
-      "source_file": "web/src/test/mockAxios.ts",
-      "source_location": "L17",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "web_src_test_mockaxios_axiosmodulemock",
-      "community": 67,
-      "community_name": "healthSlice.test.ts",
-      "norm_label": "axiosmodulemock()"
-    },
-    {
-      "label": "stubAPI()",
-      "file_type": "code",
-      "source_file": "web/src/test/mockAxios.ts",
-      "source_location": "L35",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "web_src_test_mockaxios_stubapi",
-      "community": 67,
-      "community_name": "healthSlice.test.ts",
-      "norm_label": "stubapi()"
     },
     {
       "label": "renderChatHook()",
@@ -2046,6 +1818,18 @@
       "community": 7,
       "community_name": "index.ts",
       "norm_label": "selectthinkingtext()"
+    },
+    {
+      "label": "selectConnectionStatus()",
+      "file_type": "code",
+      "source_file": "web/src/store/slices/connectionSlice.ts",
+      "source_location": "L23",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "web_src_store_slices_connectionslice_selectconnectionstatus",
+      "community": 7,
+      "community_name": "index.ts",
+      "norm_label": "selectconnectionstatus()"
     },
     {
       "label": "loadHistory()",
@@ -2216,16 +2000,16 @@
       "norm_label": "stubapi()"
     },
     {
-      "label": "renderPanel()",
+      "label": "freshSocket()",
       "file_type": "code",
-      "source_file": "web/src/components/ChatPanel.test.tsx",
-      "source_location": "L19",
+      "source_file": "web/src/hooks/useChat.test.tsx",
+      "source_location": "L13",
       "_callable": true,
       "_origin": "ast",
-      "id": "web_src_components_chatpanel_test_renderpanel",
+      "id": "web_src_hooks_usechat_test_freshsocket",
       "community": 81,
-      "community_name": "ChatPanel.test.tsx",
-      "norm_label": "renderpanel()"
+      "community_name": "ChatSocket",
+      "norm_label": "freshsocket()"
     },
     {
       "label": ".close()",
@@ -2236,7 +2020,7 @@
       "_origin": "ast",
       "id": "web_src_test_fakews_fakews_close",
       "community": 81,
-      "community_name": "ChatPanel.test.tsx",
+      "community_name": "ChatSocket",
       "norm_label": ".close()"
     },
     {
@@ -2248,7 +2032,7 @@
       "_origin": "ast",
       "id": "web_src_test_fakews_fakews_constructor",
       "community": 81,
-      "community_name": "ChatPanel.test.tsx",
+      "community_name": "ChatSocket",
       "norm_label": ".constructor()"
     },
     {
@@ -2260,7 +2044,7 @@
       "_origin": "ast",
       "id": "web_src_test_fakews_fakews_open",
       "community": 81,
-      "community_name": "ChatPanel.test.tsx",
+      "community_name": "ChatSocket",
       "norm_label": ".open()"
     },
     {
@@ -2272,8 +2056,152 @@
       "_origin": "ast",
       "id": "web_src_test_fakews_fakews_send",
       "community": 81,
-      "community_name": "ChatPanel.test.tsx",
+      "community_name": "ChatSocket",
       "norm_label": ".send()"
+    },
+    {
+      "label": ".cancel()",
+      "file_type": "code",
+      "source_file": "web/src/ws/chat.ts",
+      "source_location": "L75",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "web_src_ws_chat_chatsocket_cancel",
+      "community": 81,
+      "community_name": "ChatSocket",
+      "norm_label": ".cancel()"
+    },
+    {
+      "label": ".close()",
+      "file_type": "code",
+      "source_file": "web/src/ws/chat.ts",
+      "source_location": "L107",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "web_src_ws_chat_chatsocket_close",
+      "community": 81,
+      "community_name": "ChatSocket",
+      "norm_label": ".close()"
+    },
+    {
+      "label": ".connect()",
+      "file_type": "code",
+      "source_file": "web/src/ws/chat.ts",
+      "source_location": "L25",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "web_src_ws_chat_chatsocket_connect",
+      "community": 81,
+      "community_name": "ChatSocket",
+      "norm_label": ".connect()"
+    },
+    {
+      "label": ".constructor()",
+      "file_type": "code",
+      "source_file": "web/src/ws/chat.ts",
+      "source_location": "L23",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "web_src_ws_chat_chatsocket_constructor",
+      "community": 81,
+      "community_name": "ChatSocket",
+      "norm_label": ".constructor()"
+    },
+    {
+      "label": ".handler()",
+      "file_type": "code",
+      "source_file": "web/src/ws/chat.ts",
+      "source_location": "L13",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "web_src_ws_chat_chatsocket_handler",
+      "community": 81,
+      "community_name": "ChatSocket",
+      "norm_label": ".handler()"
+    },
+    {
+      "label": ".newChat()",
+      "file_type": "code",
+      "source_file": "web/src/ws/chat.ts",
+      "source_location": "L97",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "web_src_ws_chat_chatsocket_newchat",
+      "community": 81,
+      "community_name": "ChatSocket",
+      "norm_label": ".newchat()"
+    },
+    {
+      "label": ".onMessage()",
+      "file_type": "code",
+      "source_file": "web/src/ws/chat.ts",
+      "source_location": "L71",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "web_src_ws_chat_chatsocket_onmessage",
+      "community": 81,
+      "community_name": "ChatSocket",
+      "norm_label": ".onmessage()"
+    },
+    {
+      "label": ".onStatusChange()",
+      "file_type": "code",
+      "source_file": "web/src/ws/chat.ts",
+      "source_location": "L72",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "web_src_ws_chat_chatsocket_onstatuschange",
+      "community": 81,
+      "community_name": "ChatSocket",
+      "norm_label": ".onstatuschange()"
+    },
+    {
+      "label": ".open()",
+      "file_type": "code",
+      "source_file": "web/src/ws/chat.ts",
+      "source_location": "L85",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "web_src_ws_chat_chatsocket_open",
+      "community": 81,
+      "community_name": "ChatSocket",
+      "norm_label": ".open()"
+    },
+    {
+      "label": ".resume()",
+      "file_type": "code",
+      "source_file": "web/src/ws/chat.ts",
+      "source_location": "L76",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "web_src_ws_chat_chatsocket_resume",
+      "community": 81,
+      "community_name": "ChatSocket",
+      "norm_label": ".resume()"
+    },
+    {
+      "label": ".send()",
+      "file_type": "code",
+      "source_file": "web/src/ws/chat.ts",
+      "source_location": "L74",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "web_src_ws_chat_chatsocket_send",
+      "community": 81,
+      "community_name": "ChatSocket",
+      "norm_label": ".send()"
+    },
+    {
+      "label": ".statusHandler()",
+      "file_type": "code",
+      "source_file": "web/src/ws/chat.ts",
+      "source_location": "L14",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "web_src_ws_chat_chatsocket_statushandler",
+      "community": 81,
+      "community_name": "ChatSocket",
+      "norm_label": ".statushandler()"
     },
     {
       "label": "focusRow()",
@@ -2360,6 +2288,42 @@
       "norm_label": ".update()"
     },
     {
+      "label": "axiosErrorMessage()",
+      "file_type": "code",
+      "source_file": "web/src/api/client.ts",
+      "source_location": "L86",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "web_src_api_client_axioserrormessage",
+      "community": 9,
+      "community_name": "client.ts",
+      "norm_label": "axioserrormessage()"
+    },
+    {
+      "label": "get()",
+      "file_type": "code",
+      "source_file": "web/src/api/client.ts",
+      "source_location": "L74",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "web_src_api_client_get",
+      "community": 9,
+      "community_name": "client.ts",
+      "norm_label": "get()"
+    },
+    {
+      "label": "parseBody()",
+      "file_type": "code",
+      "source_file": "web/src/api/client.ts",
+      "source_location": "L81",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "web_src_api_client_parsebody",
+      "community": 9,
+      "community_name": "client.ts",
+      "norm_label": "parsebody()"
+    },
+    {
       "label": "DoctorTab()",
       "file_type": "code",
       "source_file": "web/src/components/SettingsView.tsx",
@@ -2368,20 +2332,8 @@
       "_origin": "ast",
       "id": "web_src_components_settingsview_doctortab",
       "community": 9,
-      "community_name": "SettingsView.tsx",
+      "community_name": "client.ts",
       "norm_label": "doctortab()"
-    },
-    {
-      "label": "GitTab()",
-      "file_type": "code",
-      "source_file": "web/src/components/SettingsView.tsx",
-      "source_location": "L315",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "web_src_components_settingsview_gittab",
-      "community": 9,
-      "community_name": "SettingsView.tsx",
-      "norm_label": "gittab()"
     },
     {
       "label": "GlobeIcon()",
@@ -2392,7 +2344,7 @@
       "_origin": "ast",
       "id": "web_src_components_settingsview_globeicon",
       "community": 9,
-      "community_name": "SettingsView.tsx",
+      "community_name": "client.ts",
       "norm_label": "globeicon()"
     },
     {
@@ -2404,7 +2356,7 @@
       "_origin": "ast",
       "id": "web_src_components_settingsview_lockicon",
       "community": 9,
-      "community_name": "SettingsView.tsx",
+      "community_name": "client.ts",
       "norm_label": "lockicon()"
     },
     {
@@ -2416,44 +2368,20 @@
       "_origin": "ast",
       "id": "web_src_components_settingsview_settingsview",
       "community": 9,
-      "community_name": "SettingsView.tsx",
+      "community_name": "client.ts",
       "norm_label": "settingsview()"
     },
     {
-      "label": "ErrorHarness()",
+      "label": "useSearch()",
       "file_type": "code",
-      "source_file": "web/src/components/Toast.test.tsx",
-      "source_location": "L10",
+      "source_file": "web/src/hooks/useSearch.ts",
+      "source_location": "L4",
       "_callable": true,
       "_origin": "ast",
-      "id": "web_src_components_toast_test_errorharness",
+      "id": "web_src_hooks_usesearch_usesearch",
       "community": 9,
-      "community_name": "SettingsView.tsx",
-      "norm_label": "errorharness()"
-    },
-    {
-      "label": "Harness()",
-      "file_type": "code",
-      "source_file": "web/src/components/Toast.test.tsx",
-      "source_location": "L5",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "web_src_components_toast_test_harness",
-      "community": 9,
-      "community_name": "SettingsView.tsx",
-      "norm_label": "harness()"
-    },
-    {
-      "label": "useToast()",
-      "file_type": "code",
-      "source_file": "web/src/components/Toast.tsx",
-      "source_location": "L61",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "web_src_components_toast_usetoast",
-      "community": 9,
-      "community_name": "SettingsView.tsx",
-      "norm_label": "usetoast()"
+      "community_name": "client.ts",
+      "norm_label": "usesearch()"
     },
     {
       "label": "selectSettings()",
@@ -2464,8 +2392,80 @@
       "_origin": "ast",
       "id": "web_src_store_slices_settingsslice_selectsettings",
       "community": 9,
-      "community_name": "SettingsView.tsx",
+      "community_name": "client.ts",
       "norm_label": "selectsettings()"
+    },
+    {
+      "label": "CodeBlock()",
+      "file_type": "code",
+      "source_file": "web/src/components/CodeBlock.tsx",
+      "source_location": "L24",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "web_src_components_codeblock_codeblock",
+      "community": 98,
+      "community_name": "CodeBlock.tsx",
+      "norm_label": "codeblock()"
+    },
+    {
+      "label": "highlight()",
+      "file_type": "code",
+      "source_file": "web/src/components/CodeBlock.tsx",
+      "source_location": "L10",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "web_src_components_codeblock_highlight",
+      "community": 98,
+      "community_name": "CodeBlock.tsx",
+      "norm_label": "highlight()"
+    },
+    {
+      "label": "renderBlock()",
+      "file_type": "code",
+      "source_file": "web/src/components/CodeBlock.test.tsx",
+      "source_location": "L11",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "web_src_components_codeblock_test_renderblock",
+      "community": 98,
+      "community_name": "CodeBlock.tsx",
+      "norm_label": "renderblock()"
+    },
+    {
+      "label": ".disconnect()",
+      "file_type": "code",
+      "source_file": "web/src/components/Tooltip.test.tsx",
+      "source_location": "L10",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "web_src_components_tooltip_test_resizeobservermock_disconnect",
+      "community": 99,
+      "community_name": "ResizeObserverMock",
+      "norm_label": ".disconnect()"
+    },
+    {
+      "label": ".observe()",
+      "file_type": "code",
+      "source_file": "web/src/components/Tooltip.test.tsx",
+      "source_location": "L8",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "web_src_components_tooltip_test_resizeobservermock_observe",
+      "community": 99,
+      "community_name": "ResizeObserverMock",
+      "norm_label": ".observe()"
+    },
+    {
+      "label": ".unobserve()",
+      "file_type": "code",
+      "source_file": "web/src/components/Tooltip.test.tsx",
+      "source_location": "L9",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "web_src_components_tooltip_test_resizeobservermock_unobserve",
+      "community": 99,
+      "community_name": "ResizeObserverMock",
+      "norm_label": ".unobserve()"
     },
     {
       "label": "profileStub",
@@ -3524,6 +3524,138 @@
       "norm_label": "testsettingssyncenabledroundtrip()"
     },
     {
+      "label": "ParseLine()",
+      "file_type": "code",
+      "source_file": "internal/claude/events.go",
+      "source_location": "L63",
+      "_origin": "ast",
+      "id": "internal_claude_events_parseline",
+      "community": 0,
+      "community_name": "testing.T",
+      "norm_label": "parseline()"
+    },
+    {
+      "label": "events_test.go",
+      "file_type": "code",
+      "source_file": "internal/claude/events_test.go",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "internal_claude_events_test",
+      "community": 0,
+      "community_name": "testing.T",
+      "norm_label": "events_test.go"
+    },
+    {
+      "label": "TestParseLineAssistantText()",
+      "file_type": "code",
+      "source_file": "internal/claude/events_test.go",
+      "source_location": "L8",
+      "_origin": "ast",
+      "id": "internal_claude_events_test_testparselineassistanttext",
+      "community": 0,
+      "community_name": "testing.T",
+      "norm_label": "testparselineassistanttext()"
+    },
+    {
+      "label": "TestParseLineAssistantWithEmptyText()",
+      "file_type": "code",
+      "source_file": "internal/claude/events_test.go",
+      "source_location": "L60",
+      "_origin": "ast",
+      "id": "internal_claude_events_test_testparselineassistantwithemptytext",
+      "community": 0,
+      "community_name": "testing.T",
+      "norm_label": "testparselineassistantwithemptytext()"
+    },
+    {
+      "label": "TestParseLineAssistantWithoutMessage()",
+      "file_type": "code",
+      "source_file": "internal/claude/events_test.go",
+      "source_location": "L52",
+      "_origin": "ast",
+      "id": "internal_claude_events_test_testparselineassistantwithoutmessage",
+      "community": 0,
+      "community_name": "testing.T",
+      "norm_label": "testparselineassistantwithoutmessage()"
+    },
+    {
+      "label": "TestParseLineIgnoresStringShapedMessage()",
+      "file_type": "code",
+      "source_file": "internal/claude/events_test.go",
+      "source_location": "L97",
+      "_origin": "ast",
+      "id": "internal_claude_events_test_testparselineignoresstringshapedmessage",
+      "community": 0,
+      "community_name": "testing.T",
+      "norm_label": "testparselineignoresstringshapedmessage()"
+    },
+    {
+      "label": "TestParseLineIgnoresUnknown()",
+      "file_type": "code",
+      "source_file": "internal/claude/events_test.go",
+      "source_location": "L39",
+      "_origin": "ast",
+      "id": "internal_claude_events_test_testparselineignoresunknown",
+      "community": 0,
+      "community_name": "testing.T",
+      "norm_label": "testparselineignoresunknown()"
+    },
+    {
+      "label": "TestParseLineRejectsGarbage()",
+      "file_type": "code",
+      "source_file": "internal/claude/events_test.go",
+      "source_location": "L46",
+      "_origin": "ast",
+      "id": "internal_claude_events_test_testparselinerejectsgarbage",
+      "community": 0,
+      "community_name": "testing.T",
+      "norm_label": "testparselinerejectsgarbage()"
+    },
+    {
+      "label": "TestParseLineResult()",
+      "file_type": "code",
+      "source_file": "internal/claude/events_test.go",
+      "source_location": "L28",
+      "_origin": "ast",
+      "id": "internal_claude_events_test_testparselineresult",
+      "community": 0,
+      "community_name": "testing.T",
+      "norm_label": "testparselineresult()"
+    },
+    {
+      "label": "TestParseLineThinking()",
+      "file_type": "code",
+      "source_file": "internal/claude/events_test.go",
+      "source_location": "L72",
+      "_origin": "ast",
+      "id": "internal_claude_events_test_testparselinethinking",
+      "community": 0,
+      "community_name": "testing.T",
+      "norm_label": "testparselinethinking()"
+    },
+    {
+      "label": "TestParseLineToolUse()",
+      "file_type": "code",
+      "source_file": "internal/claude/events_test.go",
+      "source_location": "L18",
+      "_origin": "ast",
+      "id": "internal_claude_events_test_testparselinetooluse",
+      "community": 0,
+      "community_name": "testing.T",
+      "norm_label": "testparselinetooluse()"
+    },
+    {
+      "label": "TestWriterFuncAdapter()",
+      "file_type": "code",
+      "source_file": "internal/claude/events_test.go",
+      "source_location": "L89",
+      "_origin": "ast",
+      "id": "internal_claude_events_test_testwriterfuncadapter",
+      "community": 0,
+      "community_name": "testing.T",
+      "norm_label": "testwriterfuncadapter()"
+    },
+    {
       "label": "New()",
       "file_type": "code",
       "source_file": "internal/github/client.go",
@@ -3887,6 +4019,17 @@
       "norm_label": "option"
     },
     {
+      "label": "echo.MiddlewareFunc",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "echo_middlewarefunc",
+      "community": 1,
+      "community_name": "Deps",
+      "norm_label": "echo.middlewarefunc"
+    },
+    {
       "label": "conversations.go",
       "file_type": "code",
       "source_file": "internal/api/conversations.go",
@@ -4193,6 +4336,28 @@
       "community": 1,
       "community_name": "Deps",
       "norm_label": "health()"
+    },
+    {
+      "label": "logging.go",
+      "file_type": "code",
+      "source_file": "internal/api/logging.go",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "internal_api_logging",
+      "community": 1,
+      "community_name": "Deps",
+      "norm_label": "logging.go"
+    },
+    {
+      "label": "requestLog()",
+      "file_type": "code",
+      "source_file": "internal/api/logging.go",
+      "source_location": "L15",
+      "_origin": "ast",
+      "id": "internal_api_logging_requestlog",
+      "community": 1,
+      "community_name": "Deps",
+      "norm_label": "requestlog()"
     },
     {
       "label": "models.go",
@@ -4787,6 +4952,66 @@
       "community": 10,
       "community_name": "devDependencies",
       "norm_label": "@vitejs/plugin-react"
+    },
+    {
+      "label": "graph-check.sh",
+      "file_type": "code",
+      "source_file": "scripts/graph-check.sh",
+      "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "file"
+      },
+      "_origin": "ast",
+      "id": "scripts_graph_check",
+      "community": 100,
+      "community_name": "graph-check.sh",
+      "norm_label": "graph-check.sh"
+    },
+    {
+      "label": "graph-check.sh script",
+      "file_type": "code",
+      "source_file": "scripts/graph-check.sh",
+      "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_entrypoint"
+      },
+      "_origin": "ast",
+      "id": "scripts_graph_check_sh__entry",
+      "community": 100,
+      "community_name": "graph-check.sh",
+      "norm_label": "graph-check.sh script"
+    },
+    {
+      "label": "main-guard.sh",
+      "file_type": "code",
+      "source_file": "scripts/main-guard.sh",
+      "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "file"
+      },
+      "_origin": "ast",
+      "id": "scripts_main_guard",
+      "community": 101,
+      "community_name": "main-guard.sh",
+      "norm_label": "main-guard.sh"
+    },
+    {
+      "label": "main-guard.sh script",
+      "file_type": "code",
+      "source_file": "scripts/main-guard.sh",
+      "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_entrypoint"
+      },
+      "_origin": "ast",
+      "id": "scripts_main_guard_sh__entry",
+      "community": 101,
+      "community_name": "main-guard.sh",
+      "norm_label": "main-guard.sh script"
     },
     {
       "label": "package.json",
@@ -5482,6 +5707,17 @@
       "norm_label": "sidebar.tsx"
     },
     {
+      "label": "useAppDispatch",
+      "file_type": "code",
+      "source_file": "web/src/store/hooks.ts",
+      "source_location": "L4",
+      "_origin": "ast",
+      "id": "web_src_store_hooks_useappdispatch",
+      "community": 15,
+      "community_name": "Sidebar.tsx",
+      "norm_label": "useappdispatch"
+    },
+    {
       "label": "conversationsSlice.ts",
       "file_type": "code",
       "source_file": "web/src/store/slices/conversationsSlice.ts",
@@ -5845,6 +6081,171 @@
       "norm_label": "client"
     },
     {
+      "label": "store.go",
+      "file_type": "code",
+      "source_file": "internal/store/store.go",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "internal_store_store",
+      "community": 16,
+      "community_name": "Hub",
+      "norm_label": "store.go"
+    },
+    {
+      "label": "Store",
+      "file_type": "code",
+      "source_file": "internal/store/store.go",
+      "source_location": "L27",
+      "_origin": "ast",
+      "id": "internal_store_store_go_store_store",
+      "community": 16,
+      "community_name": "Hub",
+      "norm_label": "store"
+    },
+    {
+      "label": "newID()",
+      "file_type": "code",
+      "source_file": "internal/store/store.go",
+      "source_location": "L49",
+      "_origin": "ast",
+      "id": "internal_store_store_newid",
+      "community": 16,
+      "community_name": "Hub",
+      "norm_label": "newid()"
+    },
+    {
+      "label": "TestNewIDIsUUIDShaped()",
+      "file_type": "code",
+      "source_file": "internal/store/store_test.go",
+      "source_location": "L172",
+      "_origin": "ast",
+      "id": "internal_store_store_test_testnewidisuuidshaped",
+      "community": 16,
+      "community_name": "Hub",
+      "norm_label": "testnewidisuuidshaped()"
+    },
+    {
+      "label": "Conversation",
+      "file_type": "code",
+      "source_file": "internal/store/store.go",
+      "source_location": "L13",
+      "_origin": "ast",
+      "id": "store_conversation",
+      "community": 16,
+      "community_name": "Hub",
+      "norm_label": "conversation"
+    },
+    {
+      "label": "Message",
+      "file_type": "code",
+      "source_file": "internal/store/store.go",
+      "source_location": "L19",
+      "_origin": "ast",
+      "id": "store_message",
+      "community": 16,
+      "community_name": "Hub",
+      "norm_label": "message"
+    },
+    {
+      "label": ".AddMessage()",
+      "file_type": "code",
+      "source_file": "internal/store/store.go",
+      "source_location": "L138",
+      "_origin": "ast",
+      "id": "store_store_addmessage",
+      "community": 16,
+      "community_name": "Hub",
+      "norm_label": ".addmessage()"
+    },
+    {
+      "label": ".Close()",
+      "file_type": "code",
+      "source_file": "internal/store/store.go",
+      "source_location": "L192",
+      "_origin": "ast",
+      "id": "store_store_close",
+      "community": 16,
+      "community_name": "Hub",
+      "norm_label": ".close()"
+    },
+    {
+      "label": ".ConversationSessionID()",
+      "file_type": "code",
+      "source_file": "internal/store/store.go",
+      "source_location": "L96",
+      "_origin": "ast",
+      "id": "store_store_conversationsessionid",
+      "community": 16,
+      "community_name": "Hub",
+      "norm_label": ".conversationsessionid()"
+    },
+    {
+      "label": ".CreateConversation()",
+      "file_type": "code",
+      "source_file": "internal/store/store.go",
+      "source_location": "L77",
+      "_origin": "ast",
+      "id": "store_store_createconversation",
+      "community": 16,
+      "community_name": "Hub",
+      "norm_label": ".createconversation()"
+    },
+    {
+      "label": ".DeleteConversation()",
+      "file_type": "code",
+      "source_file": "internal/store/store.go",
+      "source_location": "L111",
+      "_origin": "ast",
+      "id": "store_store_deleteconversation",
+      "community": 16,
+      "community_name": "Hub",
+      "norm_label": ".deleteconversation()"
+    },
+    {
+      "label": ".EnsureMetadata()",
+      "file_type": "code",
+      "source_file": "internal/store/store.go",
+      "source_location": "L64",
+      "_origin": "ast",
+      "id": "store_store_ensuremetadata",
+      "community": 16,
+      "community_name": "Hub",
+      "norm_label": ".ensuremetadata()"
+    },
+    {
+      "label": ".ListConversations()",
+      "file_type": "code",
+      "source_file": "internal/store/store.go",
+      "source_location": "L148",
+      "_origin": "ast",
+      "id": "store_store_listconversations",
+      "community": 16,
+      "community_name": "Hub",
+      "norm_label": ".listconversations()"
+    },
+    {
+      "label": ".Messages()",
+      "file_type": "code",
+      "source_file": "internal/store/store.go",
+      "source_location": "L169",
+      "_origin": "ast",
+      "id": "store_store_messages",
+      "community": 16,
+      "community_name": "Hub",
+      "norm_label": ".messages()"
+    },
+    {
+      "label": ".SetClaudeSessionID()",
+      "file_type": "code",
+      "source_file": "internal/store/store.go",
+      "source_location": "L131",
+      "_origin": "ast",
+      "id": "store_store_setclaudesessionid",
+      "community": 16,
+      "community_name": "Hub",
+      "norm_label": ".setclaudesessionid()"
+    },
+    {
       "label": "tsconfig.app.json",
       "file_type": "code",
       "source_file": "web/tsconfig.app.json",
@@ -6153,6 +6554,17 @@
       "norm_label": "iconbutton.tsx"
     },
     {
+      "label": "NotesView.tsx",
+      "file_type": "code",
+      "source_file": "web/src/components/NotesView.tsx",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "web_src_components_notesview",
+      "community": 18,
+      "community_name": "useAppSelector",
+      "norm_label": "notesview.tsx"
+    },
+    {
       "label": "NotificationPanel.tsx",
       "file_type": "code",
       "source_file": "web/src/components/NotificationPanel.tsx",
@@ -6173,61 +6585,6 @@
       "community": 18,
       "community_name": "useAppSelector",
       "norm_label": "notificationpanel.test.tsx"
-    },
-    {
-      "label": "notifications.tsx",
-      "file_type": "code",
-      "source_file": "web/src/components/notifications.tsx",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "web_src_components_notifications",
-      "community": 18,
-      "community_name": "useAppSelector",
-      "norm_label": "notifications.tsx"
-    },
-    {
-      "label": "NOTIFICATION_ICONS",
-      "file_type": "code",
-      "source_file": "web/src/components/notifications.tsx",
-      "source_location": "L5",
-      "_origin": "ast",
-      "id": "web_src_components_notifications_notification_icons",
-      "community": 18,
-      "community_name": "useAppSelector",
-      "norm_label": "notification_icons"
-    },
-    {
-      "label": "notifications.test.tsx",
-      "file_type": "code",
-      "source_file": "web/src/components/notifications.test.tsx",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "web_src_components_notifications_test",
-      "community": 18,
-      "community_name": "useAppSelector",
-      "norm_label": "notifications.test.tsx"
-    },
-    {
-      "label": "NotificationToasts.tsx",
-      "file_type": "code",
-      "source_file": "web/src/components/NotificationToasts.tsx",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "web_src_components_notificationtoasts",
-      "community": 18,
-      "community_name": "useAppSelector",
-      "norm_label": "notificationtoasts.tsx"
-    },
-    {
-      "label": "NotificationToasts.test.tsx",
-      "file_type": "code",
-      "source_file": "web/src/components/NotificationToasts.test.tsx",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "web_src_components_notificationtoasts_test",
-      "community": 18,
-      "community_name": "useAppSelector",
-      "norm_label": "notificationtoasts.test.tsx"
     },
     {
       "label": "SearchPanel.tsx",
@@ -6263,6 +6620,50 @@
       "norm_label": "topbar.tsx"
     },
     {
+      "label": "WikiTree.tsx",
+      "file_type": "code",
+      "source_file": "web/src/components/WikiTree.tsx",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "web_src_components_wikitree",
+      "community": 18,
+      "community_name": "useAppSelector",
+      "norm_label": "wikitree.tsx"
+    },
+    {
+      "label": "WikiTree.test.tsx",
+      "file_type": "code",
+      "source_file": "web/src/components/WikiTree.test.tsx",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "web_src_components_wikitree_test",
+      "community": 18,
+      "community_name": "useAppSelector",
+      "norm_label": "wikitree.test.tsx"
+    },
+    {
+      "label": "mocks",
+      "file_type": "code",
+      "source_file": "web/src/components/WikiTree.test.tsx",
+      "source_location": "L9",
+      "_origin": "ast",
+      "id": "web_src_components_wikitree_test_mocks",
+      "community": 18,
+      "community_name": "useAppSelector",
+      "norm_label": "mocks"
+    },
+    {
+      "label": "treeResponse",
+      "file_type": "code",
+      "source_file": "web/src/components/WikiTree.test.tsx",
+      "source_location": "L52",
+      "_origin": "ast",
+      "id": "web_src_components_wikitree_test_treeresponse",
+      "community": 18,
+      "community_name": "useAppSelector",
+      "norm_label": "treeresponse"
+    },
+    {
       "label": "hooks.ts",
       "file_type": "code",
       "source_file": "web/src/store/hooks.ts",
@@ -6274,17 +6675,6 @@
       "norm_label": "hooks.ts"
     },
     {
-      "label": "useAppDispatch",
-      "file_type": "code",
-      "source_file": "web/src/store/hooks.ts",
-      "source_location": "L4",
-      "_origin": "ast",
-      "id": "web_src_store_hooks_useappdispatch",
-      "community": 18,
-      "community_name": "useAppSelector",
-      "norm_label": "useappdispatch"
-    },
-    {
       "label": "useAppSelector",
       "file_type": "code",
       "source_file": "web/src/store/hooks.ts",
@@ -6294,39 +6684,6 @@
       "community": 18,
       "community_name": "useAppSelector",
       "norm_label": "useappselector"
-    },
-    {
-      "label": "notificationsSlice.ts",
-      "file_type": "code",
-      "source_file": "web/src/store/slices/notificationsSlice.ts",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "web_src_store_slices_notificationsslice",
-      "community": 18,
-      "community_name": "useAppSelector",
-      "norm_label": "notificationsslice.ts"
-    },
-    {
-      "label": "initialState",
-      "file_type": "code",
-      "source_file": "web/src/store/slices/notificationsSlice.ts",
-      "source_location": "L20",
-      "_origin": "ast",
-      "id": "web_src_store_slices_notificationsslice_initialstate",
-      "community": 18,
-      "community_name": "useAppSelector",
-      "norm_label": "initialstate"
-    },
-    {
-      "label": "notificationsSlice",
-      "file_type": "code",
-      "source_file": "web/src/store/slices/notificationsSlice.ts",
-      "source_location": "L24",
-      "_origin": "ast",
-      "id": "web_src_store_slices_notificationsslice_notificationsslice",
-      "community": 18,
-      "community_name": "useAppSelector",
-      "norm_label": "notificationsslice"
     },
     {
       "label": "components.md",
@@ -6824,6 +7181,28 @@
       "norm_label": "wikitree"
     },
     {
+      "label": "ChatPanel.test.tsx",
+      "file_type": "code",
+      "source_file": "web/src/components/ChatPanel.test.tsx",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "web_src_components_chatpanel_test",
+      "community": 2,
+      "community_name": "renderWithStore",
+      "norm_label": "chatpanel.test.tsx"
+    },
+    {
+      "label": "mocks",
+      "file_type": "code",
+      "source_file": "web/src/components/ChatPanel.test.tsx",
+      "source_location": "L16",
+      "_origin": "ast",
+      "id": "web_src_components_chatpanel_test_mocks",
+      "community": 2,
+      "community_name": "renderWithStore",
+      "norm_label": "mocks"
+    },
+    {
       "label": "DashboardView.test.tsx",
       "file_type": "code",
       "source_file": "web/src/components/DashboardView.test.tsx",
@@ -6890,6 +7269,50 @@
       "norm_label": "mocks"
     },
     {
+      "label": "NoteViewer.test.tsx",
+      "file_type": "code",
+      "source_file": "web/src/components/NoteViewer.test.tsx",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "web_src_components_noteviewer_test",
+      "community": 2,
+      "community_name": "renderWithStore",
+      "norm_label": "noteviewer.test.tsx"
+    },
+    {
+      "label": "mocks",
+      "file_type": "code",
+      "source_file": "web/src/components/NoteViewer.test.tsx",
+      "source_location": "L9",
+      "_origin": "ast",
+      "id": "web_src_components_noteviewer_test_mocks",
+      "community": 2,
+      "community_name": "renderWithStore",
+      "norm_label": "mocks"
+    },
+    {
+      "label": "SearchPanel.test.tsx",
+      "file_type": "code",
+      "source_file": "web/src/components/SearchPanel.test.tsx",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "web_src_components_searchpanel_test",
+      "community": 2,
+      "community_name": "renderWithStore",
+      "norm_label": "searchpanel.test.tsx"
+    },
+    {
+      "label": "mocks",
+      "file_type": "code",
+      "source_file": "web/src/components/SearchPanel.test.tsx",
+      "source_location": "L8",
+      "_origin": "ast",
+      "id": "web_src_components_searchpanel_test_mocks",
+      "community": 2,
+      "community_name": "renderWithStore",
+      "norm_label": "mocks"
+    },
+    {
       "label": "TopBar.test.tsx",
       "file_type": "code",
       "source_file": "web/src/components/TopBar.test.tsx",
@@ -6901,37 +7324,15 @@
       "norm_label": "topbar.test.tsx"
     },
     {
-      "label": "WikiTree.test.tsx",
+      "label": "mockAxios.ts",
       "file_type": "code",
-      "source_file": "web/src/components/WikiTree.test.tsx",
+      "source_file": "web/src/test/mockAxios.ts",
       "source_location": "L1",
       "_origin": "ast",
-      "id": "web_src_components_wikitree_test",
+      "id": "web_src_test_mockaxios",
       "community": 2,
       "community_name": "renderWithStore",
-      "norm_label": "wikitree.test.tsx"
-    },
-    {
-      "label": "mocks",
-      "file_type": "code",
-      "source_file": "web/src/components/WikiTree.test.tsx",
-      "source_location": "L9",
-      "_origin": "ast",
-      "id": "web_src_components_wikitree_test_mocks",
-      "community": 2,
-      "community_name": "renderWithStore",
-      "norm_label": "mocks"
-    },
-    {
-      "label": "treeResponse",
-      "file_type": "code",
-      "source_file": "web/src/components/WikiTree.test.tsx",
-      "source_location": "L52",
-      "_origin": "ast",
-      "id": "web_src_components_wikitree_test_treeresponse",
-      "community": 2,
-      "community_name": "renderWithStore",
-      "norm_label": "treeresponse"
+      "norm_label": "mockaxios.ts"
     },
     {
       "label": "renderWithStore.tsx",
@@ -7352,28 +7753,6 @@
       "norm_label": ".unregister()"
     },
     {
-      "label": "poolEntry",
-      "file_type": "code",
-      "source_file": "internal/claude/persistent.go",
-      "source_location": "L64",
-      "_origin": "ast",
-      "id": "claude_poolentry",
-      "community": 22,
-      "community_name": "PersistentClient",
-      "norm_label": "poolentry"
-    },
-    {
-      "label": "proc",
-      "file_type": "code",
-      "source_file": "internal/claude/persistent.go",
-      "source_location": "L43",
-      "_origin": "ast",
-      "id": "claude_proc",
-      "community": 22,
-      "community_name": "PersistentClient",
-      "norm_label": "proc"
-    },
-    {
       "label": "startConfig",
       "file_type": "code",
       "source_file": "internal/claude/client.go",
@@ -7396,39 +7775,6 @@
       "norm_label": "cliclient"
     },
     {
-      "label": "bufio.Writer",
-      "file_type": "code",
-      "source_file": "",
-      "source_location": "",
-      "_origin": "ast",
-      "id": "go_type_bufio_writer",
-      "community": 22,
-      "community_name": "PersistentClient",
-      "norm_label": "bufio.writer"
-    },
-    {
-      "label": "io.ReadCloser",
-      "file_type": "code",
-      "source_file": "",
-      "source_location": "",
-      "_origin": "ast",
-      "id": "go_type_io_readcloser",
-      "community": 22,
-      "community_name": "PersistentClient",
-      "norm_label": "io.readcloser"
-    },
-    {
-      "label": "os.File",
-      "file_type": "code",
-      "source_file": "",
-      "source_location": "",
-      "_origin": "ast",
-      "id": "go_type_os_file",
-      "community": 22,
-      "community_name": "PersistentClient",
-      "norm_label": "os.file"
-    },
-    {
       "label": "time.Duration",
       "file_type": "code",
       "source_file": "",
@@ -7438,50 +7784,6 @@
       "community": 22,
       "community_name": "PersistentClient",
       "norm_label": "time.duration"
-    },
-    {
-      "label": "time.Timer",
-      "file_type": "code",
-      "source_file": "",
-      "source_location": "",
-      "_origin": "ast",
-      "id": "go_type_time_timer",
-      "community": 22,
-      "community_name": "PersistentClient",
-      "norm_label": "time.timer"
-    },
-    {
-      "label": "openDebugDump()",
-      "file_type": "code",
-      "source_file": "internal/claude/client.go",
-      "source_location": "L129",
-      "_origin": "ast",
-      "id": "internal_claude_client_opendebugdump",
-      "community": 22,
-      "community_name": "PersistentClient",
-      "norm_label": "opendebugdump()"
-    },
-    {
-      "label": "persistent.go",
-      "file_type": "code",
-      "source_file": "internal/claude/persistent.go",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "internal_claude_persistent",
-      "community": 22,
-      "community_name": "PersistentClient",
-      "norm_label": "persistent.go"
-    },
-    {
-      "label": "turnFailure()",
-      "file_type": "code",
-      "source_file": "internal/claude/persistent.go",
-      "source_location": "L332",
-      "_origin": "ast",
-      "id": "internal_claude_persistent_turnfailure",
-      "community": 22,
-      "community_name": "PersistentClient",
-      "norm_label": "turnfailure()"
     },
     {
       "label": "ChatPanel.tsx",
@@ -7539,72 +7841,6 @@
       "norm_label": "getconversation"
     },
     {
-      "label": "CodeBlock.tsx",
-      "file_type": "code",
-      "source_file": "web/src/components/CodeBlock.tsx",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "web_src_components_codeblock",
-      "community": 24,
-      "community_name": "Toast.tsx",
-      "norm_label": "codeblock.tsx"
-    },
-    {
-      "label": "cache",
-      "file_type": "code",
-      "source_file": "web/src/components/CodeBlock.tsx",
-      "source_location": "L7",
-      "_origin": "ast",
-      "id": "web_src_components_codeblock_cache",
-      "community": 24,
-      "community_name": "Toast.tsx",
-      "norm_label": "cache"
-    },
-    {
-      "label": "CodeBlock.test.tsx",
-      "file_type": "code",
-      "source_file": "web/src/components/CodeBlock.test.tsx",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "web_src_components_codeblock_test",
-      "community": 24,
-      "community_name": "Toast.tsx",
-      "norm_label": "codeblock.test.tsx"
-    },
-    {
-      "label": "mocks",
-      "file_type": "code",
-      "source_file": "web/src/components/CodeBlock.test.tsx",
-      "source_location": "L8",
-      "_origin": "ast",
-      "id": "web_src_components_codeblock_test_mocks",
-      "community": 24,
-      "community_name": "Toast.tsx",
-      "norm_label": "mocks"
-    },
-    {
-      "label": "CopyButton.tsx",
-      "file_type": "code",
-      "source_file": "web/src/components/CopyButton.tsx",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "web_src_components_copybutton",
-      "community": 24,
-      "community_name": "Toast.tsx",
-      "norm_label": "copybutton.tsx"
-    },
-    {
-      "label": "CopyButton.test.tsx",
-      "file_type": "code",
-      "source_file": "web/src/components/CopyButton.test.tsx",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "web_src_components_copybutton_test",
-      "community": 24,
-      "community_name": "Toast.tsx",
-      "norm_label": "copybutton.test.tsx"
-    },
-    {
       "label": "MessageItem.test.tsx",
       "file_type": "code",
       "source_file": "web/src/components/MessageItem.test.tsx",
@@ -7625,6 +7861,17 @@
       "community": 24,
       "community_name": "Toast.tsx",
       "norm_label": "toast.tsx"
+    },
+    {
+      "label": "Toast.test.tsx",
+      "file_type": "code",
+      "source_file": "web/src/components/Toast.test.tsx",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "web_src_components_toast_test",
+      "community": 24,
+      "community_name": "Toast.tsx",
+      "norm_label": "toast.test.tsx"
     },
     {
       "label": "ToastContext",
@@ -7891,17 +8138,6 @@
       "norm_label": ".set()"
     },
     {
-      "label": "echo.MiddlewareFunc",
-      "file_type": "code",
-      "source_file": "",
-      "source_location": "",
-      "_origin": "ast",
-      "id": "echo_middlewarefunc",
-      "community": 28,
-      "community_name": "runServe",
-      "norm_label": "echo.middlewarefunc"
-    },
-    {
       "label": "log/slog.Logger",
       "file_type": "code",
       "source_file": "",
@@ -7922,28 +8158,6 @@
       "community": 28,
       "community_name": "runServe",
       "norm_label": "sync.rwmutex"
-    },
-    {
-      "label": "logging.go",
-      "file_type": "code",
-      "source_file": "internal/api/logging.go",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "internal_api_logging",
-      "community": 28,
-      "community_name": "runServe",
-      "norm_label": "logging.go"
-    },
-    {
-      "label": "requestLog()",
-      "file_type": "code",
-      "source_file": "internal/api/logging.go",
-      "source_location": "L15",
-      "_origin": "ast",
-      "id": "internal_api_logging_requestlog",
-      "community": 28,
-      "community_name": "runServe",
-      "norm_label": "requestlog()"
     },
     {
       "label": "serve.go",
@@ -8296,6 +8510,17 @@
       "community": 29,
       "community_name": "Workflows",
       "norm_label": "workflows"
+    },
+    {
+      "label": "time.Time",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "go_type_time_time",
+      "community": 3,
+      "community_name": "Open",
+      "norm_label": "time.time"
     },
     {
       "label": "dbLike",
@@ -9805,6 +10030,28 @@
       "norm_label": "internal/wiki"
     },
     {
+      "label": "Event",
+      "file_type": "code",
+      "source_file": "internal/claude/events.go",
+      "source_location": "L22",
+      "_origin": "ast",
+      "id": "claude_event",
+      "community": 4,
+      "community_name": "WriterFunc",
+      "norm_label": "event"
+    },
+    {
+      "label": "EventType",
+      "file_type": "code",
+      "source_file": "internal/claude/events.go",
+      "source_location": "L12",
+      "_origin": "ast",
+      "id": "claude_eventtype",
+      "community": 4,
+      "community_name": "WriterFunc",
+      "norm_label": "eventtype"
+    },
+    {
       "label": "Option",
       "file_type": "code",
       "source_file": "internal/claude/client.go",
@@ -9816,6 +10063,39 @@
       "norm_label": "option"
     },
     {
+      "label": "rawBlock",
+      "file_type": "code",
+      "source_file": "internal/claude/events.go",
+      "source_location": "L54",
+      "_origin": "ast",
+      "id": "claude_rawblock",
+      "community": 4,
+      "community_name": "WriterFunc",
+      "norm_label": "rawblock"
+    },
+    {
+      "label": "rawLine",
+      "file_type": "code",
+      "source_file": "internal/claude/events.go",
+      "source_location": "L43",
+      "_origin": "ast",
+      "id": "claude_rawline",
+      "community": 4,
+      "community_name": "WriterFunc",
+      "norm_label": "rawline"
+    },
+    {
+      "label": "rawMsg",
+      "file_type": "code",
+      "source_file": "internal/claude/events.go",
+      "source_location": "L50",
+      "_origin": "ast",
+      "id": "claude_rawmsg",
+      "community": 4,
+      "community_name": "WriterFunc",
+      "norm_label": "rawmsg"
+    },
+    {
       "label": "StartOption",
       "file_type": "code",
       "source_file": "internal/claude/client.go",
@@ -9825,6 +10105,28 @@
       "community": 4,
       "community_name": "WriterFunc",
       "norm_label": "startoption"
+    },
+    {
+      "label": ".Write()",
+      "file_type": "code",
+      "source_file": "internal/claude/events.go",
+      "source_location": "L36",
+      "_origin": "ast",
+      "id": "claude_writerfunc_write",
+      "community": 4,
+      "community_name": "WriterFunc",
+      "norm_label": ".write()"
+    },
+    {
+      "label": "encoding/json.RawMessage",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "go_type_encoding_json_rawmessage",
+      "community": 4,
+      "community_name": "WriterFunc",
+      "norm_label": "encoding/json.rawmessage"
     },
     {
       "label": "claude/client.go",
@@ -10111,6 +10413,17 @@
       "community": 4,
       "community_name": "WriterFunc",
       "norm_label": "withresume()"
+    },
+    {
+      "label": "events.go",
+      "file_type": "code",
+      "source_file": "internal/claude/events.go",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "internal_claude_events",
+      "community": 4,
+      "community_name": "WriterFunc",
+      "norm_label": "events.go"
     },
     {
       "label": "WriterFunc",
@@ -10586,6 +10899,17 @@
       "norm_label": "views"
     },
     {
+      "label": "SetupScreen.tsx",
+      "file_type": "code",
+      "source_file": "web/src/components/SetupScreen.tsx",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "web_src_components_setupscreen",
+      "community": 41,
+      "community_name": "App.tsx",
+      "norm_label": "setupscreen.tsx"
+    },
+    {
       "label": "useView.ts",
       "file_type": "code",
       "source_file": "web/src/hooks/useView.ts",
@@ -10663,6 +10987,17 @@
       "norm_label": "store"
     },
     {
+      "label": "healthSlice.ts",
+      "file_type": "code",
+      "source_file": "web/src/store/slices/healthSlice.ts",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "web_src_store_slices_healthslice",
+      "community": 41,
+      "community_name": "App.tsx",
+      "norm_label": "healthslice.ts"
+    },
+    {
       "label": "fetchHealth",
       "file_type": "code",
       "source_file": "web/src/store/slices/healthSlice.ts",
@@ -10672,6 +11007,61 @@
       "community": 41,
       "community_name": "App.tsx",
       "norm_label": "fetchhealth"
+    },
+    {
+      "label": "healthSlice",
+      "file_type": "code",
+      "source_file": "web/src/store/slices/healthSlice.ts",
+      "source_location": "L15",
+      "_origin": "ast",
+      "id": "web_src_store_slices_healthslice_healthslice",
+      "community": 41,
+      "community_name": "App.tsx",
+      "norm_label": "healthslice"
+    },
+    {
+      "label": "initialState",
+      "file_type": "code",
+      "source_file": "web/src/store/slices/healthSlice.ts",
+      "source_location": "L13",
+      "_origin": "ast",
+      "id": "web_src_store_slices_healthslice_initialstate",
+      "community": 41,
+      "community_name": "App.tsx",
+      "norm_label": "initialstate"
+    },
+    {
+      "label": "healthSlice.test.ts",
+      "file_type": "code",
+      "source_file": "web/src/store/slices/healthSlice.test.ts",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "web_src_store_slices_healthslice_test",
+      "community": 41,
+      "community_name": "App.tsx",
+      "norm_label": "healthslice.test.ts"
+    },
+    {
+      "label": "healthy",
+      "file_type": "code",
+      "source_file": "web/src/store/slices/healthSlice.test.ts",
+      "source_location": "L10",
+      "_origin": "ast",
+      "id": "web_src_store_slices_healthslice_test_healthy",
+      "community": 41,
+      "community_name": "App.tsx",
+      "norm_label": "healthy"
+    },
+    {
+      "label": "mocks",
+      "file_type": "code",
+      "source_file": "web/src/store/slices/healthSlice.test.ts",
+      "source_location": "L7",
+      "_origin": "ast",
+      "id": "web_src_store_slices_healthslice_test_mocks",
+      "community": 41,
+      "community_name": "App.tsx",
+      "norm_label": "mocks"
     },
     {
       "label": ".oxlintrc.json",
@@ -10773,6 +11163,28 @@
       "norm_label": "warn"
     },
     {
+      "label": "os.File",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "go_type_os_file",
+      "community": 45,
+      "community_name": "startupBanner",
+      "norm_label": "os.file"
+    },
+    {
+      "label": "openDebugDump()",
+      "file_type": "code",
+      "source_file": "internal/claude/client.go",
+      "source_location": "L129",
+      "_origin": "ast",
+      "id": "internal_claude_client_opendebugdump",
+      "community": 45,
+      "community_name": "startupBanner",
+      "norm_label": "opendebugdump()"
+    },
+    {
       "label": "banner.go",
       "file_type": "code",
       "source_file": "internal/cli/banner.go",
@@ -10861,136 +11273,229 @@
       "norm_label": "teststartupbannershowsthebigwordmark()"
     },
     {
-      "label": "ParseLine()",
+      "label": "pr.sh",
       "file_type": "code",
-      "source_file": "internal/claude/events.go",
-      "source_location": "L63",
-      "_origin": "ast",
-      "id": "internal_claude_events_parseline",
-      "community": 46,
-      "community_name": "ParseLine",
-      "norm_label": "parseline()"
-    },
-    {
-      "label": "events_test.go",
-      "file_type": "code",
-      "source_file": "internal/claude/events_test.go",
+      "source_file": "scripts/pr.sh",
       "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "file"
+      },
       "_origin": "ast",
-      "id": "internal_claude_events_test",
+      "id": "scripts_pr",
       "community": 46,
-      "community_name": "ParseLine",
-      "norm_label": "events_test.go"
+      "community_name": "pr.sh",
+      "norm_label": "pr.sh"
     },
     {
-      "label": "TestParseLineAssistantText()",
+      "label": "check_worktree()",
       "file_type": "code",
-      "source_file": "internal/claude/events_test.go",
-      "source_location": "L8",
+      "source_file": "scripts/pr.sh",
+      "source_location": "L61",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_function"
+      },
       "_origin": "ast",
-      "id": "internal_claude_events_test_testparselineassistanttext",
+      "id": "scripts_pr_check_worktree",
       "community": 46,
-      "community_name": "ParseLine",
-      "norm_label": "testparselineassistanttext()"
+      "community_name": "pr.sh",
+      "norm_label": "check_worktree()"
     },
     {
-      "label": "TestParseLineAssistantWithEmptyText()",
+      "label": "derive_labels()",
       "file_type": "code",
-      "source_file": "internal/claude/events_test.go",
-      "source_location": "L60",
+      "source_file": "scripts/pr.sh",
+      "source_location": "L155",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_function"
+      },
       "_origin": "ast",
-      "id": "internal_claude_events_test_testparselineassistantwithemptytext",
+      "id": "scripts_pr_derive_labels",
       "community": 46,
-      "community_name": "ParseLine",
-      "norm_label": "testparselineassistantwithemptytext()"
+      "community_name": "pr.sh",
+      "norm_label": "derive_labels()"
     },
     {
-      "label": "TestParseLineAssistantWithoutMessage()",
+      "label": "derive_title()",
       "file_type": "code",
-      "source_file": "internal/claude/events_test.go",
+      "source_file": "scripts/pr.sh",
+      "source_location": "L211",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_function"
+      },
+      "_origin": "ast",
+      "id": "scripts_pr_derive_title",
+      "community": 46,
+      "community_name": "pr.sh",
+      "norm_label": "derive_title()"
+    },
+    {
+      "label": "die()",
+      "file_type": "code",
+      "source_file": "scripts/pr.sh",
+      "source_location": "L32",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_function"
+      },
+      "_origin": "ast",
+      "id": "scripts_pr_die",
+      "community": 46,
+      "community_name": "pr.sh",
+      "norm_label": "die()"
+    },
+    {
+      "label": "label_known()",
+      "file_type": "code",
+      "source_file": "scripts/pr.sh",
       "source_location": "L52",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_function"
+      },
       "_origin": "ast",
-      "id": "internal_claude_events_test_testparselineassistantwithoutmessage",
+      "id": "scripts_pr_label_known",
       "community": 46,
-      "community_name": "ParseLine",
-      "norm_label": "testparselineassistantwithoutmessage()"
+      "community_name": "pr.sh",
+      "norm_label": "label_known()"
     },
     {
-      "label": "TestParseLineIgnoresStringShapedMessage()",
+      "label": "load_label_sets()",
       "file_type": "code",
-      "source_file": "internal/claude/events_test.go",
-      "source_location": "L97",
+      "source_file": "scripts/pr.sh",
+      "source_location": "L41",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_function"
+      },
       "_origin": "ast",
-      "id": "internal_claude_events_test_testparselineignoresstringshapedmessage",
+      "id": "scripts_pr_load_label_sets",
       "community": 46,
-      "community_name": "ParseLine",
-      "norm_label": "testparselineignoresstringshapedmessage()"
+      "community_name": "pr.sh",
+      "norm_label": "load_label_sets()"
     },
     {
-      "label": "TestParseLineIgnoresUnknown()",
+      "label": "main()",
       "file_type": "code",
-      "source_file": "internal/claude/events_test.go",
-      "source_location": "L39",
+      "source_file": "scripts/pr.sh",
+      "source_location": "L280",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_function"
+      },
       "_origin": "ast",
-      "id": "internal_claude_events_test_testparselineignoresunknown",
+      "id": "scripts_pr_main",
       "community": 46,
-      "community_name": "ParseLine",
-      "norm_label": "testparselineignoresunknown()"
+      "community_name": "pr.sh",
+      "norm_label": "main()"
     },
     {
-      "label": "TestParseLineRejectsGarbage()",
+      "label": "parse_branch()",
       "file_type": "code",
-      "source_file": "internal/claude/events_test.go",
-      "source_location": "L46",
+      "source_file": "scripts/pr.sh",
+      "source_location": "L120",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_function"
+      },
       "_origin": "ast",
-      "id": "internal_claude_events_test_testparselinerejectsgarbage",
+      "id": "scripts_pr_parse_branch",
       "community": 46,
-      "community_name": "ParseLine",
-      "norm_label": "testparselinerejectsgarbage()"
+      "community_name": "pr.sh",
+      "norm_label": "parse_branch()"
     },
     {
-      "label": "TestParseLineResult()",
+      "label": "preflight()",
       "file_type": "code",
-      "source_file": "internal/claude/events_test.go",
-      "source_location": "L28",
+      "source_file": "scripts/pr.sh",
+      "source_location": "L95",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_function"
+      },
       "_origin": "ast",
-      "id": "internal_claude_events_test_testparselineresult",
+      "id": "scripts_pr_preflight",
       "community": 46,
-      "community_name": "ParseLine",
-      "norm_label": "testparselineresult()"
+      "community_name": "pr.sh",
+      "norm_label": "preflight()"
     },
     {
-      "label": "TestParseLineThinking()",
+      "label": "push_and_open()",
       "file_type": "code",
-      "source_file": "internal/claude/events_test.go",
-      "source_location": "L72",
+      "source_file": "scripts/pr.sh",
+      "source_location": "L245",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_function"
+      },
       "_origin": "ast",
-      "id": "internal_claude_events_test_testparselinethinking",
+      "id": "scripts_pr_push_and_open",
       "community": 46,
-      "community_name": "ParseLine",
-      "norm_label": "testparselinethinking()"
+      "community_name": "pr.sh",
+      "norm_label": "push_and_open()"
     },
     {
-      "label": "TestParseLineToolUse()",
+      "label": "run_checks()",
       "file_type": "code",
-      "source_file": "internal/claude/events_test.go",
-      "source_location": "L18",
+      "source_file": "scripts/pr.sh",
+      "source_location": "L199",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_function"
+      },
       "_origin": "ast",
-      "id": "internal_claude_events_test_testparselinetooluse",
+      "id": "scripts_pr_run_checks",
       "community": 46,
-      "community_name": "ParseLine",
-      "norm_label": "testparselinetooluse()"
+      "community_name": "pr.sh",
+      "norm_label": "run_checks()"
     },
     {
-      "label": "TestWriterFuncAdapter()",
+      "label": "run_graph_check()",
       "file_type": "code",
-      "source_file": "internal/claude/events_test.go",
-      "source_location": "L89",
+      "source_file": "scripts/pr.sh",
+      "source_location": "L195",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_function"
+      },
       "_origin": "ast",
-      "id": "internal_claude_events_test_testwriterfuncadapter",
+      "id": "scripts_pr_run_graph_check",
       "community": 46,
-      "community_name": "ParseLine",
-      "norm_label": "testwriterfuncadapter()"
+      "community_name": "pr.sh",
+      "norm_label": "run_graph_check()"
+    },
+    {
+      "label": "pr.sh script",
+      "file_type": "code",
+      "source_file": "scripts/pr.sh",
+      "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_entrypoint"
+      },
+      "_origin": "ast",
+      "id": "scripts_pr_sh__entry",
+      "community": 46,
+      "community_name": "pr.sh",
+      "norm_label": "pr.sh script"
+    },
+    {
+      "label": "sync_main()",
+      "file_type": "code",
+      "source_file": "scripts/pr.sh",
+      "source_location": "L112",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_function"
+      },
+      "_origin": "ast",
+      "id": "scripts_pr_sync_main",
+      "community": 46,
+      "community_name": "pr.sh",
+      "norm_label": "sync_main()"
     },
     {
       "label": "git-workflow/SKILL.md",
@@ -11018,7 +11523,7 @@
       "label": "2. Commit",
       "file_type": "document",
       "source_file": ".claude/skills/git-workflow/SKILL.md",
-      "source_location": "L36",
+      "source_location": "L38",
       "_origin": "ast",
       "id": "claude_skills_git_workflow_skill_2_commit",
       "community": 47,
@@ -11029,7 +11534,7 @@
       "label": "3. Open a PR",
       "file_type": "document",
       "source_file": ".claude/skills/git-workflow/SKILL.md",
-      "source_location": "L44",
+      "source_location": "L46",
       "_origin": "ast",
       "id": "claude_skills_git_workflow_skill_3_open_a_pr",
       "community": 47,
@@ -11040,7 +11545,7 @@
       "label": "4. Label issues and PRs",
       "file_type": "document",
       "source_file": ".claude/skills/git-workflow/SKILL.md",
-      "source_location": "L56",
+      "source_location": "L59",
       "_origin": "ast",
       "id": "claude_skills_git_workflow_skill_4_label_issues_and_prs",
       "community": 47,
@@ -11051,7 +11556,7 @@
       "label": "5. Design doc first (large or cross-package changes)",
       "file_type": "document",
       "source_file": ".claude/skills/git-workflow/SKILL.md",
-      "source_location": "L64",
+      "source_location": "L68",
       "_origin": "ast",
       "id": "claude_skills_git_workflow_skill_5_design_doc_first_large_or_cross_package_changes",
       "community": 47,
@@ -11062,7 +11567,7 @@
       "label": "6. Merge is human-only \u2014 squash by default",
       "file_type": "document",
       "source_file": ".claude/skills/git-workflow/SKILL.md",
-      "source_location": "L69",
+      "source_location": "L73",
       "_origin": "ast",
       "id": "claude_skills_git_workflow_skill_6_merge_is_human_only_squash_by_default",
       "community": 47,
@@ -11073,7 +11578,7 @@
       "label": "Canonical docs",
       "file_type": "document",
       "source_file": ".claude/skills/git-workflow/SKILL.md",
-      "source_location": "L82",
+      "source_location": "L86",
       "_origin": "ast",
       "id": "claude_skills_git_workflow_skill_canonical_docs",
       "community": 47,
@@ -11095,7 +11600,7 @@
       "label": "Gotchas",
       "file_type": "document",
       "source_file": ".claude/skills/git-workflow/SKILL.md",
-      "source_location": "L75",
+      "source_location": "L79",
       "_origin": "ast",
       "id": "claude_skills_git_workflow_skill_gotchas",
       "community": 47,
@@ -11117,7 +11622,7 @@
       "label": "Maintenance",
       "file_type": "document",
       "source_file": ".claude/skills/git-workflow/SKILL.md",
-      "source_location": "L88",
+      "source_location": "L92",
       "_origin": "ast",
       "id": "claude_skills_git_workflow_skill_maintenance",
       "community": 47,
@@ -11797,6 +12302,28 @@
       "norm_label": "wsupgradeok()"
     },
     {
+      "label": "scaffold.go",
+      "file_type": "code",
+      "source_file": "internal/wiki/scaffold.go",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "internal_wiki_scaffold",
+      "community": 5,
+      "community_name": "Run",
+      "norm_label": "scaffold.go"
+    },
+    {
+      "label": "Folders()",
+      "file_type": "code",
+      "source_file": "internal/wiki/scaffold.go",
+      "source_location": "L15",
+      "_origin": "ast",
+      "id": "internal_wiki_scaffold_folders",
+      "community": 5,
+      "community_name": "Run",
+      "norm_label": "folders()"
+    },
+    {
       "label": "react/SKILL.md",
       "file_type": "document",
       "source_file": ".claude/skills/react/SKILL.md",
@@ -12108,7 +12635,7 @@
       "_origin": "ast",
       "id": "github_repo",
       "community": 6,
-      "community_name": "Open",
+      "community_name": "openTestRepo",
       "norm_label": "repo"
     },
     {
@@ -12119,7 +12646,7 @@
       "_origin": "ast",
       "id": "github_repo_clear",
       "community": 6,
-      "community_name": "Open",
+      "community_name": "openTestRepo",
       "norm_label": ".clear()"
     },
     {
@@ -12130,7 +12657,7 @@
       "_origin": "ast",
       "id": "github_repo_close",
       "community": 6,
-      "community_name": "Open",
+      "community_name": "openTestRepo",
       "norm_label": ".close()"
     },
     {
@@ -12141,7 +12668,7 @@
       "_origin": "ast",
       "id": "github_repo_get",
       "community": 6,
-      "community_name": "Open",
+      "community_name": "openTestRepo",
       "norm_label": ".get()"
     },
     {
@@ -12152,30 +12679,8 @@
       "_origin": "ast",
       "id": "github_repo_save",
       "community": 6,
-      "community_name": "Open",
+      "community_name": "openTestRepo",
       "norm_label": ".save()"
-    },
-    {
-      "label": "database/sql.DB",
-      "file_type": "code",
-      "source_file": "",
-      "source_location": "",
-      "_origin": "ast",
-      "id": "go_type_database_sql_db",
-      "community": 6,
-      "community_name": "Open",
-      "norm_label": "database/sql.db"
-    },
-    {
-      "label": "time.Time",
-      "file_type": "code",
-      "source_file": "",
-      "source_location": "",
-      "_origin": "ast",
-      "id": "go_type_time_time",
-      "community": 6,
-      "community_name": "Open",
-      "norm_label": "time.time"
     },
     {
       "label": "repo.go",
@@ -12185,7 +12690,7 @@
       "_origin": "ast",
       "id": "internal_github_repo",
       "community": 6,
-      "community_name": "Open",
+      "community_name": "openTestRepo",
       "norm_label": "repo.go"
     },
     {
@@ -12196,7 +12701,7 @@
       "_origin": "ast",
       "id": "internal_github_repo_go_github_auth",
       "community": 6,
-      "community_name": "Open",
+      "community_name": "openTestRepo",
       "norm_label": "auth"
     },
     {
@@ -12207,7 +12712,7 @@
       "_origin": "ast",
       "id": "internal_github_repo_openrepo",
       "community": 6,
-      "community_name": "Open",
+      "community_name": "openTestRepo",
       "norm_label": "openrepo()"
     },
     {
@@ -12218,7 +12723,7 @@
       "_origin": "ast",
       "id": "internal_github_repo_test",
       "community": 6,
-      "community_name": "Open",
+      "community_name": "openTestRepo",
       "norm_label": "repo_test.go"
     },
     {
@@ -12229,7 +12734,7 @@
       "_origin": "ast",
       "id": "internal_github_repo_test_go_repo",
       "community": 6,
-      "community_name": "Open",
+      "community_name": "openTestRepo",
       "norm_label": "repo"
     },
     {
@@ -12240,7 +12745,7 @@
       "_origin": "ast",
       "id": "internal_github_repo_test_opentestrepo",
       "community": 6,
-      "community_name": "Open",
+      "community_name": "openTestRepo",
       "norm_label": "opentestrepo()"
     },
     {
@@ -12251,7 +12756,7 @@
       "_origin": "ast",
       "id": "internal_github_repo_test_saved",
       "community": 6,
-      "community_name": "Open",
+      "community_name": "openTestRepo",
       "norm_label": "saved()"
     },
     {
@@ -12262,7 +12767,7 @@
       "_origin": "ast",
       "id": "internal_github_repo_test_testrepoclear",
       "community": 6,
-      "community_name": "Open",
+      "community_name": "openTestRepo",
       "norm_label": "testrepoclear()"
     },
     {
@@ -12273,7 +12778,7 @@
       "_origin": "ast",
       "id": "internal_github_repo_test_testrepoclosederrors",
       "community": 6,
-      "community_name": "Open",
+      "community_name": "openTestRepo",
       "norm_label": "testrepoclosederrors()"
     },
     {
@@ -12284,7 +12789,7 @@
       "_origin": "ast",
       "id": "internal_github_repo_test_testreporoundtrip",
       "community": 6,
-      "community_name": "Open",
+      "community_name": "openTestRepo",
       "norm_label": "testreporoundtrip()"
     },
     {
@@ -12295,371 +12800,8 @@
       "_origin": "ast",
       "id": "internal_github_repo_test_testreposinglerowconstraint",
       "community": 6,
-      "community_name": "Open",
+      "community_name": "openTestRepo",
       "norm_label": "testreposinglerowconstraint()"
-    },
-    {
-      "label": "migrations.go",
-      "file_type": "code",
-      "source_file": "internal/store/migrations.go",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "internal_store_migrations",
-      "community": 6,
-      "community_name": "Open",
-      "norm_label": "migrations.go"
-    },
-    {
-      "label": "applyMigration()",
-      "file_type": "code",
-      "source_file": "internal/store/migrations.go",
-      "source_location": "L81",
-      "_origin": "ast",
-      "id": "internal_store_migrations_applymigration",
-      "community": 6,
-      "community_name": "Open",
-      "norm_label": "applymigration()"
-    },
-    {
-      "label": "migrate()",
-      "file_type": "code",
-      "source_file": "internal/store/migrations.go",
-      "source_location": "L22",
-      "_origin": "ast",
-      "id": "internal_store_migrations_migrate",
-      "community": 6,
-      "community_name": "Open",
-      "norm_label": "migrate()"
-    },
-    {
-      "label": "splitStatements()",
-      "file_type": "code",
-      "source_file": "internal/store/migrations.go",
-      "source_location": "L54",
-      "_origin": "ast",
-      "id": "internal_store_migrations_splitstatements",
-      "community": 6,
-      "community_name": "Open",
-      "norm_label": "splitstatements()"
-    },
-    {
-      "label": "sqlite.go",
-      "file_type": "code",
-      "source_file": "internal/store/sqlite.go",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "internal_store_sqlite",
-      "community": 6,
-      "community_name": "Open",
-      "norm_label": "sqlite.go"
-    },
-    {
-      "label": "OpenDB()",
-      "file_type": "code",
-      "source_file": "internal/store/sqlite.go",
-      "source_location": "L19",
-      "_origin": "ast",
-      "id": "internal_store_sqlite_opendb",
-      "community": 6,
-      "community_name": "Open",
-      "norm_label": "opendb()"
-    },
-    {
-      "label": "store.go",
-      "file_type": "code",
-      "source_file": "internal/store/store.go",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "internal_store_store",
-      "community": 6,
-      "community_name": "Open",
-      "norm_label": "store.go"
-    },
-    {
-      "label": "Store",
-      "file_type": "code",
-      "source_file": "internal/store/store.go",
-      "source_location": "L27",
-      "_origin": "ast",
-      "id": "internal_store_store_go_store_store",
-      "community": 6,
-      "community_name": "Open",
-      "norm_label": "store"
-    },
-    {
-      "label": "newID()",
-      "file_type": "code",
-      "source_file": "internal/store/store.go",
-      "source_location": "L49",
-      "_origin": "ast",
-      "id": "internal_store_store_newid",
-      "community": 6,
-      "community_name": "Open",
-      "norm_label": "newid()"
-    },
-    {
-      "label": "Open()",
-      "file_type": "code",
-      "source_file": "internal/store/store.go",
-      "source_location": "L31",
-      "_origin": "ast",
-      "id": "internal_store_store_open",
-      "community": 6,
-      "community_name": "Open",
-      "norm_label": "open()"
-    },
-    {
-      "label": "store_test.go",
-      "file_type": "code",
-      "source_file": "internal/store/store_test.go",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "internal_store_store_test",
-      "community": 6,
-      "community_name": "Open",
-      "norm_label": "store_test.go"
-    },
-    {
-      "label": "TestClosedStoreErrors()",
-      "file_type": "code",
-      "source_file": "internal/store/store_test.go",
-      "source_location": "L143",
-      "_origin": "ast",
-      "id": "internal_store_store_test_testclosedstoreerrors",
-      "community": 6,
-      "community_name": "Open",
-      "norm_label": "testclosedstoreerrors()"
-    },
-    {
-      "label": "TestConversationRoundTrip()",
-      "file_type": "code",
-      "source_file": "internal/store/store_test.go",
-      "source_location": "L11",
-      "_origin": "ast",
-      "id": "internal_store_store_test_testconversationroundtrip",
-      "community": 6,
-      "community_name": "Open",
-      "norm_label": "testconversationroundtrip()"
-    },
-    {
-      "label": "TestConversationSessionIDRoundTrip()",
-      "file_type": "code",
-      "source_file": "internal/store/store_test.go",
-      "source_location": "L239",
-      "_origin": "ast",
-      "id": "internal_store_store_test_testconversationsessionidroundtrip",
-      "community": 6,
-      "community_name": "Open",
-      "norm_label": "testconversationsessionidroundtrip()"
-    },
-    {
-      "label": "TestDeleteConversation()",
-      "file_type": "code",
-      "source_file": "internal/store/store_test.go",
-      "source_location": "L298",
-      "_origin": "ast",
-      "id": "internal_store_store_test_testdeleteconversation",
-      "community": 6,
-      "community_name": "Open",
-      "norm_label": "testdeleteconversation()"
-    },
-    {
-      "label": "TestEnsureMetadataSeedsOnce()",
-      "file_type": "code",
-      "source_file": "internal/store/store_test.go",
-      "source_location": "L197",
-      "_origin": "ast",
-      "id": "internal_store_store_test_testensuremetadataseedsonce",
-      "community": 6,
-      "community_name": "Open",
-      "norm_label": "testensuremetadataseedsonce()"
-    },
-    {
-      "label": "TestFreshOpenRunsAllMigrations()",
-      "file_type": "code",
-      "source_file": "internal/store/store_test.go",
-      "source_location": "L267",
-      "_origin": "ast",
-      "id": "internal_store_store_test_testfreshopenrunsallmigrations",
-      "community": 6,
-      "community_name": "Open",
-      "norm_label": "testfreshopenrunsallmigrations()"
-    },
-    {
-      "label": "TestListConversationsOrderedNewestFirst()",
-      "file_type": "code",
-      "source_file": "internal/store/store_test.go",
-      "source_location": "L57",
-      "_origin": "ast",
-      "id": "internal_store_store_test_testlistconversationsorderednewestfirst",
-      "community": 6,
-      "community_name": "Open",
-      "norm_label": "testlistconversationsorderednewestfirst()"
-    },
-    {
-      "label": "TestMessagesUnknownConversation()",
-      "file_type": "code",
-      "source_file": "internal/store/store_test.go",
-      "source_location": "L45",
-      "_origin": "ast",
-      "id": "internal_store_store_test_testmessagesunknownconversation",
-      "community": 6,
-      "community_name": "Open",
-      "norm_label": "testmessagesunknownconversation()"
-    },
-    {
-      "label": "TestNewIDIsUUIDShaped()",
-      "file_type": "code",
-      "source_file": "internal/store/store_test.go",
-      "source_location": "L172",
-      "_origin": "ast",
-      "id": "internal_store_store_test_testnewidisuuidshaped",
-      "community": 6,
-      "community_name": "Open",
-      "norm_label": "testnewidisuuidshaped()"
-    },
-    {
-      "label": "TestOpenDBSetsBusyTimeoutAndPool()",
-      "file_type": "code",
-      "source_file": "internal/store/store_test.go",
-      "source_location": "L333",
-      "_origin": "ast",
-      "id": "internal_store_store_test_testopendbsetsbusytimeoutandpool",
-      "community": 6,
-      "community_name": "Open",
-      "norm_label": "testopendbsetsbusytimeoutandpool()"
-    },
-    {
-      "label": "TestTimestampsStoredInUTC()",
-      "file_type": "code",
-      "source_file": "internal/store/store_test.go",
-      "source_location": "L110",
-      "_origin": "ast",
-      "id": "internal_store_store_test_testtimestampsstoredinutc",
-      "community": 6,
-      "community_name": "Open",
-      "norm_label": "testtimestampsstoredinutc()"
-    },
-    {
-      "label": "Conversation",
-      "file_type": "code",
-      "source_file": "internal/store/store.go",
-      "source_location": "L13",
-      "_origin": "ast",
-      "id": "store_conversation",
-      "community": 6,
-      "community_name": "Open",
-      "norm_label": "conversation"
-    },
-    {
-      "label": "Message",
-      "file_type": "code",
-      "source_file": "internal/store/store.go",
-      "source_location": "L19",
-      "_origin": "ast",
-      "id": "store_message",
-      "community": 6,
-      "community_name": "Open",
-      "norm_label": "message"
-    },
-    {
-      "label": ".AddMessage()",
-      "file_type": "code",
-      "source_file": "internal/store/store.go",
-      "source_location": "L138",
-      "_origin": "ast",
-      "id": "store_store_addmessage",
-      "community": 6,
-      "community_name": "Open",
-      "norm_label": ".addmessage()"
-    },
-    {
-      "label": ".Close()",
-      "file_type": "code",
-      "source_file": "internal/store/store.go",
-      "source_location": "L192",
-      "_origin": "ast",
-      "id": "store_store_close",
-      "community": 6,
-      "community_name": "Open",
-      "norm_label": ".close()"
-    },
-    {
-      "label": ".ConversationSessionID()",
-      "file_type": "code",
-      "source_file": "internal/store/store.go",
-      "source_location": "L96",
-      "_origin": "ast",
-      "id": "store_store_conversationsessionid",
-      "community": 6,
-      "community_name": "Open",
-      "norm_label": ".conversationsessionid()"
-    },
-    {
-      "label": ".CreateConversation()",
-      "file_type": "code",
-      "source_file": "internal/store/store.go",
-      "source_location": "L77",
-      "_origin": "ast",
-      "id": "store_store_createconversation",
-      "community": 6,
-      "community_name": "Open",
-      "norm_label": ".createconversation()"
-    },
-    {
-      "label": ".DeleteConversation()",
-      "file_type": "code",
-      "source_file": "internal/store/store.go",
-      "source_location": "L111",
-      "_origin": "ast",
-      "id": "store_store_deleteconversation",
-      "community": 6,
-      "community_name": "Open",
-      "norm_label": ".deleteconversation()"
-    },
-    {
-      "label": ".EnsureMetadata()",
-      "file_type": "code",
-      "source_file": "internal/store/store.go",
-      "source_location": "L64",
-      "_origin": "ast",
-      "id": "store_store_ensuremetadata",
-      "community": 6,
-      "community_name": "Open",
-      "norm_label": ".ensuremetadata()"
-    },
-    {
-      "label": ".ListConversations()",
-      "file_type": "code",
-      "source_file": "internal/store/store.go",
-      "source_location": "L148",
-      "_origin": "ast",
-      "id": "store_store_listconversations",
-      "community": 6,
-      "community_name": "Open",
-      "norm_label": ".listconversations()"
-    },
-    {
-      "label": ".Messages()",
-      "file_type": "code",
-      "source_file": "internal/store/store.go",
-      "source_location": "L169",
-      "_origin": "ast",
-      "id": "store_store_messages",
-      "community": 6,
-      "community_name": "Open",
-      "norm_label": ".messages()"
-    },
-    {
-      "label": ".SetClaudeSessionID()",
-      "file_type": "code",
-      "source_file": "internal/store/store.go",
-      "source_location": "L131",
-      "_origin": "ast",
-      "id": "store_store_setclaudesessionid",
-      "community": 6,
-      "community_name": "Open",
-      "norm_label": ".setclaudesessionid()"
     },
     {
       "label": "vite.config.ts",
@@ -12673,158 +12815,114 @@
       "norm_label": "vite.config.ts"
     },
     {
-      "label": "client.ts",
+      "label": "notifications.tsx",
       "file_type": "code",
-      "source_file": "web/src/api/client.ts",
+      "source_file": "web/src/components/notifications.tsx",
       "source_location": "L1",
       "_origin": "ast",
-      "id": "web_src_api_client",
+      "id": "web_src_components_notifications",
       "community": 61,
-      "community_name": "client.ts",
-      "norm_label": "client.ts"
+      "community_name": "NotificationToasts.tsx",
+      "norm_label": "notifications.tsx"
     },
     {
-      "label": "api",
+      "label": "NOTIFICATION_ICONS",
       "file_type": "code",
-      "source_file": "web/src/api/client.ts",
-      "source_location": "L95",
-      "_origin": "ast",
-      "id": "web_src_api_client_api",
-      "community": 61,
-      "community_name": "client.ts",
-      "norm_label": "api"
-    },
-    {
-      "label": "http",
-      "file_type": "code",
-      "source_file": "web/src/api/client.ts",
-      "source_location": "L72",
-      "_origin": "ast",
-      "id": "web_src_api_client_http",
-      "community": 61,
-      "community_name": "client.ts",
-      "norm_label": "http"
-    },
-    {
-      "label": "client.test.ts",
-      "file_type": "code",
-      "source_file": "web/src/api/client.test.ts",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "web_src_api_client_test",
-      "community": 61,
-      "community_name": "client.ts",
-      "norm_label": "client.test.ts"
-    },
-    {
-      "label": "mocks",
-      "file_type": "code",
-      "source_file": "web/src/api/client.test.ts",
+      "source_file": "web/src/components/notifications.tsx",
       "source_location": "L5",
       "_origin": "ast",
-      "id": "web_src_api_client_test_mocks",
+      "id": "web_src_components_notifications_notification_icons",
       "community": 61,
-      "community_name": "client.ts",
-      "norm_label": "mocks"
+      "community_name": "NotificationToasts.tsx",
+      "norm_label": "notification_icons"
     },
     {
-      "label": "TreeNodeSchema",
+      "label": "notifications.test.tsx",
       "file_type": "code",
-      "source_file": "web/src/api/client.ts",
-      "source_location": "L12",
-      "_origin": "ast",
-      "id": "web_src_api_client_treenodeschema",
-      "community": 61,
-      "community_name": "client.ts",
-      "norm_label": "treenodeschema"
-    },
-    {
-      "label": "SetupScreen.tsx",
-      "file_type": "code",
-      "source_file": "web/src/components/SetupScreen.tsx",
+      "source_file": "web/src/components/notifications.test.tsx",
       "source_location": "L1",
       "_origin": "ast",
-      "id": "web_src_components_setupscreen",
+      "id": "web_src_components_notifications_test",
       "community": 61,
-      "community_name": "client.ts",
-      "norm_label": "setupscreen.tsx"
+      "community_name": "NotificationToasts.tsx",
+      "norm_label": "notifications.test.tsx"
     },
     {
-      "label": "WikiTree.tsx",
+      "label": "NotificationToasts.tsx",
       "file_type": "code",
-      "source_file": "web/src/components/WikiTree.tsx",
+      "source_file": "web/src/components/NotificationToasts.tsx",
       "source_location": "L1",
       "_origin": "ast",
-      "id": "web_src_components_wikitree",
+      "id": "web_src_components_notificationtoasts",
       "community": 61,
-      "community_name": "client.ts",
-      "norm_label": "wikitree.tsx"
+      "community_name": "NotificationToasts.tsx",
+      "norm_label": "notificationtoasts.tsx"
     },
     {
-      "label": "useSearch.ts",
+      "label": "NotificationToasts.test.tsx",
       "file_type": "code",
-      "source_file": "web/src/hooks/useSearch.ts",
+      "source_file": "web/src/components/NotificationToasts.test.tsx",
       "source_location": "L1",
       "_origin": "ast",
-      "id": "web_src_hooks_usesearch",
+      "id": "web_src_components_notificationtoasts_test",
       "community": 61,
-      "community_name": "client.ts",
-      "norm_label": "usesearch.ts"
+      "community_name": "NotificationToasts.tsx",
+      "norm_label": "notificationtoasts.test.tsx"
     },
     {
-      "label": "useSearch.test.ts",
+      "label": "notificationsSlice.ts",
       "file_type": "code",
-      "source_file": "web/src/hooks/useSearch.test.ts",
+      "source_file": "web/src/store/slices/notificationsSlice.ts",
       "source_location": "L1",
       "_origin": "ast",
-      "id": "web_src_hooks_usesearch_test",
+      "id": "web_src_store_slices_notificationsslice",
       "community": 61,
-      "community_name": "client.ts",
-      "norm_label": "usesearch.test.ts"
-    },
-    {
-      "label": "mocks",
-      "file_type": "code",
-      "source_file": "web/src/hooks/useSearch.test.ts",
-      "source_location": "L7",
-      "_origin": "ast",
-      "id": "web_src_hooks_usesearch_test_mocks",
-      "community": 61,
-      "community_name": "client.ts",
-      "norm_label": "mocks"
-    },
-    {
-      "label": "healthSlice.ts",
-      "file_type": "code",
-      "source_file": "web/src/store/slices/healthSlice.ts",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "web_src_store_slices_healthslice",
-      "community": 61,
-      "community_name": "client.ts",
-      "norm_label": "healthslice.ts"
-    },
-    {
-      "label": "healthSlice",
-      "file_type": "code",
-      "source_file": "web/src/store/slices/healthSlice.ts",
-      "source_location": "L15",
-      "_origin": "ast",
-      "id": "web_src_store_slices_healthslice_healthslice",
-      "community": 61,
-      "community_name": "client.ts",
-      "norm_label": "healthslice"
+      "community_name": "NotificationToasts.tsx",
+      "norm_label": "notificationsslice.ts"
     },
     {
       "label": "initialState",
       "file_type": "code",
-      "source_file": "web/src/store/slices/healthSlice.ts",
-      "source_location": "L13",
+      "source_file": "web/src/store/slices/notificationsSlice.ts",
+      "source_location": "L20",
       "_origin": "ast",
-      "id": "web_src_store_slices_healthslice_initialstate",
+      "id": "web_src_store_slices_notificationsslice_initialstate",
       "community": 61,
-      "community_name": "client.ts",
+      "community_name": "NotificationToasts.tsx",
       "norm_label": "initialstate"
+    },
+    {
+      "label": "notificationsSlice",
+      "file_type": "code",
+      "source_file": "web/src/store/slices/notificationsSlice.ts",
+      "source_location": "L24",
+      "_origin": "ast",
+      "id": "web_src_store_slices_notificationsslice_notificationsslice",
+      "community": 61,
+      "community_name": "NotificationToasts.tsx",
+      "norm_label": "notificationsslice"
+    },
+    {
+      "label": "CopyButton.tsx",
+      "file_type": "code",
+      "source_file": "web/src/components/CopyButton.tsx",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "web_src_components_copybutton",
+      "community": 62,
+      "community_name": "MessageItem.tsx",
+      "norm_label": "copybutton.tsx"
+    },
+    {
+      "label": "CopyButton.test.tsx",
+      "file_type": "code",
+      "source_file": "web/src/components/CopyButton.test.tsx",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "web_src_components_copybutton_test",
+      "community": 62,
+      "community_name": "MessageItem.tsx",
+      "norm_label": "copybutton.test.tsx"
     },
     {
       "label": "Markdown.tsx",
@@ -12834,7 +12932,7 @@
       "_origin": "ast",
       "id": "web_src_components_markdown",
       "community": 62,
-      "community_name": "NotesView.tsx",
+      "community_name": "MessageItem.tsx",
       "norm_label": "markdown.tsx"
     },
     {
@@ -12845,7 +12943,7 @@
       "_origin": "ast",
       "id": "web_src_components_markdown_components",
       "community": 62,
-      "community_name": "NotesView.tsx",
+      "community_name": "MessageItem.tsx",
       "norm_label": "components"
     },
     {
@@ -12856,19 +12954,8 @@
       "_origin": "ast",
       "id": "web_src_components_messageitem",
       "community": 62,
-      "community_name": "NotesView.tsx",
+      "community_name": "MessageItem.tsx",
       "norm_label": "messageitem.tsx"
-    },
-    {
-      "label": "NotesView.tsx",
-      "file_type": "code",
-      "source_file": "web/src/components/NotesView.tsx",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "web_src_components_notesview",
-      "community": 62,
-      "community_name": "NotesView.tsx",
-      "norm_label": "notesview.tsx"
     },
     {
       "label": "NoteViewer.tsx",
@@ -12878,7 +12965,7 @@
       "_origin": "ast",
       "id": "web_src_components_noteviewer",
       "community": 62,
-      "community_name": "NotesView.tsx",
+      "community_name": "MessageItem.tsx",
       "norm_label": "noteviewer.tsx"
     },
     {
@@ -12889,7 +12976,7 @@
       "_origin": "ast",
       "id": "web_src_components_tooltip",
       "community": 62,
-      "community_name": "NotesView.tsx",
+      "community_name": "MessageItem.tsx",
       "norm_label": "tooltip.tsx"
     },
     {
@@ -12900,7 +12987,7 @@
       "_origin": "ast",
       "id": "web_src_components_tooltip_test",
       "community": 62,
-      "community_name": "NotesView.tsx",
+      "community_name": "MessageItem.tsx",
       "norm_label": "tooltip.test.tsx"
     },
     {
@@ -13322,125 +13409,158 @@
       "norm_label": "react frontend checklist (web/src)"
     },
     {
-      "label": "NoteViewer.test.tsx",
+      "label": "sqlite.go",
       "file_type": "code",
-      "source_file": "web/src/components/NoteViewer.test.tsx",
+      "source_file": "internal/store/sqlite.go",
       "source_location": "L1",
       "_origin": "ast",
-      "id": "web_src_components_noteviewer_test",
+      "id": "internal_store_sqlite",
       "community": 67,
-      "community_name": "healthSlice.test.ts",
-      "norm_label": "noteviewer.test.tsx"
+      "community_name": "Open",
+      "norm_label": "sqlite.go"
     },
     {
-      "label": "mocks",
+      "label": "OpenDB()",
       "file_type": "code",
-      "source_file": "web/src/components/NoteViewer.test.tsx",
-      "source_location": "L9",
+      "source_file": "internal/store/sqlite.go",
+      "source_location": "L19",
       "_origin": "ast",
-      "id": "web_src_components_noteviewer_test_mocks",
+      "id": "internal_store_sqlite_opendb",
       "community": 67,
-      "community_name": "healthSlice.test.ts",
-      "norm_label": "mocks"
+      "community_name": "Open",
+      "norm_label": "opendb()"
     },
     {
-      "label": "SearchPanel.test.tsx",
+      "label": "Open()",
       "file_type": "code",
-      "source_file": "web/src/components/SearchPanel.test.tsx",
+      "source_file": "internal/store/store.go",
+      "source_location": "L31",
+      "_origin": "ast",
+      "id": "internal_store_store_open",
+      "community": 67,
+      "community_name": "Open",
+      "norm_label": "open()"
+    },
+    {
+      "label": "store_test.go",
+      "file_type": "code",
+      "source_file": "internal/store/store_test.go",
       "source_location": "L1",
       "_origin": "ast",
-      "id": "web_src_components_searchpanel_test",
+      "id": "internal_store_store_test",
       "community": 67,
-      "community_name": "healthSlice.test.ts",
-      "norm_label": "searchpanel.test.tsx"
+      "community_name": "Open",
+      "norm_label": "store_test.go"
     },
     {
-      "label": "mocks",
+      "label": "TestClosedStoreErrors()",
       "file_type": "code",
-      "source_file": "web/src/components/SearchPanel.test.tsx",
-      "source_location": "L8",
+      "source_file": "internal/store/store_test.go",
+      "source_location": "L143",
       "_origin": "ast",
-      "id": "web_src_components_searchpanel_test_mocks",
+      "id": "internal_store_store_test_testclosedstoreerrors",
       "community": 67,
-      "community_name": "healthSlice.test.ts",
-      "norm_label": "mocks"
+      "community_name": "Open",
+      "norm_label": "testclosedstoreerrors()"
     },
     {
-      "label": "healthSlice.test.ts",
+      "label": "TestConversationRoundTrip()",
       "file_type": "code",
-      "source_file": "web/src/store/slices/healthSlice.test.ts",
-      "source_location": "L1",
+      "source_file": "internal/store/store_test.go",
+      "source_location": "L11",
       "_origin": "ast",
-      "id": "web_src_store_slices_healthslice_test",
+      "id": "internal_store_store_test_testconversationroundtrip",
       "community": 67,
-      "community_name": "healthSlice.test.ts",
-      "norm_label": "healthslice.test.ts"
+      "community_name": "Open",
+      "norm_label": "testconversationroundtrip()"
     },
     {
-      "label": "healthy",
+      "label": "TestConversationSessionIDRoundTrip()",
       "file_type": "code",
-      "source_file": "web/src/store/slices/healthSlice.test.ts",
-      "source_location": "L10",
+      "source_file": "internal/store/store_test.go",
+      "source_location": "L239",
       "_origin": "ast",
-      "id": "web_src_store_slices_healthslice_test_healthy",
+      "id": "internal_store_store_test_testconversationsessionidroundtrip",
       "community": 67,
-      "community_name": "healthSlice.test.ts",
-      "norm_label": "healthy"
+      "community_name": "Open",
+      "norm_label": "testconversationsessionidroundtrip()"
     },
     {
-      "label": "mocks",
+      "label": "TestDeleteConversation()",
       "file_type": "code",
-      "source_file": "web/src/store/slices/healthSlice.test.ts",
-      "source_location": "L7",
+      "source_file": "internal/store/store_test.go",
+      "source_location": "L298",
       "_origin": "ast",
-      "id": "web_src_store_slices_healthslice_test_mocks",
+      "id": "internal_store_store_test_testdeleteconversation",
       "community": 67,
-      "community_name": "healthSlice.test.ts",
-      "norm_label": "mocks"
+      "community_name": "Open",
+      "norm_label": "testdeleteconversation()"
     },
     {
-      "label": "settingsSlice.test.ts",
+      "label": "TestEnsureMetadataSeedsOnce()",
       "file_type": "code",
-      "source_file": "web/src/store/slices/settingsSlice.test.ts",
-      "source_location": "L1",
+      "source_file": "internal/store/store_test.go",
+      "source_location": "L197",
       "_origin": "ast",
-      "id": "web_src_store_slices_settingsslice_test",
+      "id": "internal_store_store_test_testensuremetadataseedsonce",
       "community": 67,
-      "community_name": "healthSlice.test.ts",
-      "norm_label": "settingsslice.test.ts"
+      "community_name": "Open",
+      "norm_label": "testensuremetadataseedsonce()"
     },
     {
-      "label": "mocks",
+      "label": "TestFreshOpenRunsAllMigrations()",
       "file_type": "code",
-      "source_file": "web/src/store/slices/settingsSlice.test.ts",
-      "source_location": "L7",
+      "source_file": "internal/store/store_test.go",
+      "source_location": "L267",
       "_origin": "ast",
-      "id": "web_src_store_slices_settingsslice_test_mocks",
+      "id": "internal_store_store_test_testfreshopenrunsallmigrations",
       "community": 67,
-      "community_name": "healthSlice.test.ts",
-      "norm_label": "mocks"
+      "community_name": "Open",
+      "norm_label": "testfreshopenrunsallmigrations()"
     },
     {
-      "label": "saved",
+      "label": "TestListConversationsOrderedNewestFirst()",
       "file_type": "code",
-      "source_file": "web/src/store/slices/settingsSlice.test.ts",
-      "source_location": "L10",
+      "source_file": "internal/store/store_test.go",
+      "source_location": "L57",
       "_origin": "ast",
-      "id": "web_src_store_slices_settingsslice_test_saved",
+      "id": "internal_store_store_test_testlistconversationsorderednewestfirst",
       "community": 67,
-      "community_name": "healthSlice.test.ts",
-      "norm_label": "saved"
+      "community_name": "Open",
+      "norm_label": "testlistconversationsorderednewestfirst()"
     },
     {
-      "label": "mockAxios.ts",
+      "label": "TestMessagesUnknownConversation()",
       "file_type": "code",
-      "source_file": "web/src/test/mockAxios.ts",
-      "source_location": "L1",
+      "source_file": "internal/store/store_test.go",
+      "source_location": "L45",
       "_origin": "ast",
-      "id": "web_src_test_mockaxios",
+      "id": "internal_store_store_test_testmessagesunknownconversation",
       "community": 67,
-      "community_name": "healthSlice.test.ts",
-      "norm_label": "mockaxios.ts"
+      "community_name": "Open",
+      "norm_label": "testmessagesunknownconversation()"
+    },
+    {
+      "label": "TestOpenDBSetsBusyTimeoutAndPool()",
+      "file_type": "code",
+      "source_file": "internal/store/store_test.go",
+      "source_location": "L333",
+      "_origin": "ast",
+      "id": "internal_store_store_test_testopendbsetsbusytimeoutandpool",
+      "community": 67,
+      "community_name": "Open",
+      "norm_label": "testopendbsetsbusytimeoutandpool()"
+    },
+    {
+      "label": "TestTimestampsStoredInUTC()",
+      "file_type": "code",
+      "source_file": "internal/store/store_test.go",
+      "source_location": "L110",
+      "_origin": "ast",
+      "id": "internal_store_store_test_testtimestampsstoredinutc",
+      "community": 67,
+      "community_name": "Open",
+      "norm_label": "testtimestampsstoredinutc()"
     },
     {
       "label": ".args()",
@@ -13496,39 +13616,6 @@
       "community": 68,
       "community_name": "CLIClient",
       "norm_label": ".start()"
-    },
-    {
-      "label": "stderrTail",
-      "file_type": "code",
-      "source_file": "internal/claude/client.go",
-      "source_location": "L142",
-      "_origin": "ast",
-      "id": "claude_stderrtail",
-      "community": 68,
-      "community_name": "CLIClient",
-      "norm_label": "stderrtail"
-    },
-    {
-      "label": ".String()",
-      "file_type": "code",
-      "source_file": "internal/claude/client.go",
-      "source_location": "L162",
-      "_origin": "ast",
-      "id": "claude_stderrtail_string",
-      "community": 68,
-      "community_name": "CLIClient",
-      "norm_label": ".string()"
-    },
-    {
-      "label": ".Write()",
-      "file_type": "code",
-      "source_file": "internal/claude/client.go",
-      "source_location": "L148",
-      "_origin": "ast",
-      "id": "claude_stderrtail_write",
-      "community": 68,
-      "community_name": "CLIClient",
-      "norm_label": ".write()"
     },
     {
       "label": "CLIClient",
@@ -14125,28 +14212,6 @@
       "norm_label": "writefakeclaude()"
     },
     {
-      "label": "settings/settings.go",
-      "file_type": "code",
-      "source_file": "internal/settings/settings.go",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "internal_settings_settings",
-      "community": 71,
-      "community_name": "cli/doctor_test.go",
-      "norm_label": "settings/settings.go"
-    },
-    {
-      "label": "Repo",
-      "file_type": "code",
-      "source_file": "internal/settings/settings.go",
-      "source_location": "L28",
-      "_origin": "ast",
-      "id": "internal_settings_settings_go_settings_repo",
-      "community": 71,
-      "community_name": "cli/doctor_test.go",
-      "norm_label": "repo"
-    },
-    {
       "label": "OpenRepo()",
       "file_type": "code",
       "source_file": "internal/settings/settings.go",
@@ -14156,72 +14221,6 @@
       "community": 71,
       "community_name": "cli/doctor_test.go",
       "norm_label": "openrepo()"
-    },
-    {
-      "label": ".Close()",
-      "file_type": "code",
-      "source_file": "internal/settings/settings.go",
-      "source_location": "L46",
-      "_origin": "ast",
-      "id": "settings_repo_close",
-      "community": 71,
-      "community_name": "cli/doctor_test.go",
-      "norm_label": ".close()"
-    },
-    {
-      "label": ".SetSetting()",
-      "file_type": "code",
-      "source_file": "internal/settings/settings.go",
-      "source_location": "L62",
-      "_origin": "ast",
-      "id": "settings_repo_setsetting",
-      "community": 71,
-      "community_name": "cli/doctor_test.go",
-      "norm_label": ".setsetting()"
-    },
-    {
-      "label": ".SetSyncResult()",
-      "file_type": "code",
-      "source_file": "internal/settings/settings.go",
-      "source_location": "L99",
-      "_origin": "ast",
-      "id": "settings_repo_setsyncresult",
-      "community": 71,
-      "community_name": "cli/doctor_test.go",
-      "norm_label": ".setsyncresult()"
-    },
-    {
-      "label": ".Setting()",
-      "file_type": "code",
-      "source_file": "internal/settings/settings.go",
-      "source_location": "L49",
-      "_origin": "ast",
-      "id": "settings_repo_setting",
-      "community": 71,
-      "community_name": "cli/doctor_test.go",
-      "norm_label": ".setting()"
-    },
-    {
-      "label": ".SyncEnabled()",
-      "file_type": "code",
-      "source_file": "internal/settings/settings.go",
-      "source_location": "L74",
-      "_origin": "ast",
-      "id": "settings_repo_syncenabled",
-      "community": 71,
-      "community_name": "cli/doctor_test.go",
-      "norm_label": ".syncenabled()"
-    },
-    {
-      "label": ".SyncState()",
-      "file_type": "code",
-      "source_file": "internal/settings/settings.go",
-      "source_location": "L84",
-      "_origin": "ast",
-      "id": "settings_repo_syncstate",
-      "community": 71,
-      "community_name": "cli/doctor_test.go",
-      "norm_label": ".syncstate()"
     },
     {
       "label": "SettingsView.test.tsx",
@@ -14376,28 +14375,6 @@
       "community": 73,
       "community_name": "Frontend patterns \u2014 the cross-cutting conventions",
       "norm_label": "the ws protocol (chatsocket)"
-    },
-    {
-      "label": "scaffold.go",
-      "file_type": "code",
-      "source_file": "internal/wiki/scaffold.go",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "internal_wiki_scaffold",
-      "community": 74,
-      "community_name": "Scaffold",
-      "norm_label": "scaffold.go"
-    },
-    {
-      "label": "Folders()",
-      "file_type": "code",
-      "source_file": "internal/wiki/scaffold.go",
-      "source_location": "L15",
-      "_origin": "ast",
-      "id": "internal_wiki_scaffold_folders",
-      "community": 74,
-      "community_name": "Scaffold",
-      "norm_label": "folders()"
     },
     {
       "label": "Scaffold()",
@@ -15189,28 +15166,6 @@
       "norm_label": "token-guard.sh script"
     },
     {
-      "label": "ChatPanel.test.tsx",
-      "file_type": "code",
-      "source_file": "web/src/components/ChatPanel.test.tsx",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "web_src_components_chatpanel_test",
-      "community": 81,
-      "community_name": "ChatPanel.test.tsx",
-      "norm_label": "chatpanel.test.tsx"
-    },
-    {
-      "label": "mocks",
-      "file_type": "code",
-      "source_file": "web/src/components/ChatPanel.test.tsx",
-      "source_location": "L16",
-      "_origin": "ast",
-      "id": "web_src_components_chatpanel_test_mocks",
-      "community": 81,
-      "community_name": "ChatPanel.test.tsx",
-      "norm_label": "mocks"
-    },
-    {
       "label": "fakeWS.ts",
       "file_type": "code",
       "source_file": "web/src/test/fakeWS.ts",
@@ -15218,7 +15173,7 @@
       "_origin": "ast",
       "id": "web_src_test_fakews",
       "community": 81,
-      "community_name": "ChatPanel.test.tsx",
+      "community_name": "ChatSocket",
       "norm_label": "fakews.ts"
     },
     {
@@ -15229,7 +15184,7 @@
       "_origin": "ast",
       "id": "web_src_ws_chat_test",
       "community": 81,
-      "community_name": "ChatPanel.test.tsx",
+      "community_name": "ChatSocket",
       "norm_label": "chat.test.ts"
     },
     {
@@ -15409,6 +15364,72 @@
       "norm_label": "typescript"
     },
     {
+      "label": "client.ts",
+      "file_type": "code",
+      "source_file": "web/src/api/client.ts",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "web_src_api_client",
+      "community": 9,
+      "community_name": "client.ts",
+      "norm_label": "client.ts"
+    },
+    {
+      "label": "api",
+      "file_type": "code",
+      "source_file": "web/src/api/client.ts",
+      "source_location": "L95",
+      "_origin": "ast",
+      "id": "web_src_api_client_api",
+      "community": 9,
+      "community_name": "client.ts",
+      "norm_label": "api"
+    },
+    {
+      "label": "http",
+      "file_type": "code",
+      "source_file": "web/src/api/client.ts",
+      "source_location": "L72",
+      "_origin": "ast",
+      "id": "web_src_api_client_http",
+      "community": 9,
+      "community_name": "client.ts",
+      "norm_label": "http"
+    },
+    {
+      "label": "client.test.ts",
+      "file_type": "code",
+      "source_file": "web/src/api/client.test.ts",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "web_src_api_client_test",
+      "community": 9,
+      "community_name": "client.ts",
+      "norm_label": "client.test.ts"
+    },
+    {
+      "label": "mocks",
+      "file_type": "code",
+      "source_file": "web/src/api/client.test.ts",
+      "source_location": "L5",
+      "_origin": "ast",
+      "id": "web_src_api_client_test_mocks",
+      "community": 9,
+      "community_name": "client.ts",
+      "norm_label": "mocks"
+    },
+    {
+      "label": "TreeNodeSchema",
+      "file_type": "code",
+      "source_file": "web/src/api/client.ts",
+      "source_location": "L12",
+      "_origin": "ast",
+      "id": "web_src_api_client_treenodeschema",
+      "community": 9,
+      "community_name": "client.ts",
+      "norm_label": "treenodeschema"
+    },
+    {
       "label": "SettingsView.tsx",
       "file_type": "code",
       "source_file": "web/src/components/SettingsView.tsx",
@@ -15416,7 +15437,7 @@
       "_origin": "ast",
       "id": "web_src_components_settingsview",
       "community": 9,
-      "community_name": "SettingsView.tsx",
+      "community_name": "client.ts",
       "norm_label": "settingsview.tsx"
     },
     {
@@ -15427,7 +15448,7 @@
       "_origin": "ast",
       "id": "web_src_components_settingsview_blank",
       "community": 9,
-      "community_name": "SettingsView.tsx",
+      "community_name": "client.ts",
       "norm_label": "blank"
     },
     {
@@ -15438,7 +15459,7 @@
       "_origin": "ast",
       "id": "web_src_components_settingsview_emptygithub",
       "community": 9,
-      "community_name": "SettingsView.tsx",
+      "community_name": "client.ts",
       "norm_label": "emptygithub"
     },
     {
@@ -15449,19 +15470,41 @@
       "_origin": "ast",
       "id": "web_src_components_settingsview_tabs",
       "community": 9,
-      "community_name": "SettingsView.tsx",
+      "community_name": "client.ts",
       "norm_label": "tabs"
     },
     {
-      "label": "Toast.test.tsx",
+      "label": "useSearch.ts",
       "file_type": "code",
-      "source_file": "web/src/components/Toast.test.tsx",
+      "source_file": "web/src/hooks/useSearch.ts",
       "source_location": "L1",
       "_origin": "ast",
-      "id": "web_src_components_toast_test",
+      "id": "web_src_hooks_usesearch",
       "community": 9,
-      "community_name": "SettingsView.tsx",
-      "norm_label": "toast.test.tsx"
+      "community_name": "client.ts",
+      "norm_label": "usesearch.ts"
+    },
+    {
+      "label": "useSearch.test.ts",
+      "file_type": "code",
+      "source_file": "web/src/hooks/useSearch.test.ts",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "web_src_hooks_usesearch_test",
+      "community": 9,
+      "community_name": "client.ts",
+      "norm_label": "usesearch.test.ts"
+    },
+    {
+      "label": "mocks",
+      "file_type": "code",
+      "source_file": "web/src/hooks/useSearch.test.ts",
+      "source_location": "L7",
+      "_origin": "ast",
+      "id": "web_src_hooks_usesearch_test_mocks",
+      "community": 9,
+      "community_name": "client.ts",
+      "norm_label": "mocks"
     },
     {
       "label": "settingsSlice.ts",
@@ -15471,7 +15514,7 @@
       "_origin": "ast",
       "id": "web_src_store_slices_settingsslice",
       "community": 9,
-      "community_name": "SettingsView.tsx",
+      "community_name": "client.ts",
       "norm_label": "settingsslice.ts"
     },
     {
@@ -15482,7 +15525,7 @@
       "_origin": "ast",
       "id": "web_src_store_slices_settingsslice_fetchsettings",
       "community": 9,
-      "community_name": "SettingsView.tsx",
+      "community_name": "client.ts",
       "norm_label": "fetchsettings"
     },
     {
@@ -15493,7 +15536,7 @@
       "_origin": "ast",
       "id": "web_src_store_slices_settingsslice_initialstate",
       "community": 9,
-      "community_name": "SettingsView.tsx",
+      "community_name": "client.ts",
       "norm_label": "initialstate"
     },
     {
@@ -15504,7 +15547,7 @@
       "_origin": "ast",
       "id": "web_src_store_slices_settingsslice_savesettings",
       "community": 9,
-      "community_name": "SettingsView.tsx",
+      "community_name": "client.ts",
       "norm_label": "savesettings"
     },
     {
@@ -15515,8 +15558,41 @@
       "_origin": "ast",
       "id": "web_src_store_slices_settingsslice_settingsslice",
       "community": 9,
-      "community_name": "SettingsView.tsx",
+      "community_name": "client.ts",
       "norm_label": "settingsslice"
+    },
+    {
+      "label": "settingsSlice.test.ts",
+      "file_type": "code",
+      "source_file": "web/src/store/slices/settingsSlice.test.ts",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "web_src_store_slices_settingsslice_test",
+      "community": 9,
+      "community_name": "client.ts",
+      "norm_label": "settingsslice.test.ts"
+    },
+    {
+      "label": "mocks",
+      "file_type": "code",
+      "source_file": "web/src/store/slices/settingsSlice.test.ts",
+      "source_location": "L7",
+      "_origin": "ast",
+      "id": "web_src_store_slices_settingsslice_test_mocks",
+      "community": 9,
+      "community_name": "client.ts",
+      "norm_label": "mocks"
+    },
+    {
+      "label": "saved",
+      "file_type": "code",
+      "source_file": "web/src/store/slices/settingsSlice.test.ts",
+      "source_location": "L10",
+      "_origin": "ast",
+      "id": "web_src_store_slices_settingsslice_test_saved",
+      "community": 9,
+      "community_name": "client.ts",
+      "norm_label": "saved"
     },
     {
       "label": "vite",
@@ -15563,92 +15639,147 @@
       "norm_label": "vitest"
     },
     {
-      "label": "Event",
-      "file_type": "code",
-      "source_file": "internal/claude/events.go",
-      "source_location": "L22",
-      "_origin": "ast",
-      "id": "claude_event",
-      "community": 92,
-      "community_name": "events.go",
-      "norm_label": "event"
-    },
-    {
-      "label": "EventType",
-      "file_type": "code",
-      "source_file": "internal/claude/events.go",
-      "source_location": "L12",
-      "_origin": "ast",
-      "id": "claude_eventtype",
-      "community": 92,
-      "community_name": "events.go",
-      "norm_label": "eventtype"
-    },
-    {
-      "label": "rawBlock",
-      "file_type": "code",
-      "source_file": "internal/claude/events.go",
-      "source_location": "L54",
-      "_origin": "ast",
-      "id": "claude_rawblock",
-      "community": 92,
-      "community_name": "events.go",
-      "norm_label": "rawblock"
-    },
-    {
-      "label": "rawLine",
-      "file_type": "code",
-      "source_file": "internal/claude/events.go",
-      "source_location": "L43",
-      "_origin": "ast",
-      "id": "claude_rawline",
-      "community": 92,
-      "community_name": "events.go",
-      "norm_label": "rawline"
-    },
-    {
-      "label": "rawMsg",
-      "file_type": "code",
-      "source_file": "internal/claude/events.go",
-      "source_location": "L50",
-      "_origin": "ast",
-      "id": "claude_rawmsg",
-      "community": 92,
-      "community_name": "events.go",
-      "norm_label": "rawmsg"
-    },
-    {
-      "label": ".Write()",
-      "file_type": "code",
-      "source_file": "internal/claude/events.go",
-      "source_location": "L36",
-      "_origin": "ast",
-      "id": "claude_writerfunc_write",
-      "community": 92,
-      "community_name": "events.go",
-      "norm_label": ".write()"
-    },
-    {
-      "label": "encoding/json.RawMessage",
+      "label": "database/sql.DB",
       "file_type": "code",
       "source_file": "",
       "source_location": "",
       "_origin": "ast",
-      "id": "go_type_encoding_json_rawmessage",
+      "id": "go_type_database_sql_db",
       "community": 92,
-      "community_name": "events.go",
-      "norm_label": "encoding/json.rawmessage"
+      "community_name": "Repo",
+      "norm_label": "database/sql.db"
     },
     {
-      "label": "events.go",
+      "label": "settings/settings.go",
       "file_type": "code",
-      "source_file": "internal/claude/events.go",
+      "source_file": "internal/settings/settings.go",
       "source_location": "L1",
       "_origin": "ast",
-      "id": "internal_claude_events",
+      "id": "internal_settings_settings",
       "community": 92,
-      "community_name": "events.go",
-      "norm_label": "events.go"
+      "community_name": "Repo",
+      "norm_label": "settings/settings.go"
+    },
+    {
+      "label": "Repo",
+      "file_type": "code",
+      "source_file": "internal/settings/settings.go",
+      "source_location": "L28",
+      "_origin": "ast",
+      "id": "internal_settings_settings_go_settings_repo",
+      "community": 92,
+      "community_name": "Repo",
+      "norm_label": "repo"
+    },
+    {
+      "label": "migrations.go",
+      "file_type": "code",
+      "source_file": "internal/store/migrations.go",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "internal_store_migrations",
+      "community": 92,
+      "community_name": "Repo",
+      "norm_label": "migrations.go"
+    },
+    {
+      "label": "applyMigration()",
+      "file_type": "code",
+      "source_file": "internal/store/migrations.go",
+      "source_location": "L81",
+      "_origin": "ast",
+      "id": "internal_store_migrations_applymigration",
+      "community": 92,
+      "community_name": "Repo",
+      "norm_label": "applymigration()"
+    },
+    {
+      "label": "migrate()",
+      "file_type": "code",
+      "source_file": "internal/store/migrations.go",
+      "source_location": "L22",
+      "_origin": "ast",
+      "id": "internal_store_migrations_migrate",
+      "community": 92,
+      "community_name": "Repo",
+      "norm_label": "migrate()"
+    },
+    {
+      "label": "splitStatements()",
+      "file_type": "code",
+      "source_file": "internal/store/migrations.go",
+      "source_location": "L54",
+      "_origin": "ast",
+      "id": "internal_store_migrations_splitstatements",
+      "community": 92,
+      "community_name": "Repo",
+      "norm_label": "splitstatements()"
+    },
+    {
+      "label": ".Close()",
+      "file_type": "code",
+      "source_file": "internal/settings/settings.go",
+      "source_location": "L46",
+      "_origin": "ast",
+      "id": "settings_repo_close",
+      "community": 92,
+      "community_name": "Repo",
+      "norm_label": ".close()"
+    },
+    {
+      "label": ".SetSetting()",
+      "file_type": "code",
+      "source_file": "internal/settings/settings.go",
+      "source_location": "L62",
+      "_origin": "ast",
+      "id": "settings_repo_setsetting",
+      "community": 92,
+      "community_name": "Repo",
+      "norm_label": ".setsetting()"
+    },
+    {
+      "label": ".SetSyncResult()",
+      "file_type": "code",
+      "source_file": "internal/settings/settings.go",
+      "source_location": "L99",
+      "_origin": "ast",
+      "id": "settings_repo_setsyncresult",
+      "community": 92,
+      "community_name": "Repo",
+      "norm_label": ".setsyncresult()"
+    },
+    {
+      "label": ".Setting()",
+      "file_type": "code",
+      "source_file": "internal/settings/settings.go",
+      "source_location": "L49",
+      "_origin": "ast",
+      "id": "settings_repo_setting",
+      "community": 92,
+      "community_name": "Repo",
+      "norm_label": ".setting()"
+    },
+    {
+      "label": ".SyncEnabled()",
+      "file_type": "code",
+      "source_file": "internal/settings/settings.go",
+      "source_location": "L74",
+      "_origin": "ast",
+      "id": "settings_repo_syncenabled",
+      "community": 92,
+      "community_name": "Repo",
+      "norm_label": ".syncenabled()"
+    },
+    {
+      "label": ".SyncState()",
+      "file_type": "code",
+      "source_file": "internal/settings/settings.go",
+      "source_location": "L84",
+      "_origin": "ast",
+      "id": "settings_repo_syncstate",
+      "community": 92,
+      "community_name": "Repo",
+      "norm_label": ".syncstate()"
     },
     {
       "label": "README.md",
@@ -15778,6 +15909,160 @@
       "community": 96,
       "community_name": "ExpandHome",
       "norm_label": "testexpandhomebaretilde()"
+    },
+    {
+      "label": "poolEntry",
+      "file_type": "code",
+      "source_file": "internal/claude/persistent.go",
+      "source_location": "L64",
+      "_origin": "ast",
+      "id": "claude_poolentry",
+      "community": 97,
+      "community_name": "proc",
+      "norm_label": "poolentry"
+    },
+    {
+      "label": "proc",
+      "file_type": "code",
+      "source_file": "internal/claude/persistent.go",
+      "source_location": "L43",
+      "_origin": "ast",
+      "id": "claude_proc",
+      "community": 97,
+      "community_name": "proc",
+      "norm_label": "proc"
+    },
+    {
+      "label": "stderrTail",
+      "file_type": "code",
+      "source_file": "internal/claude/client.go",
+      "source_location": "L142",
+      "_origin": "ast",
+      "id": "claude_stderrtail",
+      "community": 97,
+      "community_name": "proc",
+      "norm_label": "stderrtail"
+    },
+    {
+      "label": ".String()",
+      "file_type": "code",
+      "source_file": "internal/claude/client.go",
+      "source_location": "L162",
+      "_origin": "ast",
+      "id": "claude_stderrtail_string",
+      "community": 97,
+      "community_name": "proc",
+      "norm_label": ".string()"
+    },
+    {
+      "label": ".Write()",
+      "file_type": "code",
+      "source_file": "internal/claude/client.go",
+      "source_location": "L148",
+      "_origin": "ast",
+      "id": "claude_stderrtail_write",
+      "community": 97,
+      "community_name": "proc",
+      "norm_label": ".write()"
+    },
+    {
+      "label": "bufio.Writer",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "go_type_bufio_writer",
+      "community": 97,
+      "community_name": "proc",
+      "norm_label": "bufio.writer"
+    },
+    {
+      "label": "io.ReadCloser",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "go_type_io_readcloser",
+      "community": 97,
+      "community_name": "proc",
+      "norm_label": "io.readcloser"
+    },
+    {
+      "label": "time.Timer",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "go_type_time_timer",
+      "community": 97,
+      "community_name": "proc",
+      "norm_label": "time.timer"
+    },
+    {
+      "label": "persistent.go",
+      "file_type": "code",
+      "source_file": "internal/claude/persistent.go",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "internal_claude_persistent",
+      "community": 97,
+      "community_name": "proc",
+      "norm_label": "persistent.go"
+    },
+    {
+      "label": "turnFailure()",
+      "file_type": "code",
+      "source_file": "internal/claude/persistent.go",
+      "source_location": "L332",
+      "_origin": "ast",
+      "id": "internal_claude_persistent_turnfailure",
+      "community": 97,
+      "community_name": "proc",
+      "norm_label": "turnfailure()"
+    },
+    {
+      "label": "CodeBlock.tsx",
+      "file_type": "code",
+      "source_file": "web/src/components/CodeBlock.tsx",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "web_src_components_codeblock",
+      "community": 98,
+      "community_name": "CodeBlock.tsx",
+      "norm_label": "codeblock.tsx"
+    },
+    {
+      "label": "cache",
+      "file_type": "code",
+      "source_file": "web/src/components/CodeBlock.tsx",
+      "source_location": "L7",
+      "_origin": "ast",
+      "id": "web_src_components_codeblock_cache",
+      "community": 98,
+      "community_name": "CodeBlock.tsx",
+      "norm_label": "cache"
+    },
+    {
+      "label": "CodeBlock.test.tsx",
+      "file_type": "code",
+      "source_file": "web/src/components/CodeBlock.test.tsx",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "web_src_components_codeblock_test",
+      "community": 98,
+      "community_name": "CodeBlock.tsx",
+      "norm_label": "codeblock.test.tsx"
+    },
+    {
+      "label": "mocks",
+      "file_type": "code",
+      "source_file": "web/src/components/CodeBlock.test.tsx",
+      "source_location": "L8",
+      "_origin": "ast",
+      "id": "web_src_components_codeblock_test_mocks",
+      "community": 98,
+      "community_name": "CodeBlock.tsx",
+      "norm_label": "mocks"
     },
     {
       "label": "golangci-lint v2 config",
@@ -22547,6 +22832,258 @@
       "_origin": "ast",
       "source": "internal_webui_webui_test_testregisterservesindexatroot",
       "target": "internal_webui_webui_test_newtestecho",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/pr.sh",
+      "source_location": "L67",
+      "weight": 1.0,
+      "context": "call",
+      "_origin": "ast",
+      "source": "scripts_pr_check_worktree",
+      "target": "scripts_pr_die",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/pr.sh",
+      "source_location": "L170",
+      "weight": 1.0,
+      "context": "call",
+      "_origin": "ast",
+      "source": "scripts_pr_derive_labels",
+      "target": "scripts_pr_label_known",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/pr.sh",
+      "source_location": "L171",
+      "weight": 1.0,
+      "context": "call",
+      "_origin": "ast",
+      "source": "scripts_pr_derive_labels",
+      "target": "scripts_pr_die",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/pr.sh",
+      "source_location": "L49",
+      "weight": 1.0,
+      "context": "call",
+      "_origin": "ast",
+      "source": "scripts_pr_load_label_sets",
+      "target": "scripts_pr_die",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/pr.sh",
+      "source_location": "L284",
+      "weight": 1.0,
+      "context": "call",
+      "_origin": "ast",
+      "source": "scripts_pr_main",
+      "target": "scripts_pr_die",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/pr.sh",
+      "source_location": "L291",
+      "weight": 1.0,
+      "context": "call",
+      "_origin": "ast",
+      "source": "scripts_pr_main",
+      "target": "scripts_pr_preflight",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/pr.sh",
+      "source_location": "L292",
+      "weight": 1.0,
+      "context": "call",
+      "_origin": "ast",
+      "source": "scripts_pr_main",
+      "target": "scripts_pr_sync_main",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/pr.sh",
+      "source_location": "L293",
+      "weight": 1.0,
+      "context": "call",
+      "_origin": "ast",
+      "source": "scripts_pr_main",
+      "target": "scripts_pr_derive_labels",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/pr.sh",
+      "source_location": "L293",
+      "weight": 1.0,
+      "context": "call",
+      "_origin": "ast",
+      "source": "scripts_pr_main",
+      "target": "scripts_pr_parse_branch",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/pr.sh",
+      "source_location": "L294",
+      "weight": 1.0,
+      "context": "call",
+      "_origin": "ast",
+      "source": "scripts_pr_main",
+      "target": "scripts_pr_run_graph_check",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/pr.sh",
+      "source_location": "L295",
+      "weight": 1.0,
+      "context": "call",
+      "_origin": "ast",
+      "source": "scripts_pr_main",
+      "target": "scripts_pr_run_checks",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/pr.sh",
+      "source_location": "L296",
+      "weight": 1.0,
+      "context": "call",
+      "_origin": "ast",
+      "source": "scripts_pr_main",
+      "target": "scripts_pr_derive_title",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/pr.sh",
+      "source_location": "L297",
+      "weight": 1.0,
+      "context": "call",
+      "_origin": "ast",
+      "source": "scripts_pr_main",
+      "target": "scripts_pr_push_and_open",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/pr.sh",
+      "source_location": "L138",
+      "weight": 1.0,
+      "context": "call",
+      "_origin": "ast",
+      "source": "scripts_pr_parse_branch",
+      "target": "scripts_pr_die",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/pr.sh",
+      "source_location": "L103",
+      "weight": 1.0,
+      "context": "call",
+      "_origin": "ast",
+      "source": "scripts_pr_preflight",
+      "target": "scripts_pr_check_worktree",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/pr.sh",
+      "source_location": "L99",
+      "weight": 1.0,
+      "context": "call",
+      "_origin": "ast",
+      "source": "scripts_pr_preflight",
+      "target": "scripts_pr_die",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/pr.sh",
+      "source_location": "L248",
+      "weight": 1.0,
+      "context": "call",
+      "_origin": "ast",
+      "source": "scripts_pr_push_and_open",
+      "target": "scripts_pr_check_worktree",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/pr.sh",
+      "source_location": "L250",
+      "weight": 1.0,
+      "context": "call",
+      "_origin": "ast",
+      "source": "scripts_pr_push_and_open",
+      "target": "scripts_pr_die",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/pr.sh",
+      "source_location": "L300",
+      "weight": 1.0,
+      "context": "call",
+      "_origin": "ast",
+      "source": "scripts_pr_sh__entry",
+      "target": "scripts_pr_load_label_sets",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/pr.sh",
+      "source_location": "L301",
+      "weight": 1.0,
+      "context": "call",
+      "_origin": "ast",
+      "source": "scripts_pr_sh__entry",
+      "target": "scripts_pr_main",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/pr.sh",
+      "source_location": "L114",
+      "weight": 1.0,
+      "context": "call",
+      "_origin": "ast",
+      "source": "scripts_pr_sync_main",
+      "target": "scripts_pr_die",
       "confidence_score": 1.0
     },
     {
@@ -37826,7 +38363,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": ".claude/skills/git-workflow/SKILL.md",
-      "source_location": "L75",
+      "source_location": "L79",
       "weight": 1.0,
       "_origin": "ast",
       "source": "claude_skills_git_workflow_skill_git_workflow_contribution_procedures_expectations",
@@ -37837,7 +38374,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": ".claude/skills/git-workflow/SKILL.md",
-      "source_location": "L82",
+      "source_location": "L86",
       "weight": 1.0,
       "_origin": "ast",
       "source": "claude_skills_git_workflow_skill_git_workflow_contribution_procedures_expectations",
@@ -37848,7 +38385,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": ".claude/skills/git-workflow/SKILL.md",
-      "source_location": "L88",
+      "source_location": "L92",
       "weight": 1.0,
       "_origin": "ast",
       "source": "claude_skills_git_workflow_skill_git_workflow_contribution_procedures_expectations",
@@ -37870,7 +38407,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": ".claude/skills/git-workflow/SKILL.md",
-      "source_location": "L36",
+      "source_location": "L38",
       "weight": 1.0,
       "_origin": "ast",
       "source": "claude_skills_git_workflow_skill_workflows",
@@ -37881,7 +38418,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": ".claude/skills/git-workflow/SKILL.md",
-      "source_location": "L44",
+      "source_location": "L46",
       "weight": 1.0,
       "_origin": "ast",
       "source": "claude_skills_git_workflow_skill_workflows",
@@ -37892,7 +38429,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": ".claude/skills/git-workflow/SKILL.md",
-      "source_location": "L56",
+      "source_location": "L59",
       "weight": 1.0,
       "_origin": "ast",
       "source": "claude_skills_git_workflow_skill_workflows",
@@ -37903,7 +38440,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": ".claude/skills/git-workflow/SKILL.md",
-      "source_location": "L64",
+      "source_location": "L68",
       "weight": 1.0,
       "_origin": "ast",
       "source": "claude_skills_git_workflow_skill_workflows",
@@ -37914,7 +38451,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": ".claude/skills/git-workflow/SKILL.md",
-      "source_location": "L69",
+      "source_location": "L73",
       "weight": 1.0,
       "_origin": "ast",
       "source": "claude_skills_git_workflow_skill_workflows",
@@ -44667,6 +45204,39 @@
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
+      "source_file": "scripts/graph-check.sh",
+      "source_location": "L1",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "scripts_graph_check",
+      "target": "scripts_graph_check_sh__entry",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/main-guard.sh",
+      "source_location": "L1",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "scripts_main_guard",
+      "target": "scripts_main_guard_sh__entry",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/pr.sh",
+      "source_location": "L1",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "scripts_pr",
+      "target": "scripts_pr_sh__entry",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
       "source_file": "scripts/README.md",
       "source_location": "L1",
       "weight": 1.0,
@@ -48358,6 +48928,149 @@
       "_origin": "ast",
       "source": "web_tsconfig_node_compileroptions",
       "target": "web_tsconfig_node_compileroptions_skiplibcheck",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/pr.sh",
+      "source_location": "L112",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "scripts_pr",
+      "target": "scripts_pr_sync_main",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/pr.sh",
+      "source_location": "L120",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "scripts_pr",
+      "target": "scripts_pr_parse_branch",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/pr.sh",
+      "source_location": "L155",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "scripts_pr",
+      "target": "scripts_pr_derive_labels",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/pr.sh",
+      "source_location": "L195",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "scripts_pr",
+      "target": "scripts_pr_run_graph_check",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/pr.sh",
+      "source_location": "L199",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "scripts_pr",
+      "target": "scripts_pr_run_checks",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/pr.sh",
+      "source_location": "L211",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "scripts_pr",
+      "target": "scripts_pr_derive_title",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/pr.sh",
+      "source_location": "L245",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "scripts_pr",
+      "target": "scripts_pr_push_and_open",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/pr.sh",
+      "source_location": "L280",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "scripts_pr",
+      "target": "scripts_pr_main",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/pr.sh",
+      "source_location": "L32",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "scripts_pr",
+      "target": "scripts_pr_die",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/pr.sh",
+      "source_location": "L41",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "scripts_pr",
+      "target": "scripts_pr_load_label_sets",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/pr.sh",
+      "source_location": "L52",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "scripts_pr",
+      "target": "scripts_pr_label_known",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/pr.sh",
+      "source_location": "L61",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "scripts_pr",
+      "target": "scripts_pr_check_worktree",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/pr.sh",
+      "source_location": "L95",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "scripts_pr",
+      "target": "scripts_pr_preflight",
       "confidence_score": 1.0
     },
     {
@@ -56477,5 +57190,5 @@
       "source_file": "docs/knowledge-base.md"
     }
   ],
-  "built_at_commit": "fe6fb13592526dbf31281b90cb13134b1525f267"
+  "built_at_commit": "03f65256af58e3d0521df0c9a6010d047b20d99b"
 }
