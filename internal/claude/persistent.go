@@ -110,6 +110,19 @@ func (c *PersistentClient) Start(ctx context.Context, sessionID, prompt string, 
 	return busyErr
 }
 
+// stdinErrOrExit resolves a stdin write/flush failure: if the CLI already
+// exited, its exit error carries the stderr tail (e.g. "already in use") and
+// is the real failure — the broken pipe is just the symptom. Wait briefly for
+// the dispatcher's verdict before falling back to the pipe error.
+func (c *PersistentClient) stdinErrOrExit(p *proc, pipeErr error) error {
+	select {
+	case turnErr := <-p.turnDone:
+		return turnErr
+	case <-time.After(2 * time.Second):
+		return fmt.Errorf("claude: stdin: %w", pipeErr)
+	}
+}
+
 // start runs one turn on the pooled process for sessionID.
 func (c *PersistentClient) start(ctx context.Context, sessionID, prompt string, w EventWriter, cfg *startConfig) error {
 	p, err := c.getOrSpawn(sessionID, cfg)
@@ -142,12 +155,12 @@ func (c *PersistentClient) start(ctx context.Context, sessionID, prompt string, 
 	if _, err := p.stdin.Write(append(line, '\n')); err != nil {
 		p.mu.Unlock()
 		c.evict(sessionID, p, true)
-		return fmt.Errorf("claude: stdin: %w", err)
+		return c.stdinErrOrExit(p, err)
 	}
 	if err := p.stdin.Flush(); err != nil {
 		p.mu.Unlock()
 		c.evict(sessionID, p, true)
-		return fmt.Errorf("claude: stdin: %w", err)
+		return c.stdinErrOrExit(p, err)
 	}
 	p.mu.Unlock()
 
