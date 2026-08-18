@@ -5,6 +5,10 @@
       "args": [
         "@playwright/mcp@latest"
       ]
+    },
+    "antd": {
+      "command": "npx",
+      "args": ["-y", "@ant-design/cli", "mcp"]
     }
   }
 }

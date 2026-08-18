@@ -1,8 +1,8 @@
 ---
 name: react
 description: >-
-  Thoth React frontend — components, hooks, Redux slices, REST client,
-  WS chat client, Vitest tests, Tailwind v4 design tokens.
+  Thoth React frontend — antd v6 components, hooks, Redux slices, REST client,
+  WS chat client, Vitest tests, design tokens.
 ---
 
 # React frontend (web/src) — procedures & expertise
@@ -22,16 +22,35 @@ description: >-
 - web/src/api/client.ts — typed REST client (axios + zod)
 - web/src/ws/chat.ts — ChatSocket: protocol frames, reconnect/resume
 - web/src/test/ — mockAxios, fakeWS, renderWithStore, setup
-- web/src/index.css — Tailwind v4 @theme tokens
+- web/src/theme.ts — the single antd ThemeConfig (blue primary, light-only)
+- web/src/index.css — Tailwind v4 @theme tokens bridging antd's CSS variables
+
+## The antd MCP (check it before writing UI)
+
+The antd MCP server (`mcp__antd__*` tools) is the first stop for any
+antd question — component APIs, tokens, semantic DOM, demos:
+`antd_info` (props/types/defaults per component), `antd_doc` (full
+markdown docs), `antd_token` (design tokens), `antd_semantic`
+(classNames/styles structure), `antd_demo` (demo source), `antd_list`.
+Fallback: https://ant.design/components/overview/.
+
+Hard-won v6 facts worth re-checking in the MCP: DirectoryTree defaults
+`showIcon: true` (disable it when a custom switcherIcon replaces the
+caret — otherwise double icons), `destroyOnHidden` unmounts Popover
+content, Badge has a `title` prop (6.5+), Select/AutoComplete/Tree are
+virtualized by default (`virtual={false}` for small local lists), and
+rc-motion never completes under jsdom (assert store state for closes;
+`motion={false}` on Tree).
 
 ## Workflows
 
 ### 1. Add a component
-1. One component per file in web/src/components/<Name>.tsx; icons from lucide-react
-2. Style with semantic tokens (bg-surface, text-ink, border-line) — no raw hex (see references/patterns.md)
-3. Co-locate the test <Name>.test.tsx using the renderWithStore/mockAxios doubles
-4. Hover hints use the Tooltip wrapper; icon-only buttons use IconButton
-5. Update docs/frontend.md's component table AND references/components.md in the same commit
+1. Check the antd MCP for the component you need; prefer antd components over custom markup
+2. One component per file in web/src/components/<Name>.tsx; icons from @ant-design/icons (aria-hidden on decorative icons — antd icons default to role="img" + aria-label)
+3. Style with semantic tokens (bg-surface, text-ink, border-line) — no raw hex (see references/patterns.md)
+4. Co-locate the test <Name>.test.tsx using the renderWithStore/mockAxios doubles (renderWithStore wraps antd App, so App.useApp().message works)
+5. Toasts use App.useApp().message — never a custom toast system
+6. Update docs/frontend.md's component table AND references/components.md in the same commit
 
 ### 2. Add a Redux slice
 1. Create web/src/store/slices/<name>Slice.ts — actions, selectors, thunks co-located
@@ -74,7 +93,7 @@ description: >-
 - TS strict, zero any — eslint enforces; zod at the API boundary
 - make web is REQUIRED before go build/test — frontend changes don't reach the binary without it
 - WS is chat-only transport; REST for everything else
-- Design tokens flip under prefers-color-scheme; dark mode follows the OS — no toggle
+- Light theme only — no dark mode; colors flow from the antd tokens in web/src/theme.ts
 - Every useEffect has cleanup; no setInterval without clearInterval
 
 ## Canonical docs
