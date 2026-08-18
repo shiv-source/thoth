@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 )
 
 type Node struct {
@@ -12,6 +13,40 @@ type Node struct {
 	Path     string `json:"path"`
 	IsDir    bool   `json:"is_dir"`
 	Children []Node `json:"children"`
+}
+
+// Change is a single filesystem change inside the wiki directory. Op is one
+// of the Op* constants; Path is wiki-relative and slash-separated.
+type Change struct {
+	Op   string `json:"op"`
+	Path string `json:"path"`
+}
+
+// Changed is the batch of changes the index watcher reports per debounce
+// flush, pushed to the UI so it can refetch the wiki tree.
+type Changed struct {
+	Changes []Change `json:"changes,omitempty"`
+}
+
+// Filesystem change operations.
+const (
+	OpCreate = "create"
+	OpWrite  = "write"
+	OpRemove = "remove"
+	OpRename = "rename"
+)
+
+// Visible reports whether a wiki-relative, slash-separated path appears in
+// the tree: everything except dotfiles (any hidden path segment) and the
+// root rulebook. Tree() relies on it, and so does the index watcher when
+// deciding which changes are worth an event.
+func Visible(rel string) bool {
+	for _, seg := range strings.Split(rel, "/") {
+		if strings.HasPrefix(seg, ".") {
+			return false
+		}
+	}
+	return rel != "CLAUDE.md"
 }
 
 type Wiki struct {
@@ -51,13 +86,10 @@ func tree(base, rel string) ([]Node, error) {
 	}
 	nodes := make([]Node, 0, len(entries))
 	for _, e := range entries {
-		if e.Name()[0] == '.' {
-			continue // .git, .gitkeep, dotfiles
-		}
-		if rel == "" && e.Name() == "CLAUDE.md" {
-			continue // the wiki's own rulebook is not a note
-		}
 		childRel := filepath.Join(rel, e.Name())
+		if !Visible(filepath.ToSlash(childRel)) {
+			continue // dotfiles and the root rulebook are not notes
+		}
 		n := Node{Name: e.Name(), Path: filepath.ToSlash(childRel), IsDir: e.IsDir()}
 		if e.IsDir() {
 			n.Children, err = tree(base, childRel)
