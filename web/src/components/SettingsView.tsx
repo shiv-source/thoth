@@ -1,14 +1,40 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Alert, App, AutoComplete, Avatar, Button, Card, Form, Input, List, Select, Switch, Tabs } from 'antd'
+import type { ReactNode } from 'react'
+import {
+    Alert,
+    App,
+    AutoComplete,
+    Avatar,
+    Button,
+    Card,
+    Divider,
+    Flex,
+    Form,
+    Input,
+    Progress,
+    Select,
+    Switch,
+    Tabs,
+    Tag,
+    Typography,
+    theme
+} from 'antd'
 import {
     BranchesOutlined,
+    CheckCircleFilled,
+    ClockCircleOutlined,
+    CloseCircleFilled,
+    FolderOpenOutlined,
+    GithubOutlined,
     GlobalOutlined,
     LockOutlined,
+    MedicineBoxOutlined,
     ReloadOutlined,
+    RobotOutlined,
     SettingOutlined as SettingsIcon,
-    MedicineBoxOutlined
+    SyncOutlined
 } from '@ant-design/icons'
-import type { GitHubRepo, Settings } from '../api/client'
+import type { DoctorCheck, GitHubIdentity, GitHubRepo, Settings } from '../api/client'
 import {
     connectGit,
     disconnectGit,
@@ -104,8 +130,16 @@ export function SettingsView() {
             <div className="flex min-h-0 w-full flex-1 flex-col px-6 py-4">
                 <Form form={form} layout="vertical" onFinish={(values) => void save(values)} className="min-h-0">
                     <Tabs
-                        tabPosition="left"
+                        tabPlacement="start"
                         activeKey={tab}
+                        // The rail is styled by the Tabs tokens in theme.ts
+                        // plus the .settings-tabs pill rules in index.css.
+                        classNames={{ root: 'settings-tabs' }}
+                        tabBarStyle={{ minWidth: 140 }}
+                        // The default left-placement divider (body-holder
+                        // border) renders as a stray full-height vertical
+                        // line between the tab rail and the content.
+                        styles={{ body: { borderLeft: 'none', marginLeft: 0 } }}
                         onChange={(key) => {
                             setTab(key as Tab)
                             navigateSegment('settings', key)
@@ -134,8 +168,30 @@ export function SettingsView() {
     )
 }
 
-// GeneralTab is the wiki path + model picker, with the save button and the
-// saved/error feedback under them.
+// SectionHeading is the icon'd micro-title that opens each card section
+// (the DashboardView kicker pattern, inside a Card).
+function SectionHeading({ icon: Icon, children }: { icon: typeof SettingsIcon; children: ReactNode }) {
+    return (
+        <Flex align="center" gap={8} className="mb-1">
+            <Icon aria-hidden="true" className="text-subtle" />
+            <h3 className="text-xs font-medium uppercase tracking-wide text-subtle">{children}</h3>
+        </Flex>
+    )
+}
+
+// CardTitle is the icon'd Card title shared by every tab's card, so the
+// three panes read as one system (General / GitHub / Checks).
+function CardTitle({ icon: Icon, children }: { icon: typeof SettingsIcon; children: ReactNode }) {
+    return (
+        <Flex align="center" gap={8}>
+            <Icon aria-hidden="true" className="text-accent" />
+            {children}
+        </Flex>
+    )
+}
+
+// GeneralTab is the wiki path + model picker in one card, with the save
+// button and the saved/error feedback under them.
 function GeneralTab({ status }: { status: 'idle' | 'saved' | 'error' }) {
     const settings = useAppSelector(selectSettings)
     const models = useAppSelector(selectModels)
@@ -158,9 +214,10 @@ function GeneralTab({ status }: { status: 'idle' | 'saved' | 'error' }) {
     }, [models])
 
     return (
-        <div className="space-y-4">
-            <div className="grid gap-4 sm:grid-cols-2">
-                <Card title="Wiki" size="small">
+        <Card size="small" className="max-w-3xl" title={<CardTitle icon={SettingsIcon}>General</CardTitle>}>
+            <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                    <SectionHeading icon={FolderOpenOutlined}>Wiki</SectionHeading>
                     <Form.Item
                         label="Wiki path"
                         name="wiki_path"
@@ -168,13 +225,15 @@ function GeneralTab({ status }: { status: 'idle' | 'saved' | 'error' }) {
                     >
                         <Input placeholder="~/.thoth/wiki" />
                     </Form.Item>
-                </Card>
-                <Card title="AI model" size="small">
+                </div>
+                <div>
+                    <SectionHeading icon={RobotOutlined}>AI model</SectionHeading>
                     <Form.Item label="Model" name="model" extra="Applied to all chats after the app restarts.">
                         <Select virtual={false} options={modelGroups} />
                     </Form.Item>
-                </Card>
+                </div>
             </div>
+            <Divider />
             <div className="flex items-center justify-between">
                 <div className="min-w-0 pr-3">
                     {status === 'saved' && <Alert type="success" showIcon message="Saved ✓" />}
@@ -186,12 +245,37 @@ function GeneralTab({ status }: { status: 'idle' | 'saved' | 'error' }) {
                     Save
                 </Button>
             </div>
-        </div>
+        </Card>
+    )
+}
+
+// CheckRow renders one doctor check as a Flex row (List is deprecated in
+// antd v6) with a themed status icon.
+function CheckRow({ name, ok, message }: DoctorCheck) {
+    const { token } = theme.useToken()
+
+    return (
+        <Flex align="flex-start" gap={8}>
+            {ok ? (
+                <CheckCircleFilled
+                    aria-hidden="true"
+                    style={{ color: token.colorSuccess, fontSize: 16, marginTop: 3 }}
+                />
+            ) : (
+                <CloseCircleFilled aria-hidden="true" style={{ color: token.colorError, fontSize: 16, marginTop: 3 }} />
+            )}
+            <Flex vertical flex={1}>
+                <Typography.Text strong>{name}</Typography.Text>
+                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                    {message}
+                </Typography.Text>
+            </Flex>
+        </Flex>
     )
 }
 
 // DoctorTab runs the shared installation checks (GET /api/doctor) on open
-// and on demand, rendering each as a list row.
+// and on demand, rendering them in one card with a pass summary.
 function DoctorTab() {
     const dispatch = useAppDispatch()
     const checks = useAppSelector(selectDoctorChecks)
@@ -202,8 +286,12 @@ function DoctorTab() {
         void dispatch(runDoctor())
     }, [dispatch])
 
+    const passed = checks?.filter((c) => c.ok).length ?? 0
+    const percent = checks && checks.length > 0 ? Math.round((passed / checks.length) * 100) : 0
+
     return (
-        <div className="space-y-4">
+        <Card size="small" className="max-w-3xl" title={<CardTitle icon={MedicineBoxOutlined}>Checks</CardTitle>}>
+            {error && <Alert type="error" showIcon message={error} className="mb-4" />}
             <div className="flex items-center justify-between gap-3">
                 <p className="text-sm text-subtle">
                     Installation health, using the same checks as{' '}
@@ -217,29 +305,146 @@ function DoctorTab() {
                     Run checks
                 </Button>
             </div>
-            {error && <Alert type="error" showIcon message={error} />}
             {checks && (
-                <Card title="Checks" size="small">
-                    <List
-                        size="small"
-                        dataSource={checks}
-                        renderItem={(c) => (
-                            <List.Item>
-                                <List.Item.Meta
-                                    avatar={
-                                        <span aria-hidden="true" className={c.ok ? 'text-emerald-500' : 'text-red-500'}>
-                                            {c.ok ? '✓' : '✗'}
-                                        </span>
-                                    }
-                                    title={c.name}
-                                    description={c.message}
-                                />
-                            </List.Item>
-                        )}
-                    />
-                </Card>
+                <>
+                    <Flex align="center" gap={12} className="mt-4">
+                        <Progress percent={percent} size="small" className="flex-1" />
+                        <Typography.Text type="secondary">
+                            {passed} of {checks.length} passed
+                        </Typography.Text>
+                    </Flex>
+                    <Divider />
+                    <div className="grid gap-4 md:grid-cols-2">
+                        {checks.map((c) => (
+                            <CheckRow key={c.name} {...c} />
+                        ))}
+                    </div>
+                </>
             )}
+        </Card>
+    )
+}
+
+// GitAccountSection shows the connected identity (avatar, profile link,
+// account dates, scopes) with the disconnect action.
+function GitAccountSection({ auth, onDisconnect }: { auth: GitHubIdentity; onDisconnect: () => void }) {
+    const scopes = auth.scopes
+        .split(',')
+        .map((s) => s.trim())
+        .filter((s) => s !== '')
+
+    return (
+        <div className="flex items-center gap-3">
+            {auth.avatar_url !== '' && <Avatar src={auth.avatar_url} size={48} />}
+            <div className="min-w-0 flex-1">
+                <p className="text-xs text-subtle">Connected as</p>
+                <p className="mt-1 truncate text-base font-semibold text-heading">
+                    {auth.profile_url !== '' ? (
+                        <a href={auth.profile_url} target="_blank" rel="noreferrer" className="hover:underline">
+                            {auth.display_name || auth.username}
+                        </a>
+                    ) : (
+                        auth.display_name || auth.username
+                    )}
+                </p>
+                <p className="mt-1.5 truncate text-xs text-subtle">{auth.email || auth.username}</p>
+                {(auth.account_created_at !== '' || auth.account_updated_at !== '') && (
+                    <Flex align="center" gap={4} className="mt-1.5">
+                        <ClockCircleOutlined aria-hidden="true" className="text-subtle" />
+                        <p className="truncate text-xs text-subtle">
+                            Member since {auth.account_created_at.slice(0, 10)}
+                            {auth.account_updated_at !== '' && ` · Updated ${auth.account_updated_at.slice(0, 10)}`}
+                        </p>
+                    </Flex>
+                )}
+                {scopes.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-1">
+                        {scopes.map((s) => (
+                            <Tag key={s}>{s}</Tag>
+                        ))}
+                    </div>
+                )}
+            </div>
+            <Button onClick={onDisconnect}>Disconnect</Button>
         </div>
+    )
+}
+
+// GitRemoteSection holds the sync repo URL input; suggestions come from the
+// connected account, and a picked public repo triggers the security warning.
+function GitRemoteSection({
+    repos,
+    selectedRepo,
+    onSelect,
+    publicSelected
+}: {
+    repos: GitHubRepo[] | null
+    selectedRepo: GitHubRepo | null
+    onSelect: (repo: GitHubRepo | null) => void
+    publicSelected: boolean
+}) {
+    const repoOptions = useMemo(
+        () =>
+            (repos ?? []).map((r) => ({
+                value: r.clone_url,
+                repo: r,
+                label: (
+                    <span className="flex items-start gap-2">
+                        {r.private ? (
+                            <LockOutlined aria-hidden="true" className="mt-0.5 shrink-0 text-subtle" />
+                        ) : (
+                            <GlobalOutlined aria-hidden="true" className="mt-0.5 shrink-0 text-subtle" />
+                        )}
+                        <span className="min-w-0 flex-1">
+                            <span className="block truncate text-sm">{r.full_name}</span>
+                            {r.description !== '' && (
+                                <span className="block truncate text-xs text-subtle">{r.description}</span>
+                            )}
+                        </span>
+                    </span>
+                )
+            })),
+        [repos]
+    )
+
+    return (
+        <>
+            <Form.Item label="Git remote URL" name="repo_url">
+                <AutoComplete
+                    virtual={false}
+                    placeholder="https://github.com/you/wiki.git"
+                    options={repoOptions}
+                    onSelect={(_value, option) => {
+                        const repo = (option as { repo?: GitHubRepo }).repo
+                        onSelect(repo ?? null)
+                    }}
+                    onChange={(value) => {
+                        if (selectedRepo && selectedRepo.clone_url !== value) onSelect(null)
+                    }}
+                />
+            </Form.Item>
+            {publicSelected && (
+                <Alert
+                    type="error"
+                    showIcon
+                    message="Syncing to a public repository is blocked for your security — use a private repository."
+                />
+            )}
+        </>
+    )
+}
+
+// GitSyncSection is the single auto-sync switch.
+function GitSyncSection() {
+    return (
+        <Form.Item
+            name="sync_enabled"
+            valuePropName="checked"
+            label="Auto-sync the wiki to the remote"
+            extra="Stores your wiki in a remote git repository. Thoth initializes the repo if needed, commits the current tree, and pushes the branch."
+        >
+            <Switch />
+        </Form.Item>
     )
 }
 
@@ -269,30 +474,6 @@ function GitTab() {
     useEffect(() => {
         if (connected) void dispatch(fetchGitRepos())
     }, [connected, dispatch])
-
-    const repoOptions = useMemo(
-        () =>
-            (repos ?? []).map((r) => ({
-                value: r.clone_url,
-                repo: r,
-                label: (
-                    <span className="flex items-start gap-2">
-                        {r.private ? (
-                            <LockOutlined aria-hidden="true" className="mt-0.5 shrink-0 text-subtle" />
-                        ) : (
-                            <GlobalOutlined aria-hidden="true" className="mt-0.5 shrink-0 text-subtle" />
-                        )}
-                        <span className="min-w-0 flex-1">
-                            <span className="block truncate text-sm">{r.full_name}</span>
-                            {r.description !== '' && (
-                                <span className="block truncate text-xs text-subtle">{r.description}</span>
-                            )}
-                        </span>
-                    </span>
-                )
-            })),
-        [repos]
-    )
 
     const publicSelected = selectedRepo !== null && !selectedRepo.private
 
@@ -340,7 +521,8 @@ function GitTab() {
 
     if (!connected) {
         return (
-            <Card title="GitHub account" size="small" className="max-w-xl">
+            <Card size="small" className="max-w-2xl" title={<CardTitle icon={GithubOutlined}>GitHub</CardTitle>}>
+                <SectionHeading icon={GithubOutlined}>Account</SectionHeading>
                 <Form.Item
                     label="Personal access token"
                     extra={
@@ -364,64 +546,26 @@ function GitTab() {
     }
 
     return (
-        <div className="max-w-xl space-y-4">
-            <Card title="GitHub account" size="small">
-                <div className="flex items-center gap-3">
-                    {auth.avatar_url !== '' && <Avatar src={auth.avatar_url} size={36} />}
-                    <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium text-ink">
-                            {auth.profile_url !== '' ? (
-                                <a href={auth.profile_url} target="_blank" rel="noreferrer" className="hover:underline">
-                                    {auth.display_name || auth.username}
-                                </a>
-                            ) : (
-                                auth.display_name || auth.username
-                            )}
-                        </p>
-                        <p className="truncate text-xs text-subtle">{auth.email || auth.username}</p>
-                        {(auth.account_created_at !== '' || auth.account_updated_at !== '') && (
-                            <p className="mt-0.5 truncate text-xs text-subtle">
-                                Member since {auth.account_created_at.slice(0, 10)}
-                                {auth.account_updated_at !== '' && ` · Updated ${auth.account_updated_at.slice(0, 10)}`}
-                            </p>
-                        )}
-                    </div>
-                    <Button onClick={() => void disconnect()}>Disconnect</Button>
+        <Card size="small" className="max-w-3xl" title={<CardTitle icon={GithubOutlined}>GitHub</CardTitle>}>
+            <SectionHeading icon={GithubOutlined}>Account</SectionHeading>
+            <GitAccountSection auth={auth} onDisconnect={() => void disconnect()} />
+            <Divider />
+            <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                    <SectionHeading icon={BranchesOutlined}>Remote</SectionHeading>
+                    <GitRemoteSection
+                        repos={repos}
+                        selectedRepo={selectedRepo}
+                        onSelect={setSelectedRepo}
+                        publicSelected={publicSelected}
+                    />
                 </div>
-            </Card>
-            <Card title="Remote" size="small">
-                <Form.Item label="Git remote URL" name="repo_url">
-                    <AutoComplete
-                        virtual={false}
-                        placeholder="https://github.com/you/wiki.git"
-                        options={repoOptions}
-                        onSelect={(_value, option) => {
-                            const repo = (option as { repo?: GitHubRepo }).repo
-                            setSelectedRepo(repo ?? null)
-                        }}
-                        onChange={(value) => {
-                            if (selectedRepo && selectedRepo.clone_url !== value) setSelectedRepo(null)
-                        }}
-                    />
-                </Form.Item>
-                {publicSelected && (
-                    <Alert
-                        type="error"
-                        showIcon
-                        message="Syncing to a public repository is blocked for your security — use a private repository."
-                    />
-                )}
-            </Card>
-            <Card title="Sync" size="small">
-                <Form.Item
-                    name="sync_enabled"
-                    valuePropName="checked"
-                    label="Auto-sync the wiki to the remote"
-                    extra="Stores your wiki in a remote git repository. Thoth initializes the repo if needed, commits the current tree, and pushes the branch."
-                >
-                    <Switch />
-                </Form.Item>
-            </Card>
+                <div>
+                    <SectionHeading icon={SyncOutlined}>Sync</SectionHeading>
+                    <GitSyncSection />
+                </div>
+            </div>
+            <Divider />
             {gitError && <Alert type="error" showIcon message={gitError} />}
             <div className="flex justify-end gap-3">
                 <Button htmlType="submit">Save</Button>
@@ -429,6 +573,6 @@ function GitTab() {
                     Initialize & Push
                 </Button>
             </div>
-        </div>
+        </Card>
     )
 }
