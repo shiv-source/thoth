@@ -2,14 +2,16 @@
 # graph-check.sh — staleness guard for the committed graphify graph.
 #
 # Exits 0 when graphify-out/graph.json is fresh (or missing — nothing to
-# guard), 1 when any tracked source file is newer than the graph.
-# Callers (pr.sh, humans) should then run `graphify update .` and commit
-# the refreshed graph — the committed graph must match the committed tree
-# (CLAUDE.md § graphify, git-workflow skill workflow 2 step 5).
+# guard), 1 when the committed graph lags committed code or when uncommitted
+# code changes exist. Callers (pr.sh, humans) should then run
+# `graphify update .` and commit the refreshed graph — the committed graph
+# must match the committed tree (CLAUDE.md § graphify, git-workflow skill
+# workflow 2 step 5).
 #
-# Caveat: mtimes, not content. A fresh checkout or `git switch` rewrites
-# mtimes, so the guard can look stale right after a switch — the remedy is
-# the same one command.
+# Scope: code only (Go/TS/TSX — graphify's AST inputs; CLAUDE.md: "after
+# modifying code"). Docs/.sh changes don't affect graph.json.
+# Commit-based, not mtime-based: a `git switch` rewrites mtimes without
+# changing content, which would false-positive a mtime check.
 set -u
 
 cd "$(dirname "$0")/.."
@@ -17,34 +19,33 @@ cd "$(dirname "$0")/.."
 graph="graphify-out/graph.json"
 
 if [ ! -f "$graph" ]; then
-  echo "graph-check: graphify-out/graph.json missing — nothing to guard" >&2
+  echo "graph-check: $graph missing — nothing to guard" >&2
   exit 0
 fi
 
-# Tracked sources the graph covers, minus generated dirs (CLAUDE.md § Repo
-# rules: bin/, web/dist/, internal/webui/dist/, node_modules/), the graph
-# itself, .git/ (churns on every git op), and docs/specs/ (untracked design
-# docs by convention — git-workflow skill workflow 5).
-stale="$(find . -type f \
-  \( -name '*.go' -o -name '*.ts' -o -name '*.tsx' -o -name '*.md' \
-     -o -name '*.yaml' -o -name '*.yml' \) \
-  -not -path './.git/*' \
-  -not -path './bin/*' \
-  -not -path './web/dist/*' \
-  -not -path './internal/webui/dist/*' \
-  -not -path './node_modules/*' \
-  -not -path './graphify-out/*' \
-  -not -path './docs/specs/*' \
-  -newer "$graph" \
-  -print | head -20)"
+# Code files only; generated dirs (bin/, web/dist/, internal/webui/dist/,
+# node_modules/) are gitignored and never appear.
+code=( '*.go' '*.ts' '*.tsx' )
 
-if [ -n "$stale" ]; then
-  echo "graph-check: stale graph — newer than $graph:" >&2
-  printf '%s\n' "$stale" | sed 's/^/  /' >&2
-  [ "$(printf '%s\n' "$stale" | wc -l | tr -d ' ')" -ge 20 ] \
-    && echo "  … and more" >&2
+# 1. Uncommitted changes to tracked code — the graph cannot reflect them.
+dirty="$(git status --porcelain -- "${code[@]}" || true)"
+if [ -n "$dirty" ]; then
+  echo "graph-check: stale graph — uncommitted code changes not in the graph:" >&2
+  printf '%s\n' "$dirty" | head -20 | sed 's/^/  /' >&2
   echo "Run: graphify update .  (then commit the refreshed graph)" >&2
   exit 1
+fi
+
+# 2. Code committed since the graph last changed — the graph lags the tree.
+graph_commit="$(git log -1 --format=%H -- "$graph")"
+if [ -n "$graph_commit" ]; then
+  lagged="$(git log --format='%h %s' "$graph_commit..HEAD" -- "${code[@]}" || true)"
+  if [ -n "$lagged" ]; then
+    echo "graph-check: stale graph — code committed since the last graph refresh:" >&2
+    printf '%s\n' "$lagged" | head -20 | sed 's/^/  /' >&2
+    echo "Run: graphify update .  (then commit the refreshed graph)" >&2
+    exit 1
+  fi
 fi
 
 exit 0

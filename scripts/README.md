@@ -4,8 +4,8 @@ Repo helper scripts — run manually by developers and agents, not part of CI.
 (CI lives in `.github/workflows/`; commit hooks in `.husky/`.)
 
 - `graph-check.sh` — staleness guard for the committed graphify graph: exits 1
-  when a tracked source (Go, TS/TSX, md, yaml) is newer than
-  `graphify-out/graph.json`; run `graphify update .` and commit the refresh.
+  when code (Go/TS/TSX) changed — uncommitted or since the last graph
+  refresh; run `graphify update .` and commit the refresh.
 - `pr.sh` — one command for the whole contribute flow: preflight, sync with
   main, branch-name check, graph-check, label derivation (parsed from
   `.claude/skills/git-workflow/references/labels.md`), `make check` (skip
