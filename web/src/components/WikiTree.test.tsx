@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { axiosModuleMock, axiosError, stubAPI } from '../test/mockAxios'
 import { renderWithStore } from '../test/renderWithStore'
-import { assistantStart, turnDone } from '../store'
+import { setStatus } from '../store'
 import { WikiTree } from './WikiTree'
 
 const mocks = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() }))
@@ -82,20 +82,20 @@ describe('WikiTree', () => {
         expect(await screen.findByText('Could not load the wiki tree')).toBeInTheDocument()
     })
 
-    it('refetches the tree when a chat turn completes', async () => {
+    it('refetches when the connection reconnects', async () => {
         stubAPI(mocks, { '/api/wiki/tree': () => treeResponse })
         const { store } = renderWikiTree()
         await screen.findByText('meetings')
         expect(mocks.get).toHaveBeenCalledTimes(1)
 
-        // A turn starts and completes — Claude may have saved notes. Separate
-        // act() calls so the component observes the streaming true→false edge.
+        // The socket dropped and reconnected: wiki_changed frames may have
+        // been missed while disconnected, so reseed on the reconnect edge.
         await act(async () => {
-            store.dispatch(assistantStart())
+            store.dispatch(setStatus('reconnecting'))
             await Promise.resolve()
         })
         await act(async () => {
-            store.dispatch(turnDone('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1'))
+            store.dispatch(setStatus('connected'))
             await Promise.resolve()
         })
         await waitFor(() => expect(mocks.get).toHaveBeenCalledTimes(2))

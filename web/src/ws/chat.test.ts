@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ChatSocket } from './chat'
+import type { ServerMessage } from './chat'
 import { FakeWS } from '../test/fakeWS'
 
 vi.stubGlobal('WebSocket', FakeWS)
@@ -24,6 +25,31 @@ describe('ChatSocket', () => {
 
         ws.onmessage!({ data: JSON.stringify({ type: 'assistant_delta', text: 'hi' }) })
         expect(received).toEqual([{ type: 'assistant_delta', text: 'hi' }])
+    })
+
+    it('forwards the wiki_changed push frame', () => {
+        const socket = new ChatSocket('ws://x/ws')
+        socket.connect()
+        const received: ServerMessage[] = []
+        socket.onMessage((m) => received.push(m))
+        const ws = FakeWS.instances[0]!
+        ws.open()
+
+        const frame: ServerMessage = {
+            type: 'wiki_changed',
+            changes: [
+                { op: 'write', path: 'notes/a.md' },
+                { op: 'remove', path: 'old.md' }
+            ]
+        }
+        ws.onmessage!({ data: JSON.stringify(frame) })
+        expect(received).toEqual([frame])
+
+        // The watcher's startup event carries no changes (omitempty on the
+        // wire) and must parse as a bare wiki_changed frame.
+        const bare: ServerMessage = { type: 'wiki_changed' }
+        ws.onmessage!({ data: JSON.stringify(bare) })
+        expect(received).toEqual([frame, bare])
     })
 
     it('reconnects once after a drop and resumes the conversation', () => {
