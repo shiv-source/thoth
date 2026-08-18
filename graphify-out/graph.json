@@ -5251,6 +5251,7 @@
     {
       "label": "shared.md",
       "file_type": "document",
+      "node_kind": "page",
       "source_file": ".claude/skills/code-quality/references/shared.md",
       "source_location": "L1",
       "_origin": "ast",
@@ -5262,6 +5263,7 @@
     {
       "label": "Correctness",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/code-quality/references/shared.md",
       "source_location": "L7",
       "_origin": "ast",
@@ -5273,6 +5275,7 @@
     {
       "label": "Naming & style",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/code-quality/references/shared.md",
       "source_location": "L25",
       "_origin": "ast",
@@ -5284,6 +5287,7 @@
     {
       "label": "Shared checklist \u2014 both layers (yes/no; any \"no\" gets fixed before the PR)",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/code-quality/references/shared.md",
       "source_location": "L1",
       "_origin": "ast",
@@ -5295,6 +5299,7 @@
     {
       "label": "Structure",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/code-quality/references/shared.md",
       "source_location": "L18",
       "_origin": "ast",
@@ -5306,6 +5311,7 @@
     {
       "label": "Tests",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/code-quality/references/shared.md",
       "source_location": "L12",
       "_origin": "ast",
@@ -6318,6 +6324,7 @@
     {
       "label": "components.md",
       "file_type": "document",
+      "node_kind": "page",
       "source_file": ".claude/skills/react/references/components.md",
       "source_location": "L1",
       "_origin": "ast",
@@ -6329,6 +6336,7 @@
     {
       "label": "ActivityChart",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/react/references/components.md",
       "source_location": "L142",
       "_origin": "ast",
@@ -6340,6 +6348,7 @@
     {
       "label": "App shell & navigation",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/react/references/components.md",
       "source_location": "L9",
       "_origin": "ast",
@@ -6351,6 +6360,7 @@
     {
       "label": "AppHeader",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/react/references/components.md",
       "source_location": "L16",
       "_origin": "ast",
@@ -6362,6 +6372,7 @@
     {
       "label": "AppSider",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/react/references/components.md",
       "source_location": "L10",
       "_origin": "ast",
@@ -6373,6 +6384,7 @@
     {
       "label": "Charts (Chart.js)",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/react/references/components.md",
       "source_location": "L135",
       "_origin": "ast",
@@ -6384,6 +6396,7 @@
     {
       "label": "chartSetup.ts",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/react/references/components.md",
       "source_location": "L136",
       "_origin": "ast",
@@ -6395,6 +6408,7 @@
     {
       "label": "Chat",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/react/references/components.md",
       "source_location": "L28",
       "_origin": "ast",
@@ -6406,6 +6420,7 @@
     {
       "label": "ChatActivityChart",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/react/references/components.md",
       "source_location": "L148",
       "_origin": "ast",
@@ -6417,6 +6432,7 @@
     {
       "label": "ChatPanel",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/react/references/components.md",
       "source_location": "L29",
       "_origin": "ast",
@@ -6428,6 +6444,7 @@
     {
       "label": "CodeBlock",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/react/references/components.md",
       "source_location": "L53",
       "_origin": "ast",
@@ -6439,6 +6456,7 @@
     {
       "label": "Components (web/src/components)",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/react/references/components.md",
       "source_location": "L1",
       "_origin": "ast",
@@ -6450,6 +6468,7 @@
     {
       "label": "Composer",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/react/references/components.md",
       "source_location": "L35",
       "_origin": "ast",
@@ -6461,6 +6480,7 @@
     {
       "label": "CopyButton",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/react/references/components.md",
       "source_location": "L59",
       "_origin": "ast",
@@ -6472,6 +6492,7 @@
     {
       "label": "dashboardMock.ts",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/react/references/components.md",
       "source_location": "L173",
       "_origin": "ast",
@@ -6483,6 +6504,7 @@
     {
       "label": "DashboardView",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/react/references/components.md",
       "source_location": "L104",
       "_origin": "ast",
@@ -6494,6 +6516,7 @@
     {
       "label": "Data",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/react/references/components.md",
       "source_location": "L172",
       "_origin": "ast",
@@ -6505,6 +6528,7 @@
     {
       "label": "Intentional skips",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/react/references/components.md",
       "source_location": "L179",
       "_origin": "ast",
@@ -6516,6 +6540,7 @@
     {
       "label": "Markdown",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/react/references/components.md",
       "source_location": "L47",
       "_origin": "ast",
@@ -6527,6 +6552,7 @@
     {
       "label": "MessageItem",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/react/references/components.md",
       "source_location": "L41",
       "_origin": "ast",
@@ -6538,6 +6564,7 @@
     {
       "label": "NotesByFolderChart",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/react/references/components.md",
       "source_location": "L160",
       "_origin": "ast",
@@ -6549,6 +6576,7 @@
     {
       "label": "NotesByKindChart",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/react/references/components.md",
       "source_location": "L154",
       "_origin": "ast",
@@ -6560,6 +6588,7 @@
     {
       "label": "NotesView",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/react/references/components.md",
       "source_location": "L66",
       "_origin": "ast",
@@ -6571,6 +6600,7 @@
     {
       "label": "NoteViewer",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/react/references/components.md",
       "source_location": "L78",
       "_origin": "ast",
@@ -6582,6 +6612,7 @@
     {
       "label": "NotificationPanel",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/react/references/components.md",
       "source_location": "L117",
       "_origin": "ast",
@@ -6593,6 +6624,7 @@
     {
       "label": "Notifications",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/react/references/components.md",
       "source_location": "L116",
       "_origin": "ast",
@@ -6604,6 +6636,7 @@
     {
       "label": "notifications.tsx",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/react/references/components.md",
       "source_location": "L129",
       "_origin": "ast",
@@ -6615,6 +6648,7 @@
     {
       "label": "NotificationToasts",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/react/references/components.md",
       "source_location": "L123",
       "_origin": "ast",
@@ -6626,6 +6660,7 @@
     {
       "label": "Search",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/react/references/components.md",
       "source_location": "L84",
       "_origin": "ast",
@@ -6637,6 +6672,7 @@
     {
       "label": "SearchPanel",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/react/references/components.md",
       "source_location": "L85",
       "_origin": "ast",
@@ -6648,6 +6684,7 @@
     {
       "label": "SearchView",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/react/references/components.md",
       "source_location": "L91",
       "_origin": "ast",
@@ -6659,6 +6696,7 @@
     {
       "label": "Settings & dashboard",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/react/references/components.md",
       "source_location": "L97",
       "_origin": "ast",
@@ -6670,6 +6708,7 @@
     {
       "label": "SettingsView",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/react/references/components.md",
       "source_location": "L98",
       "_origin": "ast",
@@ -6681,6 +6720,7 @@
     {
       "label": "SetupScreen",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/react/references/components.md",
       "source_location": "L110",
       "_origin": "ast",
@@ -6692,6 +6732,7 @@
     {
       "label": "Sidebar",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/react/references/components.md",
       "source_location": "L22",
       "_origin": "ast",
@@ -6703,6 +6744,7 @@
     {
       "label": "useThemeColors.ts",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/react/references/components.md",
       "source_location": "L166",
       "_origin": "ast",
@@ -6714,6 +6756,7 @@
     {
       "label": "Wiki & notes",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/react/references/components.md",
       "source_location": "L65",
       "_origin": "ast",
@@ -6725,6 +6768,7 @@
     {
       "label": "WikiTree",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/react/references/components.md",
       "source_location": "L72",
       "_origin": "ast",
@@ -7132,6 +7176,7 @@
     {
       "label": "documentation.md",
       "file_type": "document",
+      "node_kind": "page",
       "source_file": ".claude/skills/code-quality/references/documentation.md",
       "source_location": "L1",
       "_origin": "ast",
@@ -7143,6 +7188,7 @@
     {
       "label": "Documentation checklist (docs, skills, PR)",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/code-quality/references/documentation.md",
       "source_location": "L1",
       "_origin": "ast",
@@ -8144,8 +8190,13 @@
     {
       "label": "go/SKILL.md",
       "file_type": "document",
+      "node_kind": "page",
       "source_file": ".claude/skills/go/SKILL.md",
       "source_location": "L1",
+      "frontmatter": {
+        "name": "go",
+        "description": "&gt;-"
+      },
       "_origin": "ast",
       "id": "claude_skills_go_skill",
       "community": 29,
@@ -8155,6 +8206,7 @@
     {
       "label": "10. Diagnose/repair an install",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/go/SKILL.md",
       "source_location": "L98",
       "_origin": "ast",
@@ -8166,6 +8218,7 @@
     {
       "label": "11. Cut a release",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/go/SKILL.md",
       "source_location": "L104",
       "_origin": "ast",
@@ -8177,6 +8230,7 @@
     {
       "label": "1. Add a REST endpoint",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/go/SKILL.md",
       "source_location": "L35",
       "_origin": "ast",
@@ -8188,6 +8242,7 @@
     {
       "label": "2. Extend the WS protocol",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/go/SKILL.md",
       "source_location": "L43",
       "_origin": "ast",
@@ -8199,6 +8254,7 @@
     {
       "label": "3. Add a store migration",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/go/SKILL.md",
       "source_location": "L50",
       "_origin": "ast",
@@ -8210,6 +8266,7 @@
     {
       "label": "4. Change claude CLI flags (BLAST WALL)",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/go/SKILL.md",
       "source_location": "L57",
       "_origin": "ast",
@@ -8221,6 +8278,7 @@
     {
       "label": "5. Add a settings key",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/go/SKILL.md",
       "source_location": "L64",
       "_origin": "ast",
@@ -8232,6 +8290,7 @@
     {
       "label": "6. Extend the wiki contract",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/go/SKILL.md",
       "source_location": "L71",
       "_origin": "ast",
@@ -8243,6 +8302,7 @@
     {
       "label": "7. Bump a dependency",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/go/SKILL.md",
       "source_location": "L78",
       "_origin": "ast",
@@ -8254,6 +8314,7 @@
     {
       "label": "8. Add a doctor install check",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/go/SKILL.md",
       "source_location": "L84",
       "_origin": "ast",
@@ -8265,6 +8326,7 @@
     {
       "label": "9. Extend indexing/search",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/go/SKILL.md",
       "source_location": "L91",
       "_origin": "ast",
@@ -8276,6 +8338,7 @@
     {
       "label": "Canonical docs",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/go/SKILL.md",
       "source_location": "L117",
       "_origin": "ast",
@@ -8287,6 +8350,7 @@
     {
       "label": "Go backend (internal/* + cmd/*) \u2014 procedures & expertise",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/go/SKILL.md",
       "source_location": "L8",
       "_origin": "ast",
@@ -8298,6 +8362,7 @@
     {
       "label": "Gotchas",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/go/SKILL.md",
       "source_location": "L109",
       "_origin": "ast",
@@ -8309,6 +8374,7 @@
     {
       "label": "Key files",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/go/SKILL.md",
       "source_location": "L19",
       "_origin": "ast",
@@ -8320,6 +8386,7 @@
     {
       "label": "Maintenance",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/go/SKILL.md",
       "source_location": "L124",
       "_origin": "ast",
@@ -8331,6 +8398,7 @@
     {
       "label": "When to use",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/go/SKILL.md",
       "source_location": "L10",
       "_origin": "ast",
@@ -8342,6 +8410,7 @@
     {
       "label": "Workflows",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/go/SKILL.md",
       "source_location": "L33",
       "_origin": "ast",
@@ -9013,6 +9082,7 @@
     {
       "label": "go.md",
       "file_type": "document",
+      "node_kind": "page",
       "source_file": ".claude/skills/code-quality/references/go.md",
       "source_location": "L1",
       "_origin": "ast",
@@ -9024,6 +9094,7 @@
     {
       "label": "Go backend checklist (internal/* + cmd/*)",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/code-quality/references/go.md",
       "source_location": "L1",
       "_origin": "ast",
@@ -9418,17 +9489,6 @@
       "norm_label": "testfetchrepossuccess()"
     },
     {
-      "label": "api",
-      "file_type": "code",
-      "source_file": "web/src/api/client.ts",
-      "source_location": "L95",
-      "_origin": "ast",
-      "id": "web_src_api_client_api",
-      "community": 37,
-      "community_name": "api",
-      "norm_label": "api"
-    },
-    {
       "label": "useSearch.ts",
       "file_type": "code",
       "source_file": "web/src/hooks/useSearch.ts",
@@ -9651,6 +9711,7 @@
     {
       "label": "packages.md",
       "file_type": "document",
+      "node_kind": "page",
       "source_file": ".claude/skills/go/references/packages.md",
       "source_location": "L1",
       "_origin": "ast",
@@ -9662,6 +9723,7 @@
     {
       "label": "cmd/thoth",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/go/references/packages.md",
       "source_location": "L6",
       "_origin": "ast",
@@ -9673,6 +9735,7 @@
     {
       "label": "Go packages (internal/* + cmd/thoth)",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/go/references/packages.md",
       "source_location": "L1",
       "_origin": "ast",
@@ -9684,6 +9747,7 @@
     {
       "label": "internal/api",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/go/references/packages.md",
       "source_location": "L49",
       "_origin": "ast",
@@ -9695,6 +9759,7 @@
     {
       "label": "internal/assets",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/go/references/packages.md",
       "source_location": "L37",
       "_origin": "ast",
@@ -9706,6 +9771,7 @@
     {
       "label": "internal/claude \u2014 the blast wall",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/go/references/packages.md",
       "source_location": "L18",
       "_origin": "ast",
@@ -9717,6 +9783,7 @@
     {
       "label": "internal/cli",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/go/references/packages.md",
       "source_location": "L12",
       "_origin": "ast",
@@ -9728,6 +9795,7 @@
     {
       "label": "internal/config",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/go/references/packages.md",
       "source_location": "L55",
       "_origin": "ast",
@@ -9739,6 +9807,7 @@
     {
       "label": "internal/doctor",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/go/references/packages.md",
       "source_location": "L61",
       "_origin": "ast",
@@ -9750,6 +9819,7 @@
     {
       "label": "internal/github",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/go/references/packages.md",
       "source_location": "L67",
       "_origin": "ast",
@@ -9761,6 +9831,7 @@
     {
       "label": "internal/index",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/go/references/packages.md",
       "source_location": "L31",
       "_origin": "ast",
@@ -9772,6 +9843,7 @@
     {
       "label": "internal/settings",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/go/references/packages.md",
       "source_location": "L73",
       "_origin": "ast",
@@ -9783,6 +9855,7 @@
     {
       "label": "internal/store",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/go/references/packages.md",
       "source_location": "L43",
       "_origin": "ast",
@@ -9794,6 +9867,7 @@
     {
       "label": "internal/webui",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/go/references/packages.md",
       "source_location": "L79",
       "_origin": "ast",
@@ -9805,6 +9879,7 @@
     {
       "label": "internal/wiki",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/go/references/packages.md",
       "source_location": "L25",
       "_origin": "ast",
@@ -10399,6 +10474,7 @@
     {
       "label": "2026-08-18-thoth-skills-suite.md",
       "file_type": "document",
+      "node_kind": "page",
       "source_file": "docs/superpowers/plans/2026-08-18-thoth-skills-suite.md",
       "source_location": "L1",
       "_origin": "ast",
@@ -10410,6 +10486,7 @@
     {
       "label": "Global Constraints",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": "docs/superpowers/plans/2026-08-18-thoth-skills-suite.md",
       "source_location": "L19",
       "_origin": "ast",
@@ -10421,6 +10498,7 @@
     {
       "label": "Task 10: react/references/patterns.md \u2014 the cross-cutting conventions",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": "docs/superpowers/plans/2026-08-18-thoth-skills-suite.md",
       "source_location": "L1095",
       "_origin": "ast",
@@ -10432,6 +10510,7 @@
     {
       "label": "Task 11: CLAUDE.md \u2014 the one pointer line",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": "docs/superpowers/plans/2026-08-18-thoth-skills-suite.md",
       "source_location": "L1179",
       "_origin": "ast",
@@ -10443,6 +10522,7 @@
     {
       "label": "Task 12: Full-suite verification + PR",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": "docs/superpowers/plans/2026-08-18-thoth-skills-suite.md",
       "source_location": "L1228",
       "_origin": "ast",
@@ -10454,6 +10534,7 @@
     {
       "label": "Task 1: go/SKILL.md \u2014 the backend procedure skill",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": "docs/superpowers/plans/2026-08-18-thoth-skills-suite.md",
       "source_location": "L50",
       "_origin": "ast",
@@ -10465,6 +10546,7 @@
     {
       "label": "Task 2: go/references/packages.md \u2014 the package index",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": "docs/superpowers/plans/2026-08-18-thoth-skills-suite.md",
       "source_location": "L195",
       "_origin": "ast",
@@ -10476,6 +10558,7 @@
     {
       "label": "Task 3: go/references/claude-blast-wall.md \u2014 the version-sensitive zone",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": "docs/superpowers/plans/2026-08-18-thoth-skills-suite.md",
       "source_location": "L318",
       "_origin": "ast",
@@ -10487,6 +10570,7 @@
     {
       "label": "Task 4: go/references/persistence.md \u2014 thoth.db and migrations",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": "docs/superpowers/plans/2026-08-18-thoth-skills-suite.md",
       "source_location": "L395",
       "_origin": "ast",
@@ -10498,6 +10582,7 @@
     {
       "label": "Task 5: go/references/quality.md \u2014 the verification gates",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": "docs/superpowers/plans/2026-08-18-thoth-skills-suite.md",
       "source_location": "L472",
       "_origin": "ast",
@@ -10509,6 +10594,7 @@
     {
       "label": "Task 6: react/SKILL.md \u2014 the frontend procedure skill",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": "docs/superpowers/plans/2026-08-18-thoth-skills-suite.md",
       "source_location": "L547",
       "_origin": "ast",
@@ -10520,6 +10606,7 @@
     {
       "label": "Task 7: react/references/components.md \u2014 the component index",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": "docs/superpowers/plans/2026-08-18-thoth-skills-suite.md",
       "source_location": "L665",
       "_origin": "ast",
@@ -10531,6 +10618,7 @@
     {
       "label": "Task 8: react/references/hooks.md \u2014 the hook index",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": "docs/superpowers/plans/2026-08-18-thoth-skills-suite.md",
       "source_location": "L927",
       "_origin": "ast",
@@ -10542,6 +10630,7 @@
     {
       "label": "Task 9: react/references/store.md \u2014 the Redux slice index",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": "docs/superpowers/plans/2026-08-18-thoth-skills-suite.md",
       "source_location": "L1000",
       "_origin": "ast",
@@ -10553,6 +10642,7 @@
     {
       "label": "Thoth Project Skills Suite Implementation Plan",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": "docs/superpowers/plans/2026-08-18-thoth-skills-suite.md",
       "source_location": "L1",
       "_origin": "ast",
@@ -11273,8 +11363,13 @@
     {
       "label": "git-workflow/SKILL.md",
       "file_type": "document",
+      "node_kind": "page",
       "source_file": ".claude/skills/git-workflow/SKILL.md",
       "source_location": "L1",
+      "frontmatter": {
+        "name": "git-workflow",
+        "description": "&gt;-"
+      },
       "_origin": "ast",
       "id": "claude_skills_git_workflow_skill",
       "community": 47,
@@ -11284,6 +11379,7 @@
     {
       "label": "1. Start a change (branch)",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/git-workflow/SKILL.md",
       "source_location": "L29",
       "_origin": "ast",
@@ -11295,6 +11391,7 @@
     {
       "label": "2. Commit",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/git-workflow/SKILL.md",
       "source_location": "L38",
       "_origin": "ast",
@@ -11306,6 +11403,7 @@
     {
       "label": "3. Open a PR",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/git-workflow/SKILL.md",
       "source_location": "L46",
       "_origin": "ast",
@@ -11317,6 +11415,7 @@
     {
       "label": "4. Label issues and PRs",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/git-workflow/SKILL.md",
       "source_location": "L59",
       "_origin": "ast",
@@ -11328,6 +11427,7 @@
     {
       "label": "5. Design doc first (large or cross-package changes)",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/git-workflow/SKILL.md",
       "source_location": "L68",
       "_origin": "ast",
@@ -11339,6 +11439,7 @@
     {
       "label": "6. Merge is human-only \u2014 squash by default",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/git-workflow/SKILL.md",
       "source_location": "L73",
       "_origin": "ast",
@@ -11350,6 +11451,7 @@
     {
       "label": "Canonical docs",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/git-workflow/SKILL.md",
       "source_location": "L86",
       "_origin": "ast",
@@ -11361,6 +11463,7 @@
     {
       "label": "Git workflow \u2014 contribution procedures & expectations",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/git-workflow/SKILL.md",
       "source_location": "L9",
       "_origin": "ast",
@@ -11372,6 +11475,7 @@
     {
       "label": "Gotchas",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/git-workflow/SKILL.md",
       "source_location": "L79",
       "_origin": "ast",
@@ -11383,6 +11487,7 @@
     {
       "label": "Key files",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/git-workflow/SKILL.md",
       "source_location": "L18",
       "_origin": "ast",
@@ -11394,6 +11499,7 @@
     {
       "label": "Maintenance",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/git-workflow/SKILL.md",
       "source_location": "L92",
       "_origin": "ast",
@@ -11405,6 +11511,7 @@
     {
       "label": "When to use",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/git-workflow/SKILL.md",
       "source_location": "L11",
       "_origin": "ast",
@@ -11416,6 +11523,7 @@
     {
       "label": "Workflows",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/git-workflow/SKILL.md",
       "source_location": "L27",
       "_origin": "ast",
@@ -12127,8 +12235,13 @@
     {
       "label": "react/SKILL.md",
       "file_type": "document",
+      "node_kind": "page",
       "source_file": ".claude/skills/react/SKILL.md",
       "source_location": "L1",
+      "frontmatter": {
+        "name": "react",
+        "description": "&gt;-"
+      },
       "_origin": "ast",
       "id": "claude_skills_react_skill",
       "community": 51,
@@ -12138,6 +12251,7 @@
     {
       "label": "1. Add a component",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/react/SKILL.md",
       "source_location": "L52",
       "_origin": "ast",
@@ -12149,6 +12263,7 @@
     {
       "label": "2. Add a Redux slice",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/react/SKILL.md",
       "source_location": "L60",
       "_origin": "ast",
@@ -12160,6 +12275,7 @@
     {
       "label": "3. Add a hook",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/react/SKILL.md",
       "source_location": "L67",
       "_origin": "ast",
@@ -12171,6 +12287,7 @@
     {
       "label": "4. Wire an API call",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/react/SKILL.md",
       "source_location": "L72",
       "_origin": "ast",
@@ -12182,6 +12299,7 @@
     {
       "label": "5. Test a component/slice",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/react/SKILL.md",
       "source_location": "L78",
       "_origin": "ast",
@@ -12193,6 +12311,7 @@
     {
       "label": "6. Touch the WS client",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/react/SKILL.md",
       "source_location": "L84",
       "_origin": "ast",
@@ -12204,6 +12323,7 @@
     {
       "label": "7. Bump a frontend dependency",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/react/SKILL.md",
       "source_location": "L90",
       "_origin": "ast",
@@ -12215,6 +12335,7 @@
     {
       "label": "Canonical docs",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/react/SKILL.md",
       "source_location": "L104",
       "_origin": "ast",
@@ -12226,6 +12347,7 @@
     {
       "label": "Gotchas",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/react/SKILL.md",
       "source_location": "L96",
       "_origin": "ast",
@@ -12237,6 +12359,7 @@
     {
       "label": "Key files",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/react/SKILL.md",
       "source_location": "L18",
       "_origin": "ast",
@@ -12248,6 +12371,7 @@
     {
       "label": "Maintenance",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/react/SKILL.md",
       "source_location": "L109",
       "_origin": "ast",
@@ -12259,6 +12383,7 @@
     {
       "label": "React frontend (web/src) \u2014 procedures & expertise",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/react/SKILL.md",
       "source_location": "L8",
       "_origin": "ast",
@@ -12270,6 +12395,7 @@
     {
       "label": "The antd MCP (check it before writing UI)",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/react/SKILL.md",
       "source_location": "L28",
       "_origin": "ast",
@@ -12281,6 +12407,7 @@
     {
       "label": "When to use",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/react/SKILL.md",
       "source_location": "L10",
       "_origin": "ast",
@@ -12292,6 +12419,7 @@
     {
       "label": "Workflows",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/react/SKILL.md",
       "source_location": "L50",
       "_origin": "ast",
@@ -13036,6 +13164,7 @@
     {
       "label": "store.md",
       "file_type": "document",
+      "node_kind": "page",
       "source_file": ".claude/skills/react/references/store.md",
       "source_location": "L1",
       "_origin": "ast",
@@ -13047,6 +13176,7 @@
     {
       "label": "chat",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/react/references/store.md",
       "source_location": "L35",
       "_origin": "ast",
@@ -13058,6 +13188,7 @@
     {
       "label": "connection",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/react/references/store.md",
       "source_location": "L40",
       "_origin": "ast",
@@ -13069,6 +13200,7 @@
     {
       "label": "conversations",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/react/references/store.md",
       "source_location": "L30",
       "_origin": "ast",
@@ -13080,6 +13212,7 @@
     {
       "label": "doctor",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/react/references/store.md",
       "source_location": "L81",
       "_origin": "ast",
@@ -13091,6 +13224,7 @@
     {
       "label": "git",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/react/references/store.md",
       "source_location": "L87",
       "_origin": "ast",
@@ -13102,6 +13236,7 @@
     {
       "label": "health",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/react/references/store.md",
       "source_location": "L20",
       "_origin": "ast",
@@ -13113,6 +13248,7 @@
     {
       "label": "hooks.ts",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/react/references/store.md",
       "source_location": "L13",
       "_origin": "ast",
@@ -13124,6 +13260,7 @@
     {
       "label": "index.ts",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/react/references/store.md",
       "source_location": "L8",
       "_origin": "ast",
@@ -13135,6 +13272,7 @@
     {
       "label": "note",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/react/references/store.md",
       "source_location": "L69",
       "_origin": "ast",
@@ -13146,6 +13284,7 @@
     {
       "label": "notifications",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/react/references/store.md",
       "source_location": "L45",
       "_origin": "ast",
@@ -13157,6 +13296,7 @@
     {
       "label": "Redux store (web/src/store)",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/react/references/store.md",
       "source_location": "L1",
       "_origin": "ast",
@@ -13168,6 +13308,7 @@
     {
       "label": "search",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/react/references/store.md",
       "source_location": "L75",
       "_origin": "ast",
@@ -13179,6 +13320,7 @@
     {
       "label": "searchHistory",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/react/references/store.md",
       "source_location": "L51",
       "_origin": "ast",
@@ -13190,6 +13332,7 @@
     {
       "label": "settings",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/react/references/store.md",
       "source_location": "L25",
       "_origin": "ast",
@@ -13201,6 +13344,7 @@
     {
       "label": "Slices (web/src/store/slices/)",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/react/references/store.md",
       "source_location": "L18",
       "_origin": "ast",
@@ -13212,6 +13356,7 @@
     {
       "label": "ui",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/react/references/store.md",
       "source_location": "L57",
       "_origin": "ast",
@@ -13223,6 +13368,7 @@
     {
       "label": "wiki",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/react/references/store.md",
       "source_location": "L63",
       "_origin": "ast",
@@ -13234,6 +13380,7 @@
     {
       "label": "2026-08-17-thoth-skills-design.md",
       "file_type": "document",
+      "node_kind": "page",
       "source_file": "docs/superpowers/specs/2026-08-17-thoth-skills-design.md",
       "source_location": "L1",
       "_origin": "ast",
@@ -13245,6 +13392,7 @@
     {
       "label": "Approach: C \u2014 hybrid",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": "docs/superpowers/specs/2026-08-17-thoth-skills-design.md",
       "source_location": "L26",
       "_origin": "ast",
@@ -13256,6 +13404,7 @@
     {
       "label": "Decisions log",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": "docs/superpowers/specs/2026-08-17-thoth-skills-design.md",
       "source_location": "L38",
       "_origin": "ast",
@@ -13267,6 +13416,7 @@
     {
       "label": "Inventory",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": "docs/superpowers/specs/2026-08-17-thoth-skills-design.md",
       "source_location": "L52",
       "_origin": "ast",
@@ -13278,6 +13428,7 @@
     {
       "label": "Maintenance",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": "docs/superpowers/specs/2026-08-17-thoth-skills-design.md",
       "source_location": "L176",
       "_origin": "ast",
@@ -13289,6 +13440,7 @@
     {
       "label": "Out of scope",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": "docs/superpowers/specs/2026-08-17-thoth-skills-design.md",
       "source_location": "L184",
       "_origin": "ast",
@@ -13300,6 +13452,7 @@
     {
       "label": "Purpose",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": "docs/superpowers/specs/2026-08-17-thoth-skills-design.md",
       "source_location": "L7",
       "_origin": "ast",
@@ -13311,6 +13464,7 @@
     {
       "label": "Reference file anatomy",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": "docs/superpowers/specs/2026-08-17-thoth-skills-design.md",
       "source_location": "L138",
       "_origin": "ast",
@@ -13322,6 +13476,7 @@
     {
       "label": "SKILL.md anatomy",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": "docs/superpowers/specs/2026-08-17-thoth-skills-design.md",
       "source_location": "L77",
       "_origin": "ast",
@@ -13333,6 +13488,7 @@
     {
       "label": "Thoth Project Skills Suite \u2014 Design",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": "docs/superpowers/specs/2026-08-17-thoth-skills-design.md",
       "source_location": "L1",
       "_origin": "ast",
@@ -13344,6 +13500,7 @@
     {
       "label": "Wiring",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": "docs/superpowers/specs/2026-08-17-thoth-skills-design.md",
       "source_location": "L163",
       "_origin": "ast",
@@ -13355,6 +13512,7 @@
     {
       "label": "Workflow lists",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": "docs/superpowers/specs/2026-08-17-thoth-skills-design.md",
       "source_location": "L114",
       "_origin": "ast",
@@ -13498,6 +13656,7 @@
     {
       "label": "react.md",
       "file_type": "document",
+      "node_kind": "page",
       "source_file": ".claude/skills/code-quality/references/react.md",
       "source_location": "L1",
       "_origin": "ast",
@@ -13509,6 +13668,7 @@
     {
       "label": "React frontend checklist (web/src)",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/code-quality/references/react.md",
       "source_location": "L1",
       "_origin": "ast",
@@ -13707,6 +13867,7 @@
     {
       "label": "quality.md",
       "file_type": "document",
+      "node_kind": "page",
       "source_file": ".claude/skills/go/references/quality.md",
       "source_location": "L1",
       "_origin": "ast",
@@ -13718,6 +13879,7 @@
     {
       "label": "Commit hygiene",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/go/references/quality.md",
       "source_location": "L29",
       "_origin": "ast",
@@ -13729,6 +13891,7 @@
     {
       "label": "Concurrency",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/go/references/quality.md",
       "source_location": "L13",
       "_origin": "ast",
@@ -13740,6 +13903,7 @@
     {
       "label": "Coverage",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/go/references/quality.md",
       "source_location": "L8",
       "_origin": "ast",
@@ -13751,6 +13915,7 @@
     {
       "label": "Cross-compile",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/go/references/quality.md",
       "source_location": "L21",
       "_origin": "ast",
@@ -13762,6 +13927,7 @@
     {
       "label": "Dependency bumps",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/go/references/quality.md",
       "source_location": "L25",
       "_origin": "ast",
@@ -13773,6 +13939,7 @@
     {
       "label": "Lint",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/go/references/quality.md",
       "source_location": "L17",
       "_origin": "ast",
@@ -13784,6 +13951,7 @@
     {
       "label": "make check \u2014 everything CI enforces, locally",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/go/references/quality.md",
       "source_location": "L3",
       "_origin": "ast",
@@ -13795,6 +13963,7 @@
     {
       "label": "Quality gates \u2014 how this repo verifies work",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/go/references/quality.md",
       "source_location": "L1",
       "_origin": "ast",
@@ -13806,6 +13975,7 @@
     {
       "label": "Style rules (source: CLAUDE.md \u2014 the single home)",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/go/references/quality.md",
       "source_location": "L33",
       "_origin": "ast",
@@ -13982,8 +14152,13 @@
     {
       "label": "code-quality/SKILL.md",
       "file_type": "document",
+      "node_kind": "page",
       "source_file": ".claude/skills/code-quality/SKILL.md",
       "source_location": "L1",
+      "frontmatter": {
+        "name": "code-quality",
+        "description": "&gt;-"
+      },
       "_origin": "ast",
       "id": "claude_skills_code_quality_skill",
       "community": 70,
@@ -13993,6 +14168,7 @@
     {
       "label": "1. Run the quality gates",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/code-quality/SKILL.md",
       "source_location": "L27",
       "_origin": "ast",
@@ -14004,6 +14180,7 @@
     {
       "label": "2. Walk the review checklist",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/code-quality/SKILL.md",
       "source_location": "L37",
       "_origin": "ast",
@@ -14015,6 +14192,7 @@
     {
       "label": "3. Triage a failing gate",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/code-quality/SKILL.md",
       "source_location": "L43",
       "_origin": "ast",
@@ -14026,6 +14204,7 @@
     {
       "label": "Canonical docs",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/code-quality/SKILL.md",
       "source_location": "L58",
       "_origin": "ast",
@@ -14037,6 +14216,7 @@
     {
       "label": "Code quality \u2014 the pre-PR gate",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/code-quality/SKILL.md",
       "source_location": "L9",
       "_origin": "ast",
@@ -14048,6 +14228,7 @@
     {
       "label": "Gotchas",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/code-quality/SKILL.md",
       "source_location": "L51",
       "_origin": "ast",
@@ -14059,6 +14240,7 @@
     {
       "label": "Key files",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/code-quality/SKILL.md",
       "source_location": "L17",
       "_origin": "ast",
@@ -14070,6 +14252,7 @@
     {
       "label": "Maintenance",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/code-quality/SKILL.md",
       "source_location": "L63",
       "_origin": "ast",
@@ -14081,6 +14264,7 @@
     {
       "label": "When to use",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/code-quality/SKILL.md",
       "source_location": "L11",
       "_origin": "ast",
@@ -14092,6 +14276,7 @@
     {
       "label": "Workflows",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/code-quality/SKILL.md",
       "source_location": "L25",
       "_origin": "ast",
@@ -14345,6 +14530,7 @@
     {
       "label": "patterns.md",
       "file_type": "document",
+      "node_kind": "page",
       "source_file": ".claude/skills/react/references/patterns.md",
       "source_location": "L1",
       "_origin": "ast",
@@ -14356,6 +14542,7 @@
     {
       "label": "Ant Design first",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/react/references/patterns.md",
       "source_location": "L3",
       "_origin": "ast",
@@ -14367,6 +14554,7 @@
     {
       "label": "Design tokens",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/react/references/patterns.md",
       "source_location": "L54",
       "_origin": "ast",
@@ -14378,6 +14566,7 @@
     {
       "label": "Frontend patterns \u2014 the cross-cutting conventions",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/react/references/patterns.md",
       "source_location": "L1",
       "_origin": "ast",
@@ -14389,6 +14578,7 @@
     {
       "label": "Package discipline",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/react/references/patterns.md",
       "source_location": "L71",
       "_origin": "ast",
@@ -14400,6 +14590,7 @@
     {
       "label": "Routing",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/react/references/patterns.md",
       "source_location": "L67",
       "_origin": "ast",
@@ -14411,6 +14602,7 @@
     {
       "label": "State placement",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/react/references/patterns.md",
       "source_location": "L43",
       "_origin": "ast",
@@ -14422,6 +14614,7 @@
     {
       "label": "Test doubles (web/src/test)",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/react/references/patterns.md",
       "source_location": "L33",
       "_origin": "ast",
@@ -14433,6 +14626,7 @@
     {
       "label": "The API boundary (zod)",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/react/references/patterns.md",
       "source_location": "L18",
       "_origin": "ast",
@@ -14444,6 +14638,7 @@
     {
       "label": "The WS protocol (ChatSocket)",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/react/references/patterns.md",
       "source_location": "L25",
       "_origin": "ast",
@@ -14675,6 +14870,7 @@
     {
       "label": "claude-blast-wall.md",
       "file_type": "document",
+      "node_kind": "page",
       "source_file": ".claude/skills/go/references/claude-blast-wall.md",
       "source_location": "L1",
       "_origin": "ast",
@@ -14686,6 +14882,7 @@
     {
       "label": "client.go \u2014 the flags",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/go/references/claude-blast-wall.md",
       "source_location": "L7",
       "_origin": "ast",
@@ -14697,6 +14894,7 @@
     {
       "label": "Client interface & FakeClient",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/go/references/claude-blast-wall.md",
       "source_location": "L34",
       "_origin": "ast",
@@ -14708,6 +14906,7 @@
     {
       "label": "events.go \u2014 stream parsing",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/go/references/claude-blast-wall.md",
       "source_location": "L23",
       "_origin": "ast",
@@ -14719,6 +14918,7 @@
     {
       "label": "persistent.go \u2014 the process pool",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/go/references/claude-blast-wall.md",
       "source_location": "L16",
       "_origin": "ast",
@@ -14730,6 +14930,7 @@
     {
       "label": "Process kill",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/go/references/claude-blast-wall.md",
       "source_location": "L29",
       "_origin": "ast",
@@ -14741,6 +14942,7 @@
     {
       "label": "The claude blast wall (internal/claude)",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/go/references/claude-blast-wall.md",
       "source_location": "L1",
       "_origin": "ast",
@@ -14752,6 +14954,7 @@
     {
       "label": "persistence.md",
       "file_type": "document",
+      "node_kind": "page",
       "source_file": ".claude/skills/go/references/persistence.md",
       "source_location": "L1",
       "_origin": "ast",
@@ -14763,6 +14966,7 @@
     {
       "label": "Migrations (internal/store/migrations/)",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/go/references/persistence.md",
       "source_location": "L8",
       "_origin": "ast",
@@ -14774,6 +14978,7 @@
     {
       "label": "Ownership (who owns which table)",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/go/references/persistence.md",
       "source_location": "L22",
       "_origin": "ast",
@@ -14785,6 +14990,7 @@
     {
       "label": "Persistence \u2014 thoth.db, migrations, index",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/go/references/persistence.md",
       "source_location": "L1",
       "_origin": "ast",
@@ -14796,6 +15002,7 @@
     {
       "label": "Rules that matter here",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/go/references/persistence.md",
       "source_location": "L34",
       "_origin": "ast",
@@ -14807,6 +15014,7 @@
     {
       "label": "Settings keys (0007)",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/go/references/persistence.md",
       "source_location": "L17",
       "_origin": "ast",
@@ -14818,6 +15026,7 @@
     {
       "label": "The index (internal/index)",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/go/references/persistence.md",
       "source_location": "L28",
       "_origin": "ast",
@@ -14829,6 +15038,7 @@
     {
       "label": "hooks.md",
       "file_type": "document",
+      "node_kind": "page",
       "source_file": ".claude/skills/react/references/hooks.md",
       "source_location": "L1",
       "_origin": "ast",
@@ -14840,6 +15050,7 @@
     {
       "label": "Hooks (web/src/hooks)",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/react/references/hooks.md",
       "source_location": "L1",
       "_origin": "ast",
@@ -14851,6 +15062,7 @@
     {
       "label": "useChat",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/react/references/hooks.md",
       "source_location": "L6",
       "_origin": "ast",
@@ -14862,6 +15074,7 @@
     {
       "label": "useConversationRoute",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/react/references/hooks.md",
       "source_location": "L18",
       "_origin": "ast",
@@ -14873,6 +15086,7 @@
     {
       "label": "useSearch",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/react/references/hooks.md",
       "source_location": "L12",
       "_origin": "ast",
@@ -14884,6 +15098,7 @@
     {
       "label": "useView",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/react/references/hooks.md",
       "source_location": "L24",
       "_origin": "ast",
@@ -14895,6 +15110,7 @@
     {
       "label": "useViewShortcuts",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/react/references/hooks.md",
       "source_location": "L30",
       "_origin": "ast",
@@ -14906,6 +15122,7 @@
     {
       "label": "labels.md",
       "file_type": "document",
+      "node_kind": "page",
       "source_file": ".claude/skills/git-workflow/references/labels.md",
       "source_location": "L1",
       "_origin": "ast",
@@ -14917,6 +15134,7 @@
     {
       "label": "Areas (package-aligned)",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/git-workflow/references/labels.md",
       "source_location": "L21",
       "_origin": "ast",
@@ -14928,6 +15146,7 @@
     {
       "label": "Kept GitHub defaults (outside the three-tier model)",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/git-workflow/references/labels.md",
       "source_location": "L46",
       "_origin": "ast",
@@ -14939,6 +15158,7 @@
     {
       "label": "Labels \u2014 the three-tier GitHub label set",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/git-workflow/references/labels.md",
       "source_location": "L1",
       "_origin": "ast",
@@ -14950,6 +15170,7 @@
     {
       "label": "Priority (issues only)",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/git-workflow/references/labels.md",
       "source_location": "L38",
       "_origin": "ast",
@@ -14961,6 +15182,7 @@
     {
       "label": "Types (mirror the conventional-commit prefixes)",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": ".claude/skills/git-workflow/references/labels.md",
       "source_location": "L8",
       "_origin": "ast",
@@ -16289,6 +16511,7 @@
     {
       "label": "README.md",
       "file_type": "document",
+      "node_kind": "page",
       "source_file": "scripts/README.md",
       "source_location": "L1",
       "_origin": "ast",
@@ -16300,6 +16523,7 @@
     {
       "label": "scripts/",
       "file_type": "document",
+      "node_kind": "heading",
       "source_file": "scripts/README.md",
       "source_location": "L1",
       "_origin": "ast",
@@ -16656,6 +16880,17 @@
       "community": 98,
       "community_name": "os/exec.Cmd",
       "norm_label": "setprocessgroup()"
+    },
+    {
+      "label": "api",
+      "file_type": "code",
+      "source_file": "web/src/api/client.ts",
+      "source_location": "L95",
+      "_origin": "ast",
+      "id": "web_src_api_client_api",
+      "community": 99,
+      "community_name": "doctorSlice.ts",
+      "norm_label": "api"
     },
     {
       "label": "doctorSlice.ts",
@@ -22915,6 +23150,18 @@
       "_origin": "ast",
       "source": "internal_github_client_test_newstubclient",
       "target": "github_profilestub_handler",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "internal/github/client_test.go",
+      "source_location": "L50",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "internal_github_client_test_newstubclient",
+      "target": "internal_github_client_test_go_client",
       "confidence_score": 1.0
     },
     {
@@ -40236,18 +40483,6 @@
       "_origin": "ast",
       "source": "internal_github_client_new",
       "target": "internal_github_client_go_github_client",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "references",
-      "context": "return_type",
-      "confidence": "EXTRACTED",
-      "source_file": "internal/github/client_test.go",
-      "source_location": "L46",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "internal_github_client_test_newstubclient",
-      "target": "internal_github_client_test_go_client",
       "confidence_score": 1.0
     },
     {
@@ -60521,5 +60756,5 @@
       "source_file": "docs/knowledge-base.md"
     }
   ],
-  "built_at_commit": "1b8c4b0cf0b48f3dfd023aaceb5148456a73a855"
+  "built_at_commit": "d939a075236249e6db1a09937516c224fc4f8466"
 }
