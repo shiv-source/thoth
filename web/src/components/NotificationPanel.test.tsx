@@ -20,6 +20,21 @@ describe('NotificationPanel', () => {
         expect(screen.getByText('knowledge/notes.md')).toBeInTheDocument()
     })
 
+    it('marks unread notifications with a dot and tints the avatar', async () => {
+        const { store, container } = renderWithStore(<NotificationPanel onClose={vi.fn()} />)
+        act(() => {
+            store.dispatch(notify({ kind: 'note', title: 'Note saved' }))
+        })
+        expect(container.querySelector('.ant-badge-dot')).not.toBeNull()
+        const avatar = container.querySelector('.ant-avatar') as HTMLElement
+        expect(avatar.style.backgroundColor).toBe('var(--ant-color-primary-bg)')
+
+        await userEvent.click(screen.getByRole('button', { name: 'Mark all as read' }))
+        // rc-motion never completes under jsdom — the dot stays mounted
+        // but hides behind data-show="false".
+        expect(container.querySelector('.ant-badge-dot')?.getAttribute('data-show')).toBe('false')
+    })
+
     it('marks everything read and clears the badge', async () => {
         const { store } = renderWithStore(<NotificationPanel onClose={vi.fn()} />)
         act(() => {

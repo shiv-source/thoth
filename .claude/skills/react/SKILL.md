@@ -38,9 +38,14 @@ Hard-won v6 facts worth re-checking in the MCP: DirectoryTree defaults
 `showIcon: true` (disable it when a custom switcherIcon replaces the
 caret — otherwise double icons), `destroyOnHidden` unmounts Popover
 content, Badge has a `title` prop (6.5+), Select/AutoComplete/Tree are
-virtualized by default (`virtual={false}` for small local lists), and
+virtualized by default (`virtual={false}` for small local lists),
 rc-motion never completes under jsdom (assert store state for closes;
-`motion={false}` on Tree).
+`motion={false}` on Tree), antd components reset their own margins
+(antd `Flex` sets `margin: 0` — vertical rhythm around them must come
+from the container's own `gap`, never `space-y-*`), css-var mode scopes
+`--ant-*` under the ConfigProvider wrapper class (bridge Tailwind
+tokens with `@theme inline`, never `:root`), and antd 6.6 deprecates
+`List` (removed next major — prefer Flex-based rows for new code).
 
 ## Workflows
 

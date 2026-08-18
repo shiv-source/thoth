@@ -42,6 +42,19 @@ describe('ChatPanel', () => {
         expect(screen.getByText('hello', { selector: 'p' })).toBeInTheDocument()
     })
 
+    it('lays messages out with a 16px gap on the antd Flex container', async () => {
+        const { container } = renderPanel()
+        act(() => FakeWS.instances[0]!.open())
+        await userEvent.type(screen.getByPlaceholderText(/Ask your wiki/), 'hello')
+        await userEvent.click(screen.getByRole('button', { name: /Send/ }))
+        // antd Flex resets its children's margins (and its own padding), so
+        // spacing must live on the inner Flex's own gap — regression guard
+        // for the space-y-* bug.
+        const scroller = container.querySelector('.overflow-y-auto')
+        expect(scroller).not.toBeNull()
+        expect(scroller!.querySelector('.ant-flex')?.getAttribute('style')).toContain('gap: 16px')
+    })
+
     it('shows the tool status line while a tool runs and hides it on turn_done', () => {
         renderPanel()
         act(() => FakeWS.instances[0]!.open())

@@ -2,15 +2,18 @@
 @import '@fontsource-variable/fraunces';
 @plugin "@tailwindcss/typography";
 
-@theme {
+/* `inline` is what makes the bridge work: antd v6 scopes its CSS
+   variables under the ConfigProvider's css-var class (not :root), so
+   utilities must inline the var() reference and resolve it per element,
+   inside that scope. The fallbacks mirror the antd light palette so
+   first paint is identical before antd injects its stylesheet. Light
+   theme only — no dark mode. */
+@theme inline {
     --font-display: 'Fraunces Variable', Georgia, serif;
     --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
     --radius-lg: 0.75rem;
 
-    /* Semantic surfaces — bridge to the CSS variables antd emits from
-     web/src/theme.ts (cssVar mode, `ant` prefix). The fallbacks mirror
-     the antd light palette so first paint is identical before antd
-     injects its stylesheet. Light theme only — no dark mode. */
+    /* Semantic surfaces — bridge to the antd variables. */
     --color-app: var(--ant-color-bg-layout, #f5f5f5);
     --color-surface: var(--ant-color-bg-container, #ffffff);
     --color-raised: var(--ant-color-fill-tertiary, rgba(0, 0, 0, 0.04));
@@ -34,6 +37,19 @@
     --thoth-series-2: #0958d9;
     --thoth-series-3: #91caff;
     --thoth-series-4: #ffc53d;
+}
+
+/* Elevated cards — antd v6 cards are flat by default; the tertiary
+   elevation gives the dashboard and settings surfaces their layer. */
+.ant-card {
+    box-shadow: var(--ant-box-shadow-tertiary);
+}
+
+/* App icon size — 16px matches the pre-migration UI. antd sizes Menu
+   icons via the Menu iconSize token (theme.ts) and icon-only Buttons via
+   onlyIconSize; everything else inherits this. */
+.anticon {
+    font-size: 16px;
 }
 
 @keyframes slide-in-right {

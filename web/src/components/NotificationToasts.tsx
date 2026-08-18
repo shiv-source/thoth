@@ -60,7 +60,7 @@ function ToastAlert({
             className="pointer-events-auto shadow-lg"
             type="info"
             showIcon
-            icon={<span aria-hidden="true">{<NotificationIcon kind={kind} />}</span>}
+            icon={<NotificationIcon kind={kind} />}
             message={title}
             description={body}
             closable

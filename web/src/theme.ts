@@ -1,9 +1,10 @@
 import type { ThemeConfig } from 'antd'
 
 // Single source of truth for the enterprise SaaS theme (light-only).
-// antd emits CSS variables from these tokens in cssVar mode (default
-// `ant` prefix); the Tailwind tokens in index.css bridge to those
-// variables, so there is exactly one place a color is defined.
+// antd emits CSS variables from these tokens in cssVar mode (scoped under
+// the ConfigProvider's css-var class — NOT on :root); the Tailwind tokens
+// in index.css bridge to those variables with `@theme inline`, so each
+// utility resolves the var where it is used, inside the scope.
 export const antdTheme: ThemeConfig = {
     cssVar: {},
     // One antd version in the app — un-hashed classes keep the bundle
@@ -21,7 +22,11 @@ export const antdTheme: ThemeConfig = {
             bodyBg: '#f5f5f5'
         },
         Menu: {
-            itemBorderRadius: 6
+            itemBorderRadius: 6,
+            iconSize: 16
+        },
+        Button: {
+            onlyIconSize: 16
         }
     }
 }

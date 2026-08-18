@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { theme } from 'antd'
 
 export interface ChartColors {
     accent: string
@@ -11,28 +12,27 @@ export interface ChartColors {
     series: string[]
 }
 
-// Reads the theme's chart colors from the CSS variables so charts match
-// the app palette. Light theme only, so values are read once.
-export function chartColors(): ChartColors {
-    const css = getComputedStyle(document.documentElement)
-    const read = (name: string, fallback: string) => css.getPropertyValue(name).trim() || fallback
-    return {
-        accent: read('--thoth-accent', '#1677ff'),
-        accentHover: read('--thoth-accent-hover', '#4096ff'),
-        subtle: read('--thoth-subtle', 'rgba(0, 0, 0, 0.45)'),
-        ink: read('--thoth-ink', 'rgba(0, 0, 0, 0.88)'),
-        surface: read('--thoth-surface', '#ffffff'),
-        series: [
-            read('--thoth-series-1', '#1677ff'),
-            read('--thoth-series-2', '#0958d9'),
-            read('--thoth-series-3', '#91caff'),
-            read('--thoth-series-4', '#ffc53d')
-        ]
-    }
-}
-
-// The chart colors for the current theme. With no dark mode the palette
-// never changes, so this is a stable value for the Chart.js wrappers.
+// Chart colors come from the antd theme tokens (the single source of truth
+// in theme.ts), so charts track the theme like every other component. The
+// series hues are the categorical palette in index.css; the light theme
+// never changes, so they are read once from :root.
 export function useThemeColors(): ChartColors {
-    return useMemo(chartColors, [])
+    const { token } = theme.useToken()
+    return useMemo(() => {
+        const css = getComputedStyle(document.documentElement)
+        const read = (name: string, fallback: string) => css.getPropertyValue(name).trim() || fallback
+        return {
+            accent: token.colorPrimary,
+            accentHover: token.colorPrimaryHover,
+            subtle: token.colorTextSecondary,
+            ink: token.colorText,
+            surface: token.colorBgContainer,
+            series: [
+                read('--thoth-series-1', '#1677ff'),
+                read('--thoth-series-2', '#0958d9'),
+                read('--thoth-series-3', '#91caff'),
+                read('--thoth-series-4', '#ffc53d')
+            ]
+        }
+    }, [token])
 }

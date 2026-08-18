@@ -25,7 +25,7 @@ export function AppHeader({ title, onOpenSettings }: { title: string; onOpenSett
 
     return (
         <header className="flex h-14 shrink-0 items-center justify-between gap-4 border-b border-line bg-surface px-4">
-            <h1 className="truncate text-sm font-medium text-ink">{title}</h1>
+            <h1 className="truncate text-base font-semibold text-ink">{title}</h1>
             <div className="flex shrink-0 items-center gap-1">
                 <Popover
                     trigger="click"
