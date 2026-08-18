@@ -4,8 +4,6 @@
 # =============================================================================
 
 SHELL       := /bin/bash
-GO          ?= go
-PNPM        ?= pnpm
 BIN         := bin/thoth
 DIST_DIR    := dist
 EMBED_DIST  := internal/webui/dist
@@ -13,7 +11,7 @@ PREFIX      ?= /usr/local/bin
 MODULE      := github.com/shiv-source/thoth
 VERSION     ?= dev
 LDFLAGS     := -s -w -X $(MODULE)/internal/cli.version=$(VERSION)
-GO_BUILD    := $(GO) build -ldflags "$(LDFLAGS)"
+GO_BUILD    := go build -ldflags "$(LDFLAGS)"
 
 .DEFAULT_GOAL := help
 
@@ -31,7 +29,7 @@ help:
 # -----------------------------------------------------------------------------
 
 install: web ## install frontend deps, build the UI, install the binary into $(GOBIN)
-	$(GO) install -ldflags "$(LDFLAGS)" ./cmd/thoth
+	go install -ldflags "$(LDFLAGS)" ./cmd/thoth
 .PHONY: install
 
 install-bin: build ## build and copy the binary to $(PREFIX) (default /usr/local/bin)
@@ -44,18 +42,18 @@ install-bin: build ## build and copy the binary to $(PREFIX) (default /usr/local
 
 dev: web-sync ## run Vite (HMR) and the Go server together; Ctrl+C stops both
 	@trap 'kill 0' EXIT; \
-	( $(PNPM) dev ) & \
-	$(GO) run ./cmd/thoth serve
+	( pnpm dev ) & \
+	go run ./cmd/thoth serve
 .PHONY: dev
 
 dev-web: ## Vite dev server only (proxies /api and /ws to 127.0.0.1:8333)
 .PHONY: dev-web
 dev-web:
-	$(PNPM) dev
+	pnpm dev
 
 .PHONY: dev-server
 dev-server: web ## Go server only, with the embedded frontend
-	$(GO) run ./cmd/thoth serve
+	go run ./cmd/thoth serve
 
 # -----------------------------------------------------------------------------
 # Build & release
@@ -64,8 +62,8 @@ dev-server: web ## Go server only, with the embedded frontend
 web: ## build the frontend and sync it into the Go embed
 .PHONY: web
 web:
-	$(PNPM) install --frozen-lockfile
-	$(PNPM) build
+	pnpm install --frozen-lockfile
+	pnpm build
 	rm -rf $(EMBED_DIST)
 	cp -r web/dist $(EMBED_DIST)
 
@@ -101,31 +99,31 @@ fmt:
 test: ## unit tests (fail-fast)
 .PHONY: test
 test:
-	$(GO) test -failfast ./...
+	go test -failfast ./...
 
 race: ## tests under the race detector (fail-fast)
 .PHONY: race
 race:
-	$(GO) test -race -failfast ./...
+	go test -race -failfast ./...
 
 cover: ## coverage report with the CI gate (>= 80%)
 .PHONY: cover
 cover:
-	$(GO) test -failfast -coverprofile=coverage.out ./internal/... ./cmd/...
-	$(GO) tool cover -func=coverage.out | tail -1
-	@$(GO) tool cover -func=coverage.out | awk -F'\t' '/^total:/ { gsub(/%/,"",$$NF); if ($$NF+0 < 80) { print "FAIL: coverage below 80% floor"; exit 1 } }'
+	go test -failfast -coverprofile=coverage.out ./internal/... ./cmd/...
+	go tool cover -func=coverage.out | tail -1
+	@go tool cover -func=coverage.out | awk -F'\t' '/^total:/ { gsub(/%/,"",$$NF); if ($$NF+0 < 80) { print "FAIL: coverage below 80% floor"; exit 1 } }'
 
 lint: ## backend and frontend static analysis
 .PHONY: lint
 lint:
 	golangci-lint run
-	$(PNPM) lint
-	$(PNPM) typecheck
+	pnpm lint
+	pnpm typecheck
 
 web-test: ## frontend unit tests
 .PHONY: web-test
 web-test:
-	$(PNPM) test
+	pnpm test
 
 check: fmt lint race cover web-test build ## everything CI runs, locally
 .PHONY: check
@@ -148,12 +146,12 @@ run-fast: web-sync ## rebuild Go only and serve (reuse existing embed — run `m
 doctor: ## diagnose the local Thoth setup
 .PHONY: doctor
 doctor:
-	$(GO) run ./cmd/thoth doctor
+	go run ./cmd/thoth doctor
 
 init: ## scaffold the default wiki
 .PHONY: init
 init:
-	$(GO) run ./cmd/thoth init
+	go run ./cmd/thoth init
 
 clean: ## remove all build output
 .PHONY: clean
