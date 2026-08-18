@@ -18,6 +18,18 @@ cd "$(dirname "$0")/.."
 
 graph="graphify-out/graph.json"
 
+# 0. Location: graphify initializes a new graph at any cwd, so a run from a
+# subdirectory silently creates a nested graphify-out/ there (and queries
+# from that dir then read the stub). There is exactly one graph: the root's.
+nested="$(find . -type d -name graphify-out \
+  -not -path './graphify-out' -not -path './graphify-out/*' \
+  -not -path './node_modules/*' 2>/dev/null)"
+if [ -n "$nested" ]; then
+  echo "graph-check: nested graphify-out found — run graphify from the repo root and delete it:" >&2
+  printf '%s\n' "$nested" | sed 's/^/  /' >&2
+  exit 1
+fi
+
 if [ ! -f "$graph" ]; then
   echo "graph-check: $graph missing — nothing to guard" >&2
   exit 0
