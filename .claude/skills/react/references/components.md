@@ -97,9 +97,9 @@ from lucide-react (aria-hidden).
 ## Settings & dashboard
 ## SettingsView
 - path: web/src/components/SettingsView.tsx
-- purpose: antd Tabs (left) over General/Doctor/Git — General: Form (wiki path Input + model Select grouped by provider, save loading, saved/error Alerts); Doctor: runDoctor slice + check List; Git: PAT Input.Password connect, account card (Avatar), AutoComplete repo picker with public-repo guard, Switch auto-sync, Initialize & Push. Async state in the settings/doctor/git slices; tab rides the URL segment
-- props/api: `SettingsView()` — no props; internal GeneralTab/DoctorTab/GitTab
-- canonical: SettingsView.tsx:39
+- purpose: antd Tabs (left rail, tabPlacement="start"; active pill via the .settings-tabs CSS rule + theme.ts Tabs tokens) over General/Doctor/Git — each tab one Card with icon'd SectionHeading sections, Dividers, and responsive two-column section grids: General (wiki path Input + model Select grouped by provider, save loading, saved/error Alerts); Doctor (pass Progress summary, Run checks, CheckRow status rows); Git (PAT Input.Password connect, account Avatar row + scope Tags, AutoComplete repo picker with public-repo guard, Switch auto-sync, Initialize & Push). Async state in the settings/doctor/git slices; tab rides the URL segment
+- props/api: `SettingsView()` — no props; internal GeneralTab/DoctorTab/GitTab + SectionHeading/CheckRow/GitAccountSection/GitRemoteSection/GitSyncSection helpers
+- canonical: SettingsView.tsx:69
 
 ## DashboardView
 - path: web/src/components/DashboardView.tsx

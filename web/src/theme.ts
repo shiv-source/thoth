@@ -25,6 +25,19 @@ export const antdTheme: ThemeConfig = {
             itemBorderRadius: 6,
             iconSize: 16
         },
+        // Settings rail — v6 Tabs tokens style the vertical items; the
+        // active pill (background + weight) is the scoped CSS rule in
+        // index.css, since tokens cover colors but not per-state fills.
+        Tabs: {
+            itemColor: 'rgba(0, 0, 0, 0.45)', // text-subtle
+            itemHoverColor: 'rgba(0, 0, 0, 0.88)', // text-ink
+            itemActiveColor: '#1677ff', // colorPrimary
+            itemSelectedColor: '#1677ff', // colorPrimary
+            inkBarColor: 'transparent', // the pill replaces the line indicator
+            verticalItemMargin: '4px 0',
+            verticalItemPadding: '12px 16px', // ≈44px touch target
+            titleFontSize: 14
+        },
         Button: {
             onlyIconSize: 16
         }
