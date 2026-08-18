@@ -38,7 +38,8 @@ description: >-
 2. The pre-commit hook runs automatically: lint-staged applies eslint --fix + prettier to staged web/src files and golangci-lint --fix to staged Go files; a Go-staged commit additionally gates on `go vet ./...`, `golangci-lint run`, `go test ./...` (CONTRIBUTING.md § Before you push)
 3. Autofixes rewrite your staged files — re-run the relevant tests after a hook-triggered edit
 4. No commit-msg hook validates the message — the convention is enforced by review, so get it right on the commit
-5. Stage only what the change needs: no secrets, no generated dirs (bin/, web/dist/, internal/webui/dist/, node_modules/, *.db)
+5. Run `graphify update .` before committing when you changed code — the committed graph must match the committed tree (CLAUDE.md § graphify)
+6. Stage only what the change needs: no secrets, no generated dirs (bin/, web/dist/, internal/webui/dist/, node_modules/, *.db)
 
 ### 3. Open a PR
 1. Push the branch, then create the PR with the `gh` CLI (not the web UI):
@@ -49,7 +50,7 @@ description: >-
    - ## Files changed — key files/packages and the role of each
    - ## How verified — check the boxes you ran: gofmt/vet clean, go test -race ./..., coverage >= 80% (make cover), golangci-lint run, frontend tsc --noEmit / lint / vitest run, docs updated
    - ## Notes — optional; design decisions, follow-ups
-3. Run `make check` before opening — it is everything CI enforces, locally (CONTRIBUTING.md § Before you push)
+3. Run `make check` before opening — it is everything CI enforces, locally — and confirm `graphify update .` has been run if code changed (workflow 2 step 5) (CONTRIBUTING.md § Before you push)
 4. ci-pr quality gates run automatically; final-gate posts its report as a PR comment and must pass before the human merges — don't hand off a red PR
 
 ### 4. Label issues and PRs
