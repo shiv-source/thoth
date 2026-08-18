@@ -1,0 +1,13 @@
+root = "."
+tmp_dir = "tmp"
+
+[build]
+  cmd = "go run ./cmd/thoth serve --dev"
+  include_ext = ["go"]
+  exclude_dir = ["web", "bin", "dist", "tmp", "node_modules", "graphify-out", ".git", ".claude", "docs"]
+  exclude_regex = ["_test\\.go$"]
+  kill_delay = 500
+  log = "air.log"
+
+[misc]
+  clean_on_exit = true

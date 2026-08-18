@@ -16,7 +16,7 @@ This file governs the app repo. Note-taking behavior is governed by the wiki's o
 
 ```sh
 make help           # self-documenting target list — the authoritative reference
-make dev            # Vite HMR + Go server together
+make dev            # Vite HMR + Go server with air hot-reload (serve --dev, :8334)
 make web            # frontend build + embed sync (go-facing targets auto-run it on fresh clones via web-sync)
 make build          # bin/thoth (VERSION=v1.2.3 stamps it)
 make release        # all five cross-compile targets into dist/ (VERSION=vX.Y.Z required)

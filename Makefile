@@ -49,10 +49,11 @@ web-sync:
 # Development — live servers with hot reload
 # -----------------------------------------------------------------------------
 
-dev: web-sync ## run Vite (HMR) and the Go server together; Ctrl+C stops both
+dev: web-sync ## run Vite (HMR) and the Go server (air hot-reload) on :8334; Ctrl+C stops both
+	@command -v air >/dev/null 2>&1 || { echo "air not found — install it: go install github.com/air-verse/air@latest" >&2; exit 1; }
 	@trap 'kill 0' EXIT; \
-	( pnpm dev ) & vite=$$!; \
-	go run ./cmd/thoth serve & server=$$!; \
+	( THOTH_PORT=8334 pnpm dev ) & vite=$$!; \
+	air & server=$$!; \
 	while kill -0 $$vite 2>/dev/null && kill -0 $$server 2>/dev/null; do sleep 1; done; \
 	echo "dev: one of the dev processes exited — shutting down" >&2
 .PHONY: dev

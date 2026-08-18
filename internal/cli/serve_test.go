@@ -7,11 +7,30 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/shiv-source/thoth/internal/config"
 	"github.com/shiv-source/thoth/internal/index"
 	"github.com/shiv-source/thoth/internal/settings"
 	"github.com/shiv-source/thoth/internal/store"
 	"github.com/shiv-source/thoth/internal/wiki"
 )
+
+func TestServePort(t *testing.T) {
+	tests := []struct {
+		name string
+		dev  bool
+		want int
+	}{
+		{"default", false, config.DefaultPort},
+		{"dev", true, config.DevPort},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := servePort(tt.dev); got != tt.want {
+				t.Fatalf("servePort(%v) = %d, want %d", tt.dev, got, tt.want)
+			}
+		})
+	}
+}
 
 func TestOnSettingsSavedSwitchesRootAndRestartsWatcher(t *testing.T) {
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))

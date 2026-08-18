@@ -50,14 +50,19 @@ func (r *rootHolder) set(root string) {
 }
 
 func newServeCmd() *cobra.Command {
-	return &cobra.Command{
+	var dev bool
+	cmd := &cobra.Command{
 		Use:   "serve",
 		Short: "Run the Thoth server",
-		RunE:  runServe,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return runServe(cmd, dev)
+		},
 	}
+	cmd.Flags().BoolVar(&dev, "dev", false, "run on the dev port (8334) — leaves 8333 free for a running instance")
+	return cmd
 }
 
-func runServe(cmd *cobra.Command, _ []string) error {
+func runServe(cmd *cobra.Command, dev bool) error {
 	log := slog.New(slog.NewTextHandler(os.Stderr, nil))
 
 	dir, err := thothDir()
@@ -154,11 +159,20 @@ func runServe(cmd *cobra.Command, _ []string) error {
 		Ctx:             ctx,
 	})
 
-	host, port := config.DefaultHost, config.DefaultPort
+	host, port := config.DefaultHost, servePort(dev)
 	// The banner owns its trailing newline — Fprint, not Fprintln, so the
 	// panel ends flush with the next prompt line.
 	fmt.Fprint(os.Stderr, startupBanner(Version(), host, port, w.Root, isTerminal(os.Stderr)))
 	return serveUntilShutdown(e, net.JoinHostPort(host, strconv.Itoa(port)), ctx)
+}
+
+// servePort returns the listen port: DevPort for serve --dev (make dev),
+// DefaultPort otherwise.
+func servePort(dev bool) int {
+	if dev {
+		return config.DevPort
+	}
+	return config.DefaultPort
 }
 
 // thothDir returns ~/.thoth, creating it if needed.
