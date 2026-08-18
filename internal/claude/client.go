@@ -34,6 +34,7 @@ type CLIClient struct {
 	Dir            string // cwd for the CLI process — the wiki path
 	PermissionMode string
 	Model          string
+	APIKey         string // ANTHROPIC_API_KEY for spawned processes
 
 	dirProvider func() string // dynamic cwd (wiki path changes at runtime)
 	debugPath   string        // when set, the raw stream is appended here (debug aid)
@@ -46,6 +47,7 @@ type Option func(*CLIClient)
 
 func WithPermissionMode(m string) Option { return func(c *CLIClient) { c.PermissionMode = m } }
 func WithModel(m string) Option          { return func(c *CLIClient) { c.Model = m } }
+func WithAPIKey(k string) Option         { return func(c *CLIClient) { c.APIKey = k } }
 func WithDirProvider(p func() string) Option {
 	return func(c *CLIClient) { c.dirProvider = p }
 }
@@ -61,6 +63,18 @@ func (c *CLIClient) dir() string {
 		return c.dirProvider()
 	}
 	return c.Dir
+}
+
+// env returns the environment for a spawned CLI process: the configured API
+// key becomes ANTHROPIC_API_KEY (appended last, so it overrides any parent
+// value — Go resolves duplicate keys in favor of the last entry); with no
+// key configured, nil lets the process inherit the server's environment
+// untouched.
+func (c *CLIClient) env() []string {
+	if c.APIKey == "" {
+		return nil
+	}
+	return append(os.Environ(), "ANTHROPIC_API_KEY="+c.APIKey)
 }
 
 func New(bin, dir string, opts ...Option) *CLIClient {
@@ -173,6 +187,7 @@ func (c *CLIClient) Start(ctx context.Context, sessionID, prompt string, w Event
 	}
 	cmd := exec.CommandContext(ctx, c.Bin, c.args(sessionID, prompt, &cfg)...)
 	cmd.Dir = c.dir()
+	cmd.Env = c.env()
 	// Put the CLI in its own process group and kill the whole group on cancel:
 	// the CLI may spawn children that inherit stdout, and the stream reader
 	// below only sees EOF once every writer closes. Killing just the direct

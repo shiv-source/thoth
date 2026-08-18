@@ -230,6 +230,7 @@ func (c *PersistentClient) getOrSpawn(sessionID string, cfg *startConfig) (*proc
 func (c *PersistentClient) spawnLocked(sessionID string, cfg *startConfig) (*proc, error) {
 	cmd := exec.Command(c.Bin, c.persistentArgs(sessionID, cfg)...)
 	cmd.Dir = c.dir()
+	cmd.Env = c.env()
 	setProcessGroup(cmd)
 
 	stdout, err := cmd.StdoutPipe()

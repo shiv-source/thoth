@@ -78,6 +78,59 @@ func TestStartDefaultsToDangerouslySkipPermissions(t *testing.T) {
 	}
 }
 
+func TestStartInjectsAPIKeyEnv(t *testing.T) {
+	// The fake CLI writes its ANTHROPIC_API_KEY to env.txt, making the
+	// injected environment observable.
+	dir := t.TempDir()
+	bin := filepath.Join(dir, "claude")
+	script := `#!/bin/sh
+printf '%s' "${ANTHROPIC_API_KEY-unset}" > "$(dirname "$0")/env.txt"
+echo '{"type":"result","subtype":"success","is_error":false,"result":"done"}'
+`
+	if err := os.WriteFile(bin, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	c := New(bin, t.TempDir(), WithAPIKey("sk-test-key"))
+	if err := c.Start(context.Background(), "s", "p", WriterFunc(func(Event) error { return nil })); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	raw, err := os.ReadFile(filepath.Join(dir, "env.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(raw) != "sk-test-key" {
+		t.Fatalf("ANTHROPIC_API_KEY = %q, want sk-test-key", raw)
+	}
+}
+
+func TestStartWithoutAPIKeyInheritsEnv(t *testing.T) {
+	// No configured key: the spawned CLI must inherit the server's own
+	// ANTHROPIC_API_KEY, not have it clobbered.
+	t.Setenv("ANTHROPIC_API_KEY", "from-parent-env")
+	dir := t.TempDir()
+	bin := filepath.Join(dir, "claude")
+	script := `#!/bin/sh
+printf '%s' "${ANTHROPIC_API_KEY-unset}" > "$(dirname "$0")/env.txt"
+echo '{"type":"result","subtype":"success","is_error":false,"result":"done"}'
+`
+	if err := os.WriteFile(bin, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	c := New(bin, t.TempDir())
+	if err := c.Start(context.Background(), "s", "p", WriterFunc(func(Event) error { return nil })); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	raw, err := os.ReadFile(filepath.Join(dir, "env.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(raw) != "from-parent-env" {
+		t.Fatalf("ANTHROPIC_API_KEY = %q, want from-parent-env", raw)
+	}
+}
+
 func TestDirProviderOverridesStaticDir(t *testing.T) {
 	dir := t.TempDir()
 	bin := filepath.Join(dir, "claude")

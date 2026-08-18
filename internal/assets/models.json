@@ -1,7 +1,238 @@
 {
   "models": [
-    { "value": "", "label": "CLI default", "provider": "Claude Code" },
-    { "value": "deepseek-v4-pro[1m]", "label": "V4 Pro — strongest", "provider": "DeepSeek" },
-    { "value": "deepseek-v4-flash", "label": "V4 Flash — fastest", "provider": "DeepSeek" }
+    {
+      "value": "claude-opus-4-8",
+      "name": "Claude Opus 4.8",
+      "tag": "strongest",
+      "provider": "Anthropic"
+    },
+    {
+      "value": "claude-opus-4-7",
+      "name": "Claude Opus 4.7",
+      "tag": "flagship",
+      "provider": "Anthropic"
+    },
+    {
+      "value": "claude-sonnet-5",
+      "name": "Claude Sonnet 5",
+      "tag": "balanced",
+      "provider": "Anthropic"
+    },
+    {
+      "value": "claude-haiku-4-5",
+      "name": "Claude Haiku 4.5",
+      "tag": "fastest",
+      "provider": "Anthropic"
+    },
+    {
+      "value": "gpt-5.6",
+      "name": "GPT-5.6",
+      "tag": "flagship",
+      "provider": "OpenAI"
+    },
+    {
+      "value": "gpt-5.6-mini",
+      "name": "GPT-5.6 Mini",
+      "tag": "fast",
+      "provider": "OpenAI"
+    },
+    {
+      "value": "gpt-5.5",
+      "name": "GPT-5.5",
+      "tag": "advanced",
+      "provider": "OpenAI"
+    },
+    {
+      "value": "gpt-5.5-mini",
+      "name": "GPT-5.5 Mini",
+      "tag": "efficient",
+      "provider": "OpenAI"
+    },
+    {
+      "value": "gemini-3.5-pro",
+      "name": "Gemini 3.5 Pro",
+      "tag": "reasoning",
+      "provider": "Google"
+    },
+    {
+      "value": "gemini-3.5-flash",
+      "name": "Gemini 3.5 Flash",
+      "tag": "fast",
+      "provider": "Google"
+    },
+    {
+      "value": "gemini-2.5-pro",
+      "name": "Gemini 2.5 Pro",
+      "tag": "coding",
+      "provider": "Google"
+    },
+    {
+      "value": "gemini-2.5-flash",
+      "name": "Gemini 2.5 Flash",
+      "tag": "fast",
+      "provider": "Google"
+    },
+    {
+      "value": "deepseek-v4-pro[1m]",
+      "name": "DeepSeek V4 Pro",
+      "tag": "strongest",
+      "provider": "DeepSeek"
+    },
+    {
+      "value": "deepseek-v4-flash",
+      "name": "DeepSeek V4 Flash",
+      "tag": "fastest",
+      "provider": "DeepSeek"
+    },
+    {
+      "value": "deepseek-v3.2",
+      "name": "DeepSeek V3.2",
+      "tag": "coding",
+      "provider": "DeepSeek"
+    },
+    {
+      "value": "deepseek-r1",
+      "name": "DeepSeek R1",
+      "tag": "reasoning",
+      "provider": "DeepSeek"
+    },
+    {
+      "value": "qwen3-max",
+      "name": "Qwen 3 Max",
+      "tag": "flagship",
+      "provider": "Qwen"
+    },
+    {
+      "value": "qwen3-coder",
+      "name": "Qwen 3 Coder",
+      "tag": "coding",
+      "provider": "Qwen"
+    },
+    {
+      "value": "qwen3-235b-a22b-instruct",
+      "name": "Qwen 3 235B",
+      "tag": "powerful",
+      "provider": "Qwen"
+    },
+    {
+      "value": "qwen3-32b",
+      "name": "Qwen 3 32B",
+      "tag": "efficient",
+      "provider": "Qwen"
+    },
+    {
+      "value": "grok-4",
+      "name": "Grok 4",
+      "tag": "reasoning",
+      "provider": "xAI"
+    },
+    {
+      "value": "grok-4-fast",
+      "name": "Grok 4 Fast",
+      "tag": "fast",
+      "provider": "xAI"
+    },
+    {
+      "value": "grok-3",
+      "name": "Grok 3",
+      "tag": "powerful",
+      "provider": "xAI"
+    },
+    {
+      "value": "llama-4-maverick",
+      "name": "Llama 4 Maverick",
+      "tag": "powerful",
+      "provider": "Meta"
+    },
+    {
+      "value": "llama-4-scout",
+      "name": "Llama 4 Scout",
+      "tag": "efficient",
+      "provider": "Meta"
+    },
+    {
+      "value": "llama-3.3-70b",
+      "name": "Llama 3.3 70B",
+      "tag": "open",
+      "provider": "Meta"
+    },
+    {
+      "value": "mistral-large",
+      "name": "Mistral Large",
+      "tag": "flagship",
+      "provider": "Mistral"
+    },
+    {
+      "value": "mistral-medium",
+      "name": "Mistral Medium",
+      "tag": "balanced",
+      "provider": "Mistral"
+    },
+    {
+      "value": "mistral-small",
+      "name": "Mistral Small",
+      "tag": "fast",
+      "provider": "Mistral"
+    },
+    {
+      "value": "codestral",
+      "name": "Codestral",
+      "tag": "coding",
+      "provider": "Mistral"
+    },
+    {
+      "value": "kimi-k2.6",
+      "name": "Kimi K2.6",
+      "tag": "flagship",
+      "provider": "Moonshot"
+    },
+    {
+      "value": "kimi-k2-thinking",
+      "name": "Kimi K2 Thinking",
+      "tag": "reasoning",
+      "provider": "Moonshot"
+    },
+    {
+      "value": "kimi-k2",
+      "name": "Kimi K2",
+      "tag": "coding",
+      "provider": "Moonshot"
+    },
+    {
+      "value": "glm-5",
+      "name": "GLM-5",
+      "tag": "flagship",
+      "provider": "Z.AI"
+    },
+    {
+      "value": "glm-4.7",
+      "name": "GLM-4.7",
+      "tag": "coding",
+      "provider": "Z.AI"
+    },
+    {
+      "value": "glm-4.5-air",
+      "name": "GLM-4.5 Air",
+      "tag": "fast",
+      "provider": "Z.AI"
+    },
+    {
+      "value": "minimax-m2.7",
+      "name": "MiniMax M2.7",
+      "tag": "coding",
+      "provider": "MiniMax"
+    },
+    {
+      "value": "minimax-m2.5",
+      "name": "MiniMax M2.5",
+      "tag": "balanced",
+      "provider": "MiniMax"
+    },
+    {
+      "value": "mimo-v2-flash",
+      "name": "MiMo V2 Flash",
+      "tag": "fast",
+      "provider": "Xiaomi"
+    }
   ]
 }

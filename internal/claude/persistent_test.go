@@ -116,6 +116,38 @@ while IFS= read -r line; do
 done
 `
 
+func TestPersistentInjectsAPIKeyEnv(t *testing.T) {
+	// The pooled spawn path must carry the same env as the one-shot Start:
+	// the fake writes ANTHROPIC_API_KEY to a file and answers one turn.
+	bin := writeFakeCLIVariant(t, `#!/bin/sh
+printf '%s' "${ANTHROPIC_API_KEY-unset}" > "$(dirname "$0")/env.txt"
+n=0
+while IFS= read -r line; do
+  case "$line" in
+    *user*)
+      n=$((n+1))
+      echo '{"type":"assistant","message":{"content":[{"type":"text","text":"turn-'$n'"}]}}'
+      echo '{"type":"result","subtype":"success","is_error":false,"result":"done"}'
+      ;;
+  esac
+done
+`)
+	c := NewPersistent(bin, t.TempDir(), WithAPIKey("sk-pool-key"))
+	c.IdleTimeout = time.Second
+	t.Cleanup(func() { _ = c.Close() })
+
+	if events := startTurn(t, c, "sess-env", "hi"); len(events) == 0 {
+		t.Fatal("no events from turn")
+	}
+	raw, err := os.ReadFile(filepath.Join(filepath.Dir(bin), "env.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(raw) != "sk-pool-key" {
+		t.Fatalf("ANTHROPIC_API_KEY = %q, want sk-pool-key", raw)
+	}
+}
+
 func argvOf(t *testing.T, bin string) string {
 	t.Helper()
 	raw, err := os.ReadFile(filepath.Join(filepath.Dir(bin), "argv.txt"))

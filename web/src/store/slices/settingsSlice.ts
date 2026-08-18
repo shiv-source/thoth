@@ -1,22 +1,31 @@
-import { createAsyncThunk, createSlice, type PayloadAction } from '@reduxjs/toolkit'
-import { api, type ModelOption, type Settings } from '../../api/client'
+import { createAsyncThunk, createSelector, createSlice, type PayloadAction } from '@reduxjs/toolkit'
+import { api, type ModelGroup, type ModelInput, type Settings } from '../../api/client'
 import type { RootState } from '../index'
 
 export const fetchSettings = createAsyncThunk('settings/fetch', async () => api.settings())
 export const saveSettings = createAsyncThunk('settings/save', async (next: Settings) => api.saveSettings(next))
 export const fetchModels = createAsyncThunk('settings/fetchModels', async () => api.models())
+export const createModel = createAsyncThunk('settings/createModel', async (input: ModelInput) => api.createModel(input))
+export const updateModel = createAsyncThunk('settings/updateModel', async (arg: { id: number; input: ModelInput }) =>
+    api.updateModel(arg.id, arg.input)
+)
+export const deleteModel = createAsyncThunk('settings/deleteModel', async (id: number) => {
+    await api.deleteModel(id)
+    return id
+})
 
 interface SettingsState {
     data: Settings | null
     loading: boolean
     saving: boolean
     error: string | null
-    // The model picker list; empty means the endpoint failed and the
-    // picker falls back to the single CLI-default option.
-    models: ModelOption[]
+    // The model registry as the server sends it: groups sorted by provider
+    // A→Z. Mutations refetch it (the server re-groups and re-sorts), so the
+    // store never edits the list itself.
+    groups: ModelGroup[]
 }
 
-const initialState: SettingsState = { data: null, loading: true, saving: false, error: null, models: [] }
+const initialState: SettingsState = { data: null, loading: true, saving: false, error: null, groups: [] }
 
 export const settingsSlice = createSlice({
     name: 'settings',
@@ -48,14 +57,17 @@ export const settingsSlice = createSlice({
                 s.saving = false
                 s.error = 'could not save settings'
             })
-            .addCase(fetchModels.fulfilled, (s, a: PayloadAction<{ models: ModelOption[] }>) => {
-                s.models = a.payload.models
+            .addCase(fetchModels.fulfilled, (s, a: PayloadAction<{ groups: ModelGroup[] }>) => {
+                s.groups = a.payload.groups
             })
             .addCase(fetchModels.rejected, (s) => {
-                s.models = []
+                s.groups = []
             })
     }
 })
 
 export const selectSettings = (s: RootState) => s.settings
-export const selectModels = (s: RootState) => s.settings.models
+// The picker consumes the grouped shape; the models table derives a flat
+// list from it (createSelector keeps the derived array reference stable).
+export const selectModelGroups = (s: RootState) => s.settings.groups
+export const selectModelList = createSelector([selectModelGroups], (groups) => groups.flatMap((g) => g.models))

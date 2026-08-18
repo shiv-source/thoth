@@ -130,7 +130,56 @@ func healthyThothDir(t *testing.T) string {
 		t.Fatal(err)
 	}
 	seedWikiPath(t, dir, wikiRoot)
+	// The setup checks pass in a healthy install: key + model configured.
+	st, err = store.Open(dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, err := settings.OpenRepo(dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := r.SetSetting(settings.KeyAPIKey, "sk-healthy"); err != nil {
+		t.Fatal(err)
+	}
+	if err := r.SetSetting(settings.KeyModel, "claude-sonnet-5"); err != nil {
+		t.Fatal(err)
+	}
+	_ = r.Close()
+	_ = st.Close()
 	return dir
+}
+
+func TestRunSetupUnset(t *testing.T) {
+	// A fresh install with no api key and no model: both checks fail with
+	// guidance, and nothing else breaks.
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("PATH", t.TempDir())
+	dir := t.TempDir()
+	st, err := store.Open(filepath.Join(dir, "thoth.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = st.Close()
+	checks := Run(context.Background(), dir, "", testLog())
+	if c := byName(t, checks, "api key"); c.OK || !strings.Contains(c.Message, "no API key") {
+		t.Fatalf("api key: %s", c.Message)
+	}
+	if c := byName(t, checks, "model"); c.OK || !strings.Contains(c.Message, "no model") {
+		t.Fatalf("model: %s", c.Message)
+	}
+}
+
+func TestRunSetupConfigured(t *testing.T) {
+	dir := healthyThothDir(t)
+	checks := Run(context.Background(), dir, freeAddr(t), testLog())
+	if c := byName(t, checks, "api key"); !c.OK || !strings.Contains(c.Message, "configured") {
+		t.Fatalf("api key: %s", c.Message)
+	}
+	if c := byName(t, checks, "model"); !c.OK || !strings.Contains(c.Message, "claude-sonnet-5") {
+		t.Fatalf("model: %s", c.Message)
+	}
 }
 
 func byName(t *testing.T, checks []Check, name string) Check {
@@ -147,9 +196,10 @@ func byName(t *testing.T, checks []Check, name string) Check {
 func TestRunHealthy(t *testing.T) {
 	// A free address keeps the healthy run deterministic: nothing answers
 	// there, so api reports "not running" (OK) and websocket is skipped (OK)
-	// regardless of what occupies the fixed port on the machine.
+	// regardless of what occupies the fixed port on the machine. The api key
+	// and model checks pass because healthyThothDir configures them.
 	checks := Run(context.Background(), healthyThothDir(t), freeAddr(t), testLog())
-	want := []string{"wiki", "claude", "claude login", "database", "index", "api", "websocket"}
+	want := []string{"wiki", "claude", "claude login", "api key", "model", "database", "index", "api", "websocket"}
 	if len(checks) != len(want) {
 		t.Fatalf("got %d checks, want %d: %+v", len(checks), len(want), checks)
 	}

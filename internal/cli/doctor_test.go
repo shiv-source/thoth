@@ -83,6 +83,13 @@ func healthyEnv(t *testing.T, authStatusExit int) string {
 	if err := stg.SetSetting(settings.KeyWikiPath, wikiRoot); err != nil {
 		t.Fatal(err)
 	}
+	// The api key + model setup checks pass in a healthy env.
+	if err := stg.SetSetting(settings.KeyAPIKey, "sk-healthy"); err != nil {
+		t.Fatal(err)
+	}
+	if err := stg.SetSetting(settings.KeyModel, "claude-sonnet-5"); err != nil {
+		t.Fatal(err)
+	}
 	if err := stg.Close(); err != nil {
 		t.Fatal(err)
 	}
@@ -145,7 +152,7 @@ func TestDoctorHealthy(t *testing.T) {
 	if strings.Contains(out, "✗") {
 		t.Fatalf("unexpected failing checks:\n%s", out)
 	}
-	for _, want := range []string{"wiki:", "claude:", "claude login:", "database:", "index:", "api:", "websocket:"} {
+	for _, want := range []string{"wiki:", "claude:", "claude login:", "api key:", "model:", "database:", "index:", "api:", "websocket:"} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("output missing %q:\n%s", want, out)
 		}
@@ -181,6 +188,14 @@ func TestDoctorMissingWikiAndFix(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := stg.SetSetting(settings.KeyWikiPath, wikiRoot); err != nil {
+		t.Fatal(err)
+	}
+	// The api key + model setup checks pass in a healthy env; --fix repairs
+	// wiki/index only, setup is not its job.
+	if err := stg.SetSetting(settings.KeyAPIKey, "sk-healthy"); err != nil {
+		t.Fatal(err)
+	}
+	if err := stg.SetSetting(settings.KeyModel, "claude-sonnet-5"); err != nil {
 		t.Fatal(err)
 	}
 	if err := stg.Close(); err != nil {

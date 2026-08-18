@@ -34,13 +34,15 @@ Prints `thoth <version>` (`dev` in development builds).
 
 ### `thoth doctor`
 
-Runs seven health checks and reports each. The checks live in the shared `internal/doctor` package — the dashboard's Settings → Doctor tab runs the same suite over `GET /api/doctor`:
+Runs nine health checks and reports each. The checks live in the shared `internal/doctor` package — the dashboard's Settings → Doctor tab runs the same suite over `GET /api/doctor`:
 
 | Check | What it verifies |
 |---|---|
 
 | wiki | wiki exists with all 8 folders + `CLAUDE.md` |
 | claude | binary found; `claude --version` works; login status confirmed |
+| api key | an API key is stored in the settings table (unset = inherit the server's `ANTHROPIC_API_KEY`) |
+| model | a model is selected in the settings table (unset = the CLI's own default) |
 | database | db opens in WAL with `notes` + `notes_fts` tables |
 | index | indexed count matches the number of valid notes on disk |
 | api | something speaks the Thoth protocol at the configured port (`GET /api/health` returns `ok`) |

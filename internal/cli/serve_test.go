@@ -7,12 +7,90 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/shiv-source/thoth/internal/assets"
 	"github.com/shiv-source/thoth/internal/config"
 	"github.com/shiv-source/thoth/internal/index"
 	"github.com/shiv-source/thoth/internal/settings"
 	"github.com/shiv-source/thoth/internal/store"
 	"github.com/shiv-source/thoth/internal/wiki"
 )
+
+// openTestRepos opens a temp store and settings repo on the same db file.
+func openTestRepos(t *testing.T) (*store.Store, *settings.Repo) {
+	t.Helper()
+	dbPath := filepath.Join(t.TempDir(), "test.db")
+	st, err := store.Open(dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = st.Close() })
+	stg, err := settings.OpenRepo(dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = stg.Close() })
+	return st, stg
+}
+
+func TestEnsureModelsSeedsFirstBoot(t *testing.T) {
+	st, _ := openTestRepos(t)
+	if err := ensureModels(st); err != nil {
+		t.Fatalf("ensureModels: %v", err)
+	}
+	models, err := st.ListModels()
+	if err != nil {
+		t.Fatal(err)
+	}
+	opts, err := assets.ModelOptions()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(models) != len(opts) {
+		t.Fatalf("seeded %d models, want %d", len(models), len(opts))
+	}
+}
+
+func TestEnsureModelsReseedsEmptyTable(t *testing.T) {
+	st, _ := openTestRepos(t)
+	if err := ensureModels(st); err != nil {
+		t.Fatalf("first ensureModels: %v", err)
+	}
+	// The user deletes every model: the next startup seeds the table again
+	// (empty means "not there" — the seed runs on every boot).
+	models, err := st.ListModels()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, m := range models {
+		if err := st.DeleteModel(m.ID); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := ensureModels(st); err != nil {
+		t.Fatalf("second ensureModels: %v", err)
+	}
+	opts, err := assets.ModelOptions()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if models, err = st.ListModels(); err != nil || len(models) != len(opts) {
+		t.Fatalf("table not reseeded after delete-all: %v (%d models)", err, len(models))
+	}
+}
+
+func TestEnsureModelsKeepsUserRows(t *testing.T) {
+	st, _ := openTestRepos(t)
+	if _, err := st.CreateModel("custom", "Custom", "", ""); err != nil {
+		t.Fatal(err)
+	}
+	if err := ensureModels(st); err != nil {
+		t.Fatalf("ensureModels: %v", err)
+	}
+	models, err := st.ListModels()
+	if err != nil || len(models) != 1 || models[0].Value != "custom" {
+		t.Fatalf("user row not preserved: %v %+v", err, models)
+	}
+}
 
 func TestServePort(t *testing.T) {
 	tests := []struct {

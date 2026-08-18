@@ -8,6 +8,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/fs"
 	"log/slog"
@@ -42,10 +43,10 @@ type Check struct {
 }
 
 // Run probes the installation under dir ("" means ~/.thoth) and returns every
-// check, in order: wiki, claude, claude login, database, index, api,
-// websocket. Every check runs even when an earlier one fails. addr is the
-// host:port the api/websocket checks probe ("" → 127.0.0.1:8333); tests
-// inject a free port. ctx bounds the claude probes; log is reserved for
+// check, in order: wiki, claude, claude login, api key, model, database,
+// index, api, websocket. Every check runs even when an earlier one fails.
+// addr is the host:port the api/websocket checks probe ("" → 127.0.0.1:8333);
+// tests inject a free port. ctx bounds the claude probes; log is reserved for
 // future diagnostics.
 func Run(ctx context.Context, dir string, addr string, log *slog.Logger) []Check {
 	thDir := dir
@@ -61,7 +62,7 @@ func Run(ctx context.Context, dir string, addr string, log *slog.Logger) []Check
 	}
 	dbPath := filepath.Join(thDir, "thoth.db")
 
-	results := make([]Check, 0, 7)
+	results := make([]Check, 0, 9)
 
 	// 1. wiki — the path lives in the settings table; a missing database
 	// falls back to the default (the doctor must not create the DB itself).
@@ -75,20 +76,23 @@ func Run(ctx context.Context, dir string, addr string, log *slog.Logger) []Check
 	// 2. claude CLI
 	results = append(results, checkClaude(ctx)...)
 
-	// 3. database
+	// 3. setup state — api key and model, from the settings table.
+	results = append(results, checkSettings(dbPath)...)
+
+	// 4. database
 	results = append(results, checkDatabase(dbPath))
 
-	// 4. index sync
+	// 5. index sync
 	results = append(results, checkIndex(dbPath, expanded))
 
-	// 5. api — REST health at the configured address. Pre-launch (CLI) it
+	// 6. api — REST health at the configured address. Pre-launch (CLI) it
 	// reports whether the port is free, occupied by a running Thoth, or by
 	// something else; in-flight (GET /api/doctor) it self-checks the very
 	// server answering the request.
 	apiCheck, apiReachable := checkAPI(addr)
 	results = append(results, apiCheck)
 
-	// 6. websocket — the chat upgrade; reported separately, and only probed
+	// 7. websocket — the chat upgrade; reported separately, and only probed
 	// when the REST check reached a Thoth server.
 	results = append(results, checkWebsocket(addr, apiReachable))
 
@@ -165,6 +169,49 @@ func resolveClaudeBin() (string, string) {
 		return p, ""
 	}
 	return "", "claude CLI not found on PATH — install it"
+}
+
+// unreadableSettings builds the failed api key + model checks for a settings
+// table that cannot be read.
+func unreadableSettings(err error) []Check {
+	msg := fmt.Sprintf("cannot read the settings table: %v", err)
+	return []Check{{Name: "api key", OK: false, Message: msg}, {Name: "model", OK: false, Message: msg}}
+}
+
+// checkSettings reports the user-facing setup state: whether the API key and
+// the selected model are configured. Both are optional (an unset key
+// inherits the server environment and an unset model keeps the CLI default),
+// so an unset value is a failed check whose message explains the fallback.
+func checkSettings(dbPath string) []Check {
+	unset := func(name, message string) Check { return Check{Name: name, OK: false, Message: message} }
+	if !fileExists(dbPath) {
+		return []Check{
+			unset("api key", "no API key configured — set one in Settings → General (without it the CLI inherits ANTHROPIC_API_KEY from the server environment)"),
+			unset("model", "no model selected — the CLI default is used; pick one in Settings → General"),
+		}
+	}
+	r, err := settings.OpenRepo(dbPath)
+	if err != nil {
+		return unreadableSettings(err)
+	}
+	defer func() { _ = r.Close() }()
+	key, _, keyErr := r.Setting(settings.KeyAPIKey)
+	model, _, modelErr := r.Setting(settings.KeyModel)
+	if err := errors.Join(keyErr, modelErr); err != nil {
+		return unreadableSettings(err)
+	}
+	checks := make([]Check, 0, 2)
+	if key != "" {
+		checks = append(checks, Check{Name: "api key", OK: true, Message: "API key configured"})
+	} else {
+		checks = append(checks, unset("api key", "no API key configured — set one in Settings → General (without it the CLI inherits ANTHROPIC_API_KEY from the server environment)"))
+	}
+	if model != "" {
+		checks = append(checks, Check{Name: "model", OK: true, Message: fmt.Sprintf("model %q selected", model)})
+	} else {
+		checks = append(checks, unset("model", "no model selected — the CLI default is used; pick one in Settings → General"))
+	}
+	return checks
 }
 
 // checkDatabase verifies that thoth.db exists, opens in WAL mode, and has the

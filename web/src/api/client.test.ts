@@ -24,6 +24,61 @@ describe('api.search', () => {
     })
 })
 
+describe('api.listDirs', () => {
+    beforeEach(() => {
+        vi.clearAllMocks()
+    })
+
+    it('lists subdirectories for the wiki path picker', async () => {
+        mocks.get.mockResolvedValue({ data: { dirs: ['/a/b', '/a/c'] } })
+        const { dirs } = await api.listDirs('/a')
+        expect(dirs).toEqual(['/a/b', '/a/c'])
+        expect(mocks.get).toHaveBeenCalledWith('/api/fs/dirs?path=%2Fa')
+    })
+})
+
+describe('api.models CRUD', () => {
+    beforeEach(() => {
+        vi.clearAllMocks()
+    })
+
+    const model = { id: 3, value: 'my-model', name: 'My Model', tag: 'test', provider: 'Vendor' }
+
+    it('parses models grouped by provider through zod', async () => {
+        mocks.get.mockResolvedValue({ data: { groups: [{ provider: 'Vendor', models: [model] }] } })
+        const { groups } = await api.models()
+        expect(groups[0]).toEqual({ provider: 'Vendor', models: [model] })
+        expect(mocks.get).toHaveBeenCalledWith('/api/models')
+    })
+
+    it('rejects models missing the new fields', async () => {
+        mocks.get.mockResolvedValue({
+            data: { groups: [{ provider: 'Vendor', models: [{ value: 'x', label: 'X' }] }] }
+        })
+        await expect(api.models()).rejects.toThrow()
+    })
+
+    it('creates a model', async () => {
+        mocks.post.mockResolvedValue({ data: model })
+        const created = await api.createModel({ value: 'my-model', name: 'My Model' })
+        expect(created).toEqual(model)
+        expect(mocks.post).toHaveBeenCalledWith('/api/models', { value: 'my-model', name: 'My Model' })
+    })
+
+    it('updates a model', async () => {
+        mocks.put.mockResolvedValue({ data: { ...model, name: 'Renamed' } })
+        const updated = await api.updateModel(3, { value: 'my-model', name: 'Renamed' })
+        expect(updated.name).toBe('Renamed')
+        expect(mocks.put).toHaveBeenCalledWith('/api/models/3', { value: 'my-model', name: 'Renamed' })
+    })
+
+    it('deletes a model', async () => {
+        mocks.delete.mockResolvedValue({ data: { ok: true } })
+        await api.deleteModel(3)
+        expect(mocks.delete).toHaveBeenCalledWith('/api/models/3')
+    })
+})
+
 describe('api.getConversation and health', () => {
     beforeEach(() => {
         vi.clearAllMocks()
