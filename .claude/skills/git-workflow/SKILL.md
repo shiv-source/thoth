@@ -18,7 +18,7 @@ description: >-
 ## Key files
 - CONTRIBUTING.md — the workflow page: § Workflow, § Before you push
 - .github/pull_request_template.md — the PR body shape (Summary / Files changed / How verified / Notes)
-- .github/workflows/ — ci-pr.yml (PR gates) · quality.yml (the five quality gates) · final-gate.yml (single required check + PR report comment) · ci.yml (push to main adds 5 cross-compiles + frontend build)
+- .github/workflows/ — ci-pr.yml (PR gates) · quality.yml (the five quality gates) · final-gate.yml (single required check + PR report comment) · ci.yml (push to main adds 5 cross-compiles + frontend build) · pr-assignee.yml (auto-assigns PR committers)
 - .husky/pre-commit — the commit gate: lint-staged autofixes, plus Go vet/lint/test when Go is staged
 - docs/development.md — § Gates (what make check enforces), § CI (workflow mechanics)
 - docs/specs/ — untracked design docs for large or cross-package changes (convention, may be empty)
@@ -29,6 +29,8 @@ description: >-
 ### 1. Start a change (branch)
 1. Never commit to main (CLAUDE.md § Repo rules) — sync and branch first:
    `git switch main && git pull --ff-only && git switch -c <type>/<scope>/<slug>`
+   Fast path when the branch already exists: `./scripts/pr.sh` runs this sync plus the whole PR flow (workflow 3) in one command.
+   The pre-commit hook enforces this — scripts/main-guard.sh blocks commits made directly on main.
 2. `<type>` is a conventional-commit prefix: feat, fix, perf, ci, docs, refactor, test, chore — `perf` maps to the `performance` type label (CONTRIBUTING.md § Workflow)
 3. `<scope>` is the short area name (web, api, index, skills, …); `<slug>` is short kebab-case (lowercase letters, digits, hyphens) — the branch mirrors the commit message `<type>(<scope>): <summary>`, e.g. fix/web/reject-empty-titles
 4. Large or cross-package change? Write the design doc first — see workflow 5
@@ -42,6 +44,7 @@ description: >-
 6. Stage only what the change needs: no secrets, no generated dirs (bin/, web/dist/, internal/webui/dist/, node_modules/, *.db)
 
 ### 3. Open a PR
+0. Or run `./scripts/pr.sh` to automate this workflow from an existing branch: it syncs main, validates the branch name, derives labels from the branch (validated against references/labels.md), runs the graph staleness guard (scripts/graph-check.sh), runs `make check` (`--no-check` skips), pushes, and creates the PR with the template. `--title` overrides the derived title; repeat `--area <label>` to add areas. The steps below remain authoritative when run by hand.
 1. Push the branch, then create the PR with the `gh` CLI (not the web UI):
    `gh pr create --title "<type>(<scope>): <summary>" --label <type> --label <area>… --template .github/pull_request_template.md`
    — one type label plus every area label the change touches (workflow 4); the web UI auto-fills the PR template, the CLI does not — pass it explicitly with `--template` (verify flags against `gh pr create --help`)
@@ -59,7 +62,8 @@ description: >-
 3. Areas (package-aligned): api, chat, cli, github, index, search, settings, store, sync, ui, webui, wiki, tooling
 4. Priorities (issues only): p-critical, p-high, p-medium, p-low
 5. Branch prefixes (8) and type labels (9) overlap but are not identical — choose labels from the label set, not the prefix list
-6. Full data: references/labels.md
+6. pr.sh enforces this — derived labels are validated against references/labels.md (branch scope → area label, falling back to `tooling`)
+7. Full data: references/labels.md
 
 ### 5. Design doc first (large or cross-package changes)
 1. Before implementation, write the design doc to docs/specs/ (untracked — never committed; CLAUDE.md § Repo rules)
@@ -91,4 +95,7 @@ CLAUDE.md § Repo rules, .github/pull_request_template.md, .github/workflows/*,
 or .husky/pre-commit behavior changes; then run `graphify update .`. Stale if:
 the branch or PR commands in CONTRIBUTING.md differ from these steps, the label
 set changes, a workflow file changes gate names, order, or the report marker,
-or `gh pr create --help` no longer shows the `--template` flag.
+`gh pr create --help` no longer shows the `--template` flag, scripts/pr.sh or
+scripts/graph-check.sh changes the steps they automate, or the label tables in
+references/labels.md change shape (scripts/pr.sh parses `| label |` rows under
+`## Types` / `## Areas`).

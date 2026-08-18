@@ -29,7 +29,7 @@ make dev       # Vite HMR + Go server together (http://127.0.0.1:8333)
 
 ## Before you push
 
-The pre-commit hook runs automatically: `lint-staged` applies `eslint --fix` + prettier to staged `web/src` files and `golangci-lint --fix` to staged Go files; Go commits additionally gate on `go vet ./...`, `golangci-lint run`, and `go test ./...`. Formatting and autofixes happen for you — but the gate fails on anything a linter cannot fix, by design.
+The pre-commit hook runs automatically: it refuses commits made directly on `main` (changes land via branches and reviewed PRs), `lint-staged` applies `eslint --fix` + prettier to staged `web/src` files and `golangci-lint --fix` to staged Go files; Go commits additionally gate on `go vet ./...`, `golangci-lint run`, and `go test ./...`. Formatting and autofixes happen for you — but the gate fails on anything a linter cannot fix, by design.
 
 Before opening a PR, run what CI enforces, locally:
 

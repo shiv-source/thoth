@@ -4,8 +4,6 @@
 # =============================================================================
 
 SHELL       := /bin/bash
-GO          ?= go
-PNPM        ?= pnpm
 BIN         := bin/thoth
 DIST_DIR    := dist
 EMBED_DIST  := internal/webui/dist
@@ -13,12 +11,16 @@ PREFIX      ?= /usr/local/bin
 MODULE      := github.com/shiv-source/thoth
 VERSION     ?= dev
 LDFLAGS     := -s -w -X $(MODULE)/internal/cli.version=$(VERSION)
-GO_BUILD    := $(GO) build -ldflags "$(LDFLAGS)"
+GO_BUILD    := go build -trimpath -ldflags "$(LDFLAGS)"
 
 .DEFAULT_GOAL := help
 
+# The web target swaps the embed (rm -rf + cp) while go test/build read it —
+# never parallelize.
+.NOTPARALLEL:
+
 # -----------------------------------------------------------------------------
-# Utility
+# Help
 # -----------------------------------------------------------------------------
 
 help: ## list available targets with descriptions
@@ -27,45 +29,14 @@ help:
 	@awk -F':.*## ' '/^[a-zA-Z_-]+:.*## / {printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
 # -----------------------------------------------------------------------------
-# Setup & install (one command = everything: frontend deps → embed → binary)
-# -----------------------------------------------------------------------------
-
-install: web ## install frontend deps, build the UI, install the binary into $(GOBIN)
-	$(GO) install -ldflags "$(LDFLAGS)" ./cmd/thoth
-.PHONY: install
-
-install-bin: build ## build and copy the binary to $(PREFIX) (default /usr/local/bin)
-	install -m 0755 $(BIN) $(PREFIX)/thoth
-.PHONY: install-bin
-
-# -----------------------------------------------------------------------------
-# Development — live servers with hot reload
-# -----------------------------------------------------------------------------
-
-dev: web-sync ## run Vite (HMR) and the Go server together; Ctrl+C stops both
-	@trap 'kill 0' EXIT; \
-	( $(PNPM) dev ) & \
-	$(GO) run ./cmd/thoth serve
-.PHONY: dev
-
-dev-web: ## Vite dev server only (proxies /api and /ws to 127.0.0.1:8333)
-.PHONY: dev-web
-dev-web:
-	$(PNPM) dev
-
-.PHONY: dev-server
-dev-server: web ## Go server only, with the embedded frontend
-	$(GO) run ./cmd/thoth serve
-
-# -----------------------------------------------------------------------------
-# Build & release
+# Setup — the embedded frontend
 # -----------------------------------------------------------------------------
 
 web: ## build the frontend and sync it into the Go embed
 .PHONY: web
 web:
-	$(PNPM) install --frozen-lockfile
-	$(PNPM) build
+	pnpm install --frozen-lockfile
+	pnpm build
 	rm -rf $(EMBED_DIST)
 	cp -r web/dist $(EMBED_DIST)
 
@@ -74,11 +45,43 @@ web-sync: ## ensure the embed exists without reinstalling (dev fast path)
 web-sync:
 	@test -f $(EMBED_DIST)/index.html || $(MAKE) --no-print-directory web
 
+# -----------------------------------------------------------------------------
+# Development — live servers with hot reload
+# -----------------------------------------------------------------------------
+
+dev: web-sync ## run Vite (HMR) and the Go server together; Ctrl+C stops both
+	@trap 'kill 0' EXIT; \
+	( pnpm dev ) & vite=$$!; \
+	go run ./cmd/thoth serve & server=$$!; \
+	while kill -0 $$vite 2>/dev/null && kill -0 $$server 2>/dev/null; do sleep 1; done; \
+	echo "dev: one of the dev processes exited — shutting down" >&2
+.PHONY: dev
+
+dev-web: ## Vite dev server only (proxies /api and /ws to 127.0.0.1:8333)
+.PHONY: dev-web
+dev-web:
+	pnpm dev
+
+dev-server: web ## Go server only, with the embedded frontend
+.PHONY: dev-server
+dev-server:
+	go run ./cmd/thoth serve
+
+# -----------------------------------------------------------------------------
+# Build & release
+# -----------------------------------------------------------------------------
+
 build: web ## compile the release binary (VERSION=v1.2.3 to stamp it)
+	go mod download
 	$(GO_BUILD) -o $(BIN) ./cmd/thoth
 .PHONY: build
 
-release: web test ## cross-compile all five targets into dist/ (stamped with VERSION)
+install-bin: build ## build and copy the binary to $(PREFIX) (default /usr/local/bin)
+	install -d -m 0755 $(PREFIX)
+	install -m 0755 $(BIN) $(PREFIX)/thoth
+.PHONY: install-bin
+
+release: guard-release web test ## cross-compile all five targets into dist/ (VERSION=vX.Y.Z required)
 	@mkdir -p $(DIST_DIR)
 	@for target in \
 	  "darwin amd64" "darwin arm64" "linux amd64" "linux arm64" "windows amd64"; do \
@@ -89,49 +92,53 @@ release: web test ## cross-compile all five targets into dist/ (stamped with VER
 	done
 .PHONY: release
 
+# First prereq so the guard fires before web/test run
+.PHONY: guard-release
+guard-release:
+	@[ "$(VERSION)" != "dev" ] && [ -n "$(VERSION)" ] || { echo "FAIL: release needs a real version — run: make release VERSION=v1.2.3" >&2; exit 1; }
+
 # -----------------------------------------------------------------------------
-# Quality gates — what CI enforces
+# Quality gates — what CI enforces (check runs them in this order)
 # -----------------------------------------------------------------------------
 
-fmt: ## format and autofix the Go tree (gofmt/goimports + autofixable linters)
+fmt: web-sync ## format and autofix the Go tree (gofmt/goimports + autofixable linters)
 .PHONY: fmt
 fmt:
 	golangci-lint run --fix
 
-test: ## unit tests (fail-fast)
-.PHONY: test
-test:
-	$(GO) test -failfast ./...
-
-race: ## tests under the race detector (fail-fast)
-.PHONY: race
-race:
-	$(GO) test -race -failfast ./...
-
-cover: ## coverage report with the CI gate (>= 80%)
-.PHONY: cover
-cover:
-	$(GO) test -failfast -coverprofile=coverage.out ./internal/... ./cmd/...
-	$(GO) tool cover -func=coverage.out | tail -1
-	@$(GO) tool cover -func=coverage.out | awk -F'\t' '/^total:/ { gsub(/%/,"",$$NF); if ($$NF+0 < 80) { print "FAIL: coverage below 80% floor"; exit 1 } }'
-
-lint: ## backend and frontend static analysis
+lint: web-sync ## backend and frontend static analysis
 .PHONY: lint
 lint:
 	golangci-lint run
-	$(PNPM) lint
-	$(PNPM) typecheck
+	pnpm lint
+	pnpm typecheck
+
+test: web-sync ## unit tests (fail-fast)
+.PHONY: test
+test:
+	go test -failfast ./...
+
+race: web-sync ## tests under the race detector (fail-fast)
+.PHONY: race
+race:
+	go test -race -failfast ./...
+
+cover: web-sync ## coverage report with the CI gate (>= 80%)
+.PHONY: cover
+cover:
+	go test -failfast -coverprofile=coverage.out ./internal/... ./cmd/...
+	@go tool cover -func=coverage.out | awk -F'\t' '/^total:/ { printf "total: %s\n", $$NF; gsub(/%/,"",$$NF); total=$$NF } END { if (total=="") { print "FAIL: no total coverage line — coverage.out missing or corrupt"; exit 1 } if (total+0 < 80) { print "FAIL: coverage below 80% floor"; exit 1 } }'
 
 web-test: ## frontend unit tests
 .PHONY: web-test
 web-test:
-	$(PNPM) test
+	pnpm test
 
 check: fmt lint race cover web-test build ## everything CI runs, locally
 .PHONY: check
 
 # -----------------------------------------------------------------------------
-# Operations
+# Run
 # -----------------------------------------------------------------------------
 
 run: build ## build and serve
@@ -145,15 +152,19 @@ run-fast: web-sync ## rebuild Go only and serve (reuse existing embed — run `m
 	./$(BIN) serve
 .PHONY: run-fast
 
-doctor: ## diagnose the local Thoth setup
+# -----------------------------------------------------------------------------
+# Maintenance
+# -----------------------------------------------------------------------------
+
+doctor: web-sync ## diagnose the local Thoth setup
 .PHONY: doctor
 doctor:
-	$(GO) run ./cmd/thoth doctor
+	go run ./cmd/thoth doctor
 
-init: ## scaffold the default wiki
+init: web-sync ## scaffold the default wiki
 .PHONY: init
 init:
-	$(GO) run ./cmd/thoth init
+	go run ./cmd/thoth init
 
 clean: ## remove all build output
 .PHONY: clean

@@ -34,14 +34,12 @@ Open the dashboard and ask *"what did we decide in Tuesday's standup?"* — or s
 ```sh
 git clone https://github.com/<you>/thoth
 cd thoth
-make install                  # everything: frontend deps → embed → binary into $(GOBIN)
-# or
-make install-bin PREFIX=/usr/local/bin
+make install-bin PREFIX=/usr/local/bin   # build + embed + copy to PREFIX
 # or build in place:
 make build                    # → bin/thoth
 ```
 
-Release binaries: `make release` cross-compiles all five targets into `dist/` (darwin/linux × amd64/arm64, windows/amd64), stamped with `VERSION`.
+Release binaries: `make release VERSION=vX.Y.Z` cross-compiles all five targets into `dist/` (darwin/linux × amd64/arm64, windows/amd64) — a real `VERSION` is required, the target refuses to ship `dev`-stamped binaries.
 
 ## Documentation
 
