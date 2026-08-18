@@ -32,8 +32,7 @@ Run `make help` for the full self-documenting list.
 | `make web` | `pnpm install --frozen-lockfile` + build + sync into `internal/webui/dist` |
 | `make web-sync` | Fast path: ensure the embed exists without reinstalling |
 | `make build [VERSION=…]` | Release binary with version stamping |
-| `make release [VERSION=…]` | Cross-compile all five targets into `dist/` |
-| `make install` | Everything: frontend deps + build + binary into `$(GOBIN)` |
+| `make release VERSION=…` | Cross-compile all five targets into `dist/` (fails without a real `VERSION` — never ships `dev`-stamped binaries) |
 | `make install-bin [PREFIX=…]` | Copy the binary system-wide (default `/usr/local/bin`) |
 | `make test` / `make race` / `make cover` / `make lint` / `make fmt` | Quality gates |
 | `make check` | Everything CI runs, locally |
@@ -44,12 +43,7 @@ Run `make help` for the full self-documenting list.
 
 1. `gofmt -l` empty · `go vet ./...` clean
 2. `go test -race ./...`
-3. Coverage ≥ **80%** on `internal/` + `cmd/` (CI-enforced):
-
-```sh
-go test -coverprofile=coverage.out ./internal/... ./cmd/...
-go tool cover -func=coverage.out | tail -1
-```
+3. Coverage ≥ **80%** on `internal/` + `cmd/` (CI-enforced): `make cover` — the single gate, shared by the Makefile and CI
 
 4. Cross-compiles: darwin amd64/arm64, linux amd64/arm64, windows amd64
 5. Frontend: `pnpm typecheck` · `pnpm lint` · `pnpm test` · `pnpm run build`
@@ -64,7 +58,7 @@ go tool cover -func=coverage.out | tail -1
 
 ## CI
 
-`.github/workflows/quality.yml` — reusable workflow with the five quality gates: `backend-test` (make web → vet → race → coverage gate) and `backend-lint` (golangci-lint), plus `frontend-test` / `frontend-lint` / `frontend-typecheck`, with a 10-minute timeout each; the Go jobs share the toolchain + embed preamble via the `.github/actions/setup-go-web` composite action and the frontend jobs share the install preamble via `.github/actions/setup-web` (installs at the workspace root against the root `pnpm-lock.yaml`; after checkout, since same-repo actions resolve only once checked out). Caching: `setup-go` and `setup-node` keep the Go build/module cache and the pnpm store warm by default, and the golangci-lint analysis cache is persisted via `actions/cache` keyed on `.golangci.yml`. `.github/workflows/ci.yml` runs on pushes to `main`: the shared quality gates, then `build-linux` / `build-darwin` / `build-windows` (the 5 targets, each on its native OS) and `frontend-build`; `.github/workflows/ci-pr.yml` runs the same quality gates on PRs targeting `main` (no builds). Both finish with `.github/workflows/final-gate.yml` (reusable, takes the caller's job id as `wrapper` so the gate excludes itself and its caller from the job list), the single required check for branch protection — it always renders a per-job report into the Actions step summary (success or failure), fails itself unless every job succeeded, and on PR-triggered runs mirrors the report onto the PR as a marker-tagged comment (updated in place on each run). Every workflow declares top-level `permissions`: the callers `ci.yml` / `ci-pr.yml` cover the union (`contents: read` for checkout, plus `actions: read` + `pull-requests: write` — a caller must grant at least everything its reusable workflows request), `quality.yml` needs `contents: read`, and `final-gate.yml` needs `actions: read` + `pull-requests: write` (jobs API + PR comment).
+`.github/workflows/quality.yml` — reusable workflow with the five quality gates: `backend-test` (make web → vet → race → `make cover`) and `backend-lint` (golangci-lint), plus `frontend-test` / `frontend-lint` / `frontend-typecheck`, with a 10-minute timeout each; the Go jobs share the toolchain + embed preamble via the `.github/actions/setup-go-web` composite action and the frontend jobs share the install preamble via `.github/actions/setup-web` (installs at the workspace root against the root `pnpm-lock.yaml`; after checkout, since same-repo actions resolve only once checked out). Caching: `setup-go` and `setup-node` keep the Go build/module cache and the pnpm store warm by default, and the golangci-lint analysis cache is persisted via `actions/cache` keyed on `.golangci.yml`. `.github/workflows/ci.yml` runs on pushes to `main`: the shared quality gates, then `build-linux` / `build-darwin` / `build-windows` (the 5 targets, each on its native OS) and `frontend-build`; `.github/workflows/ci-pr.yml` runs the same quality gates on PRs targeting `main` (no builds). Both finish with `.github/workflows/final-gate.yml` (reusable, takes the caller's job id as `wrapper` so the gate excludes itself and its caller from the job list), the single required check for branch protection — it always renders a per-job report into the Actions step summary (success or failure), fails itself unless every job succeeded, and on PR-triggered runs mirrors the report onto the PR as a marker-tagged comment (updated in place on each run). Every workflow declares top-level `permissions`: the callers `ci.yml` / `ci-pr.yml` cover the union (`contents: read` for checkout, plus `actions: read` + `pull-requests: write` — a caller must grant at least everything its reusable workflows request), `quality.yml` needs `contents: read`, and `final-gate.yml` needs `actions: read` + `pull-requests: write` (jobs API + PR comment).
 
 ## Rules that keep the codebase healthy
 

@@ -2,7 +2,7 @@
 
 ## make check — everything CI enforces, locally
 `make check` runs, in order: fmt, lint, race, cover, web-test, build.
-CI (.github/ workflows) runs: vet → race → 80% coverage gate → lint →
+CI (.github/ workflows) runs: vet → race → `make cover` (the 80% gate) → lint →
 5 cross-compiles → frontend.
 
 ## Coverage
