@@ -2,7 +2,8 @@ root = "."
 tmp_dir = "tmp"
 
 [build]
-  cmd = "go run ./cmd/thoth serve --dev"
+  cmd = "mkdir -p tmp && go build -o ./tmp/main ./cmd/thoth"
+  entrypoint = ["./tmp/main", "serve", "--dev"]
   include_ext = ["go"]
   exclude_dir = ["web", "bin", "dist", "tmp", "node_modules", "graphify-out", ".git", ".claude", "docs"]
   exclude_regex = ["_test\\.go$"]
