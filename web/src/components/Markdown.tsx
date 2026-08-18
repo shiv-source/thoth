@@ -3,9 +3,10 @@ import ReactMarkdown, { type Components } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { CodeBlock } from './CodeBlock'
 
-// PROSE is the shared typography wrapper for every markdown surface.
+// PROSE is the shared typography wrapper for every markdown surface
+// (light theme only).
 const PROSE =
-    'prose prose-sm max-w-none prose-headings:font-display prose-headings:text-heading prose-code:before:content-none prose-code:after:content-none prose-pre:rounded-lg dark:prose-invert'
+    'prose prose-sm max-w-none prose-headings:font-display prose-headings:text-heading prose-code:before:content-none prose-code:after:content-none prose-pre:rounded-lg'
 
 // Fenced code blocks route through Shiki (CodeBlock); inline code keeps the
 // default prose styling. The pre wrapper is unwrapped so the highlight's own

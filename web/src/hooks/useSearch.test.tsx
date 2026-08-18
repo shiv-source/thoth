@@ -1,11 +1,22 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
+import type { ReactNode } from 'react'
+import { Provider } from 'react-redux'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { axiosModuleMock } from '../test/mockAxios'
 import { type SearchResult } from '../api/client'
+import { makeStore } from '../store'
 import { useSearch } from './useSearch'
 
 const mocks = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() }))
 vi.mock('axios', () => axiosModuleMock(mocks))
+
+// The hook dispatches into the search slice, so each render gets a fresh
+// store behind a Provider.
+function renderSearchHook(initial: string) {
+    const store = makeStore()
+    const wrapper = ({ children }: { children: ReactNode }) => <Provider store={store}>{children}</Provider>
+    return renderHook(({ q }: { q: string }) => useSearch(q), { initialProps: { q: initial }, wrapper })
+}
 
 describe('useSearch', () => {
     beforeEach(() => {
@@ -18,9 +29,9 @@ describe('useSearch', () => {
         mocks.get.mockResolvedValue({
             data: { results: [{ path: 'a.md', title: 'A', kind: 'note', snippet: '…' }] }
         })
-        const { result } = renderHook(() => useSearch('a'))
-        await waitFor(() => expect(result.current.loading).toBe(false))
-        expect(result.current.results[0]?.path).toBe('a.md')
+        const { result } = renderSearchHook('a')
+        await waitFor(() => expect(result.current.results[0]?.path).toBe('a.md'))
+        expect(result.current.loading).toBe(false)
     })
 
     it('ignores stale responses from an older query', async () => {
@@ -36,7 +47,7 @@ describe('useSearch', () => {
                 data: { results: [{ path: 'new.md', title: 'New', kind: 'note', snippet: '…' }] }
             })
 
-        const { result, rerender } = renderHook(({ q }) => useSearch(q), { initialProps: { q: 'first' } })
+        const { result, rerender } = renderSearchHook('first')
         act(() => {
             vi.advanceTimersByTime(300)
         }) // first query fires its request
@@ -74,7 +85,7 @@ describe('useSearch', () => {
                 data: { results: [{ path: 'new.md', title: 'New', kind: 'note', snippet: '…' }] }
             })
 
-        const { rerender } = renderHook(({ q }) => useSearch(q), { initialProps: { q: 'first' } })
+        const { rerender } = renderSearchHook('first')
         act(() => {
             vi.advanceTimersByTime(300)
         }) // first query fires its request
@@ -90,7 +101,7 @@ describe('useSearch', () => {
         vi.useFakeTimers()
         mocks.get.mockImplementationOnce(() => new Promise(() => {}))
 
-        const { unmount } = renderHook(() => useSearch('query'))
+        const { unmount } = renderSearchHook('query')
         act(() => {
             vi.advanceTimersByTime(300)
         }) // request fires
@@ -111,7 +122,7 @@ describe('useSearch', () => {
                 })
         )
 
-        const { result, rerender } = renderHook(({ q }) => useSearch(q), { initialProps: { q: 'first' } })
+        const { result, rerender } = renderSearchHook('first')
         act(() => {
             vi.advanceTimersByTime(300)
         }) // request fires, loading is true
@@ -119,7 +130,8 @@ describe('useSearch', () => {
         expect(result.current.loading).toBe(false)
         expect(result.current.results).toEqual([])
 
-        // A late response must not resurrect results: the seq bump drops it.
+        // A late response must not resurrect results: the cleared query
+        // makes the slice drop it.
         await act(async () => {
             await Promise.resolve()
             resolveFirst({

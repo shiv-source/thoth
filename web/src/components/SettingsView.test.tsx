@@ -2,7 +2,6 @@ import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { SettingsView } from './SettingsView'
-import { ToastProvider } from './Toast'
 import { renderWithStore } from '../test/renderWithStore'
 
 // The client creates its axios instance via axios.create; the mocks are
@@ -108,11 +107,7 @@ const getRepos = () => ({
 })
 
 function renderSettings() {
-    return renderWithStore(
-        <ToastProvider>
-            <SettingsView />
-        </ToastProvider>
-    )
+    return renderWithStore(<SettingsView />)
 }
 
 describe('SettingsView', () => {
@@ -147,8 +142,8 @@ describe('SettingsView', () => {
         })
 
         renderSettings()
-        const select = await screen.findByRole('combobox')
-        await userEvent.selectOptions(select, 'deepseek-v4-flash')
+        await userEvent.click(await screen.findByRole('combobox'))
+        await userEvent.click(await screen.findByRole('option', { name: 'V4 Flash — fastest' }))
         await userEvent.click(screen.getByRole('button', { name: /Save/ }))
         await waitFor(() => expect(screen.getByText(/Saved ✓/)).toBeInTheDocument())
         expect(lastBody('put', '/api/settings')).toMatchObject({ model: 'deepseek-v4-flash' })
@@ -201,9 +196,9 @@ describe('SettingsView', () => {
         await userEvent.click(await screen.findByRole('tab', { name: 'Git remote' }))
         // The connected account's repos are offered as a dropdown the width of
         // the input; picking the private repo fills the field.
-        const url = await screen.findByPlaceholderText(/github\.com/)
+        const url = await screen.findByLabelText('Git remote URL')
         await userEvent.type(url, 'octo')
-        const option = await screen.findByRole('button', { name: /octo\/wiki/ })
+        const option = await screen.findByRole('option', { name: /octo\/wiki/ })
         expect(await screen.findByText('My personal knowledge base')).toBeInTheDocument()
         await userEvent.click(option)
         expect(url).toHaveValue('https://github.com/octo/wiki.git')
@@ -232,7 +227,7 @@ describe('SettingsView', () => {
         // The stored account facts render view-only.
         expect(screen.getByText(/Member since 2018-05-01/)).toBeInTheDocument()
         // The remote URL input appears once connected.
-        expect(await screen.findByPlaceholderText(/github\.com/)).toBeInTheDocument()
+        expect(await screen.findByLabelText('Git remote URL')).toBeInTheDocument()
         // The POST carried the token.
         const connectBody = lastBody('post', '/api/github/auth')
         expect(connectBody != null && JSON.stringify(connectBody).includes('ghp_secret123')).toBe(true)
@@ -268,7 +263,7 @@ describe('SettingsView', () => {
         await userEvent.click(screen.getByRole('button', { name: 'Disconnect' }))
 
         expect(await screen.findByPlaceholderText(/ghp_/)).toBeInTheDocument()
-        expect(screen.getByText('GitHub disconnected')).toBeInTheDocument()
+        expect(await screen.findByText('GitHub disconnected')).toBeInTheDocument()
         expect(mocks.delete.mock.calls.some(([u]) => u === '/api/github/auth')).toBe(true)
     })
 })
@@ -284,7 +279,7 @@ describe('SettingsView auto-sync', () => {
 
         renderSettings()
         await userEvent.click(await screen.findByRole('tab', { name: 'Git remote' }))
-        await userEvent.click(await screen.findByRole('checkbox'))
+        await userEvent.click(await screen.findByRole('switch'))
         await userEvent.click(screen.getByRole('button', { name: 'Save' }))
 
         expect(await screen.findByText('Settings saved')).toBeInTheDocument()
@@ -303,9 +298,9 @@ describe('SettingsView public repo guard', () => {
 
         renderSettings()
         await userEvent.click(await screen.findByRole('tab', { name: 'Git remote' }))
-        const url = await screen.findByPlaceholderText(/github\.com/)
+        const url = await screen.findByLabelText('Git remote URL')
         await userEvent.type(url, 'octo/public')
-        await userEvent.click(await screen.findByRole('button', { name: /octo\/public-wiki/ }))
+        await userEvent.click(await screen.findByRole('option', { name: /octo\/public-wiki/ }))
 
         expect(url).toHaveValue('https://github.com/octo/public-wiki.git')
         expect(await screen.findByText(/public repository is blocked/)).toBeInTheDocument()

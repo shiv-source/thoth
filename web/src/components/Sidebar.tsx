@@ -1,22 +1,22 @@
 import { useEffect, useRef, useState } from 'react'
-import { Plus, Trash2 } from 'lucide-react'
-import type { Conversation, Health } from '../api/client'
+import { App, Button, Layout, List, Skeleton, Tooltip } from 'antd'
+import { PlusOutlined, DeleteOutlined } from '@ant-design/icons'
+import type { Conversation } from '../api/client'
 import { navigate } from '../hooks/useConversationRoute'
 import { deleteConversation, fetchConversations, selectConversations } from '../store'
 import { useAppDispatch, useAppSelector } from '../store/hooks'
-import { useToast } from './Toast'
-import { Tooltip } from './Tooltip'
 
-// ChatsList renders the conversation history grouped by day. Clicking an
-// item navigates to /chat/<id>; the route hook then loads and pins it. The
-// list re-fetches on every URL change so a freshly created chat appears
-// without extra plumbing (turn_done already updates the URL).
+// ChatsList renders the conversation history grouped by day in one antd
+// List per group. Clicking an item navigates to /chat/<id>; the route hook
+// then loads and pins it. The list re-fetches on every URL change so a
+// freshly created chat appears without extra plumbing (turn_done already
+// updates the URL).
 function ChatsList() {
     const dispatch = useAppDispatch()
     const { list: conversations, error } = useAppSelector(selectConversations)
     const [pathname, setPathname] = useState(window.location.pathname)
-    const listRef = useRef<HTMLUListElement>(null)
-    const { toast } = useToast()
+    const listRef = useRef<HTMLDivElement>(null)
+    const { message } = App.useApp()
 
     useEffect(() => {
         const onPop = () => setPathname(window.location.pathname)
@@ -38,22 +38,22 @@ function ChatsList() {
     if (error) {
         return (
             <div className="px-3 pb-2">
-                <p className="text-sm text-red-600 dark:text-red-400">Could not load conversations</p>
-                <button
+                <p className="text-sm text-red-600">Could not load conversations</p>
+                <Button
+                    type="link"
+                    size="small"
+                    className="h-auto p-0"
                     onClick={() => void dispatch(fetchConversations())}
-                    className="mt-1 text-xs text-subtle underline"
                 >
                     Retry
-                </button>
+                </Button>
             </div>
         )
     }
     if (conversations === null) {
         return (
-            <div className="space-y-1.5 px-3 pb-2" aria-hidden="true">
-                {[0, 1, 2].map((i) => (
-                    <div key={i} className="h-7 animate-pulse rounded-md bg-raised" />
-                ))}
+            <div className="px-3 pb-2">
+                <Skeleton active title={false} paragraph={{ rows: 4 }} />
             </div>
         )
     }
@@ -63,65 +63,58 @@ function ChatsList() {
 
     const groups = groupByDay(conversations)
     return (
-        <ul ref={listRef} className="h-full space-y-0.5 overflow-y-auto px-1.5 pb-2">
+        <div ref={listRef} className="h-full overflow-y-auto px-2 pb-2">
             {groups.map(([label, items]) => (
-                <li key={label}>
-                    <div className="px-2 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wider text-subtle">
-                        {label}
-                    </div>
-                    <ul className="space-y-0.5">
-                        {items.map((c) => {
-                            const active = c.id === activeConvID
-                            return (
-                                <li key={c.id} className="group flex items-center">
-                                    <button
-                                        aria-current={active ? 'true' : undefined}
-                                        onClick={() => navigate(`/chat/${c.id}`)}
-                                        className={`flex min-w-0 flex-1 items-center gap-1.5 rounded-md py-1.5 pl-2 pr-1 text-left text-sm transition ${
-                                            active
-                                                ? 'bg-accent-soft font-medium text-accent'
-                                                : 'text-ink hover:bg-raised'
-                                        }`}
-                                    >
-                                        {active && (
-                                            <span
-                                                aria-hidden="true"
-                                                className="-ml-2 h-4 w-0.5 shrink-0 rounded-full bg-accent"
-                                            />
-                                        )}
-                                        <span className="min-w-0 flex-1 truncate">{c.title}</span>
-                                        <span
-                                            className={`shrink-0 text-[11px] text-subtle ${active ? '' : 'opacity-0 group-hover:opacity-100'}`}
-                                        >
-                                            {relativeDate(c.created_at)}
-                                        </span>
-                                    </button>
-                                    <Tooltip label="Delete chat" side="bottom" align="end">
-                                        <button
+                <List
+                    key={label}
+                    size="small"
+                    header={
+                        <span className="text-[11px] font-semibold uppercase tracking-wider text-subtle">{label}</span>
+                    }
+                    dataSource={items}
+                    renderItem={(c) => {
+                        const active = c.id === activeConvID
+                        return (
+                            <List.Item
+                                aria-current={active ? 'true' : undefined}
+                                onClick={() => navigate(`/chat/${c.id}`)}
+                                className={`cursor-pointer rounded-md px-2 ${active ? 'bg-accent-soft' : 'hover:bg-raised'}`}
+                                actions={[
+                                    <Tooltip key="delete" title="Delete chat">
+                                        <Button
+                                            type="text"
+                                            size="small"
+                                            danger
                                             aria-label={`Delete ${c.title}`}
-                                            onClick={() => {
+                                            icon={<DeleteOutlined aria-hidden="true" />}
+                                            onClick={(e) => {
+                                                e.stopPropagation()
                                                 void (async () => {
                                                     try {
                                                         await dispatch(deleteConversation(c.id)).unwrap()
-                                                        toast('Conversation deleted', 'success')
+                                                        void message.success('Conversation deleted')
                                                         if (c.id === activeConvID) navigate('/chat')
                                                     } catch {
-                                                        toast('Could not delete the conversation', 'error')
+                                                        void message.error('Could not delete the conversation')
                                                     }
                                                 })()
                                             }}
-                                            className={`shrink-0 rounded-md p-1.5 text-subtle transition hover:bg-raised hover:text-red-500 ${active ? '' : 'opacity-0 group-hover:opacity-100'}`}
-                                        >
-                                            <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-                                        </button>
+                                        />
                                     </Tooltip>
-                                </li>
-                            )
-                        })}
-                    </ul>
-                </li>
+                                ]}
+                            >
+                                <span className={`min-w-0 truncate text-sm ${active ? 'font-medium text-accent' : ''}`}>
+                                    {c.title}
+                                </span>
+                                <span className="ml-2 shrink-0 text-[11px] text-subtle">
+                                    {relativeDate(c.created_at)}
+                                </span>
+                            </List.Item>
+                        )
+                    }}
+                />
             ))}
-        </ul>
+        </div>
     )
 }
 
@@ -181,64 +174,30 @@ function relativeDate(iso: string): string {
     return rtf.format(Math.round(months / 12), 'year')
 }
 
-export function Sidebar({ health, loading }: { health: Health | null; loading: boolean }) {
+// Sidebar is the chat view's history column: chats label, New chat
+// primary button, and the grouped conversation list. The brand wordmark
+// and health footer live in AppSider.
+export function Sidebar() {
     return (
-        <aside className="flex w-72 shrink-0 flex-col border-r border-line bg-app">
-            <div className="flex h-14 shrink-0 items-center gap-2.5 px-4">
-                <span className="text-xl leading-none">🦉</span>
-                <span className="font-display text-lg font-semibold tracking-tight text-heading">Thoth</span>
-            </div>
-            <div className="flex min-h-0 flex-1 flex-col">
-                <div className="shrink-0 px-3 pb-1.5">
+        <Layout.Sider width={288} theme="light" className="border-r border-line">
+            <div className="flex h-full flex-col">
+                <div className="shrink-0 px-3 pb-1 pt-3">
                     <span className="text-[11px] font-semibold uppercase tracking-wider text-subtle">Chats</span>
                 </div>
-                <div className="shrink-0 px-3 pb-1.5">
-                    <Tooltip label="Start a new chat">
-                        <button
-                            onClick={() => navigate('/chat')}
-                            className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-accent/25 bg-accent-soft px-3 py-1.5 text-sm font-medium text-accent transition hover:border-accent/50 hover:bg-accent/10"
-                        >
-                            <Plus className="h-4 w-4" aria-hidden="true" />
-                            New chat
-                        </button>
-                    </Tooltip>
+                <div className="shrink-0 px-3 pb-2">
+                    <Button
+                        type="primary"
+                        block
+                        icon={<PlusOutlined aria-hidden="true" />}
+                        onClick={() => navigate('/chat')}
+                    >
+                        New chat
+                    </Button>
                 </div>
                 <div className="min-h-0 flex-1">
                     <ChatsList />
                 </div>
             </div>
-            <HealthFooter health={health} loading={loading} />
-        </aside>
-    )
-}
-
-// HealthFooter is the bottom status bar: a health dot with a one-line
-// reason, and the app version on the right.
-function HealthFooter({ health, loading }: { health: Health | null; loading: boolean }) {
-    let dot = 'bg-subtle animate-pulse'
-    let label = 'Checking…'
-    if (!loading) {
-        if (health && health.claude.found && health.wiki.exists) {
-            dot = 'bg-emerald-500'
-            label = 'All systems go'
-        } else if (health && !health.claude.found) {
-            dot = 'bg-red-500'
-            label = 'Claude CLI missing'
-        } else if (health && !health.wiki.exists) {
-            dot = 'bg-red-500'
-            label = 'Wiki missing'
-        } else {
-            dot = 'bg-red-500'
-            label = 'Server unreachable'
-        }
-    }
-    return (
-        <footer className="flex h-8 shrink-0 items-center justify-between border-t border-line px-3 text-[11px] text-subtle">
-            <span className="flex min-w-0 items-center gap-1.5">
-                <span aria-hidden="true" className={`h-1.5 w-1.5 shrink-0 rounded-full ${dot}`} />
-                <span className="truncate">{label}</span>
-            </span>
-            <span className="shrink-0">v{health?.version ?? '…'}</span>
-        </footer>
+        </Layout.Sider>
     )
 }

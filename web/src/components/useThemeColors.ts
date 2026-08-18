@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useMemo } from 'react'
 
 export interface ChartColors {
     accent: string
@@ -6,40 +6,33 @@ export interface ChartColors {
     subtle: string
     ink: string
     surface: string
-    // Categorical series hues, in the validated order (blue, orange,
-    // emerald, yellow) — see the series CSS variables in index.css.
+    // Categorical series hues, in the validated order — see the series
+    // CSS variables in index.css.
     series: string[]
 }
 
 // Reads the theme's chart colors from the CSS variables so charts match
-// the app palette.
+// the app palette. Light theme only, so values are read once.
 export function chartColors(): ChartColors {
     const css = getComputedStyle(document.documentElement)
     const read = (name: string, fallback: string) => css.getPropertyValue(name).trim() || fallback
     return {
-        accent: read('--thoth-accent', '#059669'),
-        accentHover: read('--thoth-accent-hover', '#047857'),
-        subtle: read('--thoth-subtle', '#64748b'),
-        ink: read('--thoth-ink', '#0f172a'),
+        accent: read('--thoth-accent', '#1677ff'),
+        accentHover: read('--thoth-accent-hover', '#4096ff'),
+        subtle: read('--thoth-subtle', 'rgba(0, 0, 0, 0.45)'),
+        ink: read('--thoth-ink', 'rgba(0, 0, 0, 0.88)'),
         surface: read('--thoth-surface', '#ffffff'),
         series: [
-            read('--thoth-series-1', '#2a78d6'),
-            read('--thoth-series-2', '#eb6834'),
-            read('--thoth-series-3', '#059669'),
-            read('--thoth-series-4', '#eda100')
+            read('--thoth-series-1', '#1677ff'),
+            read('--thoth-series-2', '#0958d9'),
+            read('--thoth-series-3', '#91caff'),
+            read('--thoth-series-4', '#ffc53d')
         ]
     }
 }
 
-// The current chart colors, re-rendering the component when the OS theme
-// flips so the Chart.js wrappers rebuild their data/options.
+// The chart colors for the current theme. With no dark mode the palette
+// never changes, so this is a stable value for the Chart.js wrappers.
 export function useThemeColors(): ChartColors {
-    const [colors, setColors] = useState(chartColors)
-    useEffect(() => {
-        const media = window.matchMedia('(prefers-color-scheme: dark)')
-        const onChange = () => setColors(chartColors())
-        media.addEventListener('change', onChange)
-        return () => media.removeEventListener('change', onChange)
-    }, [])
-    return colors
+    return useMemo(chartColors, [])
 }

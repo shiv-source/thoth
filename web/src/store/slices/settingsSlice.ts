@@ -1,18 +1,22 @@
 import { createAsyncThunk, createSlice, type PayloadAction } from '@reduxjs/toolkit'
-import { api, type Settings } from '../../api/client'
+import { api, type ModelOption, type Settings } from '../../api/client'
 import type { RootState } from '../index'
 
 export const fetchSettings = createAsyncThunk('settings/fetch', async () => api.settings())
 export const saveSettings = createAsyncThunk('settings/save', async (next: Settings) => api.saveSettings(next))
+export const fetchModels = createAsyncThunk('settings/fetchModels', async () => api.models())
 
 interface SettingsState {
     data: Settings | null
     loading: boolean
     saving: boolean
     error: string | null
+    // The model picker list; empty means the endpoint failed and the
+    // picker falls back to the single CLI-default option.
+    models: ModelOption[]
 }
 
-const initialState: SettingsState = { data: null, loading: true, saving: false, error: null }
+const initialState: SettingsState = { data: null, loading: true, saving: false, error: null, models: [] }
 
 export const settingsSlice = createSlice({
     name: 'settings',
@@ -44,7 +48,14 @@ export const settingsSlice = createSlice({
                 s.saving = false
                 s.error = 'could not save settings'
             })
+            .addCase(fetchModels.fulfilled, (s, a: PayloadAction<{ models: ModelOption[] }>) => {
+                s.models = a.payload.models
+            })
+            .addCase(fetchModels.rejected, (s) => {
+                s.models = []
+            })
     }
 })
 
 export const selectSettings = (s: RootState) => s.settings
+export const selectModels = (s: RootState) => s.settings.models

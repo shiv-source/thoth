@@ -2,18 +2,13 @@ import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { renderWithStore } from '../test/renderWithStore'
-import { ToastProvider } from './Toast'
 import { CodeBlock } from './CodeBlock'
 
 const mocks = vi.hoisted(() => ({ codeToHtml: vi.fn() }))
 vi.mock('shiki', () => ({ codeToHtml: mocks.codeToHtml }))
 
 function renderBlock(code = 'const x = 1', lang = 'ts') {
-    return renderWithStore(
-        <ToastProvider>
-            <CodeBlock code={code} lang={lang} />
-        </ToastProvider>
-    )
+    return renderWithStore(<CodeBlock code={code} lang={lang} />)
 }
 
 describe('CodeBlock', () => {

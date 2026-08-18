@@ -1,30 +1,33 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
-import { Clock, Search } from 'lucide-react'
+import { Button, Empty, Input, List } from 'antd'
+import type { InputRef } from 'antd'
+import { ClockCircleOutlined } from '@ant-design/icons'
 import { useSearch } from '../hooks/useSearch'
 import { useViewRoute } from '../hooks/useView'
-import { clearSearchHistory, commitSearch, selectSearchHistory } from '../store'
+import { clearSearchHistory, commitSearch, selectSearchActive, selectSearchHistory, setSearchActive } from '../store'
 import { useAppDispatch, useAppSelector } from '../store/hooks'
-import { EmptyState } from './EmptyState'
 
 export function SearchPanel({ onOpen }: { onOpen: (path: string) => void }) {
     // The query rides the URL (?q=) so it survives a reload; typing
     // replaceState's the query string (no history spam, no re-render loop).
+    // The draft itself stays local — the URL is the source of truth.
     const { query: urlQuery } = useViewRoute()
     const [query, setQuery] = useState(() => urlQuery ?? '')
-    const [active, setActive] = useState(0)
-    const { results, loading } = useSearch(query)
-    const history = useAppSelector(selectSearchHistory)
     const dispatch = useAppDispatch()
-    const inputRef = useRef<HTMLInputElement>(null)
+    const { results, loading } = useSearch(query)
+    const active = useAppSelector(selectSearchActive)
+    const history = useAppSelector(selectSearchHistory)
+    const inputRef = useRef<InputRef>(null)
 
     // Back/forward (or any real popstate) re-syncs the query.
     useEffect(() => {
         setQuery(urlQuery ?? '')
     }, [urlQuery])
 
+    // New results reset the keyboard highlight to the first item.
     useEffect(() => {
-        setActive(0)
-    }, [results])
+        dispatch(setSearchActive(0))
+    }, [results, dispatch])
 
     const onQueryChange = (v: string) => {
         setQuery(v)
@@ -35,10 +38,6 @@ export function SearchPanel({ onOpen }: { onOpen: (path: string) => void }) {
     // slice dedupes, caps, and persists.
     const commit = (v: string) => {
         if (v.trim()) dispatch(commitSearch(v))
-    }
-
-    const clearHistory = () => {
-        dispatch(clearSearchHistory())
     }
 
     const open = (path: string) => {
@@ -52,10 +51,10 @@ export function SearchPanel({ onOpen }: { onOpen: (path: string) => void }) {
     const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
         if (e.key === 'ArrowDown') {
             e.preventDefault()
-            setActive((a) => (results.length ? Math.min(a + 1, results.length - 1) : 0))
+            dispatch(setSearchActive(results.length ? Math.min(active + 1, results.length - 1) : 0))
         } else if (e.key === 'ArrowUp') {
             e.preventDefault()
-            setActive((a) => Math.max(a - 1, 0))
+            dispatch(setSearchActive(Math.max(active - 1, 0)))
         } else if (e.key === 'Enter') {
             commit(query)
             const r = results[active]
@@ -71,50 +70,50 @@ export function SearchPanel({ onOpen }: { onOpen: (path: string) => void }) {
 
     return (
         <div>
-            <div className="relative">
-                <Search
-                    aria-hidden="true"
-                    className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-subtle"
-                />
-                <input
-                    ref={inputRef}
-                    value={query}
-                    onChange={(e) => onQueryChange(e.target.value)}
-                    onKeyDown={onKeyDown}
-                    autoFocus
-                    placeholder="Search your wiki…"
-                    className="w-full rounded-lg border border-line bg-surface py-2 pl-8 pr-3 text-sm text-ink outline-none placeholder:text-subtle/70 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500"
-                />
-            </div>
+            <Input.Search
+                ref={inputRef}
+                value={query}
+                onChange={(e) => onQueryChange(e.target.value)}
+                onKeyDown={onKeyDown}
+                autoFocus
+                allowClear
+                size="large"
+                loading={loading}
+                placeholder="Search your wiki…"
+            />
             {query && (
                 <div className="mt-1.5">
                     {loading && <p className="px-1 text-xs text-subtle">Searching…</p>}
                     {!loading && results.length === 0 && (
-                        <EmptyState icon="🔍" title="No notes match." className="py-4 text-xs" />
+                        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No notes match." className="py-4" />
                     )}
                     {results.length > 0 && (
-                        <ul className="space-y-0.5">
-                            {results.map((r, i) => (
-                                <li key={r.path}>
-                                    <button
-                                        onClick={() => open(r.path)}
-                                        onMouseEnter={() => setActive(i)}
-                                        className={`w-full rounded-lg px-2 py-1.5 text-left transition ${
-                                            i === active ? 'bg-accent-soft' : 'hover:bg-raised'
-                                        }`}
-                                    >
-                                        <div className="truncate text-sm font-medium text-ink">{r.title}</div>
-                                        <div className="truncate text-xs text-subtle">{r.path}</div>
-                                        {/* Safe: the server escapes note text before building the
-                        snippet; only its <mark> markers survive as real tags. */}
-                                        <div
-                                            className="mt-0.5 line-clamp-2 text-xs text-ink/80"
-                                            dangerouslySetInnerHTML={{ __html: r.snippet }}
-                                        />
-                                    </button>
-                                </li>
-                            ))}
-                        </ul>
+                        <List
+                            size="small"
+                            dataSource={results}
+                            renderItem={(r, i) => (
+                                <List.Item
+                                    onClick={() => open(r.path)}
+                                    onMouseEnter={() => dispatch(setSearchActive(i))}
+                                    className={`cursor-pointer rounded-lg px-2 ${i === active ? 'bg-accent-soft' : 'hover:bg-raised'}`}
+                                >
+                                    <List.Item.Meta
+                                        title={<span className="text-sm font-medium">{r.title}</span>}
+                                        description={
+                                            <>
+                                                <div className="truncate text-xs text-subtle">{r.path}</div>
+                                                {/* Safe: the server escapes note text before building the
+                                                    snippet; only its <mark> markers survive as real tags. */}
+                                                <div
+                                                    className="mt-0.5 line-clamp-2 text-xs"
+                                                    dangerouslySetInnerHTML={{ __html: r.snippet }}
+                                                />
+                                            </>
+                                        }
+                                    />
+                                </List.Item>
+                            )}
+                        />
                     )}
                 </div>
             )}
@@ -122,23 +121,27 @@ export function SearchPanel({ onOpen }: { onOpen: (path: string) => void }) {
                 <div className="mt-1.5">
                     <div className="flex items-center justify-between px-1">
                         <p className="text-xs font-medium uppercase tracking-wide text-subtle">Recent searches</p>
-                        <button onClick={clearHistory} className="text-xs text-subtle transition hover:text-ink">
+                        <Button type="link" size="small" onClick={() => dispatch(clearSearchHistory())}>
                             Clear
-                        </button>
+                        </Button>
                     </div>
-                    <ul className="mt-1 space-y-0.5">
-                        {history.map((h) => (
-                            <li key={h}>
-                                <button
+                    <List
+                        size="small"
+                        dataSource={history}
+                        renderItem={(h) => (
+                            <List.Item className="p-0">
+                                <Button
+                                    type="text"
+                                    block
+                                    className="flex h-auto items-center justify-start py-1.5 text-left"
+                                    icon={<ClockCircleOutlined aria-hidden="true" />}
                                     onClick={() => onQueryChange(h)}
-                                    className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm text-ink transition hover:bg-raised"
                                 >
-                                    <Clock className="h-3.5 w-3.5 shrink-0 text-subtle" aria-hidden="true" />
                                     <span className="truncate">{h}</span>
-                                </button>
-                            </li>
-                        ))}
-                    </ul>
+                                </Button>
+                            </List.Item>
+                        )}
+                    />
                 </div>
             )}
         </div>

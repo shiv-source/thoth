@@ -1,9 +1,11 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { Provider } from 'react-redux'
+import { App as AntdApp, ConfigProvider } from 'antd'
 import './index.css'
 import App from './App.tsx'
 import { makeStore, fetchHealth, markNotificationRead, notify } from './store'
+import { antdTheme } from './theme.ts'
 
 const store = makeStore()
 void store.dispatch(fetchHealth())
@@ -24,8 +26,12 @@ store.dispatch(markNotificationRead(store.getState().notifications.items[0]!.id)
 
 createRoot(document.getElementById('root')!).render(
     <StrictMode>
-        <Provider store={store}>
-            <App />
-        </Provider>
+        <ConfigProvider theme={antdTheme}>
+            <AntdApp>
+                <Provider store={store}>
+                    <App />
+                </Provider>
+            </AntdApp>
+        </ConfigProvider>
     </StrictMode>
 )

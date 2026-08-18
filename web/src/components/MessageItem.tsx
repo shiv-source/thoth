@@ -1,13 +1,22 @@
+import { memo } from 'react'
+import { Flex, Tooltip } from 'antd'
 import type { ChatMessage } from '../hooks/useChat'
 import { CopyButton } from './CopyButton'
 import { Markdown } from './Markdown'
-import { Tooltip } from './Tooltip'
 
-export function MessageItem({ message, streaming }: { message: ChatMessage; streaming?: boolean }) {
+// Memoized: message objects from the store are referentially stable, so
+// only the row whose props actually changed re-renders during streaming.
+export const MessageItem = memo(function MessageItem({
+    message,
+    streaming
+}: {
+    message: ChatMessage
+    streaming?: boolean
+}) {
     const isUser = message.role === 'user'
 
     return (
-        <div className={`flex items-start gap-2.5 ${isUser ? 'justify-end' : 'justify-start'}`}>
+        <Flex align="flex-start" gap={10} justify={isUser ? 'flex-end' : 'flex-start'}>
             {!isUser && <AssistantIcon />}
             <div
                 className={
@@ -17,7 +26,7 @@ export function MessageItem({ message, streaming }: { message: ChatMessage; stre
                 }
             >
                 {!isUser && !streaming && (
-                    <Tooltip label="Copy message">
+                    <Tooltip title="Copy message">
                         <span className="absolute right-2 top-2">
                             <CopyButton
                                 text={message.content}
@@ -42,9 +51,9 @@ export function MessageItem({ message, streaming }: { message: ChatMessage; stre
                     </Markdown>
                 )}
             </div>
-        </div>
+        </Flex>
     )
-}
+})
 
 // AssistantIcon is the small avatar shown to the left of every assistant
 // message, mirroring the app's accent color.

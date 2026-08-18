@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { Alert, App } from 'antd'
 import { useChat } from '../hooks/useChat'
 import { useConversationRoute } from '../hooks/useConversationRoute'
 import { fetchConversations, selectConnectionStatus, setStatus } from '../store'
@@ -6,8 +7,7 @@ import { useAppDispatch, useAppSelector } from '../store/hooks'
 import { ChatSocket } from '../ws/chat'
 import { Composer } from './Composer'
 import { MessageItem } from './MessageItem'
-import { TopBar } from './TopBar'
-import { useToast } from './Toast'
+import { AppHeader } from './AppHeader'
 
 function createSocket(): ChatSocket {
     const socket = new ChatSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws`)
@@ -23,7 +23,7 @@ export function ChatPanel({ onOpenSettings }: { onOpenSettings: () => void }) {
     const status = useAppSelector(selectConnectionStatus)
     const { messages, streaming, lastTool, thinking, thinkingText, conversationId, send, cancel, load, reset } =
         useChat(socket)
-    const { toast } = useToast()
+    const { message } = App.useApp()
     const endRef = useRef<HTMLDivElement>(null)
 
     // The socket lives for the panel's lifetime: created on mount (StrictMode
@@ -34,15 +34,15 @@ export function ChatPanel({ onOpenSettings }: { onOpenSettings: () => void }) {
         const s = createSocket()
         s.onStatusChange((st) => {
             dispatch(setStatus(st))
-            if (st === 'disconnected') toast('Connection lost', 'error')
+            if (st === 'disconnected') void message.error('Connection lost')
         })
         setSocket(s)
         return () => s.close()
-    }, [toast, dispatch])
+    }, [message, dispatch])
 
     // /chat/<uuid> deep links and back/forward navigation follow the active
     // conversation; the URL follows conversationId changes.
-    const onRouteError = useCallback((message: string) => toast(message, 'error'), [toast])
+    const onRouteError = useCallback((err: string) => void message.error(err), [message])
     useConversationRoute({ socket, conversationId, load, reset, onError: onRouteError })
 
     const prevConversationId = useRef<string | null>(null)
@@ -67,24 +67,27 @@ export function ChatPanel({ onOpenSettings }: { onOpenSettings: () => void }) {
 
     return (
         <div className="flex h-full flex-col">
-            <TopBar title={displayTitle} onOpenSettings={onOpenSettings} />
+            <AppHeader title={displayTitle} onOpenSettings={onOpenSettings} />
             {status !== 'connected' && (
-                <div className="flex h-7 shrink-0 items-center gap-2 border-b border-line bg-raised px-4 text-xs text-subtle">
-                    <span className="h-1.5 w-1.5 rounded-full bg-accent" aria-hidden="true" />
-                    {status === 'reconnecting' ? 'Connection lost — reconnecting…' : 'Connection lost.'}
-                </div>
+                <Alert
+                    type="warning"
+                    banner
+                    message={status === 'reconnecting' ? 'Connection lost — reconnecting…' : 'Connection lost.'}
+                />
             )}
             {thinking && !lastTool && (
-                <div className="flex h-7 shrink-0 items-center gap-2 border-b border-line bg-raised px-4 text-xs text-subtle">
-                    <span className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-accent" aria-hidden="true" />
-                    <span className="min-w-0 truncate">Thinking… {thinkingText}</span>
-                </div>
+                <Alert type="info" banner message={<span className="truncate">Thinking… {thinkingText}</span>} />
             )}
             {lastTool && (
-                <div className="flex h-7 shrink-0 items-center gap-2 border-b border-line bg-raised px-4 text-xs text-subtle">
-                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent" aria-hidden="true" />
-                    Reading <code className="font-mono text-[11px]">{lastTool}</code>
-                </div>
+                <Alert
+                    type="info"
+                    banner
+                    message={
+                        <>
+                            Reading <code className="font-mono text-[11px]">{lastTool}</code>
+                        </>
+                    }
+                />
             )}
             <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 py-5">
                 {messages.length === 0 && (
