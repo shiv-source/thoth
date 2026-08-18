@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net"
@@ -15,6 +16,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/go-warehouse/events"
 	"github.com/labstack/echo/v4"
 	"github.com/shiv-source/thoth/internal/api"
 	"github.com/shiv-source/thoth/internal/claude"
@@ -64,6 +66,16 @@ func newServeCmd() *cobra.Command {
 
 func runServe(cmd *cobra.Command, dev bool) error {
 	log := slog.New(slog.NewTextHandler(os.Stderr, nil))
+
+	// The event bus carries wiki change batches from the index watcher to
+	// the API layer, which pushes them to connected clients. Close drains
+	// subscribers before shutdown; publish failures after Close are
+	// expected (ErrClosed) and swallowed by the watcher's publisher.
+	bus := events.New(events.WithLogger(log))
+	defer func() {
+		bus.Close()
+		_ = bus.Wait(context.Background())
+	}()
 
 	dir, err := thothDir()
 	if err != nil {
@@ -126,7 +138,12 @@ func runServe(cmd *cobra.Command, dev bool) error {
 		watcherCancel = cancel
 		watcherMu.Unlock()
 		go func() {
-			if err := index.Watch(wctx, root, ix, log); err != nil && wctx.Err() == nil {
+			publish := index.WithPublisher(func(pctx context.Context, changed wiki.Changed) {
+				if err := bus.Publish(pctx, changed); err != nil && !errors.Is(err, events.ErrClosed) {
+					log.Warn("publish wiki change", "err", err)
+				}
+			})
+			if err := index.Watch(wctx, root, ix, log, publish); err != nil && wctx.Err() == nil {
 				log.Error("watcher stopped", "err", err)
 			}
 		}()
@@ -157,6 +174,7 @@ func runServe(cmd *cobra.Command, dev bool) error {
 		Index:           ix,
 		OnSettingsSaved: onSettingsSaved(log, root, w, ix, startWatcher, pc.Flush),
 		Ctx:             ctx,
+		Events:          bus,
 	})
 
 	host, port := config.DefaultHost, servePort(dev)
