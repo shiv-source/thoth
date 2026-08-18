@@ -12,6 +12,9 @@ import (
 const (
 	DefaultHost = "127.0.0.1"
 	DefaultPort = 8333
+	// DevPort is what serve --dev binds (make dev); it leaves DefaultPort
+	// free for a running instance.
+	DevPort = 8334
 )
 
 // ExpandHome expands a leading ~/ (or bare ~) to the user's home directory.

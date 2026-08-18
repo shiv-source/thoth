@@ -50,6 +50,12 @@ else
   echo "graphify: installed ($(command -v graphify))"
 fi
 
+if ! command -v air >/dev/null 2>&1; then
+  echo "warning: air not found — make dev hot-reloads Go with it (go install github.com/air-verse/air@latest)" >&2
+else
+  echo "air:     installed ($(command -v air))"
+fi
+
 echo "== 2/4 Dependencies =="
 pnpm install --frozen-lockfile   # also runs husky's prepare hook
 go mod download

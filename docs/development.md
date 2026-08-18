@@ -27,7 +27,7 @@ Run `make help` for the full self-documenting list.
 
 | Command | Purpose |
 |---|---|
-| `make dev` | Vite (HMR) + Go server together; Ctrl+C stops both |
+| `make dev` | Vite (HMR) + Go server with hot reload (air) on `:8334` via `serve --dev`; Ctrl+C stops both |
 | `make dev-web` / `make dev-server` | Frontend only / backend only |
 | `make web` | `pnpm install --frozen-lockfile` + build + sync into `internal/webui/dist` |
 | `make web-sync` | Fast path: ensure the embed exists without reinstalling |

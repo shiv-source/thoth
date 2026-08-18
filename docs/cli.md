@@ -6,7 +6,9 @@ All commands live in `internal/cli` (Cobra). The binary entrypoint is `cmd/thoth
 
 ### `thoth serve`
 
-Starts the app on `host:port` from the config (default `127.0.0.1:8333`). No flags.
+Starts the app on `127.0.0.1:8333` (default). Flags:
+
+- `--dev` — bind the dev port (`127.0.0.1:8334`, `config.DevPort`) so a running instance keeps 8333; `make dev` uses this. Vite's proxy follows via the `THOTH_PORT` env var.
 
 Startup sequence:
 
