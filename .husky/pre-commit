@@ -1,6 +1,9 @@
 #!/bin/sh
 set -e
 
+# Repo rule: never commit directly to main (CLAUDE.md § Repo rules)
+sh scripts/main-guard.sh
+
 go_staged=$(git diff --cached --name-only --diff-filter=ACM | grep -c '\.go$' || true)
 
 # Go: vet + golangci-lint + tests when Go files are staged (gofmt/goimports
