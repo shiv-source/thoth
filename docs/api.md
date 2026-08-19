@@ -6,7 +6,7 @@ The server exposes REST for everything except the live chat and server-push noti
 
 | Method + Path | Request | Response |
 |---|---|---|
-| `GET /api/health` | — | `{status, claude:{found,path}, wiki:{path,exists}, version}` |
+| `GET /api/health` | — | `{status, claude:{found,path}, wiki:{path,exists}, version, dev, commit}` — `dev` is true under `serve --dev` (the UI shows a warning banner); `commit` is the full git commit id the dev server runs from (empty otherwise) |
 | `GET /api/search?q=&limit=` | q required; limit default 20, clamped 1–100 | `{results:[{path,title,kind,snippet}]}` — snippet is HTML-escaped with safe `<mark>` highlights |
 | `GET /api/notes?path=` | wiki-relative path | `{path, content}` |
 | `GET /api/wiki/tree` | — | `{nodes:[{name,path,is_dir,children}]}` |

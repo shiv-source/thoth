@@ -11,7 +11,9 @@ const healthy: Health = {
     status: 'ok',
     claude: { found: true, path: '/usr/local/bin/claude' },
     wiki: { path: '~/.thoth/wiki', exists: true },
-    version: '1.2.3'
+    version: '1.2.3',
+    dev: false,
+    commit: ''
 }
 
 describe('healthSlice', () => {

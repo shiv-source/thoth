@@ -35,3 +35,20 @@ func ExpandHome(p string) (string, error) {
 	}
 	return p, nil
 }
+
+// ToTilde is ExpandHome's inverse for storage: a path under the home
+// directory becomes ~-prefixed (the settings table's display convention);
+// anything else passes through unchanged.
+func ToTilde(p string) string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return p
+	}
+	if p == home {
+		return "~"
+	}
+	if strings.HasPrefix(p, home+string(filepath.Separator)) {
+		return filepath.Join("~", strings.TrimPrefix(p, home))
+	}
+	return p
+}

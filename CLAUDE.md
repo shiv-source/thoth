@@ -166,7 +166,7 @@ Apply the standard principles — modular, composable, boring code that's easy t
 
 ## Runtime data
 
-`~/.thoth/`: `thoth.db` (all settings live in the `settings` KV table) and `wiki/` (default). Localhost-only, no auth. `thoth doctor` diagnoses the setup; `--fix` repairs wiki/index only.
+`~/.thoth/`: `thoth.db` (all settings live in the `settings` KV table) and `wiki/` (default). `serve --dev` isolates everything under `~/.thoth/dev/` (own db + default wiki). Localhost-only, no auth. `thoth doctor` diagnoses the setup; `--fix` repairs wiki/index only.
 
 ## Skills
 

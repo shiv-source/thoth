@@ -8,7 +8,7 @@ All commands live in `internal/cli` (Cobra). The binary entrypoint is `cmd/thoth
 
 Starts the app on `127.0.0.1:8333` (default). Flags:
 
-- `--dev` — bind the dev port (`127.0.0.1:8334`, `config.DevPort`) so a running instance keeps 8333; `make dev` uses this. Vite's proxy follows via the `THOTH_PORT` env var.
+- `--dev` — bind the dev port (`127.0.0.1:8334`, `config.DevPort`) and isolate all data under `~/.thoth/dev/` (its own `thoth.db`, default wiki `~/.thoth/dev/wiki/`, and stream dump), so a running instance keeps 8333 and its data; `make dev` uses this. Vite's proxy follows via the `THOTH_PORT` env var. At boot the dev server rewrites the seeded prod wiki default to the dev wiki and reports `dev: true` plus the checkout's full commit id in `/api/health`; the UI shows a warning banner with that commit.
 
 Startup sequence:
 

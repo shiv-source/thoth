@@ -12,6 +12,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -61,7 +62,7 @@ func newServeCmd() *cobra.Command {
 			return runServe(cmd, dev)
 		},
 	}
-	cmd.Flags().BoolVar(&dev, "dev", false, "run on the dev port (8334) — leaves 8333 free for a running instance")
+	cmd.Flags().BoolVar(&dev, "dev", false, "run on the dev port (8334) with isolated data in ~/.thoth/dev — leaves 8333 free for a running instance")
 	return cmd
 }
 
@@ -78,7 +79,7 @@ func runServe(cmd *cobra.Command, dev bool) error {
 		_ = bus.Wait(context.Background())
 	}()
 
-	dir, err := thothDir()
+	dir, err := thothDir(dev)
 	if err != nil {
 		return err
 	}
@@ -103,12 +104,9 @@ func runServe(cmd *cobra.Command, dev bool) error {
 	// The wiki path lives in the settings table; failing to read it aborts
 	// boot rather than silently falling back to a default (a fallback would
 	// scaffold a second wiki while the user's data lives elsewhere).
-	wikiPath, found, err := stg.Setting(settings.KeyWikiPath)
+	wikiPath, err := settleWikiPath(stg, dev, dir)
 	if err != nil {
 		return err
-	}
-	if !found || wikiPath == "" {
-		wikiPath = settings.DefaultWikiPath
 	}
 	// The model setting enforces --model on every CLI spawn; empty keeps
 	// the CLI's own default. Read at boot — a change applies on next start.
@@ -173,6 +171,12 @@ func runServe(cmd *cobra.Command, dev bool) error {
 	// guarantees no CLI process outlives the server.
 	pc := claude.NewPersistent(resolveClaudeBin(log), w.Root, claude.WithDirProvider(root.get), claude.WithModel(model), claude.WithAPIKey(apiKey), claude.WithDebugStream(filepath.Join(dir, "stream-dump.json")))
 	defer func() { _ = pc.Close() }()
+	// The dev banner shows the commit the dev server runs from; prod has no
+	// banner, so the lookup is dev-only.
+	commit := ""
+	if dev {
+		commit = devCommit("")
+	}
 	e := api.New(api.Deps{
 		Log:             log,
 		Store:           st,
@@ -181,6 +185,8 @@ func runServe(cmd *cobra.Command, dev bool) error {
 		Settings:        stg,
 		DataDir:         dir,
 		Version:         Version(),
+		Dev:             dev,
+		Commit:          commit,
 		Wiki:            w,
 		Index:           ix,
 		OnSettingsSaved: onSettingsSaved(log, root, w, ix, startWatcher, pc.Flush),
@@ -204,17 +210,61 @@ func servePort(dev bool) int {
 	return config.DefaultPort
 }
 
-// thothDir returns ~/.thoth, creating it if needed.
-func thothDir() (string, error) {
+// thothDir returns the server's data dir: ~/.thoth, or ~/.thoth/dev when
+// serve --dev keeps its database and wiki isolated from production data.
+func thothDir(dev bool) (string, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return "", fmt.Errorf("find home: %w", err)
 	}
 	dir := filepath.Join(home, ".thoth")
+	if dev {
+		dir = filepath.Join(dir, "dev")
+	}
 	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return "", fmt.Errorf("create ~/.thoth: %w", err)
+		return "", fmt.Errorf("create %s: %w", dir, err)
 	}
 	return dir, nil
+}
+
+// defaultWikiPath is the fallback wiki location when the settings table has
+// none: prod keeps the shared default, dev resolves inside the dev data dir
+// so a fresh dev database can never fall back onto the production wiki.
+func defaultWikiPath(dev bool, dir string) string {
+	if dev {
+		return filepath.Join(dir, "wiki")
+	}
+	return settings.DefaultWikiPath
+}
+
+// resolveWikiPath picks the wiki root: the stored setting wins, except a
+// missing/empty value and — in dev — the seeded prod default. The 0007 seed
+// stores the prod default in every fresh database, so without the override a
+// fresh dev database would follow the seed onto the production wiki.
+func resolveWikiPath(dev bool, dir, stored string, found bool) string {
+	if !found || stored == "" || (dev && stored == settings.DefaultWikiPath) {
+		return defaultWikiPath(dev, dir)
+	}
+	return stored
+}
+
+// settleWikiPath reads and resolves the wiki root, and persists the
+// resolution when it differs from the stored value — in dev this rewrites
+// the seeded prod default to the dev wiki, so every reader (the settings
+// UI, the next boot) agrees with the wiki the server actually serves.
+// Returns the resolved path in expanded form, ready for ensureWiki.
+func settleWikiPath(stg *settings.Repo, dev bool, dir string) (string, error) {
+	stored, found, err := stg.Setting(settings.KeyWikiPath)
+	if err != nil {
+		return "", err
+	}
+	resolved := resolveWikiPath(dev, dir, stored, found)
+	if resolved != stored {
+		if err := stg.SetSetting(settings.KeyWikiPath, config.ToTilde(resolved)); err != nil {
+			return "", err
+		}
+	}
+	return resolved, nil
 }
 
 // ensureModels seeds llm_models from assets/models.json whenever the table
@@ -271,6 +321,20 @@ func openIndex(dbPath, wikiPath string, log *slog.Logger) (*index.Index, error) 
 	}
 	log.Info("index synced", "path", wikiPath, "dur", time.Since(start))
 	return ix, nil
+}
+
+// devCommit returns the full commit id of the checkout in dir (the server's
+// working directory under `make dev`); empty when dir is not a git repo or
+// git is unavailable, so the banner degrades to no commit.
+func devCommit(dir string) string {
+	if dir == "" {
+		dir = "."
+	}
+	out, err := exec.Command("git", "-C", dir, "rev-parse", "HEAD").Output()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(out))
 }
 
 // resolveClaudeBin returns the claude binary from PATH, falling back to a

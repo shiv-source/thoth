@@ -12,6 +12,8 @@ type healthResponse struct {
 	Claude  claudeState `json:"claude"`
 	Wiki    wikiState   `json:"wiki"`
 	Version string      `json:"version"`
+	Dev     bool        `json:"dev"`
+	Commit  string      `json:"commit"`
 }
 
 type claudeState struct {
@@ -37,5 +39,7 @@ func health(c echo.Context, d Deps) error {
 		Claude:  claudeState{Found: found, Path: bin},
 		Wiki:    wikiState{Path: d.Wiki.Root, Exists: d.Wiki.Exists()},
 		Version: d.Version,
+		Dev:     d.Dev,
+		Commit:  d.Commit,
 	})
 }

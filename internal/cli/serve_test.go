@@ -4,7 +4,9 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/shiv-source/thoth/internal/assets"
@@ -90,6 +92,164 @@ func TestEnsureModelsKeepsUserRows(t *testing.T) {
 	if err != nil || len(models) != 1 || models[0].Value != "custom" {
 		t.Fatalf("user row not preserved: %v %+v", err, models)
 	}
+}
+
+func TestThothDir(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	tests := []struct {
+		name string
+		dev  bool
+		want string
+	}{
+		{"prod", false, filepath.Join(home, ".thoth")},
+		{"dev", true, filepath.Join(home, ".thoth", "dev")},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := thothDir(tt.dev)
+			if err != nil {
+				t.Fatalf("thothDir(%v): %v", tt.dev, err)
+			}
+			if got != tt.want {
+				t.Fatalf("thothDir(%v) = %q, want %q", tt.dev, got, tt.want)
+			}
+			if st, err := os.Stat(got); err != nil || !st.IsDir() {
+				t.Fatalf("thothDir(%v) did not create %q: %v", tt.dev, got, err)
+			}
+		})
+	}
+}
+
+func TestDefaultWikiPath(t *testing.T) {
+	tests := []struct {
+		name string
+		dev  bool
+		dir  string
+		want string
+	}{
+		{"prod keeps the shared default", false, "/tmp/.thoth", settings.DefaultWikiPath},
+		{"dev falls back inside the dev data dir", true, "/tmp/.thoth/dev", "/tmp/.thoth/dev/wiki"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := defaultWikiPath(tt.dev, tt.dir); got != tt.want {
+				t.Fatalf("defaultWikiPath(%v, %q) = %q, want %q", tt.dev, tt.dir, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestResolveWikiPath(t *testing.T) {
+	tests := []struct {
+		name   string
+		dev    bool
+		dir    string
+		stored string
+		found  bool
+		want   string
+	}{
+		{"missing row falls back", false, "/tmp/.thoth", "", false, settings.DefaultWikiPath},
+		{"empty value falls back", false, "/tmp/.thoth", "", true, settings.DefaultWikiPath},
+		{"stored path wins in prod", false, "/tmp/.thoth", "~/notes", true, "~/notes"},
+		{"stored path wins in dev", true, "/tmp/.thoth/dev", "~/notes", true, "~/notes"},
+		{"dev overrides the seeded prod default", true, "/tmp/.thoth/dev", settings.DefaultWikiPath, true, "/tmp/.thoth/dev/wiki"},
+		{"prod keeps the seeded default", false, "/tmp/.thoth", settings.DefaultWikiPath, true, settings.DefaultWikiPath},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := resolveWikiPath(tt.dev, tt.dir, tt.stored, tt.found); got != tt.want {
+				t.Fatalf("resolveWikiPath(%v, %q, %q, %v) = %q, want %q", tt.dev, tt.dir, tt.stored, tt.found, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestSettleWikiPath(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	dir := filepath.Join(home, ".thoth", "dev")
+
+	t.Run("dev rewrites the seeded prod default", func(t *testing.T) {
+		_, stg := openTestRepos(t)
+		got, err := settleWikiPath(stg, true, dir)
+		if err != nil {
+			t.Fatalf("settleWikiPath: %v", err)
+		}
+		if got != filepath.Join(dir, "wiki") {
+			t.Fatalf("settleWikiPath = %q, want %q", got, filepath.Join(dir, "wiki"))
+		}
+		stored, found, err := stg.Setting(settings.KeyWikiPath)
+		if err != nil || !found {
+			t.Fatalf("stored setting: %v found=%v", err, found)
+		}
+		if stored != "~/.thoth/dev/wiki" {
+			t.Fatalf("stored = %q, want ~/.thoth/dev/wiki", stored)
+		}
+	})
+
+	t.Run("prod keeps the seeded default", func(t *testing.T) {
+		_, stg := openTestRepos(t)
+		got, err := settleWikiPath(stg, false, filepath.Join(home, ".thoth"))
+		if err != nil {
+			t.Fatalf("settleWikiPath: %v", err)
+		}
+		if got != settings.DefaultWikiPath {
+			t.Fatalf("settleWikiPath = %q, want %q", got, settings.DefaultWikiPath)
+		}
+	})
+
+	t.Run("a custom stored path is never rewritten", func(t *testing.T) {
+		_, stg := openTestRepos(t)
+		if err := stg.SetSetting(settings.KeyWikiPath, "~/notes"); err != nil {
+			t.Fatal(err)
+		}
+		got, err := settleWikiPath(stg, true, dir)
+		if err != nil {
+			t.Fatalf("settleWikiPath: %v", err)
+		}
+		if got != "~/notes" {
+			t.Fatalf("settleWikiPath = %q, want ~/notes", got)
+		}
+		stored, _, _ := stg.Setting(settings.KeyWikiPath)
+		if stored != "~/notes" {
+			t.Fatalf("stored = %q, want ~/notes", stored)
+		}
+	})
+}
+
+func TestDevCommit(t *testing.T) {
+	t.Run("returns the full commit id inside a repo", func(t *testing.T) {
+		dir := t.TempDir()
+		run := func(args ...string) string {
+			out, err := exec.Command("git", append([]string{"-C", dir}, args...)...).CombinedOutput()
+			if err != nil {
+				t.Fatalf("git %v: %v\n%s", args, err, out)
+			}
+			return strings.TrimSpace(string(out))
+		}
+		run("init", "-q", "-b", "main")
+		run("config", "user.email", "test@example.com")
+		run("config", "user.name", "test")
+		if err := os.WriteFile(filepath.Join(dir, "f"), []byte("x"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		run("add", "f")
+		run("commit", "-q", "-m", "c")
+		want := run("rev-parse", "HEAD")
+		got := devCommit(dir)
+		if got != want {
+			t.Fatalf("devCommit(%q) = %q, want %q", dir, got, want)
+		}
+		if len(got) != 40 {
+			t.Fatalf("devCommit(%q) = %q, want 40 hex chars", dir, got)
+		}
+	})
+	t.Run("empty outside a repo", func(t *testing.T) {
+		if got := devCommit(t.TempDir()); got != "" {
+			t.Fatalf("devCommit = %q, want empty", got)
+		}
+	})
 }
 
 func TestServePort(t *testing.T) {
