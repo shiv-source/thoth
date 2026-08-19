@@ -59,6 +59,7 @@ import {
     selectGitError,
     selectGitPushing,
     selectGitRepos,
+    selectHealth,
     selectModelGroups,
     selectModelList,
     selectSettings,
@@ -207,6 +208,9 @@ function CardTitle({ icon: Icon, children }: { icon: typeof SettingsIcon; childr
 function GeneralTab({ status }: { status: 'idle' | 'saved' | 'error' }) {
     const settings = useAppSelector(selectSettings)
     const groups = useAppSelector(selectModelGroups)
+    // The server reports the wiki default for the mode it runs in; the
+    // fallback covers the render before the first health response lands.
+    const defaultWiki = useAppSelector(selectHealth)?.default_wiki_path ?? '~/.thoth/wiki'
 
     // The server sends models grouped by provider (A→Z); options keep name +
     // tag + value so optionRender can show the tag as secondary text. An
@@ -226,7 +230,7 @@ function GeneralTab({ status }: { status: 'idle' | 'saved' | 'error' }) {
                 <Form.Item
                     label="Wiki path"
                     name="wiki_path"
-                    extra="Where your notes live on disk. Defaults to ~/.thoth/wiki."
+                    extra={`Where your notes live on disk. Defaults to ${defaultWiki}.`}
                 >
                     <WikiPathInput />
                 </Form.Item>

@@ -2,6 +2,7 @@ import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { SettingsView } from './SettingsView'
+import { fetchHealth } from '../store'
 import { renderWithStore } from '../test/renderWithStore'
 
 // The client creates its axios instance via axios.create; the mocks are
@@ -111,6 +112,19 @@ function renderSettings() {
     return renderWithStore(<SettingsView />)
 }
 
+// The dev banner's data: health carries dev + commit, and the server-side
+// wiki default (the settings hint reads it from the API, not from a
+// hardcoded string).
+const devHealth = {
+    status: 'ok',
+    claude: { found: true, path: '/usr/local/bin/claude' },
+    wiki: { path: '/tmp/wiki', exists: true },
+    version: 'dev',
+    dev: true,
+    commit: '3ec01b868d6b5aa2e87505e8f56f5928fbbcce1c',
+    default_wiki_path: '~/.thoth/dev/wiki'
+}
+
 describe('SettingsView', () => {
     it('loads current settings and saves edits', async () => {
         stubAPI({
@@ -121,12 +135,27 @@ describe('SettingsView', () => {
 
         renderSettings()
         const wikiPath = await screen.findByDisplayValue('~/.thoth/wiki')
+        // The prod hint names the production default.
+        expect(screen.getByText(/Defaults to ~\/\.thoth\/wiki/)).toBeInTheDocument()
         await userEvent.clear(wikiPath)
         await userEvent.type(wikiPath, '/tmp/other/wiki')
         await userEvent.click(screen.getByRole('button', { name: /Save/ }))
         await waitFor(() => expect(screen.getByText(/Saved ✓/)).toBeInTheDocument())
         // The save also surfaces as a toast.
         expect(await screen.findByText('Settings saved')).toBeInTheDocument()
+    })
+
+    it('names the dev wiki default in the hint when the server runs in dev mode', async () => {
+        stubAPI({
+            'GET /api/settings': getSettings,
+            'GET /api/github/auth': getEmptyGitHub
+        })
+
+        const { store } = renderSettings()
+        // Seed the health slice the way the real API would: the fulfilled
+        // action carries the dev payload straight into the reducer.
+        store.dispatch(fetchHealth.fulfilled(devHealth, 'test', undefined))
+        expect(await screen.findByText(/Defaults to ~\/\.thoth\/dev\/wiki/)).toBeInTheDocument()
     })
 
     it('selects a model from the models endpoint and saves it', async () => {

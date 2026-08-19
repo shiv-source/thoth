@@ -7,6 +7,12 @@ by convention. All chrome renders through antd v6 components; icons come
 from lucide-react (aria-hidden).
 
 ## App shell & navigation
+## DevBanner
+- path: web/src/components/DevBanner.tsx
+- purpose: Full-width antd Alert (banner mode → warning type + icon) shown while serve --dev is running; App renders it above the shell when the health slice's `dev` is true; shows the full commit id from `health.commit`; icon + message centered as one group (root flex + justify center, section flex none)
+- props/api: `DevBanner({ dev, commit })` — null when dev is false
+- canonical: DevBanner.tsx:8
+
 ## AppSider
 - path: web/src/components/AppSider.tsx
 - purpose: App navigation — Fraunces brand wordmark, antd Menu over the five views (routes through useView), health footer (Badge status + version from the health slice)

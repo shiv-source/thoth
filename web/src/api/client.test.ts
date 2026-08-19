@@ -117,7 +117,10 @@ describe('api.getConversation and health', () => {
                 status: 'ok',
                 claude: { found: true, path: '/usr/local/bin/claude' },
                 wiki: { path: '/tmp/wiki', exists: true },
-                version: '1.2.3'
+                version: '1.2.3',
+                dev: true,
+                commit: 'abc1234',
+                default_wiki_path: '~/.thoth/dev/wiki'
             }
         })
         mocks.get.mockResolvedValueOnce({
@@ -125,6 +128,9 @@ describe('api.getConversation and health', () => {
         })
         const health = await api.health()
         expect(health.claude.found).toBe(true)
+        expect(health.dev).toBe(true)
+        expect(health.commit).toBe('abc1234')
+        expect(health.default_wiki_path).toBe('~/.thoth/dev/wiki')
         const { checks } = await api.doctor()
         expect(checks[0]?.name).toBe('config')
     })

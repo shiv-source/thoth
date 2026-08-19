@@ -75,7 +75,10 @@ export const Health = z.object({
     status: z.string(),
     claude: z.object({ found: z.boolean(), path: z.string() }),
     wiki: z.object({ path: z.string(), exists: z.boolean() }),
-    version: z.string()
+    version: z.string(),
+    dev: z.boolean(),
+    commit: z.string(),
+    default_wiki_path: z.string()
 })
 export type Health = z.infer<typeof Health>
 

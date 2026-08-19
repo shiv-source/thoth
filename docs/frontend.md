@@ -32,6 +32,7 @@ semantic tokens.
 
 | Component | Role |
 |---|---|
+| `DevBanner` | Full-width antd `Alert` (banner mode, warning, content centered as one group) rendered above the shell while `serve --dev` is running — `App` shows it when the health slice's `dev` is true, with the full commit id from `health.commit` |
 | `AppSider` | App shell navigation: brand wordmark (Fraunces), antd `Menu` (Dashboard/Chat/Notes/Search/Settings) routed through `useView`, health footer (`Badge status` + version) reading the health slice |
 | `AppHeader` | Per-view header: title, notification bell (`Badge count` + `Popover` → NotificationPanel, visibility in the ui slice, Esc closes), optional settings button |
 | `Sidebar` | Chat view's history column (antd `Layout.Sider`): "New chat" primary button + day-grouped conversation `List`s; deletes via text button + antd Tooltip; toasts via `App.useApp().message` |

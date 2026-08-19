@@ -4,6 +4,7 @@ import { AppSider } from './components/AppSider'
 import { Sidebar } from './components/Sidebar'
 import { ChatPanel } from './components/ChatPanel'
 import { NotificationToasts } from './components/NotificationToasts'
+import { DevBanner } from './components/DevBanner'
 
 // Heavy views load on demand — Dashboard pulls chart.js, Settings and Notes
 // pull their own trees. Chat (the default view) stays eager for first paint.
@@ -33,43 +34,50 @@ export default function App() {
 
     return (
         <Layout className="h-screen bg-app font-sans text-ink">
-            <AppSider />
+            <DevBanner dev={health?.dev ?? false} commit={health?.commit ?? ''} />
             <Layout hasSider>
-                {view === 'chat' && <Sidebar />}
-                <Layout.Content className="relative flex min-w-0 flex-1 flex-col">
-                    {loading && !health ? (
-                        <div className="flex flex-1 items-center justify-center" role="status" aria-label="Loading">
-                            <Spin size="large" />
-                        </div>
-                    ) : health?.claude.found ? (
-                        <Suspense
-                            fallback={
-                                <div
-                                    className="flex flex-1 items-center justify-center"
-                                    role="status"
-                                    aria-label="Loading"
-                                >
-                                    <Spin size="large" />
-                                </div>
-                            }
-                        >
-                            {view === 'chat' && <ChatPanel onOpenSettings={openSettings} />}
-                            {view === 'notes' && (
-                                <NotesView openPath={segment} onOpenNote={openNoteHere} onOpenSettings={openSettings} />
-                            )}
-                            {view === 'dashboard' && <DashboardView onOpenSettings={openSettings} />}
-                            {view === 'search' && (
-                                <SearchView onOpenNote={openNoteHere} onOpenSettings={openSettings} />
-                            )}
-                            {view === 'settings' && <SettingsView />}
-                        </Suspense>
-                    ) : (
-                        <Suspense fallback={<Spin size="large" />}>
-                            <SetupScreen health={health} loading={loading} onRecheck={() => void recheck()} />
-                        </Suspense>
-                    )}
-                    <NotificationToasts />
-                </Layout.Content>
+                <AppSider />
+                <Layout hasSider>
+                    {view === 'chat' && <Sidebar />}
+                    <Layout.Content className="relative flex min-w-0 flex-1 flex-col">
+                        {loading && !health ? (
+                            <div className="flex flex-1 items-center justify-center" role="status" aria-label="Loading">
+                                <Spin size="large" />
+                            </div>
+                        ) : health?.claude.found ? (
+                            <Suspense
+                                fallback={
+                                    <div
+                                        className="flex flex-1 items-center justify-center"
+                                        role="status"
+                                        aria-label="Loading"
+                                    >
+                                        <Spin size="large" />
+                                    </div>
+                                }
+                            >
+                                {view === 'chat' && <ChatPanel onOpenSettings={openSettings} />}
+                                {view === 'notes' && (
+                                    <NotesView
+                                        openPath={segment}
+                                        onOpenNote={openNoteHere}
+                                        onOpenSettings={openSettings}
+                                    />
+                                )}
+                                {view === 'dashboard' && <DashboardView onOpenSettings={openSettings} />}
+                                {view === 'search' && (
+                                    <SearchView onOpenNote={openNoteHere} onOpenSettings={openSettings} />
+                                )}
+                                {view === 'settings' && <SettingsView />}
+                            </Suspense>
+                        ) : (
+                            <Suspense fallback={<Spin size="large" />}>
+                                <SetupScreen health={health} loading={loading} onRecheck={() => void recheck()} />
+                            </Suspense>
+                        )}
+                        <NotificationToasts />
+                    </Layout.Content>
+                </Layout>
             </Layout>
         </Layout>
     )

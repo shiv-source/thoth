@@ -24,6 +24,9 @@ type Deps struct {
 	DataDir         string // thoth dir (~/.thoth) — the doctor handler probes it
 	DoctorAddr      string // host:port for the doctor's api/websocket probes ("" → 127.0.0.1:8333); tests point it at a free port
 	Version         string // build version, shown in /api/health and the UI footer
+	Dev             bool   // serve --dev — exposed via /api/health so the UI can show the dev banner
+	Commit          string // full git commit id the server runs from (dev only), shown in the dev banner
+	DefaultWikiPath string // the mode's wiki default in tilde form (~/.thoth/wiki, or ~/.thoth/dev/wiki in dev) — the settings hint reads it
 	Wiki            *wiki.Wiki
 	Index           *index.Index
 	OnSettingsSaved func(wikiPath string) error

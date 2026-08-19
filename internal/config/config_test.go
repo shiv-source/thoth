@@ -23,6 +23,28 @@ func TestExpandHome(t *testing.T) {
 	}
 }
 
+func TestToTilde(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	tests := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{"under home becomes tilde form", filepath.Join(home, ".thoth", "dev", "wiki"), "~/.thoth/dev/wiki"},
+		{"home itself", home, "~"},
+		{"outside home passes through", "/tmp/notes", "/tmp/notes"},
+		{"tilde form passes through", "~/.thoth/wiki", "~/.thoth/wiki"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := ToTilde(tt.in); got != tt.want {
+				t.Fatalf("ToTilde(%q) = %q, want %q", tt.in, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestExpandHomeBareTilde(t *testing.T) {
 	home, err := os.UserHomeDir()
 	if err != nil {

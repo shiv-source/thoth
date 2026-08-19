@@ -8,10 +8,13 @@ import (
 )
 
 type healthResponse struct {
-	Status  string      `json:"status"`
-	Claude  claudeState `json:"claude"`
-	Wiki    wikiState   `json:"wiki"`
-	Version string      `json:"version"`
+	Status          string      `json:"status"`
+	Claude          claudeState `json:"claude"`
+	Wiki            wikiState   `json:"wiki"`
+	Version         string      `json:"version"`
+	Dev             bool        `json:"dev"`
+	Commit          string      `json:"commit"`
+	DefaultWikiPath string      `json:"default_wiki_path"`
 }
 
 type claudeState struct {
@@ -33,9 +36,12 @@ func health(c echo.Context, d Deps) error {
 		bin = p
 	}
 	return c.JSON(http.StatusOK, healthResponse{
-		Status:  "ok",
-		Claude:  claudeState{Found: found, Path: bin},
-		Wiki:    wikiState{Path: d.Wiki.Root, Exists: d.Wiki.Exists()},
-		Version: d.Version,
+		Status:          "ok",
+		Claude:          claudeState{Found: found, Path: bin},
+		Wiki:            wikiState{Path: d.Wiki.Root, Exists: d.Wiki.Exists()},
+		Version:         d.Version,
+		Dev:             d.Dev,
+		Commit:          d.Commit,
+		DefaultWikiPath: d.DefaultWikiPath,
 	})
 }
