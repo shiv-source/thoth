@@ -42,7 +42,7 @@ Cancelling `ctx` kills the CLI's process group (unix) or direct child (windows) 
 - `Rulebook()` — the single source of the rulebook text (embedded template)
 - `ParseNote(content)` — splits frontmatter, requires `title`, returns `NoteMeta` + body
 - `SafePath(root, rel)` — rejects absolute paths and `..` escapes; every filesystem access routes through it
-- `Wiki` — `New`, `Exists`, `Read`, `Tree` (dirs first, dotfiles and the root rulebook skipped via the shared `Visible` predicate); `Change`/`Changed` + op constants are the watcher's event-bus payload
+- `Wiki` — `New`, `Exists`, `Read`, `Tree` (dirs first, dotfiles and the root rulebook skipped via the shared `Visible` predicate); a directory that cannot be read keeps its node with an `Error` and no children instead of failing the whole walk (only an unreadable root errors); `Change`/`Changed` + op constants are the watcher's event-bus payload
 
 ## internal/index — search and sync
 
@@ -50,7 +50,7 @@ Cancelling `ctx` kills the CLI's process group (unix) or direct child (windows) 
 - `Upsert` / `Delete` / `DeletePrefix` — with FTS5 triggers keeping the index in sync
 - `Search(q, limit)` — bm25 ranking (title 8×) and body snippets, HTML-escaped
 - `Sync(root, log)` — reconciles the index with the tree in one transaction (unchanged files skipped, missing files deleted); malformed notes skipped
-- `Watch(ctx, root, ix, log, opts ...WatchOption)` — fsnotify with 200 ms debounce and new-directory rescan; `WithPublisher` hooks one `wiki.Changed` batch per flush (startup publishes an empty one) for event-bus consumers
+- `Watch(ctx, root, ix, log, opts ...WatchOption)` — fsnotify with 200 ms debounce and new-directory rescan; `WithPublisher` hooks one `wiki.Changed` batch per flush (startup publishes an empty one) for event-bus consumers; errors on the watcher's `Errors` channel are logged as structured warns (a silent drop would hide a directory that is no longer being watched)
 
 Full mechanics: [Indexing & search](indexing.md).
 

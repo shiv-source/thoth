@@ -76,6 +76,30 @@ describe('WikiTree', () => {
         expect(await screen.findByRole('tooltip')).toHaveTextContent('1 file')
     })
 
+    it('keeps an unreadable directory visible with a warning tooltip', async () => {
+        stubAPI(mocks, {
+            '/api/wiki/tree': () => ({
+                nodes: [
+                    {
+                        name: 'locked',
+                        path: 'locked',
+                        is_dir: true,
+                        children: null,
+                        error: 'read dir locked: permission denied'
+                    },
+                    { name: 'open.md', path: 'open.md', is_dir: false, children: null }
+                ]
+            })
+        })
+        renderWikiTree()
+
+        // The rest of the tree still renders…
+        expect(await screen.findByText('open.md')).toBeInTheDocument()
+        // …and the unreadable folder carries the error as a hover tooltip.
+        await userEvent.hover(screen.getByText('locked'))
+        expect(await screen.findByRole('tooltip')).toHaveTextContent('permission denied')
+    })
+
     it('shows an error state when the tree fetch fails', async () => {
         mocks.get.mockRejectedValueOnce(axiosError(500, 'boom'))
         renderWikiTree()

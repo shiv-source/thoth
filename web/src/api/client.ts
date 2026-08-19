@@ -7,10 +7,22 @@ export type SearchResult = z.infer<typeof SearchResult>
 const Note = z.object({ path: z.string(), content: z.string() })
 export type Note = z.infer<typeof Note>
 
-type TreeNodeShape = { name: string; path: string; is_dir: boolean; children: TreeNodeShape[] | null }
+type TreeNodeShape = {
+    name: string
+    path: string
+    is_dir: boolean
+    children: TreeNodeShape[] | null
+    error?: string
+}
 
 const TreeNodeSchema: z.ZodType<TreeNodeShape> = z.lazy(() =>
-    z.object({ name: z.string(), path: z.string(), is_dir: z.boolean(), children: z.array(TreeNodeSchema).nullable() })
+    z.object({
+        name: z.string(),
+        path: z.string(),
+        is_dir: z.boolean(),
+        children: z.array(TreeNodeSchema).nullable(),
+        error: z.string().optional()
+    })
 )
 export type TreeNode = z.infer<typeof TreeNodeSchema>
 

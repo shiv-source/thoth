@@ -9,7 +9,7 @@ The server exposes REST for everything except the live chat and server-push noti
 | `GET /api/health` | — | `{status, claude:{found,path}, wiki:{path,exists}, version, dev, commit, default_wiki_path}` — `dev` is true under `serve --dev` (the UI shows a warning banner); `commit` is the full git commit id the dev server runs from (empty otherwise); `default_wiki_path` is the mode's wiki default in tilde form (`~/.thoth/wiki`, or `~/.thoth/dev/wiki` in dev) — the settings hint reads it |
 | `GET /api/search?q=&limit=` | q required; limit default 20, clamped 1–100 | `{results:[{path,title,kind,snippet}]}` — snippet is HTML-escaped with safe `<mark>` highlights |
 | `GET /api/notes?path=` | wiki-relative path | `{path, content}` |
-| `GET /api/wiki/tree` | — | `{nodes:[{name,path,is_dir,children}]}` |
+| `GET /api/wiki/tree` | — | `{nodes:[{name,path,is_dir,children,error?}]}` — a directory that exists but cannot be read (permissions, …) stays in the tree with an `error` and no children, so one locked folder never fails the whole tree; only an unreadable root 500s |
 | `GET /api/fs/dirs?path=` | absolute directory path | `{dirs:[…]}` — the immediate subdirectories in lexical order, powering the Settings directory picker; 400 when the path is missing or not a readable directory |
 | `GET /api/doctor` | — | `{checks:[{name, ok, message}]}` — the shared `internal/doctor` suite (same checks as `thoth doctor`) |
 | `GET /api/settings` | — | `{wiki_path, wiki_folders, model, has_api_key, repo_url, sync_enabled}` — every value lives in the `settings` key/value table in thoth.db (config.toml is deprecated); `wiki_folders` is the configured scaffold folder set (`[]` when unset → defaults); the api key itself is never returned, only whether one is stored |

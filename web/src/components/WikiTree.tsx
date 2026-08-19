@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { Tooltip, Tree } from 'antd'
 import type { DataNode } from 'antd/es/tree'
-import { FileTextOutlined, FolderOpenOutlined, FolderOutlined } from '@ant-design/icons'
+import { FileTextOutlined, FolderOpenOutlined, FolderOutlined, WarningOutlined } from '@ant-design/icons'
 import type { TreeNode } from '../api/client'
 import {
     collectTreeInfo,
@@ -20,6 +20,7 @@ import type { ConnectionStatus } from '../ws/chat'
 // fields so the title renderer can show the hover tooltip.
 interface WikiDataNode extends DataNode {
     fileCount?: number
+    error?: string
 }
 
 // toTreeData maps the API nodes onto antd's shape, tagging directories
@@ -30,7 +31,8 @@ function toTreeData(nodes: TreeNode[], counts: Map<string, number>): WikiDataNod
         title: n.name,
         isLeaf: !n.is_dir,
         children: n.is_dir ? toTreeData(n.children ?? [], counts) : undefined,
-        fileCount: n.is_dir ? counts.get(n.path) : undefined
+        fileCount: n.is_dir ? counts.get(n.path) : undefined,
+        error: n.error
     }))
 }
 
@@ -80,6 +82,18 @@ export function WikiTree({ openPath, onOpenNote }: { openPath: string | null; on
                     <FileTextOutlined aria-hidden="true" className="text-subtle" />
                     <span>{title}</span>
                 </span>
+            )
+        }
+        // An unreadable directory keeps its folder node with a warning so
+        // the rest of the tree still renders (see internal/wiki tree()).
+        if (node.error) {
+            return (
+                <Tooltip title={node.error}>
+                    <span className="inline-flex items-center gap-1.5">
+                        <WarningOutlined aria-hidden="true" className="text-amber-500" />
+                        <span>{title}</span>
+                    </span>
+                </Tooltip>
             )
         }
         const count = node.fileCount ?? 0
