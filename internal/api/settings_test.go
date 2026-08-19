@@ -218,6 +218,36 @@ func TestSettingsRepoURLClears(t *testing.T) {
 	}
 }
 
+func TestSettingsWikiFoldersRoundTrip(t *testing.T) {
+	d := testDeps(t)
+	e := New(d)
+
+	// Seeded: no custom set.
+	if got := getSettingsReq(t, e); len(got.WikiFolders) != 0 {
+		t.Fatalf("seeded wiki_folders = %v, want empty", got.WikiFolders)
+	}
+
+	rec := putSettingsReq(t, e, `{"wiki_path":"/tmp/wiki","repo_url":"","sync_enabled":false,"wiki_folders":["journal","recipes"]}`)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("PUT status %d: %s", rec.Code, rec.Body.String())
+	}
+	if v, _, err := d.Settings.Setting(settings.KeyWikiFolders); err != nil || v != "journal,recipes" {
+		t.Fatalf("stored wiki_folders = %q/%v, want journal,recipes", v, err)
+	}
+	if got := getSettingsReq(t, e); len(got.WikiFolders) != 2 || got.WikiFolders[0] != "journal" || got.WikiFolders[1] != "recipes" {
+		t.Fatalf("GET wiki_folders = %v, want [journal recipes]", got.WikiFolders)
+	}
+
+	// An empty set clears the key back to the default behavior.
+	rec = putSettingsReq(t, e, `{"wiki_path":"/tmp/wiki","repo_url":"","sync_enabled":false,"wiki_folders":[]}`)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("clear PUT status %d: %s", rec.Code, rec.Body.String())
+	}
+	if got := getSettingsReq(t, e); len(got.WikiFolders) != 0 {
+		t.Fatalf("cleared wiki_folders = %v, want empty", got.WikiFolders)
+	}
+}
+
 func TestConversationsEndpoints(t *testing.T) {
 	d := testDeps(t)
 	e := New(d)

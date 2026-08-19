@@ -4,14 +4,7 @@ You are the knowledge assistant for this personal wiki. Obey these rules in ever
 session, whether driven by the Thoth app or used directly in the terminal.
 
 ## Folder map
-- inbox/ — unfiled quick captures. Clean it up: file items into their proper homes, then delete them.
-- meetings/ — one file per meeting: YYYY-MM-DD-<topic>.md
-- projects/<name>/ — one folder per project. project.md holds overview + current status.
-- links/ — bookmarks.md is the master list, grouped by category, one line per link with a one-word reason. Give a link its own note file only when it deserves one.
-- setup/ — one file per machine; setup/servers/<name>.md per server.
-- knowledge/ — one topic per file.
-- todos/ — TODO.md is the ONLY task list: sections Now / Next / Someday. Never scatter TODOs in other files.
-- daily/ — YYYY-MM-DD.md quick capture journal.
+{{folder-map}}
 
 ## Saving (the save protocol)
 When asked to save something:

@@ -2,6 +2,7 @@ package api
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/labstack/echo/v4"
 	"github.com/shiv-source/thoth/internal/settings"
@@ -12,18 +13,26 @@ import (
 // only whether one is stored (has_api_key), and PUT treats an empty api_key
 // as "leave unchanged" — the secret is never echoed back to the UI.
 type settingsDTO struct {
-	WikiPath    string `json:"wiki_path"`
-	Model       string `json:"model"`
-	HasAPIKey   bool   `json:"has_api_key"`
-	APIKey      string `json:"api_key"`
-	RepoURL     string `json:"repo_url"`
-	SyncEnabled bool   `json:"sync_enabled"`
+	WikiPath    string   `json:"wiki_path"`
+	WikiFolders []string `json:"wiki_folders"`
+	Model       string   `json:"model"`
+	HasAPIKey   bool     `json:"has_api_key"`
+	APIKey      string   `json:"api_key"`
+	RepoURL     string   `json:"repo_url"`
+	SyncEnabled bool     `json:"sync_enabled"`
 }
 
 func getSettings(c echo.Context, d Deps) error {
 	wikiPath, _, err := d.Settings.Setting(settings.KeyWikiPath)
 	if err != nil {
 		return internalError(c, d, "read wiki_path", err)
+	}
+	wikiFolders, err := d.Settings.Folders()
+	if err != nil {
+		return internalError(c, d, "read wiki_folders", err)
+	}
+	if wikiFolders == nil {
+		wikiFolders = []string{} // JSON must be [] not null — the UI types it as an array
 	}
 	model, _, err := d.Settings.Setting(settings.KeyModel)
 	if err != nil {
@@ -42,7 +51,7 @@ func getSettings(c echo.Context, d Deps) error {
 		return internalError(c, d, "read sync_enabled", err)
 	}
 	return c.JSON(http.StatusOK, settingsDTO{
-		WikiPath: wikiPath, Model: model, HasAPIKey: apiKey != "",
+		WikiPath: wikiPath, WikiFolders: wikiFolders, Model: model, HasAPIKey: apiKey != "",
 		RepoURL: repoURL, SyncEnabled: syncEnabled,
 	})
 }
@@ -66,6 +75,9 @@ func putSettings(c echo.Context, d Deps) error {
 	}
 	if err := d.Settings.SetSetting(settings.KeyWikiPath, next.WikiPath); err != nil {
 		return internalError(c, d, "set wiki_path", err)
+	}
+	if err := d.Settings.SetSetting(settings.KeyWikiFolders, strings.Join(next.WikiFolders, ",")); err != nil {
+		return internalError(c, d, "set wiki_folders", err)
 	}
 	if err := d.Settings.SetSetting(settings.KeyModel, next.Model); err != nil {
 		return internalError(c, d, "set model", err)

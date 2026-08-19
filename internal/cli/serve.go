@@ -121,7 +121,7 @@ func runServe(cmd *cobra.Command, dev bool) error {
 	if err != nil {
 		return err
 	}
-	w, err := ensureWiki(wikiPath, log)
+	w, err := ensureWiki(wikiPath, stg, log)
 	if err != nil {
 		return err
 	}
@@ -190,7 +190,7 @@ func runServe(cmd *cobra.Command, dev bool) error {
 		DefaultWikiPath: config.ToTilde(defaultWikiPath(dev, dir)),
 		Wiki:            w,
 		Index:           ix,
-		OnSettingsSaved: onSettingsSaved(log, root, w, ix, startWatcher, pc.Flush),
+		OnSettingsSaved: onSettingsSaved(log, stg, root, w, ix, startWatcher, pc.Flush),
 		Ctx:             ctx,
 		Events:          bus,
 	})
@@ -293,15 +293,26 @@ func ensureModels(st *store.Store) error {
 	return nil
 }
 
+// scaffoldFolders returns the configured scaffold folder set, or nil (the
+// defaults) when unset or unreadable.
+func scaffoldFolders(stg *settings.Repo, log *slog.Logger) []string {
+	folders, err := stg.Folders()
+	if err != nil {
+		log.Warn("read wiki_folders", "err", err)
+		return nil
+	}
+	return folders
+}
+
 // ensureWiki returns a wiki for path, scaffolding it if it does not exist.
-func ensureWiki(path string, log *slog.Logger) (*wiki.Wiki, error) {
+func ensureWiki(path string, stg *settings.Repo, log *slog.Logger) (*wiki.Wiki, error) {
 	wikiPath, err := config.ExpandHome(path)
 	if err != nil {
 		return nil, err
 	}
 	w := wiki.New(wikiPath)
 	if !w.Exists() {
-		if err := wiki.Scaffold(wikiPath); err != nil {
+		if err := wiki.ScaffoldWithOptions(wikiPath, wiki.ScaffoldOptions{Folders: scaffoldFolders(stg, log), GitInit: true}); err != nil {
 			return nil, err
 		}
 		log.Info("scaffolded wiki", "path", wikiPath)
@@ -353,7 +364,7 @@ func resolveClaudeBin(log *slog.Logger) string {
 // has succeeded: scaffold, then rebuild, and only then the root swap, the
 // watcher restart, and the pooled-CLI flush (idle processes die now, a busy
 // one is evicted at its turn's end — same semantics as the per-Start cwd).
-func onSettingsSaved(log *slog.Logger, root *rootHolder, w *wiki.Wiki, ix *index.Index, startWatcher func(string), flush func()) func(string) error {
+func onSettingsSaved(log *slog.Logger, stg *settings.Repo, root *rootHolder, w *wiki.Wiki, ix *index.Index, startWatcher func(string), flush func()) func(string) error {
 	return func(wikiPath string) error {
 		newPath, err := config.ExpandHome(wikiPath)
 		if err != nil {
@@ -366,7 +377,7 @@ func onSettingsSaved(log *slog.Logger, root *rootHolder, w *wiki.Wiki, ix *index
 		// Check the new path itself: w still points at the old root until
 		// every fallible step below has succeeded.
 		if !wiki.New(newPath).Exists() {
-			if err := wiki.Scaffold(newPath); err != nil {
+			if err := wiki.ScaffoldWithOptions(newPath, wiki.ScaffoldOptions{Folders: scaffoldFolders(stg, log), GitInit: true}); err != nil {
 				return err
 			}
 		}

@@ -61,6 +61,7 @@ function lastBody(method: 'get' | 'post' | 'put' | 'delete', url: string): unkno
 
 const settings = {
     wiki_path: '~/.thoth/wiki',
+    wiki_folders: [] as string[],
     model: '',
     has_api_key: false,
     repo_url: '',
@@ -145,6 +146,26 @@ describe('SettingsView', () => {
         expect(await screen.findByText('Settings saved')).toBeInTheDocument()
     })
 
+    it('saves a custom scaffold folder set from the General tab', async () => {
+        stubAPI({
+            'GET /api/settings': () => ({ ...settings, wiki_folders: ['inbox', 'meetings'] }),
+            'GET /api/github/auth': getEmptyGitHub,
+            'PUT /api/settings': () => ({ ...settings, wiki_folders: ['inbox', 'meetings', 'journal'] })
+        })
+
+        renderSettings()
+        // The configured set renders as tags.
+        expect(await screen.findByText('inbox')).toBeInTheDocument()
+        expect(await screen.findByText('meetings')).toBeInTheDocument()
+        // Typing a new name adds it to the set.
+        const folderInput = await screen.findByRole('combobox', { name: 'Scaffold folders' })
+        await userEvent.type(folderInput, 'journal{Enter}')
+        await userEvent.click(screen.getByRole('button', { name: /Save/ }))
+        await waitFor(() => expect(screen.getByText(/Saved ✓/)).toBeInTheDocument())
+        const put = lastBody('put', '/api/settings')
+        expect(put != null && JSON.stringify(put).includes('"journal"')).toBe(true)
+    })
+
     it('names the dev wiki default in the hint when the server runs in dev mode', async () => {
         stubAPI({
             'GET /api/settings': getSettings,
@@ -182,7 +203,7 @@ describe('SettingsView', () => {
         })
 
         renderSettings()
-        await userEvent.click(await screen.findByRole('combobox'))
+        await userEvent.click(await screen.findByRole('combobox', { name: 'Model' }))
         // The option renders name + tag as secondary text.
         await userEvent.click(await screen.findByRole('option', { name: /V4 Flash/ }))
         await userEvent.click(screen.getByRole('button', { name: /Save/ }))

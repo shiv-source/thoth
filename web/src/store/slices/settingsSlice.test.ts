@@ -19,6 +19,7 @@ vi.mock('axios', () => axiosModuleMock(mocks))
 
 const saved: Settings = {
     wiki_path: '~/.thoth/wiki',
+    wiki_folders: [],
     model: 'claude-sonnet-5',
     has_api_key: false,
     repo_url: 'git@github.com:me/wiki.git',

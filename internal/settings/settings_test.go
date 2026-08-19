@@ -111,6 +111,40 @@ func TestSyncEnabledParsing(t *testing.T) {
 	}
 }
 
+func TestFoldersParsing(t *testing.T) {
+	r := openTestRepo(t)
+	// Absent key falls back to nil.
+	folders, err := r.Folders()
+	if err != nil || folders != nil {
+		t.Fatalf("absent wiki_folders = %v/%v, want nil/nil", folders, err)
+	}
+	// Comma-separated with whitespace is parsed and trimmed.
+	if err := r.SetSetting(KeyWikiFolders, "journal, recipes , notes"); err != nil {
+		t.Fatal(err)
+	}
+	folders, err = r.Folders()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(folders) != 3 || folders[0] != "journal" || folders[1] != "recipes" || folders[2] != "notes" {
+		t.Fatalf("parsed folders = %v, want [journal recipes notes]", folders)
+	}
+	// An empty value means the defaults again.
+	if err := r.SetSetting(KeyWikiFolders, ""); err != nil {
+		t.Fatal(err)
+	}
+	if folders, err = r.Folders(); err != nil || folders != nil {
+		t.Fatalf("empty wiki_folders = %v/%v, want nil/nil", folders, err)
+	}
+	// Stray commas produce no empty entries.
+	if err := r.SetSetting(KeyWikiFolders, ",,,"); err != nil {
+		t.Fatal(err)
+	}
+	if folders, err = r.Folders(); err != nil || len(folders) != 0 {
+		t.Fatalf("comma-only wiki_folders = %v/%v, want []/nil", folders, err)
+	}
+}
+
 func TestRepoClosedErrors(t *testing.T) {
 	r := openTestRepo(t)
 	if err := r.Close(); err != nil {

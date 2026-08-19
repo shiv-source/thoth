@@ -4,13 +4,12 @@ import (
 	"context"
 	"errors"
 	"net/http"
-	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/labstack/echo/v4"
+	"github.com/shiv-source/thoth/internal/gitutil"
 )
 
 // gitStepTimeout bounds every git command; a hung push must not wedge the
@@ -29,7 +28,7 @@ func gitSetup(c echo.Context, d Deps) error {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "url is required"})
 	}
 	root := d.Wiki.Root
-	if err := gitInit(root); err != nil {
+	if err := gitutil.Init(root); err != nil {
 		return gitFailure(c, d, err)
 	}
 	if err := gitSetRemote(root, body.URL); err != nil {
@@ -62,19 +61,6 @@ func gitCmd(ctx context.Context, root string, args ...string) (string, error) {
 	cmd.Dir = root
 	out, err := cmd.CombinedOutput()
 	return string(out), err
-}
-
-// gitInit runs `git init` unless the wiki is already a repository.
-func gitInit(root string) error {
-	if _, err := os.Stat(filepath.Join(root, ".git")); err == nil {
-		return nil
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), gitStepTimeout)
-	defer cancel()
-	if _, err := gitCmd(ctx, root, "init"); err != nil {
-		return errors.New("could not initialize a git repository — check that git is installed and the wiki directory is writable")
-	}
-	return nil
 }
 
 // gitSetRemote points origin at url, adding the remote when it does not exist

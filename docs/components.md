@@ -78,4 +78,8 @@ Conversations, messages, and the llm_models registry in the same `thoth.db` (sep
 
 ## internal/settings
 
-`Repo` (`OpenRepo(path)`) owns the `settings` KV table — `wiki_path`, `github_sync_*` keys — with sync-state conveniences. It deliberately runs no migrations and no WAL pragma: the doctor must never mutate a database it only reads. Details: [Schema](schema.md).
+`Repo` (`OpenRepo(path)`) owns the `settings` KV table — `wiki_path`, `wiki_folders`, `github_sync_*` keys — with sync-state conveniences. It deliberately runs no migrations and no WAL pragma: the doctor must never mutate a database it only reads. Details: [Schema](schema.md).
+
+## internal/gitutil
+
+`Init(dir)` runs `git init` unless `dir` is already a repository, with a fixed timeout and a sanitized failure message. It is the single home for the command, shared by the wiki scaffold (every scaffold version-controls the wiki from day one) and `internal/api/git.go` (the Settings → Git remote setup).
