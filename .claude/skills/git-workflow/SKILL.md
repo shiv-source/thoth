@@ -17,7 +17,7 @@ description: >-
 
 ## Key files
 - CONTRIBUTING.md — the workflow page: § Workflow, § Before you push
-- .github/pull_request_template.md — the PR body shape (Summary / Files changed / How verified / Notes)
+- .github/pull_request_template.md — the PR body shape (Summary / Related issue / Files changed / How verified / Notes)
 - .github/workflows/ — ci-pr.yml (PR gates) · quality.yml (the quality gates, incl. the graph freshness check) · final-gate.yml (single required check + PR report comment) · ci.yml (push to main adds 5 cross-compiles + frontend build) · pr-assignee.yml (auto-assigns PR committers)
 - .husky/pre-commit — the commit gate: lint-staged autofixes, plus Go vet/lint/test when Go is staged
 - docs/development.md — § Gates (what make check enforces), § CI (workflow mechanics)
@@ -48,8 +48,9 @@ description: >-
 1. Push the branch, then create the PR with the `gh` CLI (not the web UI):
    `gh pr create --title "<type>(<scope>): <summary>" --label <type> --label <area>… --template .github/pull_request_template.md`
    — one type label plus every area label the change touches (workflow 4); the web UI auto-fills the PR template, the CLI does not — pass it explicitly with `--template` (verify flags against `gh pr create --help`)
-2. Write the body per .github/pull_request_template.md:
+ 2. Write the body per .github/pull_request_template.md:
    - ## Summary — what changed and why; bullets when they help
+   - ## Related issue — `Closes #<n>` (auto-closes the issue on merge); omit when there is no issue
    - ## Files changed — key files/packages and the role of each
    - ## How verified — check the boxes you ran: gofmt/vet clean, go test -race ./..., coverage >= 80% (make cover), golangci-lint run, frontend tsc --noEmit / lint / vitest run, docs updated
    - ## Notes — optional; design decisions, follow-ups

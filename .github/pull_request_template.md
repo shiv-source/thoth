@@ -14,6 +14,15 @@ What changed and why? Give the full picture — and use bullet points when it he
 - change 2 — why it was needed
 -->
 
+## Related issue
+
+<!--
+The GitHub issue(s) this PR addresses. `Closes #<n>` auto-closes the issue
+when the PR merges, e.g. `Closes #43`. Omit this section when there is no issue.
+-->
+
+Closes #<issue>
+
 ## Files changed
 
 <!-- Key files/packages touched and the role of each, e.g.
