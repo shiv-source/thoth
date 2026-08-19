@@ -29,6 +29,7 @@ type doctorRunner struct {
 	dbPath       string
 	wikiPath     string
 	wikiResolved bool
+	wikiFolders  []string
 }
 
 func newDoctorCmd() *cobra.Command {
@@ -94,6 +95,9 @@ func (d *doctorRunner) runChecks(dir string) []doctor.Check {
 			if value, found, err := r.Setting(settings.KeyWikiPath); err == nil && found && value != "" {
 				wikiPath = value
 			}
+			if folders, err := r.Folders(); err == nil {
+				d.wikiFolders = folders
+			}
 			_ = r.Close()
 		}
 	}
@@ -126,7 +130,7 @@ func resolveThothDir(dir string) (string, error) {
 func (d *doctorRunner) repair(results []doctor.Check) bool {
 	fixed := false
 	if d.wikiResolved && failed(results, "wiki") {
-		if err := wiki.Scaffold(d.wikiPath); err != nil {
+		if err := wiki.ScaffoldWithOptions(d.wikiPath, wiki.ScaffoldOptions{Folders: d.wikiFolders, GitInit: true}); err != nil {
 			d.fixes = append(d.fixes, fmt.Sprintf("wiki: could not scaffold %s: %v", d.wikiPath, err))
 		} else {
 			d.fixes = append(d.fixes, fmt.Sprintf("wiki: scaffolded %s", d.wikiPath))

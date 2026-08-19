@@ -203,6 +203,10 @@ function CardTitle({ icon: Icon, children }: { icon: typeof SettingsIcon; childr
     )
 }
 
+// The scaffold folder set offered as suggestions in the General tab; the
+// server keeps these defaults whenever wiki_folders is unset.
+const defaultFolders = ['inbox', 'meetings', 'projects', 'links', 'setup', 'knowledge', 'todos', 'daily']
+
 // GeneralTab is the wiki path + model picker + API key in one card, with the
 // save button and the saved/error feedback under them.
 function GeneralTab({ status }: { status: 'idle' | 'saved' | 'error' }) {
@@ -273,6 +277,19 @@ function GeneralTab({ status }: { status: 'idle' | 'saved' | 'error' }) {
                     />
                 </Form.Item>
             </div>
+            <Form.Item
+                label="Scaffold folders"
+                name="wiki_folders"
+                extra="The folders created when a wiki is scaffolded. Type your own set or keep the defaults."
+            >
+                <Select
+                    virtual={false}
+                    mode="tags"
+                    placeholder="inbox, meetings, projects, …"
+                    options={defaultFolders.map((f) => ({ value: f }))}
+                    tokenSeparators={[',']}
+                />
+            </Form.Item>
             <Divider />
             <div className="flex items-center justify-between">
                 <div className="min-w-0 pr-3">

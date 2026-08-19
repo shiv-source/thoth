@@ -71,7 +71,7 @@ func Run(ctx context.Context, dir string, addr string, log *slog.Logger) []Check
 		results = append(results, Check{Name: "wiki", OK: false, Message: fmt.Sprintf("cannot expand wiki path %q: %v", wikiPath(dbPath), err)})
 		expanded = wikiPath(dbPath)
 	}
-	results = append(results, checkWiki(expanded))
+	results = append(results, checkWiki(expanded, wikiFolders(dbPath)))
 
 	// 2. claude CLI
 	results = append(results, checkClaude(ctx)...)
@@ -117,14 +117,35 @@ func wikiPath(dbPath string) string {
 	return value
 }
 
+// wikiFolders reads the configured scaffold folder set from the settings
+// table; a missing or unreadable database falls back to nil (the defaults).
+func wikiFolders(dbPath string) []string {
+	if !fileExists(dbPath) {
+		return nil
+	}
+	r, err := settings.OpenRepo(dbPath)
+	if err != nil {
+		return nil
+	}
+	defer func() { _ = r.Close() }()
+	folders, err := r.Folders()
+	if err != nil {
+		return nil
+	}
+	return folders
+}
+
 // checkWiki verifies that the wiki directory exists with the scaffold folders
-// and CLAUDE.md.
-func checkWiki(root string) Check {
+// (the configured set, or the defaults when none) and CLAUDE.md.
+func checkWiki(root string, folders []string) Check {
 	if !isDir(root) {
 		return Check{Name: "wiki", OK: false, Message: fmt.Sprintf("%s does not exist — run thoth doctor --fix to scaffold it", root)}
 	}
+	if len(folders) == 0 {
+		folders = wiki.Folders()
+	}
 	var missing []string
-	for _, f := range wiki.Folders() {
+	for _, f := range folders {
 		if !isDir(filepath.Join(root, f)) {
 			missing = append(missing, f)
 		}
@@ -135,7 +156,7 @@ func checkWiki(root string) Check {
 	if len(missing) > 0 {
 		return Check{Name: "wiki", OK: false, Message: fmt.Sprintf("%s is missing %s — run thoth doctor --fix to repair it", root, strings.Join(missing, ", "))}
 	}
-	return Check{Name: "wiki", OK: true, Message: fmt.Sprintf("%s exists with the 8 scaffold folders and CLAUDE.md", root)}
+	return Check{Name: "wiki", OK: true, Message: fmt.Sprintf("%s exists with the %d scaffold folders and CLAUDE.md", root, len(folders))}
 }
 
 // checkClaude resolves "claude" on PATH, reports its version, and probes the

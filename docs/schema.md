@@ -74,6 +74,7 @@ The app's user-facing settings, key/value. `config.toml` is deprecated — this 
 | Key | Seed | Meaning |
 |---|---|---|
 | `wiki_path` | `~/.thoth/wiki` | Where the wiki lives (seed mirrors `settings.DefaultWikiPath`) |
+| `wiki_folders` | — (absent) | Comma-separated scaffold folder set; absent/empty means the default 8 (`inbox, meetings, projects, links, setup, knowledge, todos, daily`). Applied when a wiki is scaffolded |
 | `model` | — (absent) | The `--model` value enforced on every Claude CLI spawn; absent/empty keeps the CLI's default. Read at boot, applied on next start |
 | `api_key` | `''` | The API key passed to spawned Claude CLI processes as `ANTHROPIC_API_KEY`; set from the web Settings (General tab). Empty (`''`) = not configured, inherit the server's environment. Never returned by the API — GET reports `has_api_key` only |
 | `github_sync_repo` | `''` | The wiki's sync repo URL |

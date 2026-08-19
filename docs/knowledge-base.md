@@ -15,7 +15,7 @@ The wiki is a directory of plain markdown (default `~/.thoth/wiki`, changeable i
 | `todos/` | `TODO.md` — the single task list (Now / Next / Someday) |
 | `daily/` | `2026-08-14.md` quick-capture journal |
 
-New top-level domains are added by convention: create the folder and extend the rulebook if it needs rules.
+New top-level domains are added by convention: create the folder and extend the rulebook if it needs rules. The scaffold folder set is configurable — set `wiki_folders` in Settings (comma-separated) and every freshly scaffolded wiki uses your set instead of the default 8. `thoth init` picks the same configured set up when `thoth.db` exists.
 
 ## Conventions
 
@@ -34,7 +34,9 @@ type: <meeting|project|link|setup|knowledge|todo|daily|note>
 - **One TODO list** — `todos/TODO.md`; tasks are never scattered across other files
 - **No secrets** — never store credentials; write placeholders like `<db-password>`
 
-The rulebook ships as a template at `internal/wiki/templates/CLAUDE.md` and is scaffolded by `thoth init`; the template and the in-repo validation are the same source (`Rulebook()`, see [Components](components.md)). An existing `CLAUDE.md` is never overwritten — edit it freely to adapt the organization to how you think.
+The rulebook ships as a template at `internal/wiki/templates/CLAUDE.md` and is scaffolded by `thoth init`; the template and the in-repo validation are the same source (`Rulebook()`, see [Components](components.md)). The rulebook's folder map is generated from the configured folder set, so it always matches the layout. An existing `CLAUDE.md` is never overwritten — edit it freely to adapt the organization to how you think.
+
+Every scaffold also initializes a local git repository (when git is installed) with a `.gitignore` covering `.DS_Store` and `*.db`, so the wiki is versioned from day one; the Settings → Git remote tab adds the remote and pushes.
 
 ## Notes in the index
 

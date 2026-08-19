@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/shiv-source/thoth/internal/config"
 	"github.com/shiv-source/thoth/internal/settings"
@@ -30,11 +31,34 @@ func newInitCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if err := wiki.Scaffold(expanded); err != nil {
+			if err := wiki.ScaffoldWithOptions(expanded, wiki.ScaffoldOptions{Folders: initFolders(), GitInit: true}); err != nil {
 				return err
 			}
 			_, _ = fmt.Fprintf(os.Stdout, "wiki scaffolded at %s\n", expanded)
 			return nil
 		},
 	}
+}
+
+// initFolders returns the configured scaffold folder set from the settings
+// table when it exists; a missing database or key falls back to the defaults.
+func initFolders() []string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return nil
+	}
+	dbPath := filepath.Join(home, ".thoth", "thoth.db")
+	if _, err := os.Stat(dbPath); err != nil {
+		return nil
+	}
+	r, err := settings.OpenRepo(dbPath)
+	if err != nil {
+		return nil
+	}
+	defer func() { _ = r.Close() }()
+	folders, err := r.Folders()
+	if err != nil {
+		return nil
+	}
+	return folders
 }

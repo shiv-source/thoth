@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	_ "modernc.org/sqlite"
@@ -13,6 +14,7 @@ import (
 // GitHub/sync keys carry the github_ prefix.
 const (
 	KeyWikiPath     = "wiki_path"
+	KeyWikiFolders  = "wiki_folders"
 	KeyModel        = "model"
 	KeyAPIKey       = "api_key"
 	KeyRepoURL      = "github_sync_repo"
@@ -68,6 +70,27 @@ func (r *Repo) SetSetting(key, value string) error {
 		return fmt.Errorf("set setting %s: %w", key, err)
 	}
 	return nil
+}
+
+// Folders returns the configured scaffold folder names, split on commas and
+// trimmed; nil when the key is absent or empty, so callers fall back to the
+// default set.
+func (r *Repo) Folders() ([]string, error) {
+	value, _, err := r.Setting(KeyWikiFolders)
+	if err != nil {
+		return nil, err
+	}
+	if value == "" {
+		return nil, nil
+	}
+	parts := strings.Split(value, ",")
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		if s := strings.TrimSpace(p); s != "" {
+			out = append(out, s)
+		}
+	}
+	return out, nil
 }
 
 // SyncEnabled reports the auto-sync switch; anything other than the literal

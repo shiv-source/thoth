@@ -21,7 +21,7 @@ Startup sequence:
 
 ### `thoth init [path]`
 
-Scaffolds a wiki directory — the 8 folders plus the `CLAUDE.md` rulebook. Defaults to `~/.thoth/wiki`. Never overwrites an existing rulebook.
+Scaffolds a wiki directory — the configured folder set (or the default 8) plus the `CLAUDE.md` rulebook, then initializes a local git repo with a `.gitignore` (`.DS_Store`, `*.db`) when git is installed. Defaults to `~/.thoth/wiki`. Never overwrites an existing rulebook.
 
 ```sh
 thoth init                    # ~/.thoth/wiki

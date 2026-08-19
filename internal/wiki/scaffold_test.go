@@ -79,3 +79,81 @@ func TestScaffoldErrorWhenParentIsFile(t *testing.T) {
 		t.Fatal("expected error when scaffold target is under a file")
 	}
 }
+
+func TestScaffoldCustomFolders(t *testing.T) {
+	dir := t.TempDir()
+	custom := []string{"journal", "recipes"}
+	if err := ScaffoldWithOptions(dir, ScaffoldOptions{Folders: custom, GitInit: true}); err != nil {
+		t.Fatalf("ScaffoldWithOptions: %v", err)
+	}
+	for _, folder := range custom {
+		fi, err := os.Stat(filepath.Join(dir, folder))
+		if err != nil || !fi.IsDir() {
+			t.Fatalf("expected folder %s to exist: %v", folder, err)
+		}
+	}
+	// Default folders are not created for a custom set.
+	for _, folder := range defaultFolders {
+		if _, err := os.Stat(filepath.Join(dir, folder)); err == nil {
+			t.Fatalf("default folder %s must not exist for a custom set", folder)
+		}
+	}
+	rulebook, err := os.ReadFile(filepath.Join(dir, "CLAUDE.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(rulebook) != RulebookFor(custom) {
+		t.Fatal("scaffolded CLAUDE.md must equal RulebookFor(custom)")
+	}
+	for _, want := range []string{"- journal/ —", "- recipes/ —"} {
+		if !strings.Contains(string(rulebook), want) {
+			t.Fatalf("rulebook missing custom folder map line %q", want)
+		}
+	}
+}
+
+func TestScaffoldInitializesGit(t *testing.T) {
+	dir := t.TempDir()
+	if err := Scaffold(dir); err != nil {
+		t.Fatalf("Scaffold: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, ".git")); err != nil {
+		t.Fatalf("expected a git repo to be initialized: %v", err)
+	}
+	gitignore, err := os.ReadFile(filepath.Join(dir, ".gitignore"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{".DS_Store", "*.db"} {
+		if !strings.Contains(string(gitignore), want) {
+			t.Fatalf(".gitignore missing %q: %q", want, gitignore)
+		}
+	}
+	// Idempotent: a second scaffold must not error.
+	if err := Scaffold(dir); err != nil {
+		t.Fatalf("second Scaffold: %v", err)
+	}
+}
+
+func TestRulebookDefaultFolderMap(t *testing.T) {
+	for _, want := range []string{
+		"- inbox/ — unfiled quick captures.",
+		"- meetings/ — one file per meeting: YYYY-MM-DD-<topic>.md",
+		"- projects/<name>/ — one folder per project.",
+		"- todos/ — TODO.md is the ONLY task list: sections Now / Next / Someday.",
+	} {
+		if !strings.Contains(Rulebook(), want) {
+			t.Fatalf("default rulebook missing folder map line %q", want)
+		}
+	}
+}
+
+func TestRulebookCustomFolderMap(t *testing.T) {
+	got := RulebookFor([]string{"recipes"})
+	if !strings.Contains(got, "- recipes/ — custom workspace folder.") {
+		t.Fatalf("custom rulebook missing generic folder line:\n%s", got)
+	}
+	if strings.Contains(got, "- inbox/ —") {
+		t.Fatalf("custom rulebook must not contain the default folder map:\n%s", got)
+	}
+}

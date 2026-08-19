@@ -281,6 +281,11 @@ func TestOnSettingsSavedSwitchesRootAndRestartsWatcher(t *testing.T) {
 	if err := st.Close(); err != nil {
 		t.Fatal(err)
 	}
+	stg, err := settings.OpenRepo(dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = stg.Close() })
 	ix, err := index.Open(dbPath)
 	if err != nil {
 		t.Fatal(err)
@@ -303,7 +308,7 @@ func TestOnSettingsSavedSwitchesRootAndRestartsWatcher(t *testing.T) {
 	flushed := 0
 	flush := func() { flushed++ }
 
-	cb := onSettingsSaved(log, root, w, ix, startWatcher, flush)
+	cb := onSettingsSaved(log, stg, root, w, ix, startWatcher, flush)
 	if err := cb(newRoot); err != nil {
 		t.Fatalf("callback: %v", err)
 	}
@@ -345,6 +350,11 @@ func TestOnSettingsSavedFailureLeavesRootUntouched(t *testing.T) {
 	if err := st.Close(); err != nil {
 		t.Fatal(err)
 	}
+	stg, err := settings.OpenRepo(dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = stg.Close() })
 	ix, err := index.Open(dbPath)
 	if err != nil {
 		t.Fatal(err)
@@ -369,7 +379,7 @@ func TestOnSettingsSavedFailureLeavesRootUntouched(t *testing.T) {
 	flushed := 0
 	flush := func() { flushed++ }
 
-	cb := onSettingsSaved(log, root, w, ix, startWatcher, flush)
+	cb := onSettingsSaved(log, stg, root, w, ix, startWatcher, flush)
 	if err := cb(newRoot); err == nil {
 		t.Fatal("expected error when scaffold fails")
 	}

@@ -246,6 +246,49 @@ func TestRunWikiMissingFolders(t *testing.T) {
 	}
 }
 
+// seedWikiFolders stores a custom scaffold folder set into thoth.db under dir.
+func seedWikiFolders(t *testing.T, dir, folders string) {
+	t.Helper()
+	r, err := settings.OpenRepo(filepath.Join(dir, "thoth.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = r.Close() }()
+	if err := r.SetSetting(settings.KeyWikiFolders, folders); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestRunWikiConfiguredFolders(t *testing.T) {
+	// A wiki with a custom configured folder set: the check requires exactly
+	// those folders, not the defaults.
+	dir := t.TempDir()
+	wikiRoot := filepath.Join(dir, "wiki")
+	if err := os.MkdirAll(filepath.Join(wikiRoot, "journal"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(wikiRoot, "CLAUDE.md"), []byte("# rules\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	seedWikiPath(t, dir, wikiRoot)
+	seedWikiFolders(t, dir, "journal")
+
+	checks := Run(context.Background(), dir, "", testLog())
+	c := byName(t, checks, "wiki")
+	if !c.OK || !strings.Contains(c.Message, "1 scaffold folders") {
+		t.Fatalf("wiki with journal only: %s", c.Message)
+	}
+
+	// A missing folder from the configured set fails the check and is named.
+	if err := os.RemoveAll(filepath.Join(wikiRoot, "journal")); err != nil {
+		t.Fatal(err)
+	}
+	c = byName(t, Run(context.Background(), dir, "", testLog()), "wiki")
+	if c.OK || !strings.Contains(c.Message, "journal") {
+		t.Fatalf("wiki after removing journal: %s", c.Message)
+	}
+}
+
 func TestRunClaudeVersionFailure(t *testing.T) {
 	dir := healthyThothDir(t)
 	// Override the PATH claude with one that fails --version.
