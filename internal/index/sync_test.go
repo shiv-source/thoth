@@ -21,6 +21,10 @@ func TestSyncIndexesTree(t *testing.T) {
 	write("meetings/ok.md", "---\ntitle: Good\ntype: meeting\n---\nvalid body\n")
 	write("knowledge/bad.md", "no frontmatter at all\n")
 	write("meetings/ignored.txt", "not markdown\n")
+	write("meetings/upper.MD", "---\ntitle: Upper\ntype: meeting\n---\nuppercase body\n")
+	write("attachments/install.sh", "#!/bin/sh\necho hi\n")
+	write(".hidden.md", "---\ntitle: Hidden\n---\nsecret body\n")
+	write(".git/x.md", "---\ntitle: Git\n---\ngit body\n")
 
 	ix, err := Open(filepath.Join(t.TempDir(), "test.db"))
 	if err != nil {
@@ -38,6 +42,46 @@ func TestSyncIndexesTree(t *testing.T) {
 	}
 	if len(got) != 1 || got[0].Path != "meetings/ok.md" {
 		t.Fatalf("expected exactly the valid note indexed, got %+v", got)
+	}
+
+	// Uppercase .MD is a markdown note.
+	got, err = ix.Search("uppercase", 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 || got[0].Path != "meetings/upper.MD" {
+		t.Fatalf("expected the uppercase note indexed, got %+v", got)
+	}
+
+	// Attachments are indexed by filename so search can find them; their
+	// content is not searchable.
+	got, err = ix.Search("install", 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 || got[0].Path != "attachments/install.sh" {
+		t.Fatalf("expected the attachment indexed by filename, got %+v", got)
+	}
+	got, err = ix.Search("ignored", 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 || got[0].Path != "meetings/ignored.txt" {
+		t.Fatalf("expected the txt attachment indexed by filename, got %+v", got)
+	}
+	if got, err = ix.Search("markdown", 10); err != nil || len(got) != 0 {
+		t.Fatalf("attachment body must not be searchable: %v %+v", err, got)
+	}
+
+	// Dotfiles and hidden paths are never indexed, .md or not.
+	for _, q := range []string{"secret", "git"} {
+		got, err = ix.Search(q, 10)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(got) != 0 {
+			t.Fatalf("query %q should match nothing, got %+v", q, got)
+		}
 	}
 }
 
@@ -132,8 +176,11 @@ func TestSyncSkipsUnchangedFiles(t *testing.T) {
 	}
 
 	// A genuinely new mtime re-indexes the file.
-	time.Sleep(1100 * time.Millisecond) // exceed mtime's second granularity
+	newMtime := before.ModTime().Add(time.Second)
 	if err := os.WriteFile(p, []byte("---\ntitle: Note\n---\ngamma\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chtimes(p, newMtime, newMtime); err != nil {
 		t.Fatal(err)
 	}
 	if err := ix.Sync(root, discardLog()); err != nil {
@@ -145,6 +192,51 @@ func TestSyncSkipsUnchangedFiles(t *testing.T) {
 	}
 	if got, err = ix.Search("alpha", 10); err != nil || len(got) != 0 {
 		t.Fatalf("stale body survived re-index: %v %+v", err, got)
+	}
+}
+
+// TestSyncPicksUpSameSecondEdit is the regression for sub-second edits: two
+// writes within the same wall-clock second carry different nanosecond
+// mtimes, and the sync must index the second write instead of skipping it as
+// "unchanged" (stored updated_at uses RFC3339Nano).
+func TestSyncPicksUpSameSecondEdit(t *testing.T) {
+	root := t.TempDir()
+	p := filepath.Join(root, "note.md")
+	if err := os.WriteFile(p, []byte("---\ntitle: Note\n---\nalpha\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	ix, err := Open(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = ix.Close() })
+
+	// Pin the first write to a whole second so the second edit lands in the
+	// same second with a different nanosecond fraction.
+	sec := time.Now().UTC().Truncate(time.Second)
+	if err := os.Chtimes(p, sec, sec); err != nil {
+		t.Fatal(err)
+	}
+	if err := ix.Sync(root, discardLog()); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := os.WriteFile(p, []byte("---\ntitle: Note\n---\nbeta\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chtimes(p, sec.Add(500*time.Millisecond), sec.Add(500*time.Millisecond)); err != nil {
+		t.Fatal(err)
+	}
+	if err := ix.Sync(root, discardLog()); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := ix.Search("beta", 10)
+	if err != nil || len(got) != 1 {
+		t.Fatalf("same-second edit not indexed: %v %+v", err, got)
+	}
+	if got, err = ix.Search("alpha", 10); err != nil || len(got) != 0 {
+		t.Fatalf("stale body survived same-second edit: %v %+v", err, got)
 	}
 }
 

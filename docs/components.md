@@ -38,7 +38,7 @@ Cancelling `ctx` kills the CLI's process group (unix) or direct child (windows) 
 
 ## internal/wiki — the file contract
 
-- `Scaffold(dir)` — creates the 8 folders + rulebook; never overwrites an existing `CLAUDE.md`
+- `Scaffold(dir)` — creates the 9 folders + rulebook; never overwrites an existing `CLAUDE.md`
 - `Rulebook()` — the single source of the rulebook text (embedded template)
 - `ParseNote(content)` — splits frontmatter, requires `title`, returns `NoteMeta` + body
 - `SafePath(root, rel)` — rejects absolute paths and `..` escapes; every filesystem access routes through it

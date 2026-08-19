@@ -60,6 +60,23 @@ func ScaffoldWithOptions(dir string, opts ScaffoldOptions) error {
 	return nil
 }
 
+// EnsureReservedDir creates the reserved attachments directory (plus its
+// .gitkeep so it survives the wiki's git repo) when missing. It runs on every
+// startup so the wiki always has a home for non-markdown assets, even under a
+// custom folder set or after the directory was deleted.
+func EnsureReservedDir(root string) error {
+	p := filepath.Join(root, AttachmentsDir)
+	if err := os.MkdirAll(p, 0o755); err != nil {
+		return fmt.Errorf("ensure %s: %w", AttachmentsDir, err)
+	}
+	if _, err := os.Stat(filepath.Join(p, ".gitkeep")); errors.Is(err, os.ErrNotExist) {
+		if err := os.WriteFile(filepath.Join(p, ".gitkeep"), nil, 0o644); err != nil {
+			return fmt.Errorf("ensure %s: %w", AttachmentsDir, err)
+		}
+	}
+	return nil
+}
+
 // gitInit writes the .gitignore (unless present) and initializes a repository
 // so the wiki is versioned from day one. Failures are ignored: versioning is
 // additive to the scaffold, and a machine without git still gets a valid wiki.

@@ -28,7 +28,7 @@ Go code issues no DDL of its own.
 ## The index (internal/index)
 - WAL + schema migration on Open; Upsert/Delete/DeletePrefix keep FTS5 in sync via triggers
 - Search(q, limit): bm25 ranking (title 8×), HTML-escaped snippets with safe <mark> highlights
-- Sync(root, log): reconciles the index with the tree in one transaction; malformed notes skipped
+- Sync(root, log): reconciles the index with the tree in one transaction; markdown notes parsed, attachments indexed by filename, malformed notes skipped, updated_at nanosecond RFC3339Nano
 - Watch(ctx, root, ix, log): fsnotify with 200 ms debounce, new-directory rescan
 
 ## Rules that matter here

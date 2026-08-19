@@ -73,14 +73,27 @@ func Watch(ctx context.Context, root string, ix *Index, log *slog.Logger, opts .
 	}
 	defer func() { _ = w.Close() }()
 
+	// dirs tracks every watched directory, so a removed path can still be
+	// recognized as a directory (removing one delivers no per-file events).
+	dirs := map[string]struct{}{}
 	err := filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
-		if d.IsDir() {
-			return w.Add(p)
+		if !d.IsDir() {
+			return nil
 		}
-		return nil
+		rel, rerr := filepath.Rel(root, p)
+		if rerr != nil {
+			return rerr
+		}
+		// Hidden directories (.git, …) are not part of the wiki: never watch
+		// or descend into them, so git activity doesn't churn the watcher.
+		if rel != "." && wiki.Hidden(filepath.ToSlash(rel)) {
+			return filepath.SkipDir
+		}
+		dirs[p] = struct{}{}
+		return w.Add(p)
 	})
 	if err != nil {
 		return fmt.Errorf("watch tree: %w", err)
@@ -100,7 +113,16 @@ func Watch(ctx context.Context, root string, ix *Index, log *slog.Logger, opts .
 			apply(ix, root, p, log)
 			if rel, err := filepath.Rel(root, p); err == nil {
 				rel = filepath.ToSlash(rel)
-				if wiki.Visible(rel) {
+				isDir := false
+				if fi, err := os.Stat(p); err == nil {
+					isDir = fi.IsDir()
+				} else if _, wasDir := dirs[p]; wasDir {
+					// Removed directories deliver no per-file events; the
+					// watcher tracked them so removals still publish.
+					isDir = true
+					delete(dirs, p)
+				}
+				if wiki.Visible(rel, isDir) {
 					changes = append(changes, wiki.Change{Op: opName(mask), Path: rel})
 				}
 			}
@@ -115,10 +137,15 @@ func Watch(ctx context.Context, root string, ix *Index, log *slog.Logger, opts .
 	// contents. The immediate rescan covers files written before the watch
 	// registration took effect, which would otherwise never fire an event.
 	watchNewDir := func(p string) {
+		rel, rerr := filepath.Rel(root, p)
+		if rerr != nil || (rel != "." && wiki.Hidden(filepath.ToSlash(rel))) {
+			return // hidden directories are never watched
+		}
 		if err := w.Add(p); err != nil {
 			log.Warn("index: cannot watch new directory", "path", p, "err", err)
 			return
 		}
+		dirs[p] = struct{}{}
 		if err := filepath.WalkDir(p, func(q string, d fs.DirEntry, err error) error {
 			if err != nil {
 				return err
@@ -126,12 +153,17 @@ func Watch(ctx context.Context, root string, ix *Index, log *slog.Logger, opts .
 			// Watch every directory in the new tree, not just the top one,
 			// or notes created later inside nested subdirs stay invisible.
 			if d.IsDir() {
+				rq, rerr := filepath.Rel(root, q)
+				if rerr != nil {
+					return rerr
+				}
+				if wiki.Hidden(filepath.ToSlash(rq)) {
+					return filepath.SkipDir
+				}
 				if err := w.Add(q); err != nil {
 					log.Warn("index: cannot watch nested directory", "path", q, "err", err)
 				}
-				return nil
-			}
-			if filepath.Ext(q) != ".md" {
+				dirs[q] = struct{}{}
 				return nil
 			}
 			apply(ix, root, q, log)
@@ -176,32 +208,35 @@ func Watch(ctx context.Context, root string, ix *Index, log *slog.Logger, opts .
 }
 
 func apply(ix *Index, root, p string, log *slog.Logger) {
-	if filepath.Ext(p) != ".md" {
+	rel, err := filepath.Rel(root, p)
+	if err != nil {
+		return
+	}
+	rel = filepath.ToSlash(rel)
+	info, err := os.Stat(p)
+	if err != nil {
 		// Removing a directory delivers no per-file events, so a path that
-		// no longer exists and is not a note is a removed subtree: clear it
+		// no longer exists is a removed file or a removed subtree: clear it
 		// from the index in one go.
-		if _, err := os.Stat(p); err != nil {
-			rel, rerr := filepath.Rel(root, p)
-			if rerr != nil {
-				return
-			}
-			if err := ix.DeletePrefix(filepath.ToSlash(rel)); err != nil {
-				log.Warn("index: delete prefix failed", "path", p, "err", err)
-			}
+		if derr := ix.DeletePrefix(rel); derr != nil {
+			log.Warn("index: delete failed", "path", p, "err", derr)
+		}
+		return
+	}
+	if info.IsDir() || !wiki.Indexable(rel) {
+		return // directories and hidden paths are not notes
+	}
+	if !wiki.IsMarkdownPath(rel) {
+		// Attachment (image, script, …): index the filename only so search
+		// can find it; the tree hides it (see wiki.Visible).
+		if err := ix.Upsert(Note{
+			Path: rel, Title: filepath.Base(rel), Kind: "file", UpdatedAt: info.ModTime(),
+		}); err != nil {
+			log.Warn("index: upsert failed", "path", p, "err", err)
 		}
 		return
 	}
 	b, err := os.ReadFile(p)
-	if os.IsNotExist(err) {
-		rel, rerr := filepath.Rel(root, p)
-		if rerr != nil {
-			return
-		}
-		if err := ix.Delete(filepath.ToSlash(rel)); err != nil {
-			log.Warn("index: delete failed", "path", p, "err", err)
-		}
-		return
-	}
 	if err != nil {
 		log.Warn("index: cannot read note", "path", p, "err", err)
 		return
@@ -211,16 +246,8 @@ func apply(ix *Index, root, p string, log *slog.Logger) {
 		log.Warn("index: skipping malformed note", "path", p, "err", err)
 		return
 	}
-	rel, err := filepath.Rel(root, p)
-	if err != nil {
-		return
-	}
-	info, err := os.Stat(p)
-	if err != nil {
-		return
-	}
 	if err := ix.Upsert(Note{
-		Path: filepath.ToSlash(rel), Title: meta.Title, Kind: meta.Kind,
+		Path: rel, Title: meta.Title, Kind: meta.Kind,
 		Tags: meta.Tags, Body: string(b), UpdatedAt: info.ModTime(),
 	}); err != nil {
 		log.Warn("index: upsert failed", "path", p, "err", err)

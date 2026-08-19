@@ -83,9 +83,9 @@ from lucide-react (aria-hidden).
 
 ## NoteViewer
 - path: web/src/components/NoteViewer.tsx
-- purpose: Inline note reader filling the content area — note content from the note slice (stale-path responses discarded), Skeleton/Alert states, Copy raw; Esc or ✕ routes through onClose (the open note is the URL, not an overlay)
+- purpose: Inline note reader filling the content area — note content from the note slice (stale-path responses discarded), Skeleton/Alert states, Copy raw; only `.md`/`.markdown` paths are previewed (case-insensitive), other file types get a "can't be previewed" state; Esc or ✕ routes through onClose (the open note is the URL, not an overlay)
 - props/api: `NoteViewer({ path: string, onClose })`
-- canonical: NoteViewer.tsx:11
+- canonical: NoteViewer.tsx:14
 
 ## Search
 ## SearchPanel

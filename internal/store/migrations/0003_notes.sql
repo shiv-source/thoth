@@ -1,13 +1,16 @@
 -- notes — the search index's source rows. The wiki markdown files are the
 -- source of truth; this table is derived data rebuilt from the tree, so it
--- can always be regenerated (doctor --fix / index.Rebuild).
+-- can always be regenerated (doctor --fix → index.Sync).
 --
 -- path       wiki-relative file path (primary key — one row per note file)
 -- title      from the frontmatter (required by the wiki rulebook)
--- kind       note | meeting | todo | … (frontmatter "type", default 'note')
+-- kind       note | meeting | todo | … (frontmatter "type", default 'note');
+--             "file" marks non-markdown attachments indexed by filename only
 -- tags       comma-joined frontmatter tags
 -- body       the note text below the frontmatter
--- updated_at UTC RFC3339, from the file's modification time
+-- updated_at UTC RFC3339Nano (sub-second precision), from the file's
+-- modification time — nanosecond granularity keeps same-second edits visible
+-- to the index sync's mtime check
 
 CREATE TABLE IF NOT EXISTS notes (
     path TEXT PRIMARY KEY,

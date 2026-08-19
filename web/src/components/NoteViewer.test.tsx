@@ -63,4 +63,12 @@ describe('NoteViewer', () => {
         expect(await screen.findByText("This file type can't be previewed.")).toBeInTheDocument()
         expect(mocks.get).not.toHaveBeenCalled()
     })
+
+    it('previews uppercase and long markdown extensions as notes', async () => {
+        stubAPI(mocks, {
+            'GET /api/notes?path=knowledge%2Fnote.MD': () => ({ path: 'knowledge/note.MD', content: '# Upper' })
+        })
+        renderWithStore(<NoteViewer path="knowledge/note.MD" onClose={vi.fn()} />)
+        expect(await screen.findByText('Upper')).toBeInTheDocument()
+    })
 })

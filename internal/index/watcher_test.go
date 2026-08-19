@@ -90,6 +90,43 @@ func TestWatchPicksUpChanges(t *testing.T) {
 	t.Fatal("watcher did not index the new note within 5s")
 }
 
+// TestWatchIndexesAttachment covers the watcher path for non-markdown files:
+// they are indexed by filename, so search finds them without a markdown note.
+func TestWatchIndexesAttachment(t *testing.T) {
+	root := t.TempDir()
+	ix, err := Open(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = ix.Close() })
+	log := slog.New(slog.NewTextHandler(io.Discard, nil))
+
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() { done <- Watch(ctx, root, ix, log) }()
+	t.Cleanup(func() { cancel(); <-done })
+
+	time.Sleep(100 * time.Millisecond) // let the watcher register the root
+
+	p := filepath.Join(root, "attachments", "deploy.sh")
+	if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(p, []byte("#!/bin/sh\necho deploy\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		got, err := ix.Search("deploy", 10)
+		if err == nil && len(got) == 1 && got[0].Path == "attachments/deploy.sh" {
+			return // success
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	t.Fatal("watcher did not index the attachment by filename within 5s")
+}
+
 func TestWatchPicksUpNewDirectory(t *testing.T) {
 	root := t.TempDir()
 	ix, err := Open(filepath.Join(t.TempDir(), "test.db"))
@@ -252,6 +289,11 @@ func TestWatchPublishesNoDotfileNoise(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(root, "CLAUDE.md"), []byte("rulebook"), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	// Non-markdown attachments are hidden from the tree, so their changes
+	// must not publish a tree-refresh batch either.
+	if err := os.WriteFile(filepath.Join(root, "logo.png"), []byte("noise"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 
 	// 700ms > startup settle + 200ms debounce: noise must not publish
 	time.Sleep(700 * time.Millisecond)
@@ -260,6 +302,54 @@ func TestWatchPublishesNoDotfileNoise(t *testing.T) {
 	if len(*batches) != before {
 		t.Fatalf("noise paths published events: %+v", (*batches)[before:])
 	}
+}
+
+// TestWatchAttachmentChangesPublishNothing covers the tree/index agreement
+// for non-markdown attachments: their writes and removals must not publish a
+// tree-refresh batch, because the tree never displays them.
+func TestWatchAttachmentChangesPublishNothing(t *testing.T) {
+	root := t.TempDir()
+	mu, batches := newPublishingWatcher(t, root)
+	waitForStartup(t, mu, batches)
+	mu.Lock()
+	before := len(*batches)
+	mu.Unlock()
+
+	p := filepath.Join(root, "logo.png")
+	if err := os.WriteFile(p, []byte("image"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(400 * time.Millisecond) // let the write flush (and index)
+	if err := os.Remove(p); err != nil {
+		t.Fatal(err)
+	}
+
+	time.Sleep(700 * time.Millisecond)
+	mu.Lock()
+	defer mu.Unlock()
+	if len(*batches) != before {
+		t.Fatalf("attachment changes published events: %+v", (*batches)[before:])
+	}
+}
+
+// TestWatchPublishesDirectoryRemoval covers the dir-tracking in flush: a
+// removed directory is still recognized as a directory (it delivers no
+// per-file events) so its removal publishes a tree change.
+func TestWatchPublishesDirectoryRemoval(t *testing.T) {
+	root := t.TempDir()
+	mu, batches := newPublishingWatcher(t, root)
+	waitForStartup(t, mu, batches)
+
+	d := filepath.Join(root, "projects")
+	if err := os.MkdirAll(d, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	waitForChange(t, mu, batches, wiki.Change{Op: wiki.OpCreate, Path: "projects"})
+
+	if err := os.RemoveAll(d); err != nil {
+		t.Fatal(err)
+	}
+	waitForChange(t, mu, batches, wiki.Change{Op: wiki.OpRemove, Path: "projects"})
 }
 
 func TestWatchPublishesOnStart(t *testing.T) {

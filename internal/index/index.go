@@ -76,7 +76,7 @@ func upsert(db dbLike, n Note) error {
 			tags = excluded.tags,
 			body = excluded.body,
 			updated_at = excluded.updated_at`,
-		n.Path, n.Title, n.Kind, strings.Join(n.Tags, ","), n.Body, n.UpdatedAt.Format(time.RFC3339))
+		n.Path, n.Title, n.Kind, strings.Join(n.Tags, ","), n.Body, n.UpdatedAt.Format(time.RFC3339Nano))
 	return err
 }
 

@@ -15,7 +15,7 @@ func TestScaffoldCreatesSkeletonAndRulebook(t *testing.T) {
 	}
 
 	for _, folder := range []string{
-		"inbox", "meetings", "projects", "links", "setup", "knowledge", "todos", "daily",
+		"inbox", "meetings", "projects", "links", "setup", "knowledge", "todos", "daily", AttachmentsDir,
 	} {
 		fi, err := os.Stat(filepath.Join(dir, folder))
 		if err != nil || !fi.IsDir() {
@@ -155,5 +155,40 @@ func TestRulebookCustomFolderMap(t *testing.T) {
 	}
 	if strings.Contains(got, "- inbox/ —") {
 		t.Fatalf("custom rulebook must not contain the default folder map:\n%s", got)
+	}
+}
+
+func TestEnsureReservedDirCreatesWhenMissing(t *testing.T) {
+	dir := t.TempDir()
+	if err := EnsureReservedDir(dir); err != nil {
+		t.Fatalf("EnsureReservedDir: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, AttachmentsDir)); err != nil {
+		t.Fatalf("attachments dir not created: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, AttachmentsDir, ".gitkeep")); err != nil {
+		t.Fatalf("attachments dir missing .gitkeep: %v", err)
+	}
+	// Idempotent: a second call keeps everything in place.
+	if err := EnsureReservedDir(dir); err != nil {
+		t.Fatalf("second EnsureReservedDir: %v", err)
+	}
+}
+
+func TestEnsureReservedDirKeepsExistingContents(t *testing.T) {
+	dir := t.TempDir()
+	p := filepath.Join(dir, AttachmentsDir)
+	if err := os.MkdirAll(p, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	asset := filepath.Join(p, "install.sh")
+	if err := os.WriteFile(asset, []byte("#!/bin/sh\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := EnsureReservedDir(dir); err != nil {
+		t.Fatalf("EnsureReservedDir: %v", err)
+	}
+	if _, err := os.Stat(asset); err != nil {
+		t.Fatalf("existing attachment was removed: %v", err)
 	}
 }

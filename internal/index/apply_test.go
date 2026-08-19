@@ -30,13 +30,34 @@ func TestApply(t *testing.T) {
 	}
 	write("daily/ok.md", "---\ntitle: Good\ntype: daily\n---\nindexed by apply\n")
 	write("daily/bad.md", "no frontmatter\n")
+	write("daily/script.sh", "#!/bin/sh\necho hi\n")
+	write("daily/upper.MD", "---\ntitle: Upper\ntype: daily\n---\nuppercase by apply\n")
+	write(".hidden.md", "---\ntitle: Hidden\n---\nnever indexed\n")
 
-	// non-.md files are ignored
-	apply(ix, root, filepath.Join(root, "daily", "note.txt"), log)
+	// attachments are indexed by filename only
+	apply(ix, root, filepath.Join(root, "daily", "script.sh"), log)
+	got, err := ix.Search("script", 10)
+	if err != nil || len(got) != 1 || got[0].Path != "daily/script.sh" {
+		t.Fatalf("attachment not indexed by filename: %v %+v", err, got)
+	}
+
+	// uppercase .MD is a markdown note
+	apply(ix, root, filepath.Join(root, "daily", "upper.MD"), log)
+	got, err = ix.Search("uppercase by apply", 10)
+	if err != nil || len(got) != 1 || got[0].Path != "daily/upper.MD" {
+		t.Fatalf("uppercase note not indexed: %v %+v", err, got)
+	}
+
+	// hidden paths are never indexed
+	apply(ix, root, filepath.Join(root, ".hidden.md"), log)
+	got, err = ix.Search("never indexed", 10)
+	if err != nil || len(got) != 0 {
+		t.Fatalf("hidden note was indexed: %v %+v", err, got)
+	}
 
 	// a valid note gets upserted
 	apply(ix, root, filepath.Join(root, "daily", "ok.md"), log)
-	got, err := ix.Search("indexed by apply", 10)
+	got, err = ix.Search("indexed by apply", 10)
 	if err != nil || len(got) != 1 || got[0].Path != "daily/ok.md" {
 		t.Fatalf("apply did not index the note: %v %+v", err, got)
 	}

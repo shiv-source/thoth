@@ -17,6 +17,17 @@ func TestWikiReadAndTree(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "projects", "thoth", "project.md"), []byte("---\ntitle: Thoth\n---\nBody"), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	// Attachments are indexed by filename but hidden from the tree; an
+	// uppercase-extension note is a note.
+	if err := os.MkdirAll(filepath.Join(dir, "attachments"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "attachments", "logo.png"), []byte("binary"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "projects", "thoth", "README.MD"), []byte("---\ntitle: Readme\n---\nBody"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 
 	w := New(dir)
 	if !w.Exists() {
@@ -43,11 +54,20 @@ func TestWikiReadAndTree(t *testing.T) {
 	if projects == nil || !projects.IsDir || len(projects.Children) != 1 {
 		t.Fatalf("expected projects dir with one child, got %+v", projects)
 	}
+	if len(projects.Children[0].Children) != 2 {
+		t.Fatalf("expected thoth dir with project.md and README.MD, got %+v", projects.Children[0].Children)
+	}
 	// The root rulebook is not a note — hidden from the tree. A nested
 	// CLAUDE.md still shows (only the root-level one is excluded).
 	for i := range tree {
 		if tree[i].Name == "CLAUDE.md" {
 			t.Fatalf("root CLAUDE.md must be hidden from the tree: %+v", tree[i])
+		}
+	}
+	// The reserved attachments directory is hidden from the tree too.
+	for i := range tree {
+		if tree[i].Name == "attachments" {
+			t.Fatalf("reserved attachments dir must be hidden from the tree: %+v", tree[i])
 		}
 	}
 }
@@ -108,25 +128,58 @@ func TestWikiReadMissingNote(t *testing.T) {
 	}
 }
 
-func TestVisible(t *testing.T) {
+func TestIndexable(t *testing.T) {
 	tests := []struct {
 		name string
 		rel  string
 		want bool
 	}{
 		{"note", "notes/a.md", true},
-		{"nested note", "projects/thoth/project.md", true},
-		{"non-markdown file", "images/logo.png", true},
+		{"attachment anywhere", "attachments/install.sh", true},
+		{"image outside attachments", "images/logo.png", true},
+		{"uppercase note", "NOTES/UPPER.MD", true},
 		{"root rulebook", "CLAUDE.md", false},
 		{"dotfile", ".gitkeep", false},
-		{"hidden directory", ".git/config", false},
-		{"hidden note inside visible dir", "notes/.draft.md", false},
-		{"directory", "notes", true},
+		{"hidden directory file", ".git/config", false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := Visible(tt.rel); got != tt.want {
-				t.Fatalf("Visible(%q) = %v, want %v", tt.rel, got, tt.want)
+			if got := Indexable(tt.rel); got != tt.want {
+				t.Fatalf("Indexable(%q) = %v, want %v", tt.rel, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestVisible(t *testing.T) {
+	tests := []struct {
+		name  string
+		rel   string
+		isDir bool
+		want  bool
+	}{
+		{"note", "notes/a.md", false, true},
+		{"nested note", "projects/thoth/project.md", false, true},
+		{"uppercase note", "NOTES/UPPER.MD", false, true},
+		{"long markdown extension", "notes/note.markdown", false, true},
+		{"non-markdown file", "images/logo.png", false, false},
+		{"script attachment", "attachments/install.sh", false, false},
+		{"reserved attachments dir", "attachments", true, false},
+		{"attachment inside reserved dir", "attachments/x.yaml", false, false},
+		{"nested folder named attachments", "projects/x/attachments", true, true},
+		{"root rulebook", "CLAUDE.md", false, false},
+		{"dotfile", ".gitkeep", false, false},
+		{"hidden directory", ".git/config", false, false},
+		{"hidden note inside visible dir", "notes/.draft.md", false, false},
+		{"uppercase hidden note", "notes/.DRAFT.md", false, false},
+		{"directory", "notes", true, true},
+		{"hidden directory node", ".git", true, false},
+		{"directory named like a note", "notes.md", true, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := Visible(tt.rel, tt.isDir); got != tt.want {
+				t.Fatalf("Visible(%q, %v) = %v, want %v", tt.rel, tt.isDir, got, tt.want)
 			}
 		})
 	}

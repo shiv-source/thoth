@@ -397,6 +397,37 @@ func TestOnSettingsSavedFailureLeavesRootUntouched(t *testing.T) {
 	}
 }
 
+// TestEnsureWikiRecreatesReservedAttachments covers the reserved-dir
+// guarantee: a wiki that predates attachments/ (or whose attachments/ was
+// deleted) gets the directory back on every startup.
+func TestEnsureWikiRecreatesReservedAttachments(t *testing.T) {
+	_, stg := openTestRepos(t)
+	log := slog.New(slog.NewTextHandler(io.Discard, nil))
+
+	// Scaffolded with a custom folder set that predates attachments/.
+	root := t.TempDir()
+	if err := wiki.ScaffoldWithOptions(root, wiki.ScaffoldOptions{Folders: []string{"notes"}, GitInit: false}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(root, "attachments")); !os.IsNotExist(err) {
+		t.Fatal("precondition: attachments must not exist yet")
+	}
+
+	w, err := ensureWiki(root, stg, log)
+	if err != nil {
+		t.Fatalf("ensureWiki: %v", err)
+	}
+	if w.Root != root {
+		t.Fatalf("wiki root = %q, want %q", w.Root, root)
+	}
+	if _, err := os.Stat(filepath.Join(root, "attachments")); err != nil {
+		t.Fatalf("ensureWiki must create the reserved attachments dir: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(root, "attachments", ".gitkeep")); err != nil {
+		t.Fatalf("reserved attachments dir must carry a .gitkeep: %v", err)
+	}
+}
+
 func TestServeErrorWhenWikiScaffoldFails(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)

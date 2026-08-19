@@ -22,6 +22,11 @@ When asked to save something:
 4. Write it, then confirm with one line: where it was saved.
 5. NEVER store secrets, passwords, or tokens. Write placeholders like <db-password> instead.
 
+## Attachments
+- attachments/ is reserved and app-managed — never create, delete, or rename it, and don't move its contents.
+- Non-markdown files (images, scripts, configs) go in attachments/ — they are indexed by filename only.
+- When saving a script or config file, also write a companion note in the folder that uses it (e.g. setup/servers/x.md for attachments/x.yaml) describing what it does; the note's body is what search finds.
+
 ## Retrieving
 - Look in the folder the question implies first, then grep across the wiki.
 - Prefer exact file reads over guessing; quote file paths in answers.
