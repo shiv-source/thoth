@@ -264,7 +264,8 @@ func checkDatabase(path string) Check {
 }
 
 // checkIndex compares the number of notes in the index against a rescan of the
-// wiki's .md files with valid frontmatter.
+// wiki, mirroring index.Sync's definition: every non-hidden file, markdown
+// notes requiring valid frontmatter and attachments counted by filename.
 func checkIndex(dbPath, wikiRoot string) Check {
 	onDisk, err := countNotes(wikiRoot)
 	if err != nil {
@@ -288,15 +289,27 @@ func checkIndex(dbPath, wikiRoot string) Check {
 	return Check{Name: "index", OK: true, Message: fmt.Sprintf("in sync: %d notes indexed, %d on disk", indexed, onDisk)}
 }
 
-// countNotes counts .md files with valid frontmatter under root, mirroring
-// index.Sync's definition of an indexable note.
+// countNotes counts every file index.Sync would index: all non-hidden files,
+// where markdown notes must parse with valid frontmatter. Attachments are
+// indexed by filename regardless of content.
 func countNotes(root string) (int, error) {
 	n := 0
 	err := filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
-		if d.IsDir() || filepath.Ext(p) != ".md" {
+		if d.IsDir() {
+			return nil
+		}
+		rel, rerr := filepath.Rel(root, p)
+		if rerr != nil {
+			return rerr
+		}
+		if !wiki.Indexable(filepath.ToSlash(rel)) {
+			return nil
+		}
+		if !wiki.IsMarkdownPath(p) {
+			n++ // attachment: indexed by filename only
 			return nil
 		}
 		b, err := os.ReadFile(p)

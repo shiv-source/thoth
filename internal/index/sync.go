@@ -17,8 +17,11 @@ import (
 // exist on disk are deleted. Malformed notes are skipped and logged — the
 // index must never block on one bad file.
 //
-// An edit within the same second as the last index write is invisible to the
-// mtime check; the next edit to that file re-syncs it.
+// Every non-hidden file is indexed: markdown notes are parsed for their
+// frontmatter, while other files (attachments) are indexed by filename only
+// so search can find them. updated_at carries nanosecond precision
+// (RFC3339Nano), so an edit within the same second as the last index write
+// is still visible to the mtime check.
 func (ix *Index) Sync(root string, log *slog.Logger) error {
 	tx, err := ix.db.Begin()
 	if err != nil {
@@ -52,7 +55,7 @@ func (ix *Index) Sync(root string, log *slog.Logger) error {
 		if err != nil {
 			return err
 		}
-		if d.IsDir() || filepath.Ext(p) != ".md" {
+		if d.IsDir() {
 			return nil
 		}
 		rel, rerr := filepath.Rel(root, p)
@@ -60,14 +63,26 @@ func (ix *Index) Sync(root string, log *slog.Logger) error {
 			return fmt.Errorf("index: rel path %s: %w", p, rerr)
 		}
 		rel = filepath.ToSlash(rel)
+		if !wiki.Indexable(rel) {
+			return nil // dotfiles and the root rulebook are never indexed
+		}
 		info, ierr := d.Info()
 		if ierr != nil {
 			return ierr
 		}
 		stored, ok := existing[rel]
-		if ok && stored == info.ModTime().Format(time.RFC3339) {
+		if ok && stored == info.ModTime().Format(time.RFC3339Nano) {
 			delete(existing, rel)
 			return nil // unchanged since the last index write
+		}
+		if !wiki.IsMarkdownPath(rel) {
+			// Attachment (image, script, …): index the filename only so
+			// search can find it; the tree hides it (see wiki.Visible).
+			delete(existing, rel)
+			return upsert(tx, Note{
+				Path: rel, Title: filepath.Base(rel), Kind: "file",
+				UpdatedAt: info.ModTime(),
+			})
 		}
 		b, rerr := os.ReadFile(p)
 		if rerr != nil {

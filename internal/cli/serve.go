@@ -317,6 +317,11 @@ func ensureWiki(path string, stg *settings.Repo, log *slog.Logger) (*wiki.Wiki, 
 		}
 		log.Info("scaffolded wiki", "path", wikiPath)
 	}
+	// The attachments directory is reserved and app-managed: recreate it on
+	// every startup if it went missing.
+	if err := wiki.EnsureReservedDir(wikiPath); err != nil {
+		return nil, err
+	}
 	return w, nil
 }
 

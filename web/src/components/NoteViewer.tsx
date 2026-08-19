@@ -6,12 +6,13 @@ import { useAppDispatch, useAppSelector } from '../store/hooks'
 import { CopyButton } from './CopyButton'
 import { Markdown } from './Markdown'
 
-// isNotePath reports whether a wiki path is a previewable Markdown note.
-// The tree also shows other files (images, PDFs, …) for visibility; those
-// are not notes, so they get a "cannot preview" state instead of raw bytes
-// rendered as Markdown.
+// isNotePath reports whether a wiki path is a previewable Markdown note
+// (.md or .markdown, case-insensitive — matching wiki.IsMarkdownPath). The
+// tree only lists markdown, but attachments (images, scripts, …) are indexed
+// by filename and reachable by search or direct URL; those get a "cannot
+// preview" state instead of raw bytes rendered as Markdown.
 function isNotePath(path: string): boolean {
-    return path.endsWith('.md')
+    return /\.(?:md|markdown)$/i.test(path)
 }
 
 // NoteViewer is the note reader, rendered inline in the Notes view's

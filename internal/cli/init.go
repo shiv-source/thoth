@@ -34,6 +34,9 @@ func newInitCmd() *cobra.Command {
 			if err := wiki.ScaffoldWithOptions(expanded, wiki.ScaffoldOptions{Folders: initFolders(), GitInit: true}); err != nil {
 				return err
 			}
+			if err := wiki.EnsureReservedDir(expanded); err != nil {
+				return err
+			}
 			_, _ = fmt.Fprintf(os.Stdout, "wiki scaffolded at %s\n", expanded)
 			return nil
 		},

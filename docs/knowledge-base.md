@@ -14,8 +14,9 @@ The wiki is a directory of plain markdown (default `~/.thoth/wiki`, changeable i
 | `knowledge/` | One topic per file: software and tooling knowledge |
 | `todos/` | `TODO.md` — the single task list (Now / Next / Someday) |
 | `daily/` | `2026-08-14.md` quick-capture journal |
+| `attachments/` | Reserved, app-managed: non-markdown assets (images, scripts, configs) — indexed by filename, hidden from the tree |
 
-New top-level domains are added by convention: create the folder and extend the rulebook if it needs rules. The scaffold folder set is configurable — set `wiki_folders` in Settings (comma-separated) and every freshly scaffolded wiki uses your set instead of the default 8. `thoth init` picks the same configured set up when `thoth.db` exists.
+New top-level domains are added by convention: create the folder and extend the rulebook if it needs rules. The scaffold folder set is configurable — set `wiki_folders` in Settings (comma-separated) and every freshly scaffolded wiki uses your set instead of the default 9. `thoth init` picks the same configured set up when `thoth.db` exists.
 
 ## Conventions
 
@@ -41,3 +42,5 @@ Every scaffold also initializes a local git repository (when git is installed) w
 ## Notes in the index
 
 Notes are indexed only when their frontmatter parses and has a `title` (`internal/wiki/note.go`). Malformed files are skipped and logged, never fatal — see [Indexing & search](indexing.md).
+
+Non-markdown files (images, scripts, configs) are stored in the reserved `attachments/` directory and indexed by **filename only**, so search can find them even though the folder is hidden from the tree. Their content is not searchable — when a script or config is saved, write a companion note in the folder that uses it (e.g. `setup/servers/x.md` for `attachments/x.yaml`) so its purpose is discoverable by search. The rulebook encodes this protocol.
