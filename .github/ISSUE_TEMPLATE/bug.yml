@@ -84,7 +84,7 @@ body:
     id: areas
     attributes:
       label: Area(s)
-      description: Every package the bug touches — one area per touched package. Apply the matching GitHub label(s).
+      description: Every package the bug touches — one area per touched package. The matching labels are applied automatically when the issue is filed.
       multiple: true
       options:
         - api — internal/api (REST + WS)
@@ -107,9 +107,9 @@ body:
     id: labels
     attributes:
       label: Label check
-      description: Issues carry the three-tier labels (types / areas / priority) — one type, one priority, one area per touched package. Confirm they are applied before submitting.
+      description: Issues carry the three-tier labels (types / areas / priority) — one type, one priority, one area per touched package. The form answers are applied as labels automatically on filing; confirm the selections above are correct.
       options:
-        - label: Applied the type (bug is pre-applied), priority, and area label(s) per `.claude/skills/git-workflow/references/labels.md`.
+        - label: Type (bug), priority, and area label(s) are applied automatically from this form — extras can be added after filing.
           required: true
         - label: If this touches filesystem access or auth, reviewed against `docs/security.md`.
           required: false
