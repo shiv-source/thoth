@@ -17,13 +17,27 @@ export type TreeNode = z.infer<typeof TreeNodeSchema>
 export const Settings = z.object({
     wiki_path: z.string(),
     model: z.string(),
+    has_api_key: z.boolean(),
+    api_key: z.string().optional(),
     repo_url: z.string(),
     sync_enabled: z.boolean()
 })
 export type Settings = z.infer<typeof Settings>
 
-const ModelOption = z.object({ value: z.string(), label: z.string(), provider: z.string() })
-export type ModelOption = z.infer<typeof ModelOption>
+// LLMModel is one row of the llm_models table; ModelInput is the create/
+// update body (tag and provider are optional display fields). ModelGroup is
+// the GET shape: models grouped by provider, providers sorted A→Z.
+export const LLMModel = z.object({
+    id: z.number(),
+    value: z.string(),
+    name: z.string(),
+    tag: z.string(),
+    provider: z.string()
+})
+export type LLMModel = z.infer<typeof LLMModel>
+export const ModelGroup = z.object({ provider: z.string(), models: z.array(LLMModel) })
+export type ModelGroup = z.infer<typeof ModelGroup>
+export type ModelInput = { value: string; name: string; tag?: string; provider?: string }
 
 export const GitHubIdentity = z.object({
     username: z.string(),
@@ -98,7 +112,20 @@ export const api = {
     note: (path: string) => get(`/api/notes?path=${encodeURIComponent(path)}`, Note),
     tree: () => get('/api/wiki/tree', z.object({ nodes: z.array(TreeNodeSchema) })),
     settings: () => get('/api/settings', Settings),
-    models: () => get('/api/models', z.object({ models: z.array(ModelOption) })),
+    listDirs: (path: string) =>
+        get(`/api/fs/dirs?path=${encodeURIComponent(path)}`, z.object({ dirs: z.array(z.string()) })),
+    models: () => get('/api/models', z.object({ groups: z.array(ModelGroup) })),
+    createModel: async (input: ModelInput): Promise<LLMModel> => {
+        const res = await http.post('/api/models', input)
+        return parseBody(res, LLMModel)
+    },
+    updateModel: async (id: number, input: ModelInput): Promise<LLMModel> => {
+        const res = await http.put(`/api/models/${id}`, input)
+        return parseBody(res, LLMModel)
+    },
+    deleteModel: async (id: number): Promise<void> => {
+        await http.delete(`/api/models/${id}`)
+    },
     saveSettings: async (s: Settings): Promise<Settings> => {
         const res = await http.put('/api/settings', s)
         return parseBody(res, Settings)

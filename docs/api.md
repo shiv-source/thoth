@@ -10,10 +10,14 @@ The server exposes REST for everything except the live chat and server-push noti
 | `GET /api/search?q=&limit=` | q required; limit default 20, clamped 1–100 | `{results:[{path,title,kind,snippet}]}` — snippet is HTML-escaped with safe `<mark>` highlights |
 | `GET /api/notes?path=` | wiki-relative path | `{path, content}` |
 | `GET /api/wiki/tree` | — | `{nodes:[{name,path,is_dir,children}]}` |
+| `GET /api/fs/dirs?path=` | absolute directory path | `{dirs:[…]}` — the immediate subdirectories in lexical order, powering the Settings directory picker; 400 when the path is missing or not a readable directory |
 | `GET /api/doctor` | — | `{checks:[{name, ok, message}]}` — the shared `internal/doctor` suite (same checks as `thoth doctor`) |
-| `GET /api/settings` | — | `{wiki_path, model, repo_url, sync_enabled}` — every value lives in the `settings` key/value table in thoth.db (config.toml is deprecated) |
-| `PUT /api/settings` | `{wiki_path, model, repo_url, sync_enabled}` | saved values (KV upserts; the wiki-path-change callback runs first); 400 when `wiki_path` is empty |
-| `GET /api/models` | — | `{models:[{value,label}]}` — the model list for the Settings picker; the list lives in `internal/assets/models.json` (edit the file to customize) and the chosen `value` feeds the `model` setting |
+| `GET /api/settings` | — | `{wiki_path, model, has_api_key, repo_url, sync_enabled}` — every value lives in the `settings` key/value table in thoth.db (config.toml is deprecated); the api key itself is never returned, only whether one is stored |
+| `PUT /api/settings` | `{wiki_path, model, api_key?, repo_url, sync_enabled}` | saved values (KV upserts; the wiki-path-change callback runs first); 400 when `wiki_path` is empty; an empty or omitted `api_key` leaves the stored key unchanged |
+| `GET /api/models` | — | `{models:[{id, value, name, description, provider}]}` — the llm_models table (seeded from `internal/assets/models.json` on first boot, then user-editable); the chosen `value` feeds the `model` setting |
+| `POST /api/models` | `{value, name, description?, provider?}` | the created model with its `id`; 400 when `value`/`name` are empty, 409 when the value is taken |
+| `PUT /api/models/:id` | `{value, name, description?, provider?}` | the updated model; 400/404/409 as above. Renaming the selected model's value moves the `model` setting to it |
+| `DELETE /api/models/:id` | — | `{ok:true}`; 404 when the model is missing. Deleting the selected model clears the `model` setting (next turn uses the CLI default) |
 | `POST /api/github/auth` | `{token}` | identity `{username, display_name, email, avatar_url, scopes}` — the token itself is never returned; 400 "token is required" / "github rejected the token" |
 | `GET /api/github/auth` | — | identity (all fields empty when not connected) |
 | `DELETE /api/github/auth` | — | `{ok:true}` (idempotent) |

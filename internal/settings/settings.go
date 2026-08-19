@@ -14,6 +14,7 @@ import (
 const (
 	KeyWikiPath     = "wiki_path"
 	KeyModel        = "model"
+	KeyAPIKey       = "api_key"
 	KeyRepoURL      = "github_sync_repo"
 	KeySyncEnabled  = "github_sync_enabled"
 	KeyLastSyncedAt = "github_last_synced_at"

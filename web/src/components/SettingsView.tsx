@@ -8,35 +8,41 @@ import {
     Button,
     Card,
     Divider,
+    Empty,
     Flex,
     Form,
     Input,
+    Modal,
+    Popconfirm,
     Progress,
     Select,
     Switch,
+    Table,
     Tabs,
     Tag,
     Typography,
     theme
 } from 'antd'
+import type { TableProps } from 'antd'
 import {
+    ApiOutlined,
     BranchesOutlined,
     CheckCircleFilled,
     ClockCircleOutlined,
     CloseCircleFilled,
-    FolderOpenOutlined,
     GithubOutlined,
     GlobalOutlined,
     LockOutlined,
     MedicineBoxOutlined,
     ReloadOutlined,
-    RobotOutlined,
     SettingOutlined as SettingsIcon,
     SyncOutlined
 } from '@ant-design/icons'
-import type { DoctorCheck, GitHubIdentity, GitHubRepo, Settings } from '../api/client'
+import type { DoctorCheck, GitHubIdentity, GitHubRepo, LLMModel, ModelInput, Settings } from '../api/client'
 import {
     connectGit,
+    createModel,
+    deleteModel,
     disconnectGit,
     fetchGitAuth,
     fetchGitRepos,
@@ -53,17 +59,21 @@ import {
     selectGitError,
     selectGitPushing,
     selectGitRepos,
-    selectModels,
-    selectSettings
+    selectModelGroups,
+    selectModelList,
+    selectSettings,
+    updateModel
 } from '../store'
 import { useAppDispatch, useAppSelector } from '../store/hooks'
 import { AppHeader } from './AppHeader'
+import { WikiPathInput } from './WikiPathInput'
 import { navigateSegment, useViewRoute } from '../hooks/useView'
 
-type Tab = 'general' | 'doctor' | 'git'
+type Tab = 'general' | 'doctor' | 'git' | 'models'
 
 const tabs: { id: Tab; label: string; icon: typeof SettingsIcon }[] = [
     { id: 'general', label: 'General', icon: SettingsIcon },
+    { id: 'models', label: 'LLM Models', icon: ApiOutlined },
     { id: 'git', label: 'Git remote', icon: BranchesOutlined },
     { id: 'doctor', label: 'Doctor', icon: MedicineBoxOutlined }
 ]
@@ -157,6 +167,8 @@ export function SettingsView() {
                                     <GeneralTab status={status} />
                                 ) : t.id === 'doctor' ? (
                                     <DoctorTab />
+                                ) : t.id === 'models' ? (
+                                    <ModelsTab />
                                 ) : (
                                     <GitTab />
                                 )
@@ -190,48 +202,72 @@ function CardTitle({ icon: Icon, children }: { icon: typeof SettingsIcon; childr
     )
 }
 
-// GeneralTab is the wiki path + model picker in one card, with the save
-// button and the saved/error feedback under them.
+// GeneralTab is the wiki path + model picker + API key in one card, with the
+// save button and the saved/error feedback under them.
 function GeneralTab({ status }: { status: 'idle' | 'saved' | 'error' }) {
     const settings = useAppSelector(selectSettings)
-    const models = useAppSelector(selectModels)
+    const groups = useAppSelector(selectModelGroups)
 
-    // Group the flat model list by provider (stable first-seen order) so the
-    // select renders one group per provider; an empty list falls back to the
-    // single CLI-default option.
-    const modelGroups = useMemo(() => {
-        const list = models.length ? models : [{ value: '', label: 'CLI default', provider: 'Claude Code' }]
-        const order: string[] = []
-        const byProvider = new Map<string, typeof list>()
-        for (const m of list) {
-            if (!byProvider.has(m.provider)) {
-                byProvider.set(m.provider, [])
-                order.push(m.provider)
-            }
-            byProvider.get(m.provider)!.push(m)
-        }
-        return order.map((provider) => ({ label: provider, options: byProvider.get(provider)! }))
-    }, [models])
+    // The server sends models grouped by provider (A→Z); options keep name +
+    // tag + value so optionRender can show the tag as secondary text. An
+    // empty registry leaves the picker empty — there is no fallback option.
+    const modelGroups = useMemo(
+        () =>
+            groups.map((g) => ({
+                label: g.provider,
+                options: g.models.map((m) => ({ label: m.name, value: m.value, tag: m.tag }))
+            })),
+        [groups]
+    )
 
     return (
         <Card size="small" className="max-w-3xl" title={<CardTitle icon={SettingsIcon}>General</CardTitle>}>
             <div className="grid gap-4 md:grid-cols-2">
-                <div>
-                    <SectionHeading icon={FolderOpenOutlined}>Wiki</SectionHeading>
-                    <Form.Item
-                        label="Wiki path"
-                        name="wiki_path"
-                        extra="Where your notes live on disk. Defaults to ~/.thoth/wiki."
-                    >
-                        <Input placeholder="~/.thoth/wiki" />
-                    </Form.Item>
-                </div>
-                <div>
-                    <SectionHeading icon={RobotOutlined}>AI model</SectionHeading>
-                    <Form.Item label="Model" name="model" extra="Applied to all chats after the app restarts.">
-                        <Select virtual={false} options={modelGroups} />
-                    </Form.Item>
-                </div>
+                <Form.Item
+                    label="Wiki path"
+                    name="wiki_path"
+                    extra="Where your notes live on disk. Defaults to ~/.thoth/wiki."
+                >
+                    <WikiPathInput />
+                </Form.Item>
+                <Form.Item label="Model" name="model" extra="Applied to all chats after the app restarts.">
+                    <Select
+                        virtual={false}
+                        options={modelGroups}
+                        notFoundContent="No models — add some in the LLM Models tab"
+                        optionRender={(option) => (
+                            <Flex align="center" gap={8}>
+                                <span className="min-w-0 flex-1 truncate">{option.label}</span>
+                                {typeof option.data === 'object' &&
+                                    option.data !== null &&
+                                    (option.data as { tag?: string }).tag !== '' && (
+                                        <span className="shrink-0 text-xs text-subtle">
+                                            {(option.data as { tag?: string }).tag}
+                                        </span>
+                                    )}
+                            </Flex>
+                        )}
+                    />
+                </Form.Item>
+                <Form.Item
+                    label={
+                        <Flex align="center" gap={6}>
+                            API key
+                            {settings.data?.has_api_key ? <Tag color="success">Configured</Tag> : <Tag>Not set</Tag>}
+                        </Flex>
+                    }
+                    name="api_key"
+                    extra={
+                        settings.data?.has_api_key
+                            ? 'A key is saved — leave blank to keep it.'
+                            : 'Not set — the server inherits ANTHROPIC_API_KEY from its environment.'
+                    }
+                >
+                    <Input.Password
+                        placeholder={settings.data?.has_api_key ? '•••••••• (saved)' : 'sk-ant-…'}
+                        autoComplete="off"
+                    />
+                </Form.Item>
             </div>
             <Divider />
             <div className="flex items-center justify-between">
@@ -245,6 +281,187 @@ function GeneralTab({ status }: { status: 'idle' | 'saved' | 'error' }) {
                     Save
                 </Button>
             </div>
+        </Card>
+    )
+}
+
+// tagColor maps the seeded tags to stable antd preset colors so the same
+// tag reads the same everywhere in the table; unknown tags fall back to the
+// neutral default.
+function tagColor(tag: string): string {
+    const colors: Record<string, string> = {
+        strongest: 'gold',
+        flagship: 'blue',
+        balanced: 'green',
+        fastest: 'cyan',
+        fast: 'cyan',
+        advanced: 'purple',
+        efficient: 'lime',
+        reasoning: 'magenta',
+        coding: 'geekblue',
+        powerful: 'volcano',
+        open: 'default'
+    }
+    return colors[tag] ?? 'default'
+}
+
+// ModelsTab is the llm_models CRUD surface: a table of every model plus the
+// add/edit modal and per-row delete. Every mutation refetches the registry
+// (the server re-groups and re-sorts) and settings (a rename may have moved
+// the selected-model setting, a delete may have cleared it).
+function ModelsTab() {
+    const dispatch = useAppDispatch()
+    const models = useAppSelector(selectModelList)
+    const groups = useAppSelector(selectModelGroups)
+    const { message } = App.useApp()
+    const [open, setOpen] = useState(false)
+    const [editing, setEditing] = useState<LLMModel | null>(null)
+    const [form] = Form.useForm<ModelInput>()
+
+    // The tag dropdown offers every tag already in the registry (sorted);
+    // mode="tags" also lets the user type a new one.
+    const tagOptions = useMemo(
+        () =>
+            [...new Set(groups.flatMap((g) => g.models.map((m) => m.tag)).filter((t) => t !== ''))]
+                .sort()
+                .map((t) => ({ value: t })),
+        [groups]
+    )
+
+    const openAdd = () => {
+        setEditing(null)
+        form.resetFields()
+        setOpen(true)
+    }
+
+    const openEdit = (m: LLMModel) => {
+        setEditing(m)
+        form.setFieldsValue(m)
+        setOpen(true)
+    }
+
+    const submit = async () => {
+        const values = await form.validateFields()
+        try {
+            if (editing) {
+                await dispatch(updateModel({ id: editing.id, input: values })).unwrap()
+            } else {
+                await dispatch(createModel(values)).unwrap()
+            }
+            void dispatch(fetchModels())
+            void dispatch(fetchSettings())
+            setOpen(false)
+            void message.success(editing ? 'Model updated' : 'Model added')
+        } catch {
+            void message.error('Could not save model')
+        }
+    }
+
+    const remove = async (m: LLMModel) => {
+        try {
+            await dispatch(deleteModel(m.id)).unwrap()
+            void dispatch(fetchModels())
+            void dispatch(fetchSettings())
+            void message.success('Model deleted')
+        } catch {
+            void message.error('Could not delete model')
+        }
+    }
+
+    const columns: TableProps<LLMModel>['columns'] = [
+        { title: 'Name', dataIndex: 'name' },
+        {
+            title: 'Tag',
+            dataIndex: 'tag',
+            render: (value: string) =>
+                value !== '' ? (
+                    <Tag color={tagColor(value)}>{value}</Tag>
+                ) : (
+                    <Typography.Text type="secondary">—</Typography.Text>
+                )
+        },
+        { title: 'Provider', dataIndex: 'provider' },
+        {
+            title: 'Value',
+            dataIndex: 'value',
+            render: (value: string) => <code className="font-mono text-xs">{value}</code>
+        },
+        {
+            title: '',
+            key: 'actions',
+            width: 150,
+            render: (_, m) => (
+                <Flex gap={4} justify="flex-end">
+                    <Button size="small" onClick={() => openEdit(m)}>
+                        Edit
+                    </Button>
+                    <Popconfirm title="Delete this model?" trigger="click" onConfirm={() => void remove(m)}>
+                        <Button size="small" danger>
+                            Delete
+                        </Button>
+                    </Popconfirm>
+                </Flex>
+            )
+        }
+    ]
+
+    return (
+        <Card
+            size="small"
+            className="max-w-4xl"
+            title={<CardTitle icon={ApiOutlined}>LLM Models</CardTitle>}
+            extra={
+                <Button type="primary" icon={<ApiOutlined aria-hidden="true" />} onClick={openAdd}>
+                    Add model
+                </Button>
+            }
+        >
+            <Flex align="center" justify="space-between" className="mb-4">
+                <p className="text-sm text-subtle">
+                    <Typography.Text strong>{models.length}</Typography.Text> model{models.length === 1 ? '' : 's'}{' '}
+                    across <Typography.Text strong>{groups.length}</Typography.Text> provider
+                    {groups.length === 1 ? '' : 's'} · the selected model feeds the{' '}
+                    <code className="font-mono text-xs">--model</code> CLI flag.
+                </p>
+            </Flex>
+            <Table<LLMModel>
+                rowKey="id"
+                size="small"
+                columns={columns}
+                dataSource={models}
+                pagination={false}
+                locale={{
+                    emptyText: (
+                        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No models yet">
+                            <Button type="primary" onClick={openAdd}>
+                                Add your first model
+                            </Button>
+                        </Empty>
+                    )
+                }}
+            />
+            <Modal
+                title={editing ? 'Edit model' : 'Add model'}
+                open={open}
+                onCancel={() => setOpen(false)}
+                onOk={() => void submit()}
+                destroyOnHidden
+            >
+                <Form form={form} layout="vertical" className="mt-4">
+                    <Form.Item label="Value" name="value" rules={[{ required: true, message: 'Value is required' }]}>
+                        <Input placeholder="claude-sonnet-5" />
+                    </Form.Item>
+                    <Form.Item label="Name" name="name" rules={[{ required: true, message: 'Name is required' }]}>
+                        <Input placeholder="Claude Sonnet 5" />
+                    </Form.Item>
+                    <Form.Item label="Tag" name="tag" extra="Pick a preset or type your own.">
+                        <Select virtual={false} mode="tags" options={tagOptions} placeholder="balanced" />
+                    </Form.Item>
+                    <Form.Item label="Provider" name="provider">
+                        <Input placeholder="Anthropic" />
+                    </Form.Item>
+                </Form>
+            </Modal>
         </Card>
     )
 }

@@ -1,8 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { Settings } from '../../api/client'
+import type { LLMModel, Settings } from '../../api/client'
 import { axiosError, axiosModuleMock, stubAPI } from '../../test/mockAxios'
 import { makeStore } from '../index'
-import { fetchSettings, saveSettings, selectSettings } from './settingsSlice'
+import {
+    createModel,
+    deleteModel,
+    fetchModels,
+    fetchSettings,
+    saveSettings,
+    selectModelGroups,
+    selectModelList,
+    selectSettings,
+    updateModel
+} from './settingsSlice'
 
 const mocks = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() }))
 vi.mock('axios', () => axiosModuleMock(mocks))
@@ -10,9 +20,12 @@ vi.mock('axios', () => axiosModuleMock(mocks))
 const saved: Settings = {
     wiki_path: '~/.thoth/wiki',
     model: 'claude-sonnet-5',
+    has_api_key: false,
     repo_url: 'git@github.com:me/wiki.git',
     sync_enabled: true
 }
+
+const llmModel: LLMModel = { id: 3, value: 'my-model', name: 'My Model', tag: 'test', provider: 'Vendor' }
 
 describe('settingsSlice', () => {
     beforeEach(() => {
@@ -21,7 +34,7 @@ describe('settingsSlice', () => {
 
     it('starts empty and loading', () => {
         const store = makeStore()
-        expect(store.getState().settings).toEqual({ data: null, loading: true, saving: false, error: null, models: [] })
+        expect(store.getState().settings).toEqual({ data: null, loading: true, saving: false, error: null, groups: [] })
     })
 
     it('loads settings', async () => {
@@ -72,5 +85,40 @@ describe('settingsSlice', () => {
         const pending = store.dispatch(saveSettings(saved))
         expect(selectSettings(store.getState()).error).toBeNull()
         await pending
+    })
+
+    it('loads models through the grouped llm_models shape', async () => {
+        stubAPI(mocks, { 'GET /api/models': () => ({ groups: [{ provider: 'Vendor', models: [llmModel] }] }) })
+        const store = makeStore()
+        await store.dispatch(fetchModels())
+        expect(selectModelGroups(store.getState())).toEqual([{ provider: 'Vendor', models: [llmModel] }])
+        expect(selectModelList(store.getState())).toEqual([llmModel])
+    })
+
+    it('createModel calls the API and leaves the list for the refetch', async () => {
+        stubAPI(mocks, { 'GET /api/models': () => ({ groups: [] }) })
+        const store = makeStore()
+        await store.dispatch(fetchModels())
+        mocks.post.mockResolvedValueOnce({ data: llmModel })
+        const created = await store.dispatch(createModel({ value: 'my-model', name: 'My Model' })).unwrap()
+        expect(created).toEqual(llmModel)
+        expect(mocks.post).toHaveBeenCalledWith('/api/models', { value: 'my-model', name: 'My Model' })
+        expect(selectModelGroups(store.getState())).toEqual([])
+    })
+
+    it('updateModel calls the API', async () => {
+        const renamed = { ...llmModel, name: 'Renamed' }
+        mocks.put.mockResolvedValueOnce({ data: renamed })
+        const store = makeStore()
+        await store.dispatch(updateModel({ id: 3, input: { value: 'my-model', name: 'Renamed' } }))
+        expect(mocks.put).toHaveBeenCalledWith('/api/models/3', { value: 'my-model', name: 'Renamed' })
+    })
+
+    it('deleteModel calls the API and returns the id', async () => {
+        mocks.delete.mockResolvedValueOnce({ data: { ok: true } })
+        const store = makeStore()
+        const id = await store.dispatch(deleteModel(3)).unwrap()
+        expect(id).toBe(3)
+        expect(mocks.delete).toHaveBeenCalledWith('/api/models/3')
     })
 })

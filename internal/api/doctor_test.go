@@ -63,6 +63,13 @@ func healthyThothDir(t *testing.T) string {
 	if err := stg.SetSetting(settings.KeyWikiPath, wikiRoot); err != nil {
 		t.Fatal(err)
 	}
+	// The api key + model setup checks pass in a healthy env.
+	if err := stg.SetSetting(settings.KeyAPIKey, "sk-healthy"); err != nil {
+		t.Fatal(err)
+	}
+	if err := stg.SetSetting(settings.KeyModel, "claude-sonnet-5"); err != nil {
+		t.Fatal(err)
+	}
 	if err := stg.Close(); err != nil {
 		t.Fatal(err)
 	}
@@ -107,7 +114,7 @@ func TestDoctorEndpointHealthy(t *testing.T) {
 	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
 		t.Fatal(err)
 	}
-	want := []string{"wiki", "claude", "claude login", "database", "index", "api", "websocket"}
+	want := []string{"wiki", "claude", "claude login", "api key", "model", "database", "index", "api", "websocket"}
 	if len(body.Checks) != len(want) {
 		t.Fatalf("got %d checks, want %d: %+v", len(body.Checks), len(want), body.Checks)
 	}

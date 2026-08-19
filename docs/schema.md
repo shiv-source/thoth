@@ -75,15 +75,28 @@ The app's user-facing settings, key/value. `config.toml` is deprecated — this 
 |---|---|---|
 | `wiki_path` | `~/.thoth/wiki` | Where the wiki lives (seed mirrors `settings.DefaultWikiPath`) |
 | `model` | — (absent) | The `--model` value enforced on every Claude CLI spawn; absent/empty keeps the CLI's default. Read at boot, applied on next start |
+| `api_key` | `''` | The API key passed to spawned Claude CLI processes as `ANTHROPIC_API_KEY`; set from the web Settings (General tab). Empty (`''`) = not configured, inherit the server's environment. Never returned by the API — GET reports `has_api_key` only |
 | `github_sync_repo` | `''` | The wiki's sync repo URL |
 | `github_sync_enabled` | `'false'` | The auto-sync switch (`'true'`/`'false'`) |
 | `github_last_synced_at` | `''` | UTC RFC3339 of the last successful git sync |
 | `github_sync_error` | `''` | Sanitized error of the last failed sync |
 
+### `llm_models` (migrations `0008_llm_models.sql` + `0009_llm_models_tag.sql`)
+
+The user-editable model registry. Every startup seeds it from `internal/assets/models.json` (the single source for the built-in list) when the table is empty; afterwards the table is authoritative — rows are added/edited/deleted from the Settings → LLM Models tab.
+
+| Column | Meaning |
+|---|---|
+| `id` | `INTEGER PRIMARY KEY AUTOINCREMENT` |
+| `value` | The `--model` argument; `UNIQUE` — the `model` setting points at it |
+| `name` | Display name (e.g. `Claude Opus 4.8`) |
+| `tag` | Preset-friendly label rendered as a colored chip (e.g. `strongest`) |
+| `provider` | Grouping label for the picker (e.g. `Anthropic`) |
+
 ## Reading and writing
 
 - `internal/settings` owns the `settings` table (KV access, `SyncEnabled`/`SyncState`/`SetSyncResult` conveniences). Its `OpenRepo` deliberately runs no migrations and no WAL pragma — the doctor must never mutate a database it only reads.
-- `internal/github` owns `github_auth`; `internal/store` owns conversations/messages/app_metadata; `internal/index` owns notes/notes_fts.
+- `internal/github` owns `github_auth`; `internal/store` owns conversations/messages/app_metadata and `llm_models`; `internal/index` owns notes/notes_fts.
 
 ## Upgrade note
 

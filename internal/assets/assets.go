@@ -1,6 +1,6 @@
 // Package assets holds static data files served by the API. models.json is
-// the single source for the Settings model picker — edit it (no code change)
-// to adjust the offered models.
+// the single source for the llm_models seed (first boot) — edit it (no code
+// change) to adjust the offered models.
 package assets
 
 import (
@@ -12,11 +12,14 @@ import (
 //go:embed models.json
 var modelsJSON []byte
 
-// Option is one selectable model for the CLI's --model flag.
+// Option is one selectable model for the CLI's --model flag. Name and Tag
+// are separate fields: the UI renders the tag as secondary text, and the
+// seeded llm_models table keeps them in separate columns.
 type Option struct {
-	// Value is the --model argument ("" = the CLI's own default).
+	// Value is the --model argument.
 	Value    string `json:"value"`
-	Label    string `json:"label"`
+	Name     string `json:"name"`
+	Tag      string `json:"tag"`
 	Provider string `json:"provider"`
 }
 

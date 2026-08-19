@@ -61,6 +61,7 @@ function lastBody(method: 'get' | 'post' | 'put' | 'delete', url: string): unkno
 const settings = {
     wiki_path: '~/.thoth/wiki',
     model: '',
+    has_api_key: false,
     repo_url: '',
     sync_enabled: false
 }
@@ -133,9 +134,19 @@ describe('SettingsView', () => {
             'GET /api/settings': getSettings,
             'GET /api/github/auth': getEmptyGitHub,
             'GET /api/models': () => ({
-                models: [
-                    { value: '', label: 'CLI default', provider: 'Claude Code' },
-                    { value: 'deepseek-v4-flash', label: 'V4 Flash — fastest', provider: 'DeepSeek' }
+                groups: [
+                    {
+                        provider: 'DeepSeek',
+                        models: [
+                            {
+                                id: 1,
+                                value: 'deepseek-v4-flash',
+                                name: 'V4 Flash',
+                                tag: 'fastest',
+                                provider: 'DeepSeek'
+                            }
+                        ]
+                    }
                 ]
             }),
             'PUT /api/settings': () => ({ ...settings })
@@ -143,10 +154,42 @@ describe('SettingsView', () => {
 
         renderSettings()
         await userEvent.click(await screen.findByRole('combobox'))
-        await userEvent.click(await screen.findByRole('option', { name: 'V4 Flash — fastest' }))
+        // The option renders name + tag as secondary text.
+        await userEvent.click(await screen.findByRole('option', { name: /V4 Flash/ }))
         await userEvent.click(screen.getByRole('button', { name: /Save/ }))
         await waitFor(() => expect(screen.getByText(/Saved ✓/)).toBeInTheDocument())
         expect(lastBody('put', '/api/settings')).toMatchObject({ model: 'deepseek-v4-flash' })
+    })
+
+    it('shows the API key state and saves a typed key', async () => {
+        stubAPI({
+            'GET /api/settings': () => ({ ...settings, has_api_key: true }),
+            'GET /api/github/auth': getEmptyGitHub,
+            'GET /api/models': () => ({ groups: [] }),
+            'PUT /api/settings': () => ({ ...settings })
+        })
+
+        renderSettings()
+        // A key is already stored: the status tag says Configured and the
+        // hint says leave blank to keep it.
+        expect(await screen.findByText('Configured')).toBeInTheDocument()
+        expect(await screen.findByText(/leave blank to keep/i)).toBeInTheDocument()
+        await userEvent.type(await screen.findByLabelText(/API key/), 'sk-new-key')
+        await userEvent.click(screen.getByRole('button', { name: /Save/ }))
+        await waitFor(() => expect(screen.getByText(/Saved ✓/)).toBeInTheDocument())
+        expect(JSON.stringify(lastBody('put', '/api/settings'))).toContain('sk-new-key')
+    })
+
+    it('shows the unset hint when no API key is stored', async () => {
+        stubAPI({
+            'GET /api/settings': getSettings,
+            'GET /api/github/auth': getEmptyGitHub,
+            'GET /api/models': () => ({ groups: [] })
+        })
+
+        renderSettings()
+        expect(await screen.findByText('Not set')).toBeInTheDocument()
+        expect(await screen.findByText(/inherits ANTHROPIC_API_KEY/i)).toBeInTheDocument()
     })
 
     it('shows the save error when the server rejects', async () => {
@@ -265,6 +308,107 @@ describe('SettingsView', () => {
         expect(await screen.findByPlaceholderText(/ghp_/)).toBeInTheDocument()
         expect(await screen.findByText('GitHub disconnected')).toBeInTheDocument()
         expect(mocks.delete.mock.calls.some(([u]) => u === '/api/github/auth')).toBe(true)
+    })
+})
+
+describe('SettingsView LLM Models tab', () => {
+    const seeded = { id: 1, value: 'my-model', name: 'My Model', tag: 'test', provider: 'Vendor' }
+
+    it('lists models and adds one', async () => {
+        // Stateful stubs: mutations refetch the registry, so the GET handler
+        // must return the updated list after the POST.
+        let list = [seeded]
+        stubAPI({
+            'GET /api/settings': getSettings,
+            'GET /api/github/auth': getEmptyGitHub,
+            'GET /api/models': () => ({ groups: [{ provider: 'Vendor', models: list }] }),
+            'POST /api/models': () => {
+                const created = { id: 2, value: 'new-model', name: 'New Model', tag: '', provider: '' }
+                list = [...list, created]
+                return created
+            }
+        })
+
+        renderSettings()
+        await userEvent.click(await screen.findByRole('tab', { name: 'LLM Models' }))
+        expect(await screen.findByText('My Model')).toBeInTheDocument()
+        expect(screen.getByText('Vendor')).toBeInTheDocument()
+        // The tag renders as a chip and the card reports the registry size.
+        expect(screen.getByText('test')).toBeInTheDocument()
+        expect(screen.getByText(/model across/)).toBeInTheDocument()
+
+        await userEvent.click(screen.getByRole('button', { name: 'Add model' }))
+        await userEvent.type(await screen.findByLabelText('Value'), 'new-model')
+        await userEvent.type(screen.getByLabelText('Name'), 'New Model')
+        await userEvent.click(screen.getByRole('button', { name: 'OK' }))
+
+        expect(await screen.findByText('New Model')).toBeInTheDocument()
+        expect(JSON.stringify(lastBody('post', '/api/models'))).toContain('new-model')
+    })
+
+    it('edits a model', async () => {
+        let list = [seeded]
+        stubAPI({
+            'GET /api/settings': getSettings,
+            'GET /api/github/auth': getEmptyGitHub,
+            'GET /api/models': () => ({ groups: [{ provider: 'Vendor', models: list }] }),
+            'PUT /api/models/1': () => {
+                list = [{ ...seeded, name: 'Renamed' }]
+                return list[0]!
+            }
+        })
+
+        renderSettings()
+        await userEvent.click(await screen.findByRole('tab', { name: 'LLM Models' }))
+        // byText, not byRole: role-name computation hangs under jsdom for
+        // buttons inside the antd Table.
+        await userEvent.click(await screen.findByText('Edit'))
+        const name = await screen.findByLabelText('Name')
+        await userEvent.clear(name)
+        await userEvent.type(name, 'Renamed')
+        await userEvent.click(screen.getByRole('button', { name: 'OK' }))
+
+        expect(await screen.findByText('Renamed')).toBeInTheDocument()
+        expect(JSON.stringify(lastBody('put', '/api/models/1'))).toContain('Renamed')
+    })
+
+    it('deletes a model', async () => {
+        let list = [seeded]
+        stubAPI({
+            'GET /api/settings': getSettings,
+            'GET /api/github/auth': getEmptyGitHub,
+            'GET /api/models': () => ({ groups: [{ provider: 'Vendor', models: list }] }),
+            'DELETE /api/models/1': () => {
+                list = []
+                return { ok: true }
+            }
+        })
+
+        renderSettings()
+        await userEvent.click(await screen.findByRole('tab', { name: 'LLM Models' }))
+        expect(await screen.findByText('My Model')).toBeInTheDocument()
+        await userEvent.click(await screen.findByText('Delete'))
+        await userEvent.click(await screen.findByText('OK'))
+
+        await waitFor(() => expect(screen.queryByText('My Model')).not.toBeInTheDocument())
+        expect(mocks.delete.mock.calls.some(([u]) => u === '/api/models/1')).toBe(true)
+    })
+
+    it('shows an empty state with a call to action', async () => {
+        stubAPI({
+            'GET /api/settings': getSettings,
+            'GET /api/github/auth': getEmptyGitHub,
+            'GET /api/models': () => ({ groups: [] })
+        })
+
+        renderSettings()
+        await userEvent.click(await screen.findByRole('tab', { name: 'LLM Models' }))
+        expect(await screen.findByText('No models yet')).toBeInTheDocument()
+        expect(screen.getByText(/models across/)).toBeInTheDocument()
+        // The empty-state CTA opens the same add modal (byText, not byRole —
+        // role-name computation hangs under jsdom inside the antd Table).
+        await userEvent.click(await screen.findByText('Add your first model'))
+        expect(await screen.findByLabelText('Value')).toBeInTheDocument()
     })
 })
 

@@ -39,7 +39,17 @@ export type RootState = ReturnType<AppStore['getState']>
 export type AppDispatch = AppStore['dispatch']
 
 export { fetchHealth, selectHealth, selectHealthLoading } from './slices/healthSlice'
-export { fetchSettings, saveSettings, fetchModels, selectSettings, selectModels } from './slices/settingsSlice'
+export {
+    fetchSettings,
+    saveSettings,
+    fetchModels,
+    createModel,
+    updateModel,
+    deleteModel,
+    selectSettings,
+    selectModelGroups,
+    selectModelList
+} from './slices/settingsSlice'
 export {
     fetchConversations,
     deleteConversation,

@@ -8,10 +8,14 @@ import (
 )
 
 // settingsDTO is the wire shape of GET/PUT /api/settings. Every field lives
-// in the settings table in thoth.db.
+// in the settings table in thoth.db. The api key is write-only: GET reports
+// only whether one is stored (has_api_key), and PUT treats an empty api_key
+// as "leave unchanged" — the secret is never echoed back to the UI.
 type settingsDTO struct {
 	WikiPath    string `json:"wiki_path"`
 	Model       string `json:"model"`
+	HasAPIKey   bool   `json:"has_api_key"`
+	APIKey      string `json:"api_key"`
 	RepoURL     string `json:"repo_url"`
 	SyncEnabled bool   `json:"sync_enabled"`
 }
@@ -25,6 +29,10 @@ func getSettings(c echo.Context, d Deps) error {
 	if err != nil {
 		return internalError(c, d, "read model", err)
 	}
+	apiKey, _, err := d.Settings.Setting(settings.KeyAPIKey)
+	if err != nil {
+		return internalError(c, d, "read api_key", err)
+	}
 	repoURL, _, err := d.Settings.Setting(settings.KeyRepoURL)
 	if err != nil {
 		return internalError(c, d, "read repo_url", err)
@@ -33,7 +41,10 @@ func getSettings(c echo.Context, d Deps) error {
 	if err != nil {
 		return internalError(c, d, "read sync_enabled", err)
 	}
-	return c.JSON(http.StatusOK, settingsDTO{WikiPath: wikiPath, Model: model, RepoURL: repoURL, SyncEnabled: syncEnabled})
+	return c.JSON(http.StatusOK, settingsDTO{
+		WikiPath: wikiPath, Model: model, HasAPIKey: apiKey != "",
+		RepoURL: repoURL, SyncEnabled: syncEnabled,
+	})
 }
 
 func putSettings(c echo.Context, d Deps) error {
@@ -58,6 +69,11 @@ func putSettings(c echo.Context, d Deps) error {
 	}
 	if err := d.Settings.SetSetting(settings.KeyModel, next.Model); err != nil {
 		return internalError(c, d, "set model", err)
+	}
+	if next.APIKey != "" {
+		if err := d.Settings.SetSetting(settings.KeyAPIKey, next.APIKey); err != nil {
+			return internalError(c, d, "set api_key", err)
+		}
 	}
 	if err := d.Settings.SetSetting(settings.KeyRepoURL, next.RepoURL); err != nil {
 		return internalError(c, d, "set repo_url", err)

@@ -19,6 +19,7 @@ import (
 	"github.com/go-warehouse/events"
 	"github.com/labstack/echo/v4"
 	"github.com/shiv-source/thoth/internal/api"
+	"github.com/shiv-source/thoth/internal/assets"
 	"github.com/shiv-source/thoth/internal/claude"
 	"github.com/shiv-source/thoth/internal/config"
 	"github.com/shiv-source/thoth/internal/github"
@@ -95,6 +96,9 @@ func runServe(cmd *cobra.Command, dev bool) error {
 		return err
 	}
 	defer func() { _ = stg.Close() }()
+	if err := ensureModels(st); err != nil {
+		return err
+	}
 
 	// The wiki path lives in the settings table; failing to read it aborts
 	// boot rather than silently falling back to a default (a fallback would
@@ -109,6 +113,13 @@ func runServe(cmd *cobra.Command, dev bool) error {
 	// The model setting enforces --model on every CLI spawn; empty keeps
 	// the CLI's own default. Read at boot — a change applies on next start.
 	model, _, err := stg.Setting(settings.KeyModel)
+	if err != nil {
+		return err
+	}
+	// The api key setting becomes ANTHROPIC_API_KEY on every CLI spawn;
+	// empty inherits the server's own environment. Read at boot like the
+	// model — a change applies on next start.
+	apiKey, _, err := stg.Setting(settings.KeyAPIKey)
 	if err != nil {
 		return err
 	}
@@ -160,7 +171,7 @@ func runServe(cmd *cobra.Command, dev bool) error {
 	// One long-lived CLI process per conversation: the first turn of each
 	// conversation pays the CLI boot, later turns reuse the process. Close
 	// guarantees no CLI process outlives the server.
-	pc := claude.NewPersistent(resolveClaudeBin(log), w.Root, claude.WithDirProvider(root.get), claude.WithModel(model), claude.WithDebugStream(filepath.Join(dir, "stream-dump.json")))
+	pc := claude.NewPersistent(resolveClaudeBin(log), w.Root, claude.WithDirProvider(root.get), claude.WithModel(model), claude.WithAPIKey(apiKey), claude.WithDebugStream(filepath.Join(dir, "stream-dump.json")))
 	defer func() { _ = pc.Close() }()
 	e := api.New(api.Deps{
 		Log:             log,
@@ -204,6 +215,31 @@ func thothDir() (string, error) {
 		return "", fmt.Errorf("create ~/.thoth: %w", err)
 	}
 	return dir, nil
+}
+
+// ensureModels seeds llm_models from assets/models.json whenever the table
+// is empty, so every startup self-heals an empty registry (fresh install,
+// deleted database, or a user who removed every model). A table with rows —
+// even just one user-added model — is never overwritten. models.json stays
+// the single source for the built-in list.
+func ensureModels(st *store.Store) error {
+	models, err := st.ListModels()
+	if err != nil {
+		return err
+	}
+	if len(models) > 0 {
+		return nil
+	}
+	opts, err := assets.ModelOptions()
+	if err != nil {
+		return err
+	}
+	for _, o := range opts {
+		if _, err := st.CreateModel(o.Value, o.Name, o.Tag, o.Provider); err != nil {
+			return fmt.Errorf("seed model %s: %w", o.Value, err)
+		}
+	}
+	return nil
 }
 
 // ensureWiki returns a wiki for path, scaffolding it if it does not exist.
