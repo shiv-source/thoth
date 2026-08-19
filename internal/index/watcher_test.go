@@ -1,15 +1,19 @@
 package index
 
 import (
+	"bytes"
 	"context"
+	"errors"
 	"io"
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/fsnotify/fsnotify"
 	"github.com/shiv-source/thoth/internal/wiki"
 )
 
@@ -269,4 +273,71 @@ func TestWatchPublishesOnStart(t *testing.T) {
 	if len(got.Changes) != 0 {
 		t.Fatalf("startup event must carry no changes, got %+v", got)
 	}
+}
+
+// lockedBuffer is a bytes.Buffer safe for a slog handler writing from the
+// watcher goroutine while the test polls it.
+type lockedBuffer struct {
+	mu  sync.Mutex
+	buf bytes.Buffer
+}
+
+func (b *lockedBuffer) Write(p []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.Write(p)
+}
+
+func (b *lockedBuffer) String() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.String()
+}
+
+// fakeWatcher is a fileWatcher whose channels the test drives directly —
+// fsnotify's own Errors channel is closed by its internal goroutine, so
+// writing to it from a test races.
+type fakeWatcher struct {
+	events chan fsnotify.Event
+	errors chan error
+}
+
+func newFakeWatcher() *fakeWatcher {
+	return &fakeWatcher{events: make(chan fsnotify.Event), errors: make(chan error)}
+}
+
+func (f *fakeWatcher) Add(string) error              { return nil }
+func (f *fakeWatcher) Close() error                  { return nil }
+func (f *fakeWatcher) Events() <-chan fsnotify.Event { return f.events }
+func (f *fakeWatcher) Errors() <-chan error          { return f.errors }
+
+// TestWatchLogsWatcherErrors covers the Errors channel: non-fatal watch
+// failures must be logged (not dropped) and must not stop the watcher.
+func TestWatchLogsWatcherErrors(t *testing.T) {
+	root := t.TempDir()
+	ix, err := Open(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = ix.Close() })
+
+	var buf lockedBuffer
+	log := slog.New(slog.NewTextHandler(&buf, nil))
+	fw := newFakeWatcher()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() { done <- Watch(ctx, root, ix, log, withWatcher(fw)) }()
+	t.Cleanup(func() { cancel(); <-done })
+
+	fw.errors <- errors.New("inotify watch limit reached")
+
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		if strings.Contains(buf.String(), "index: watcher error") {
+			return // logged
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	t.Fatalf("watcher error not logged; buffer: %q", buf.String())
 }

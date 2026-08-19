@@ -57,4 +57,10 @@ describe('NoteViewer', () => {
         expect(writeText).toHaveBeenCalledWith('# Hello\n\nbody')
         expect(await screen.findByText('Note copied to clipboard')).toBeInTheDocument()
     })
+
+    it('shows a cannot-preview state for non-markdown paths without fetching', async () => {
+        renderWithStore(<NoteViewer path="images/logo.png" onClose={vi.fn()} />)
+        expect(await screen.findByText("This file type can't be previewed.")).toBeInTheDocument()
+        expect(mocks.get).not.toHaveBeenCalled()
+    })
 })

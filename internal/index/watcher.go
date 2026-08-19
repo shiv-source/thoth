@@ -16,8 +16,34 @@ import (
 // WatchOption tunes Watch; see WithPublisher.
 type WatchOption func(*watchConfig)
 
+// fileWatcher is the subset of fsnotify.Watcher the watch loop needs,
+// declared here so tests can inject a controllable fake. The real watcher
+// is wrapped in fsnotifyAdapter.
+type fileWatcher interface {
+	Add(name string) error
+	Close() error
+	Events() <-chan fsnotify.Event
+	Errors() <-chan error
+}
+
+// fsnotifyAdapter adapts *fsnotify.Watcher (whose channels are fields) to
+// the fileWatcher interface.
+type fsnotifyAdapter struct{ w *fsnotify.Watcher }
+
+func (a *fsnotifyAdapter) Add(name string) error         { return a.w.Add(name) }
+func (a *fsnotifyAdapter) Close() error                  { return a.w.Close() }
+func (a *fsnotifyAdapter) Events() <-chan fsnotify.Event { return a.w.Events }
+func (a *fsnotifyAdapter) Errors() <-chan error          { return a.w.Errors }
+
 type watchConfig struct {
 	publisher func(context.Context, wiki.Changed)
+	watcher   fileWatcher
+}
+
+// withWatcher injects a pre-built watcher (tests only) so watch failures on
+// the Errors channel can be exercised deterministically.
+func withWatcher(w fileWatcher) WatchOption {
+	return func(c *watchConfig) { c.watcher = w }
 }
 
 // WithPublisher registers a hook that receives one wiki.Changed batch per
@@ -37,13 +63,17 @@ func Watch(ctx context.Context, root string, ix *Index, log *slog.Logger, opts .
 		o(cfg)
 	}
 
-	w, err := fsnotify.NewWatcher()
-	if err != nil {
-		return fmt.Errorf("create watcher: %w", err)
+	w := cfg.watcher
+	if w == nil {
+		nw, err := fsnotify.NewWatcher()
+		if err != nil {
+			return fmt.Errorf("create watcher: %w", err)
+		}
+		w = &fsnotifyAdapter{w: nw}
 	}
 	defer func() { _ = w.Close() }()
 
-	err = filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
+	err := filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -121,7 +151,7 @@ func Watch(ctx context.Context, root string, ix *Index, log *slog.Logger, opts .
 			return ctx.Err()
 		case <-debounce.C:
 			flush()
-		case ev, ok := <-w.Events:
+		case ev, ok := <-w.Events():
 			if !ok {
 				return nil
 			}
@@ -134,8 +164,13 @@ func Watch(ctx context.Context, root string, ix *Index, log *slog.Logger, opts .
 				pending[ev.Name] |= ev.Op
 				debounce.Reset(200 * time.Millisecond)
 			}
-		case <-w.Errors:
-			// individual watch errors are non-fatal; keep serving
+		case err, ok := <-w.Errors():
+			// individual watch errors are non-fatal, but they must be heard:
+			// a silent drop hides that a directory is no longer being watched
+			if !ok {
+				return nil
+			}
+			log.Warn("index: watcher error", "err", err)
 		}
 	}
 }

@@ -65,7 +65,7 @@ func TestWikiTreeErrorOnMissingRoot(t *testing.T) {
 	}
 }
 
-func TestWikiTreeErrorOnUnreadableSubdir(t *testing.T) {
+func TestWikiTreeSkipsUnreadableSubdir(t *testing.T) {
 	dir := t.TempDir()
 	locked := filepath.Join(dir, "locked")
 	if err := os.MkdirAll(locked, 0o755); err != nil {
@@ -75,11 +75,29 @@ func TestWikiTreeErrorOnUnreadableSubdir(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = os.Chmod(locked, 0o755) })
+	// A readable sibling note must still surface: the tree keeps the locked
+	// folder as an error node instead of failing the whole walk.
+	if err := os.WriteFile(filepath.Join(dir, "open.md"), []byte("---\ntitle: Open\n---\nbody"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 
-	// tree() recurses into locked and its readdir fails: the recursion must
-	// surface the error instead of swallowing it.
-	if _, err := New(dir).Tree(); err == nil {
-		t.Fatal("expected error reading an unreadable subdir")
+	tree, err := New(dir).Tree()
+	if err != nil {
+		t.Fatal(err)
+	}
+	names := make(map[string]*Node, len(tree))
+	for i := range tree {
+		names[tree[i].Name] = &tree[i]
+	}
+	if names["open.md"] == nil {
+		t.Fatalf("readable sibling note missing from tree: %+v", names)
+	}
+	lockedNode := names["locked"]
+	if lockedNode == nil || !lockedNode.IsDir {
+		t.Fatalf("expected a locked dir node, got %+v", lockedNode)
+	}
+	if lockedNode.Error == "" {
+		t.Fatal("expected the locked dir to carry an error")
 	}
 }
 

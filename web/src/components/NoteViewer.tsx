@@ -1,10 +1,18 @@
 import { useEffect } from 'react'
-import { Alert, Button, Skeleton } from 'antd'
+import { Alert, Button, Empty, Skeleton } from 'antd'
 import { CloseOutlined } from '@ant-design/icons'
 import { fetchNote, selectNoteContent, selectNoteError, selectNoteLoading } from '../store'
 import { useAppDispatch, useAppSelector } from '../store/hooks'
 import { CopyButton } from './CopyButton'
 import { Markdown } from './Markdown'
+
+// isNotePath reports whether a wiki path is a previewable Markdown note.
+// The tree also shows other files (images, PDFs, …) for visibility; those
+// are not notes, so they get a "cannot preview" state instead of raw bytes
+// rendered as Markdown.
+function isNotePath(path: string): boolean {
+    return path.endsWith('.md')
+}
 
 // NoteViewer is the note reader, rendered inline in the Notes view's
 // content area — the URL /notes/<path> owns the open note. Content lives
@@ -15,10 +23,12 @@ export function NoteViewer({ path, onClose }: { path: string; onClose: () => voi
     const content = useAppSelector(selectNoteContent)
     const loading = useAppSelector(selectNoteLoading)
     const error = useAppSelector(selectNoteError)
+    const isNote = isNotePath(path)
 
     useEffect(() => {
+        if (!isNote) return
         void dispatch(fetchNote(path))
-    }, [path, dispatch])
+    }, [path, isNote, dispatch])
 
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => {
@@ -49,9 +59,15 @@ export function NoteViewer({ path, onClose }: { path: string; onClose: () => voi
                 </div>
             </header>
             <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
-                {loading && <Skeleton active paragraph={{ rows: 6 }} />}
-                {error && <Alert type="error" showIcon message={error} />}
-                {content && <Markdown>{content}</Markdown>}
+                {isNote ? (
+                    <>
+                        {loading && <Skeleton active paragraph={{ rows: 6 }} />}
+                        {error && <Alert type="error" showIcon message={error} />}
+                        {content && <Markdown>{content}</Markdown>}
+                    </>
+                ) : (
+                    <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="This file type can't be previewed." />
+                )}
             </div>
         </aside>
     )

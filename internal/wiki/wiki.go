@@ -13,6 +13,10 @@ type Node struct {
 	Path     string `json:"path"`
 	IsDir    bool   `json:"is_dir"`
 	Children []Node `json:"children"`
+	// Error is set when the directory itself exists but could not be read
+	// (e.g. permissions); its children are omitted. The node stays in the
+	// tree so one locked folder never hides every other note.
+	Error string `json:"error,omitempty"`
 }
 
 // Change is a single filesystem change inside the wiki directory. Op is one
@@ -73,7 +77,9 @@ func (w *Wiki) Read(rel string) ([]byte, error) {
 }
 
 // Tree returns the full directory tree with dirs first, sorted by name,
-// skipping dotfiles.
+// skipping dotfiles. Directories that cannot be read (permissions, …) are
+// kept as nodes carrying an Error instead of failing the whole walk; only
+// an unreadable root aborts.
 func (w *Wiki) Tree() ([]Node, error) {
 	return tree(w.Root, "")
 }
@@ -92,9 +98,11 @@ func tree(base, rel string) ([]Node, error) {
 		}
 		n := Node{Name: e.Name(), Path: filepath.ToSlash(childRel), IsDir: e.IsDir()}
 		if e.IsDir() {
-			n.Children, err = tree(base, childRel)
+			children, err := tree(base, childRel)
 			if err != nil {
-				return nil, err
+				n.Error = err.Error()
+			} else {
+				n.Children = children
 			}
 		}
 		nodes = append(nodes, n)
