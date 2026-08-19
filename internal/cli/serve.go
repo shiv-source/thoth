@@ -187,6 +187,7 @@ func runServe(cmd *cobra.Command, dev bool) error {
 		Version:         Version(),
 		Dev:             dev,
 		Commit:          commit,
+		DefaultWikiPath: config.ToTilde(defaultWikiPath(dev, dir)),
 		Wiki:            w,
 		Index:           ix,
 		OnSettingsSaved: onSettingsSaved(log, root, w, ix, startWatcher, pc.Flush),

@@ -13,7 +13,8 @@ const healthy: Health = {
     wiki: { path: '~/.thoth/wiki', exists: true },
     version: '1.2.3',
     dev: false,
-    commit: ''
+    commit: '',
+    default_wiki_path: '~/.thoth/wiki'
 }
 
 describe('healthSlice', () => {

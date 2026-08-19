@@ -22,7 +22,8 @@ const healthy: Health = {
     wiki: { path: '/tmp/wiki', exists: true },
     version: '1.2.3',
     dev: false,
-    commit: ''
+    commit: '',
+    default_wiki_path: '~/.thoth/wiki'
 }
 
 function stubHealth(health: Health) {
