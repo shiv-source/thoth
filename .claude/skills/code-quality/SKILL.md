@@ -51,7 +51,7 @@ Details and floors: .claude/skills/go/references/quality.md
 ## Gotchas
 - The pre-commit hook autofixes staged files (eslint/prettier/golangci-lint --fix) — re-run the gates after any hook-triggered edit
 - ci-pr runs the quality gates but NOT the cross-compiles — those run only on push to main, so a PR can be green and a main push red (docs/development.md § CI)
-- "Six gate checks" here are the local commands; CI's quality.yml runs them as 5 jobs (vet+race+coverage, golangci-lint, vitest, eslint, tsc) — same gates, different packaging
+- The gate checks here are the local commands; CI's quality.yml runs them as 6 jobs (vet+race+coverage, golangci-lint, vitest, eslint, tsc, and `issue-labels-test` running `node --test` over the `.github/actions/issue-labels` JS suite) — same gates, different packaging; `make check` includes the same JS suite via `tools-test` so local and CI stay in sync
 - New code must be covered to keep the total ≥ 80% on internal/ + cmd/ — a large feature with thin tests fails CI
 - Pre-commit runs the full Go suite when Go files are staged — keep focused tests while iterating, full suite once before commit (CLAUDE.md § Token Efficiency)
 

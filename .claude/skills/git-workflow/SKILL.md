@@ -18,7 +18,8 @@ description: >-
 ## Key files
 - CONTRIBUTING.md — the workflow page: § Workflow, § Before you push
 - .github/pull_request_template.md — the PR body shape (Summary / Related issue / Files changed / How verified / Notes)
-- .github/workflows/ — ci-pr.yml (PR gates) · quality.yml (the quality gates, incl. the graph freshness check) · final-gate.yml (single required check + PR report comment) · ci.yml (push to main adds 5 cross-compiles + frontend build) · pr-assignee.yml (auto-assigns PR committers)
+- .github/workflows/ — ci-pr.yml (PR gates) · quality.yml (the quality gates, incl. the graph freshness check) · final-gate.yml (single required check + PR report comment) · ci.yml (push to main adds 5 cross-compiles + frontend build) · pr-assignee.yml (auto-assigns PR committers) · issue-labels.yml (applies the form-selected labels to new/edited issues)
+- .github/actions/issue-labels/ — reusable composite action: applies the three-tier labels (type, priority, areas) from issue-form answers; JS, add-only
 - .husky/pre-commit — the commit gate: lint-staged autofixes, plus Go vet/lint/test when Go is staged
 - docs/development.md — § Gates (what make check enforces), § CI (workflow mechanics)
 - docs/specs/ — untracked design docs for large or cross-package changes (convention, may be empty)
@@ -64,7 +65,8 @@ description: >-
 4. Priorities (issues only): p-critical, p-high, p-medium, p-low
 5. Branch prefixes (8) and type labels (9) overlap but are not identical — choose labels from the label set, not the prefix list
 6. pr.sh enforces this — derived labels are validated against references/labels.md (branch scope → area label, falling back to `tooling`)
-7. Full data: references/labels.md
+7. Issues filed through `.github/ISSUE_TEMPLATE/` get their bare-minimum labels (type, priority, areas) applied automatically from the form answers — `.github/workflows/issue-labels.yml` + the reusable `.github/actions/issue-labels` action. Add-only: labels a human adds afterwards are never removed; blank issues (no form) are skipped.
+8. Full data: references/labels.md
 
 ### 5. Design doc first (large or cross-package changes)
 1. Before implementation, write the design doc to docs/specs/ (untracked — never committed; CLAUDE.md § Repo rules)

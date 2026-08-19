@@ -135,7 +135,12 @@ web-test: ## frontend unit tests
 web-test:
 	pnpm test
 
-check: fmt lint race cover web-test build ## everything CI runs, locally
+tools-test: ## .github/actions/issue-labels JS suite
+.PHONY: tools-test
+tools-test:
+	node --test .github/actions/issue-labels/test/*.test.mjs
+
+check: fmt lint race cover web-test tools-test build ## everything CI runs, locally
 .PHONY: check
 
 # -----------------------------------------------------------------------------

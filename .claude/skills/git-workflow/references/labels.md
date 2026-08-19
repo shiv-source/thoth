@@ -50,5 +50,9 @@ invalid, question, wontfix.
 
 Canonical: CLAUDE.md § Repo rules (usage rule) · live GitHub repo labels
 
+The issue-label automation (`.github/actions/issue-labels/config.json`) applies
+this same set to issue-form answers — keep it in sync whenever the label set
+changes.
+
 Stale if: the label set on GitHub changes (added, renamed, removed), or
 CLAUDE.md's label usage rule changes.
