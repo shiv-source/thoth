@@ -1,0 +1,123 @@
+name: Bug report
+description: Report a defect with a repro, evidence, and expected behavior so it is debuggable and fixable in one pass.
+title: "bug: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for filing a bug report. Structured issues get fixed faster — fill in every required field and lean on `file:line` references and logs in **Evidence** so an agent (or a human) can reproduce without back-and-forth.
+
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Thoth version or branch, OS, and how you run it (e.g. `make dev`, built `bin/thoth`).
+      placeholder: "v1.2.3, darwin, make dev"
+    validations:
+      required: true
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: One or two sentences on what is broken and its impact.
+      placeholder: "The X panel shows Y instead of Z when …"
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Exact, numbered steps from a clean state, including the commands or UI clicks and the inputs used.
+      placeholder: |
+        1. Run `thoth serve --dev`
+        2. Create `attachments/logo.png` in the wiki
+        3. Search for "logo"
+        4. Click the result
+      render: bash
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What should happen instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What actually happens. Paste the exact error output if any.
+    validations:
+      required: true
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence
+      description: Optional but strongly encouraged — `file:line` references, error logs, captured output, or screenshots. Evidence is what makes an issue debuggable without a conversation.
+      placeholder: |
+        internal/index/sync.go:66 — …
+        internal/index/watcher.go:226 — …
+    validations:
+      required: false
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: Exactly one priority per issue. Guide — a broken core flow is high/critical; a rare edge case is low.
+      options:
+        - p-critical
+        - p-high
+        - p-medium
+        - p-low
+    validations:
+      required: true
+
+  - type: dropdown
+    id: areas
+    attributes:
+      label: Area(s)
+      description: Every package the bug touches — one area per touched package. Apply the matching GitHub label(s).
+      multiple: true
+      options:
+        - api — internal/api (REST + WS)
+        - chat — chat UX, WS protocol
+        - cli — internal/cli (thoth commands)
+        - github — internal/github (identity + sync)
+        - index — internal/index (FTS5, watcher)
+        - search — search UI/behavior
+        - settings — internal/settings + Settings UI
+        - store — internal/store (schema, migrations)
+        - sync — git sync behavior
+        - ui — web/src components/hooks
+        - webui — internal/webui embed
+        - wiki — internal/wiki (file contract)
+        - tooling — .claude/, .github/, .husky/, scripts/, lint/config
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: labels
+    attributes:
+      label: Label check
+      description: Issues carry the three-tier labels (types / areas / priority) — one type, one priority, one area per touched package. Confirm they are applied before submitting.
+      options:
+        - label: Applied the type (bug is pre-applied), priority, and area label(s) per `.claude/skills/git-workflow/references/labels.md`.
+          required: true
+        - label: If this touches filesystem access or auth, reviewed against `docs/security.md`.
+          required: false
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes / context
+      description: Anything else — related issues, workarounds, suspected root cause, debugging already done.
+    validations:
+      required: false

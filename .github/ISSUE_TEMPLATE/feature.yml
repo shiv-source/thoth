@@ -1,0 +1,118 @@
+name: Feature request
+description: Propose a new capability or an improvement, with motivation, proposed behavior, and acceptance criteria an agent can implement and verify.
+title: "feat: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for proposing a feature. The repo is YAGNI by convention — state the real need, the proposed behavior, and crisp acceptance criteria. An implementable issue is one an agent can build and verify without a conversation.
+
+  - type: dropdown
+    id: type
+    attributes:
+      label: Change type
+      description: A new capability (`feature`) or an improvement to something that already exists (`enhancement`). Apply the matching GitHub label.
+      options:
+        - feature — new capability
+        - enhancement — improvement to an existing capability
+    validations:
+      required: true
+
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Problem / motivation
+      description: What you cannot do today and why it matters. Be concrete — this justifies the work against YAGNI.
+    validations:
+      required: true
+
+  - type: textarea
+    id: usecases
+    attributes:
+      label: Use cases
+      description: Optional — concrete scenarios as user stories ("As a …, I want …, so that …") or walkthroughs.
+    validations:
+      required: false
+
+  - type: textarea
+    id: proposed
+    attributes:
+      label: Proposed behavior
+      description: What should happen, end to end. Cover every surface that will change (UI, API, index, wiki contract, docs).
+    validations:
+      required: true
+
+  - type: textarea
+    id: design
+    attributes:
+      label: Design considerations
+      description: Optional but encouraged — where the change lands (internal/* package or web/src), which existing patterns, hooks, or packages to reuse, and what to avoid. See docs/architecture.md and docs/frontend.md.
+    validations:
+      required: false
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: Testable outcomes. Prefer GIVEN / WHEN / THEN or a checklist. "Every behavior change ships with a test" is a repo rule — name the tests and coverage expected.
+      placeholder: |
+        - [ ] Given an image in attachments/, searching its filename returns it and clicking it renders the image inline
+        - [ ] Markdown preview is unchanged
+        - [ ] Tests added in web/src/components/NoteViewer.test.tsx
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: Exactly one priority per issue.
+      options:
+        - p-critical
+        - p-high
+        - p-medium
+        - p-low
+    validations:
+      required: true
+
+  - type: dropdown
+    id: areas
+    attributes:
+      label: Area(s)
+      description: Every package the feature touches — one area per touched package. Apply the matching GitHub label(s).
+      multiple: true
+      options:
+        - api — internal/api (REST + WS)
+        - chat — chat UX, WS protocol
+        - cli — internal/cli (thoth commands)
+        - github — internal/github (identity + sync)
+        - index — internal/index (FTS5, watcher)
+        - search — search UI/behavior
+        - settings — internal/settings + Settings UI
+        - store — internal/store (schema, migrations)
+        - sync — git sync behavior
+        - ui — web/src components/hooks
+        - webui — internal/webui embed
+        - wiki — internal/wiki (file contract)
+        - tooling — .claude/, .github/, .husky/, scripts/, lint/config
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: labels
+    attributes:
+      label: Label check
+      description: Issues carry the three-tier labels (types / areas / priority) — one type, one priority, one area per touched package. Confirm they are applied before submitting.
+      options:
+        - label: Applied the type (feature or enhancement), priority, and area label(s) per `.claude/skills/git-workflow/references/labels.md`.
+          required: true
+        - label: Acceptance criteria include the tests that will ship with the change (repo rule).
+          required: false
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes / context
+      description: Related issues, prior art, alternative designs considered.
+    validations:
+      required: false

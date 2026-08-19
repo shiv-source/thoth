@@ -1,0 +1,6 @@
+# GitHub issue template configuration.
+#
+# blank_issues_enabled: keep true so types the templates don't cover
+# (documentation, chore, refactor, test, performance, ci) can still be
+# filed as blank issues. Flip to false to force template use.
+blank_issues_enabled: true
