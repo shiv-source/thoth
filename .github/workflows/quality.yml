@@ -1,32 +1,78 @@
 name: quality
 on:
   workflow_call:
-    inputs:
-      backend:
-        description: run the Go gates (backend-test, backend-lint)
-        type: boolean
-        default: true
-      frontend:
-        description: run the TS gates (frontend-test, frontend-lint, frontend-typecheck)
-        type: boolean
-        default: true
-      graph:
-        description: run the graph freshness gate (graph-check)
-        type: boolean
-        default: true
-      issue_labels:
-        description: run the issue-labels action test suite
-        type: boolean
-        default: true
 
 permissions:
   contents: read
 
 jobs:
+  # Classifies the triggering change into areas so each gate below only runs
+  # when its area is touched. On a pull_request the areas come from the PR's
+  # diff against its base; on any other trigger (push to main, manual run)
+  # every gate runs. The classification lives here — not in the caller — so
+  # the caller needs no inputs: passing workflow_call inputs sourced from a
+  # caller's needs outputs silently drops the caller job (the pattern ci-pr
+  # used before, which no-op'd every PR's gates).
+  changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      backend: ${{ steps.diff.outputs.backend }}
+      frontend: ${{ steps.diff.outputs.frontend }}
+      graph: ${{ steps.diff.outputs.graph }}
+      issue_labels: ${{ steps.diff.outputs.issue_labels }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - id: diff
+        name: classify changed files
+        shell: bash
+        run: |
+          base="${{ github.event.pull_request.base.sha }}"
+          head="${{ github.event.pull_request.head.sha }}"
+
+          # Push and manual runs are not PRs: run every gate.
+          backend=true; frontend=true; graph=true; issue_labels=true
+          if [ -n "$base" ] && [ -n "$head" ]; then
+            files="$(git diff --name-only "$base...$head")"
+            backend=false; frontend=false; graph=false; issue_labels=false
+            if [ -n "$files" ]; then
+              # Tooling/config that a gate depends on counts as that area.
+              if printf '%s\n' "$files" | grep -Eq '^\.github/(workflows|actions)/' \
+                && ! printf '%s\n' "$files" | grep -Eq '^\.github/actions/issue-labels/'; then
+                backend=true; frontend=true
+              fi
+              if printf '%s\n' "$files" | grep -Eq '^\.husky/|^scripts/|^Makefile$'; then
+                backend=true; frontend=true
+              fi
+              if printf '%s\n' "$files" | grep -Eq '(\.go$|^go\.(mod|sum)$|^\.golangci\.yml$)'; then
+                backend=true
+              fi
+              if printf '%s\n' "$files" | grep -Eq '^web/|^(package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|\.npmrc|\.prettierrc)$'; then
+                frontend=true
+              fi
+              if printf '%s\n' "$files" | grep -Eq '^\.github/actions/issue-labels/'; then
+                issue_labels=true
+              fi
+              if printf '%s\n' "$files" | grep -Eq '\.(go|ts|tsx)$' || printf '%s\n' "$files" | grep -Eq '^graphify-out/'; then
+                graph=true
+              fi
+            fi
+          fi
+          echo "backend=$backend frontend=$frontend graph=$graph issue_labels=$issue_labels"
+          {
+            echo "backend=$backend"
+            echo "frontend=$frontend"
+            echo "graph=$graph"
+            echo "issue_labels=$issue_labels"
+          } >> "$GITHUB_OUTPUT"
+
   # The committed graph must match the committed tree — a PR that changed
   # Go/TS without refreshing the graph fails here (scripts/graph-check.sh).
   graph-check:
-    if: inputs.graph
+    needs: [changes]
+    if: needs.changes.outputs.graph == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -34,7 +80,8 @@ jobs:
       - run: ./scripts/graph-check.sh
 
   backend-test:
-    if: inputs.backend
+    needs: [changes]
+    if: needs.changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -46,7 +93,8 @@ jobs:
         run: make cover
 
   backend-lint:
-    if: inputs.backend
+    needs: [changes]
+    if: needs.changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -75,7 +123,8 @@ jobs:
           golangci-lint run --timeout 5m
 
   frontend-test:
-    if: inputs.frontend
+    needs: [changes]
+    if: needs.changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     defaults:
@@ -87,7 +136,8 @@ jobs:
       - run: pnpm exec vitest run
 
   frontend-lint:
-    if: inputs.frontend
+    needs: [changes]
+    if: needs.changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     defaults:
@@ -99,7 +149,8 @@ jobs:
       - run: pnpm run lint
 
   frontend-typecheck:
-    if: inputs.frontend
+    needs: [changes]
+    if: needs.changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     defaults:
@@ -111,7 +162,8 @@ jobs:
       - run: pnpm exec tsc --noEmit
 
   issue-labels-test:
-    if: inputs.issue_labels
+    needs: [changes]
+    if: needs.changes.outputs.issue_labels == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

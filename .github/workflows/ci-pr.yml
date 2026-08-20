@@ -15,77 +15,18 @@ jobs:
   assignee:
     uses: ./.github/workflows/pr-assignee.yml
 
-  # Classifies the PR's changed files into areas. quality.yml skips the gates
-  # whose area the PR didn't touch (a docs-only PR skips them all); this job
-  # itself always runs.
-  changes:
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    outputs:
-      backend: ${{ steps.diff.outputs.backend }}
-      frontend: ${{ steps.diff.outputs.frontend }}
-      graph: ${{ steps.diff.outputs.graph }}
-      issue_labels: ${{ steps.diff.outputs.issue_labels }}
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-      - id: diff
-        name: classify changed files
-        shell: bash
-        run: |
-          base="${{ github.event.pull_request.base.sha }}"
-          head="${{ github.event.pull_request.head.sha }}"
-          files="$(git diff --name-only "$base...$head")"
-
-          backend=false; frontend=false; graph=false; issue_labels=false
-          if [ -n "$files" ]; then
-            # Tooling/config that a gate depends on counts as that area.
-            if printf '%s\n' "$files" | grep -Eq '^\.github/(workflows|actions)/' \
-              && ! printf '%s\n' "$files" | grep -Eq '^\.github/actions/issue-labels/'; then
-              backend=true; frontend=true
-            fi
-            if printf '%s\n' "$files" | grep -Eq '^\.husky/|^scripts/|^Makefile$'; then
-              backend=true; frontend=true
-            fi
-            if printf '%s\n' "$files" | grep -Eq '(\.go$|^go\.(mod|sum)$|^\.golangci\.yml$)'; then
-              backend=true
-            fi
-            if printf '%s\n' "$files" | grep -Eq '^web/|^(package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|\.npmrc|\.prettierrc)$'; then
-              frontend=true
-            fi
-            if printf '%s\n' "$files" | grep -Eq '^\.github/actions/issue-labels/'; then
-              issue_labels=true
-            fi
-            if printf '%s\n' "$files" | grep -Eq '\.(go|ts|tsx)$' || printf '%s\n' "$files" | grep -Eq '^graphify-out/'; then
-              graph=true
-            fi
-          fi
-          echo "backend=$backend frontend=$frontend graph=$graph issue_labels=$issue_labels"
-          {
-            echo "backend=$backend"
-            echo "frontend=$frontend"
-            echo "graph=$graph"
-            echo "issue_labels=$issue_labels"
-          } >> "$GITHUB_OUTPUT"
-
   # Minimal pre-merge feedback: the same quality gates that run on main
-  # (via the shared workflow), without the OS builds. Gates for areas the
-  # PR didn't touch are skipped — a docs-only PR runs none of them.
+  # (via the shared workflow), without the OS builds. Path-aware inside the
+  # shared workflow — quality.yml's own changes job skips the gates for
+  # areas the PR didn't touch, so a docs-only PR runs none of them.
   quality:
-    needs: [changes]
     uses: ./.github/workflows/quality.yml
-    with:
-      backend: ${{ needs.changes.outputs.backend }}
-      frontend: ${{ needs.changes.outputs.frontend }}
-      graph: ${{ needs.changes.outputs.graph }}
-      issue_labels: ${{ needs.changes.outputs.issue_labels }}
 
   # Single required check for PRs — same gate as main (final-gate.yml).
   # Always runs so the branch-protection check is always reported, and it
   # treats skipped gates as passing (final-gate.yml).
   final-gate:
-    needs: [changes, quality]
+    needs: [quality]
     if: always()
     uses: ./.github/workflows/final-gate.yml
     with:
