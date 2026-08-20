@@ -48,19 +48,19 @@ description: >-
 6. Stage only what the change needs: no secrets, no generated dirs (bin/, web/dist/, internal/webui/dist/, node_modules/, *.db)
 
 ### 3. Open a PR
-0. Or run `./scripts/pr.sh` to automate this workflow from an existing branch: it syncs main, validates the branch name, derives labels from the branch (validated against references/labels.md), runs the graph staleness guard (scripts/graph-check.sh), runs `make check` (`--no-check` skips), pushes, and creates the PR with the template. `--title` overrides the derived title; repeat `--area <label>` to add areas. The steps below remain authoritative when run by hand.
-1. Push the branch, then create the PR with the `gh` CLI (not the web UI):
+1. **Preferred — deliver with `./scripts/pr.sh`** from the feature branch: it is the single guarded command for the whole flow — syncs main, validates the branch name, derives labels from the branch (validated against references/labels.md), runs the graph staleness guard (scripts/graph-check.sh), runs `make check` (`--no-check` skips), pushes, and creates the PR with the template. `--title` overrides the derived title; repeat `--area <label>` to add areas. Run it on every PR delivery so the guarded flow runs end-to-end. Caveat: it creates the PR without a base, so it targets `main` — for epic-branch PRs (workflow 1's epic exception) use the manual flow below, or re-point the base afterwards with `gh pr edit --base feat/agent/native-go-agent`.
+2. Manual fallback — push the branch, then create the PR with the `gh` CLI (not the web UI):
    `gh pr create --title "<type>(<scope>): <summary>" --label <type> --label <area>… --template .github/pull_request_template.md`
    — one type label plus every area label the change touches (workflow 4); the web UI auto-fills the PR template, the CLI does not — pass it explicitly with `--template` (verify flags against `gh pr create --help`)
    — PRs touching the `agent/` module or otherwise related to the native Go agent (epic #121) target the epic branch instead of main: add `--base feat/agent/native-go-agent`
- 2. Write the body per .github/pull_request_template.md:
+3. Write the body per .github/pull_request_template.md:
    - ## Summary — what changed and why; bullets when they help
    - ## Related issue — `Closes #<n>` (auto-closes the issue on merge); omit when there is no issue
    - ## Files changed — key files/packages and the role of each
    - ## How verified — check the boxes you ran: gofmt/vet clean, go test -race ./..., coverage >= 80% (make cover), golangci-lint run, frontend tsc --noEmit / lint / vitest run, docs updated
    - ## Notes — optional; design decisions, follow-ups
-3. Run `make check` before opening — it is everything CI enforces, locally — and confirm `graphify update .` has been run if code changed (workflow 2 step 5) (CONTRIBUTING.md § Before you push)
-4. ci-pr quality gates run automatically; final-gate posts its report as a PR comment and must pass before the human merges — don't hand off a red PR
+4. Run `make check` before opening — it is everything CI enforces, locally — and confirm `graphify update .` has been run if code changed (workflow 2 step 5) (CONTRIBUTING.md § Before you push)
+5. ci-pr quality gates run automatically; final-gate posts its report as a PR comment and must pass before the human merges — don't hand off a red PR
 
 ### 4. Label issues and PRs
 1. Every issue/PR carries exactly one type label and one label per area it touches; issues also carry one priority label (CLAUDE.md § Repo rules)
