@@ -1,4 +1,9 @@
-package agent
+// Package model is the normalized conversation model every provider maps to
+// and from: messages of content blocks (text | tool_use | tool_result |
+// thinking), the streaming Delta fragments, and the Builder that accumulates
+// deltas back into a message. It has no dependencies on the rest of the agent
+// library.
+package model
 
 import (
 	"bytes"
@@ -95,7 +100,7 @@ func (b Block) MarshalJSON() ([]byte, error) {
 		if b.Input != nil {
 			raw, err := json.Marshal(b.Input)
 			if err != nil {
-				return nil, fmt.Errorf("agent: marshal tool input: %w", err)
+				return nil, fmt.Errorf("model: marshal tool input: %w", err)
 			}
 			w.Input = raw
 		}
@@ -104,7 +109,7 @@ func (b Block) MarshalJSON() ([]byte, error) {
 		w.Content = b.Text
 		w.IsError = b.IsError
 	default:
-		return nil, fmt.Errorf("agent: cannot marshal unknown block type %q", b.Type)
+		return nil, fmt.Errorf("model: cannot marshal unknown block type %q", b.Type)
 	}
 	return json.Marshal(w)
 }
@@ -124,7 +129,7 @@ func (b *Block) UnmarshalJSON(raw []byte) error {
 func ParseBlock(raw []byte) (Block, error) {
 	var w wireBlock
 	if err := decode(raw, &w); err != nil {
-		return Block{}, fmt.Errorf("agent: parse block: %w", err)
+		return Block{}, fmt.Errorf("model: parse block: %w", err)
 	}
 	switch w.Type {
 	case BlockText:
@@ -139,14 +144,14 @@ func ParseBlock(raw []byte) (Block, error) {
 		input := map[string]any{}
 		if len(w.Input) > 0 {
 			if err := decode(w.Input, &input); err != nil {
-				return Block{}, fmt.Errorf("agent: parse tool input: %w", err)
+				return Block{}, fmt.Errorf("model: parse tool input: %w", err)
 			}
 		}
 		return NewToolUseBlock(w.ID, w.Name, input), nil
 	case BlockToolResult:
 		return NewToolResultBlock(w.ToolUseID, w.Content, w.IsError), nil
 	default:
-		return Block{}, fmt.Errorf("agent: unknown block type %q", w.Type)
+		return Block{}, fmt.Errorf("model: unknown block type %q", w.Type)
 	}
 }
 
@@ -163,12 +168,12 @@ func ParseMessage(raw []byte) (Message, error) {
 		Content json.RawMessage `json:"content"`
 	}
 	if err := json.Unmarshal(raw, &m); err != nil {
-		return Message{}, fmt.Errorf("agent: parse message: %w", err)
+		return Message{}, fmt.Errorf("model: parse message: %w", err)
 	}
 	msg := Message{Role: m.Role}
 	if len(m.Content) > 0 {
 		if err := json.Unmarshal(m.Content, &msg.Content); err != nil {
-			return Message{}, fmt.Errorf("agent: parse message content: %w", err)
+			return Message{}, fmt.Errorf("model: parse message content: %w", err)
 		}
 	}
 	return msg, nil
