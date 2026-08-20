@@ -40,6 +40,16 @@ export function ChatPanel({ onOpenSettings }: { onOpenSettings: () => void }) {
         return () => s.close()
     }, [message, dispatch])
 
+    // A hidden tab is not "in the chat page": report presence so the server
+    // flushes idle pooled CLI processes after its relaxation timeout. Sends on
+    // visibility changes and once on mount (a tab can load already hidden).
+    useEffect(() => {
+        const onVisibility = () => socket?.setPresence(!document.hidden)
+        if (document.hidden) socket?.setPresence(false)
+        document.addEventListener('visibilitychange', onVisibility)
+        return () => document.removeEventListener('visibilitychange', onVisibility)
+    }, [socket])
+
     // /chat/<uuid> deep links and back/forward navigation follow the active
     // conversation; the URL follows conversationId changes.
     const onRouteError = useCallback((err: string) => void message.error(err), [message])

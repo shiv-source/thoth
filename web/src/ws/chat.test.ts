@@ -196,3 +196,50 @@ describe('ChatSocket newChat', () => {
         expect(ws.sent).toEqual([JSON.stringify({ type: 'new_chat' })])
     })
 })
+
+describe('ChatSocket presence', () => {
+    afterEach(() => {
+        FakeWS.instances = []
+    })
+
+    it('sends the presence frame when connected', () => {
+        const socket = new ChatSocket('ws://x/ws')
+        socket.connect()
+        const ws = FakeWS.instances[0]!
+        ws.open()
+        socket.setPresence(false)
+        expect(ws.sent).toEqual([JSON.stringify({ type: 'presence', active: false })])
+        socket.setPresence(true)
+        expect(ws.sent).toEqual([
+            JSON.stringify({ type: 'presence', active: false }),
+            JSON.stringify({ type: 'presence', active: true })
+        ])
+    })
+
+    it('defers the presence frame until the handshake completes', () => {
+        const socket = new ChatSocket('ws://x/ws')
+        socket.connect()
+        socket.setPresence(false)
+        const ws = FakeWS.instances[0]!
+        expect(ws.sent).toEqual([])
+        ws.open()
+        expect(ws.sent).toEqual([JSON.stringify({ type: 'presence', active: false })])
+    })
+
+    it('re-sends the last presence after a reconnect', () => {
+        vi.useFakeTimers()
+        try {
+            const socket = new ChatSocket('ws://x/ws')
+            socket.connect()
+            FakeWS.instances[0]!.open()
+            socket.setPresence(false)
+            FakeWS.instances[0]!.onclose!()
+            vi.advanceTimersByTime(1000)
+            FakeWS.instances[1]!.open()
+            // A hidden tab stays counted as away across the reconnect.
+            expect(FakeWS.instances[1]!.sent).toEqual([JSON.stringify({ type: 'presence', active: false })])
+        } finally {
+            vi.useRealTimers()
+        }
+    })
+})

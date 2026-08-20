@@ -105,6 +105,23 @@ func (s *Store) ConversationSessionID(convID string) (string, error) {
 	return sid, nil
 }
 
+// ClaudeSessionID resolves the CLI session id for a conversation: the stored
+// claude_session_id, falling back to the conversation id when none is stored
+// (every app-created conversation seeds its own id, so only legacy rows or a
+// rotated-to-empty value diverge). This is the single resolution the chat hub
+// and the boot prewarm share, so a turn and the process warmed for it always
+// target the same session.
+func (s *Store) ClaudeSessionID(convID string) (string, error) {
+	sid, err := s.ConversationSessionID(convID)
+	if err != nil {
+		return "", err
+	}
+	if sid == "" {
+		return convID, nil
+	}
+	return sid, nil
+}
+
 // DeleteConversation removes the conversation and its messages; deleting a
 // missing conversation is not an error. Messages go first so a future
 // PRAGMA foreign_keys=ON stays satisfied.
@@ -146,7 +163,10 @@ func (s *Store) AddMessage(convID, role, content string) error {
 }
 
 func (s *Store) ListConversations() ([]Conversation, error) {
-	rows, err := s.db.Query(`SELECT id, title, created_at FROM conversations ORDER BY created_at DESC`)
+	// rowid breaks the tie between conversations created in the same second
+	// (created_at is second-precision RFC3339), so "most recent" is fully
+	// deterministic — the prewarm and the UI list agree.
+	rows, err := s.db.Query(`SELECT id, title, created_at FROM conversations ORDER BY created_at DESC, rowid DESC`)
 	if err != nil {
 		return nil, fmt.Errorf("list conversations: %w", err)
 	}
@@ -164,6 +184,22 @@ func (s *Store) ListConversations() ([]Conversation, error) {
 		out = append(out, c)
 	}
 	return out, rows.Err()
+}
+
+// RecentConversation returns the most recently created conversation — the
+// first row of the app's newest-first list, so "most recent" is defined in
+// exactly one place — or the zero Conversation when the store has none. Boot
+// uses it to pre-warm a pooled CLI process for the conversation a user is
+// most likely to resume.
+func (s *Store) RecentConversation() (Conversation, error) {
+	convs, err := s.ListConversations()
+	if err != nil {
+		return Conversation{}, err
+	}
+	if len(convs) == 0 {
+		return Conversation{}, nil
+	}
+	return convs[0], nil
 }
 
 func (s *Store) Messages(convID string) ([]Message, error) {

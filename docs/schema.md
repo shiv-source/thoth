@@ -12,7 +12,7 @@ One row per chat shown in the UI history.
 |---|---|---|
 | `id` | TEXT PK | Conversation id (v4 UUID) — also the `/chat/<id>` URL id |
 | `title` | TEXT NOT NULL | First user message, truncated (display only) |
-| `created_at` | TEXT NOT NULL | UTC RFC3339 — the list orders by it lexically DESC |
+| `created_at` | TEXT NOT NULL | UTC RFC3339 — the list orders by it lexically DESC, with `rowid DESC` breaking same-second ties so "most recent" is deterministic |
 | `claude_session_id` | TEXT NOT NULL DEFAULT '' | The Claude CLI session backing the chat. Seeded with the conversation id; rotated to a fresh id via `--resume/--fork-session` when the CLI reports the stored session as locked |
 
 ### `messages` (migration `0002_messages.sql`)
@@ -98,6 +98,7 @@ The user-editable model registry. Every startup seeds it from `internal/assets/m
 
 - `internal/settings` owns the `settings` table (KV access, `SyncEnabled`/`SyncState`/`SetSyncResult` conveniences). Its `OpenRepo` deliberately runs no migrations and no WAL pragma — the doctor must never mutate a database it only reads.
 - `internal/github` owns `github_auth`; `internal/store` owns conversations/messages/app_metadata and `llm_models`; `internal/index` owns notes/notes_fts.
+- `conversations.claude_session_id` is the Claude CLI session backing a chat; `store.ClaudeSessionID(convID)` resolves it (falling back to the conversation id for legacy rows) and is the single resolution shared by the chat hub and the boot pre-warm. `store.RecentConversation()` returns the most recently created conversation — `created_at` DESC, the same ordering the app's list uses — so `serve` warms the pool for the conversation a user is most likely to resume.
 
 ## Upgrade note
 

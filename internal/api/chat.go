@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
@@ -22,6 +23,7 @@ type clientMsg struct {
 	Type           string `json:"type"`
 	Text           string `json:"text,omitempty"`
 	ConversationID string `json:"conversation_id,omitempty"`
+	Active         *bool  `json:"active,omitempty"` // presence frame: tab visible (true) or hidden (false)
 }
 
 type serverMsg struct {
@@ -71,12 +73,30 @@ type Hub struct {
 	log    *slog.Logger
 	ctx    context.Context // cancelled on server shutdown to reap in-flight turns
 
-	mu     sync.Mutex
-	turns  map[string]*turn
-	recent map[string][]serverMsg // latest turn only, capped per conversation
-	// clients are the write buffers of connected sockets, keyed by channel;
+	// RelaxTimeout, when positive, runs OnAway this long after the last chat
+	// client disconnects or hides its tab, so serve can flush idle pooled CLI
+	// processes instead of letting them idle until their own 10-minute timer.
+	RelaxTimeout time.Duration
+	// OnAway fires when RelaxTimeout elapses with no active chat client
+	// (serve wires it to the pool's Flush: idle processes die now, a busy one
+	// finishes its turn and is evicted).
+	OnAway func()
+
+	mu        sync.Mutex
+	turns     map[string]*turn
+	recent    map[string][]serverMsg // latest turn only, capped per conversation
+	awayTimer *time.Timer            // armed when the last active client goes away
+	// clients are the connected chat sockets, keyed by their write channel;
 	// Broadcast targets them for server-push frames (wiki_changed).
-	clients map[chan serverMsg]struct{}
+	clients map[chan serverMsg]*clientEntry
+}
+
+// clientEntry is one connected chat socket plus its tab visibility. A socket
+// whose tab is hidden (or that has disconnected) does not count as an active
+// client, so "the user left the chat page" means no active entry remains.
+type clientEntry struct {
+	out    chan serverMsg
+	active bool
 }
 
 type turn struct {
@@ -87,18 +107,22 @@ type turn struct {
 // NewHub builds a Hub whose turns derive from ctx; cancelling ctx (the server
 // shutdown signal) cancels every in-flight turn, so SIGTERM reaps the CLI
 // process groups before the server exits. A nil ctx means background turns.
-func NewHub(c claude.Client, st *store.Store, log *slog.Logger, ctx context.Context) *Hub {
+// relaxTimeout and onAway drive the away-relaxation flush: when no chat client
+// is active for relaxTimeout, onAway runs (pass 0/nil to disable).
+func NewHub(c claude.Client, st *store.Store, log *slog.Logger, ctx context.Context, relaxTimeout time.Duration, onAway func()) *Hub {
 	if ctx == nil {
 		ctx = context.Background()
 	}
 	return &Hub{
-		claude:  c,
-		store:   st,
-		log:     log,
-		ctx:     ctx,
-		turns:   map[string]*turn{},
-		recent:  map[string][]serverMsg{},
-		clients: map[chan serverMsg]struct{}{},
+		claude:       c,
+		store:        st,
+		log:          log,
+		ctx:          ctx,
+		RelaxTimeout: relaxTimeout,
+		OnAway:       onAway,
+		turns:        map[string]*turn{},
+		recent:       map[string][]serverMsg{},
+		clients:      map[chan serverMsg]*clientEntry{},
 	}
 }
 
@@ -118,18 +142,73 @@ func (h *Hub) replay(convID string) []serverMsg {
 	return append([]serverMsg(nil), h.recent[convID]...)
 }
 
-// addClient registers a connection's write buffer so Broadcast reaches it.
+// addClient registers a connection's write buffer so Broadcast reaches it. A
+// freshly connected socket is active: its tab is foreground.
 func (h *Hub) addClient(out chan serverMsg) {
 	h.mu.Lock()
-	defer h.mu.Unlock()
-	h.clients[out] = struct{}{}
+	h.clients[out] = &clientEntry{out: out, active: true}
+	h.recomputeAwayLocked() // active now: cancels a pending relax timer
+	h.mu.Unlock()
 }
 
 // removeClient drops a connection from the broadcast registry.
 func (h *Hub) removeClient(out chan serverMsg) {
 	h.mu.Lock()
-	defer h.mu.Unlock()
 	delete(h.clients, out)
+	h.recomputeAwayLocked() // may arm the relax timer when the last client goes
+	h.mu.Unlock()
+}
+
+// setPresence marks a connection's tab visible (active) or hidden (away).
+func (h *Hub) setPresence(out chan serverMsg, active bool) {
+	h.mu.Lock()
+	if e, ok := h.clients[out]; ok {
+		e.active = active
+		h.recomputeAwayLocked()
+	}
+	h.mu.Unlock()
+}
+
+// recomputeAwayLocked arms or cancels the relaxation timer based on whether
+// any chat client is active. Caller holds h.mu.
+func (h *Hub) recomputeAwayLocked() {
+	active := false
+	for _, e := range h.clients {
+		if e.active {
+			active = true
+			break
+		}
+	}
+	if active {
+		if h.awayTimer != nil {
+			h.awayTimer.Stop()
+			h.awayTimer = nil
+		}
+		return
+	}
+	if h.awayTimer == nil && h.RelaxTimeout > 0 && h.OnAway != nil {
+		h.awayTimer = time.AfterFunc(h.RelaxTimeout, h.fireAway)
+	}
+}
+
+// fireAway runs the OnAway callback once no chat client is active. It
+// re-checks under the lock: a client that returned just as the timer fired is
+// not flushed (the idle processes may be the ones it is about to use).
+func (h *Hub) fireAway() {
+	h.mu.Lock()
+	h.awayTimer = nil
+	active := false
+	for _, e := range h.clients {
+		if e.active {
+			active = true
+			break
+		}
+	}
+	onAway := h.OnAway
+	h.mu.Unlock()
+	if !active && onAway != nil {
+		onAway()
+	}
 }
 
 // Broadcast fans a server-push frame out to every connected client.
@@ -139,8 +218,8 @@ func (h *Hub) removeClient(out chan serverMsg) {
 func (h *Hub) Broadcast(m serverMsg) {
 	h.mu.Lock()
 	outs := make([]chan serverMsg, 0, len(h.clients))
-	for out := range h.clients {
-		outs = append(outs, out)
+	for _, e := range h.clients {
+		outs = append(outs, e.out)
 	}
 	h.mu.Unlock()
 	for _, out := range outs {
@@ -206,6 +285,14 @@ func (h *Hub) chat(c echo.Context) error {
 			// send create a brand-new conversation.
 			h.cancelTurn(convID)
 			convID = ""
+		case "presence":
+			// The tab reported its visibility: a hidden tab is not an active
+			// client, so it contributes to the away-relaxation flush.
+			active := true
+			if msg.Active != nil {
+				active = *msg.Active
+			}
+			h.setPresence(out, active)
 		default:
 			write(serverMsg{Type: "error", Message: "unknown message type: " + msg.Type})
 		}
@@ -350,16 +437,13 @@ func (h *Hub) runTurn(convID, prompt string, write func(serverMsg)) {
 	write(m)
 }
 
-// sessionID resolves the CLI session for a conversation: the stored
-// claude_session_id, falling back to the conversation id (which is what
-// legacy rows resume today).
+// sessionID resolves the CLI session for a conversation via the store's
+// single resolution (stored claude_session_id, falling back to the
+// conversation id).
 func (h *Hub) sessionID(convID string) string {
-	sid, err := h.store.ConversationSessionID(convID)
+	sid, err := h.store.ClaudeSessionID(convID)
 	if err != nil {
 		h.log.Warn("read session id", "err", err)
-		return convID
-	}
-	if sid == "" {
 		return convID
 	}
 	return sid

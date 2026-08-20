@@ -28,6 +28,7 @@ export class ChatSocket {
     private resumePending = false
     private openPending: string | null = null
     private newChatPending = false
+    private presence: boolean | null = null
     private retryTimer: ReturnType<typeof setTimeout> | null = null
 
     constructor(private readonly url: string) {}
@@ -61,6 +62,11 @@ export class ChatSocket {
             if (this.newChatPending) {
                 this.newChatPending = false
                 this.ws?.send(JSON.stringify({ type: 'new_chat' }))
+            }
+            // A reconnect is treated as active by the server; re-send the last
+            // presence so a hidden tab stays counted as away across reconnects.
+            if (this.presence !== null) {
+                this.ws?.send(JSON.stringify({ type: 'presence', active: this.presence }))
             }
         }
         ws.onclose = () => {
@@ -123,6 +129,17 @@ export class ChatSocket {
             return
         }
         this.newChatPending = true
+    }
+
+    // setPresence reports whether the tab is visible/foreground. A hidden tab
+    // is not an active chat client, so the server flushes idle pooled CLI
+    // processes after its relaxation timeout. Deferred like open() when the
+    // handshake has not completed; re-sent on reconnect.
+    setPresence(active: boolean): void {
+        this.presence = active
+        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+            this.ws.send(JSON.stringify({ type: 'presence', active }))
+        }
     }
     close(): void {
         this.closed = true

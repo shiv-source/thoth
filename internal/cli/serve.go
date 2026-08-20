@@ -171,6 +171,11 @@ func runServe(cmd *cobra.Command, dev bool) error {
 	// guarantees no CLI process outlives the server.
 	pc := claude.NewPersistent(resolveClaudeBin(log), w.Root, claude.WithDirProvider(root.get), claude.WithModel(model), claude.WithAPIKey(apiKey), claude.WithDebugStream(filepath.Join(dir, "stream-dump.json")))
 	defer func() { _ = pc.Close() }()
+	// Eagerly spawn the pooled process for the most recently active
+	// conversation so resuming it after a restart skips the CLI boot (~1.6 s
+	// of spawn + init). The pool's idle-eviction timer reaps it if the user
+	// never resumes that conversation.
+	prewarmPool(log, st, pc)
 	// The dev banner shows the commit the dev server runs from; prod has no
 	// banner, so the lookup is dev-only.
 	commit := ""
@@ -192,7 +197,13 @@ func runServe(cmd *cobra.Command, dev bool) error {
 		Index:           ix,
 		OnSettingsSaved: onSettingsSaved(log, stg, root, w, ix, startWatcher, pc.Flush),
 		Ctx:             ctx,
-		Events:          bus,
+		// When the user leaves the chat page (socket closed or tab hidden),
+		// flush idle pooled CLI processes RelaxTimeout later instead of letting
+		// them idle for their full 10-minute timer; a busy process finishes its
+		// turn and is evicted.
+		RelaxTimeout: chatRelaxTimeout,
+		OnChatAway:   pc.Flush,
+		Events:       bus,
 	})
 
 	host, port := config.DefaultHost, servePort(dev)
@@ -210,6 +221,12 @@ func servePort(dev bool) int {
 	}
 	return config.DefaultPort
 }
+
+// chatRelaxTimeout is how long idle pooled CLI processes survive after the
+// user leaves the chat page (socket closed or tab hidden). Shorter than the
+// per-process idle timer, so an away user does not hold heavyweight Claude
+// processes for minutes; resuming after that pays the CLI boot again.
+const chatRelaxTimeout = time.Minute
 
 // thothDir returns the server's data dir: ~/.thoth, or ~/.thoth/dev when
 // serve --dev keeps its database and wiki isolated from production data.
@@ -362,6 +379,39 @@ func resolveClaudeBin(log *slog.Logger) string {
 	}
 	log.Warn("claude CLI not found on PATH — chat will fail until it is installed")
 	return "claude"
+}
+
+// prewarmStore is the slice of the store prewarmPool needs, kept as a small
+// consumer-side interface so every defensive failure branch is testable.
+type prewarmStore interface {
+	RecentConversation() (store.Conversation, error)
+	ClaudeSessionID(convID string) (string, error)
+}
+
+// prewarmPool spawns the pooled CLI process for the most recently created
+// conversation, so resuming it after a restart skips the CLI boot. It warms
+// the exact session a turn on that conversation would use (store.ClaudeSessionID).
+// Best-effort: an empty database or any lookup/spawn failure only logs a
+// warning — the first send on that session spawns normally.
+func prewarmPool(log *slog.Logger, st prewarmStore, pc *claude.PersistentClient) {
+	recent, err := st.RecentConversation()
+	if err != nil {
+		log.Warn("prewarm: list conversations", "err", err)
+		return
+	}
+	if recent.ID == "" {
+		return // no conversations: nothing to pre-warm
+	}
+	sid, err := st.ClaudeSessionID(recent.ID)
+	if err != nil {
+		log.Warn("prewarm: read session id", "err", err)
+		return
+	}
+	if err := pc.Warm(sid); err != nil {
+		log.Warn("prewarm: spawn claude", "session_id", sid, "err", err)
+		return
+	}
+	log.Info("prewarmed claude process", "conversation_id", recent.ID, "session_id", sid)
 }
 
 // onSettingsSaved rebuilds the index and switches the live wiki root when
