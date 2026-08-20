@@ -5,6 +5,8 @@
 //   - events: the normalized turn events a host forwards to its UI
 //   - model: the normalized message/block/delta data model and Builder
 //   - provider: the Provider wire-layer seam and its request/stream types
+//   - tools: the Tool extension point, the Registry, and the default
+//     root-bounded file/search tools
 //   - transport: the SSE reader shared by concrete providers
 //
 // This root package re-exports the public API, so existing callers can keep
