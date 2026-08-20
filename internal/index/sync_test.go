@@ -22,6 +22,7 @@ func TestSyncIndexesTree(t *testing.T) {
 	write("knowledge/bad.md", "no frontmatter at all\n")
 	write("meetings/ignored.txt", "not markdown\n")
 	write("meetings/upper.MD", "---\ntitle: Upper\ntype: meeting\n---\nuppercase body\n")
+	write("meetings/lower.markdown", "---\ntitle: Lower\ntype: meeting\n---\nlowercase body\n")
 	write("attachments/install.sh", "#!/bin/sh\necho hi\n")
 	write(".hidden.md", "---\ntitle: Hidden\n---\nsecret body\n")
 	write(".git/x.md", "---\ntitle: Git\n---\ngit body\n")
@@ -51,6 +52,15 @@ func TestSyncIndexesTree(t *testing.T) {
 	}
 	if len(got) != 1 || got[0].Path != "meetings/upper.MD" {
 		t.Fatalf("expected the uppercase note indexed, got %+v", got)
+	}
+
+	// Lowercase .markdown is a markdown note whose frontmatter is parsed.
+	got, err = ix.Search("lowercase", 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 || got[0].Path != "meetings/lower.markdown" || got[0].Title != "Lower" || got[0].Kind != "meeting" {
+		t.Fatalf("expected the lowercase note indexed with frontmatter, got %+v", got)
 	}
 
 	// Attachments are indexed by filename so search can find them; their

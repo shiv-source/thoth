@@ -32,6 +32,7 @@ func TestApply(t *testing.T) {
 	write("daily/bad.md", "no frontmatter\n")
 	write("daily/script.sh", "#!/bin/sh\necho hi\n")
 	write("daily/upper.MD", "---\ntitle: Upper\ntype: daily\n---\nuppercase by apply\n")
+	write("daily/lower.markdown", "---\ntitle: Lower\ntype: daily\n---\nlowercase by apply\n")
 	write(".hidden.md", "---\ntitle: Hidden\n---\nnever indexed\n")
 
 	// attachments are indexed by filename only
@@ -46,6 +47,13 @@ func TestApply(t *testing.T) {
 	got, err = ix.Search("uppercase by apply", 10)
 	if err != nil || len(got) != 1 || got[0].Path != "daily/upper.MD" {
 		t.Fatalf("uppercase note not indexed: %v %+v", err, got)
+	}
+
+	// lowercase .markdown is a markdown note
+	apply(ix, root, filepath.Join(root, "daily", "lower.markdown"), log)
+	got, err = ix.Search("lowercase by apply", 10)
+	if err != nil || len(got) != 1 || got[0].Path != "daily/lower.markdown" {
+		t.Fatalf("lowercase note not indexed: %v %+v", err, got)
 	}
 
 	// hidden paths are never indexed

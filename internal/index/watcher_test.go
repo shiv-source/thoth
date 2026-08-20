@@ -90,6 +90,44 @@ func TestWatchPicksUpChanges(t *testing.T) {
 	t.Fatal("watcher did not index the new note within 5s")
 }
 
+// TestWatchIndexesMarkdownExtension covers the watcher path for a lowercase
+// .markdown note: it must be indexed like any other markdown note, keeping
+// the extension predicate and the watcher consumer in agreement.
+func TestWatchIndexesMarkdownExtension(t *testing.T) {
+	root := t.TempDir()
+	ix, err := Open(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = ix.Close() })
+	log := slog.New(slog.NewTextHandler(io.Discard, nil))
+
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() { done <- Watch(ctx, root, ix, log) }()
+	t.Cleanup(func() { cancel(); <-done })
+
+	time.Sleep(100 * time.Millisecond) // let the watcher register the root
+
+	p := filepath.Join(root, "daily", "note.markdown")
+	if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(p, []byte("---\ntitle: Watched Markdown\ntype: daily\n---\nmarkdown extension body\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		got, err := ix.Search("markdown extension body", 10)
+		if err == nil && len(got) == 1 && got[0].Title == "Watched Markdown" && got[0].Kind == "daily" {
+			return // success
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	t.Fatal("watcher did not index the .markdown note within 5s")
+}
+
 // TestWatchIndexesAttachment covers the watcher path for non-markdown files:
 // they are indexed by filename, so search finds them without a markdown note.
 func TestWatchIndexesAttachment(t *testing.T) {
