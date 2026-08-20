@@ -37,6 +37,8 @@ type: <inbox|meeting|project|link|setup|knowledge|todo|daily>
 
 The rulebook ships as a template at `internal/wiki/templates/CLAUDE.md` and is scaffolded by `thoth init`; the template and the in-repo validation are the same source (`Rulebook()`, see [Components](components.md)). The rulebook's folder map is generated from the configured folder set, so it always matches the layout, and the frontmatter `type:` list is derived from the same folders (singular form: `meetings/` → `meeting`, custom `recipes/` → `recipe`), so the two can never drift. An existing `CLAUDE.md` is never overwritten — edit it freely to adapt the organization to how you think. `type: note` is a legacy value tolerated for old notes; new notes use the type of their folder.
 
+Because a conversation's assistant process reads the rulebook at spawn, a rulebook edit applies from the **next turn** of each conversation: the watcher notices the edit and flushes the pooled CLI processes, so idle ones die immediately and a busy one finishes its in-flight turn under the old rules and is evicted. The template is seed-only — it is never written over a live rulebook.
+
 Every scaffold also initializes a local git repository (when git is installed) with a `.gitignore` covering `.DS_Store` and `*.db`, so the wiki is versioned from day one; the Settings → Git remote tab adds the remote and pushes.
 
 ## Notes in the index

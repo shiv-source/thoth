@@ -131,6 +131,13 @@ func runServe(cmd *cobra.Command, dev bool) error {
 	}
 	defer func() { _ = ix.Close() }()
 
+	root := newRootHolder(w.Root)
+	// One long-lived CLI process per conversation: the first turn of each
+	// conversation pays the CLI boot, later turns reuse the process. Close
+	// guarantees no CLI process outlives the server.
+	pc := claude.NewPersistent(resolveClaudeBin(log), w.Root, claude.WithDirProvider(root.get), claude.WithModel(model), claude.WithAPIKey(apiKey), claude.WithDebugStream(filepath.Join(dir, "stream-dump.json")))
+	defer func() { _ = pc.Close() }()
+
 	ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
@@ -146,16 +153,7 @@ func runServe(cmd *cobra.Command, dev bool) error {
 		wctx, cancel := context.WithCancel(ctx)
 		watcherCancel = cancel
 		watcherMu.Unlock()
-		go func() {
-			publish := index.WithPublisher(func(pctx context.Context, changed wiki.Changed) {
-				if err := bus.Publish(pctx, changed); err != nil && !errors.Is(err, events.ErrClosed) {
-					log.Warn("publish wiki change", "err", err)
-				}
-			})
-			if err := index.Watch(wctx, root, ix, log, publish); err != nil && wctx.Err() == nil {
-				log.Error("watcher stopped", "err", err)
-			}
-		}()
+		go watchWiki(wctx, root, ix, log, bus, pc.Flush)
 	}
 	startWatcher(w.Root)
 
@@ -165,12 +163,6 @@ func runServe(cmd *cobra.Command, dev bool) error {
 	}
 	defer func() { _ = gh.Close() }()
 
-	root := newRootHolder(w.Root)
-	// One long-lived CLI process per conversation: the first turn of each
-	// conversation pays the CLI boot, later turns reuse the process. Close
-	// guarantees no CLI process outlives the server.
-	pc := claude.NewPersistent(resolveClaudeBin(log), w.Root, claude.WithDirProvider(root.get), claude.WithModel(model), claude.WithAPIKey(apiKey), claude.WithDebugStream(filepath.Join(dir, "stream-dump.json")))
-	defer func() { _ = pc.Close() }()
 	// Eagerly spawn the pooled process for the most recently active
 	// conversation so resuming it after a restart skips the CLI boot (~1.6 s
 	// of spawn + init). The pool's idle-eviction timer reaps it if the user
@@ -220,6 +212,23 @@ func servePort(dev bool) int {
 		return config.DevPort
 	}
 	return config.DefaultPort
+}
+
+// watchWiki runs the index watcher for a wiki root until ctx is cancelled:
+// tree changes publish onto the event bus (serve forwards them to clients as
+// wiki_changed frames), and a rulebook (wiki-root CLAUDE.md) edit calls
+// onRulebook — serve wires it to the pool's Flush, so idle pooled CLI
+// processes die now and the next turn of every conversation respawns under
+// the new rules. A watcher that stops of its own accord is logged, not fatal.
+func watchWiki(ctx context.Context, root string, ix *index.Index, log *slog.Logger, bus *events.Bus, onRulebook func()) {
+	publish := index.WithPublisher(func(pctx context.Context, changed wiki.Changed) {
+		if err := bus.Publish(pctx, changed); err != nil && !errors.Is(err, events.ErrClosed) {
+			log.Warn("publish wiki change", "err", err)
+		}
+	})
+	if err := index.Watch(ctx, root, ix, log, publish, index.WithRulebookChange(onRulebook)); err != nil && ctx.Err() == nil {
+		log.Error("watcher stopped", "err", err)
+	}
 }
 
 // chatRelaxTimeout is how long idle pooled CLI processes survive after the

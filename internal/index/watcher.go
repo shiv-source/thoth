@@ -37,6 +37,7 @@ func (a *fsnotifyAdapter) Errors() <-chan error          { return a.w.Errors }
 
 type watchConfig struct {
 	publisher func(context.Context, wiki.Changed)
+	rulebook  func()
 	watcher   fileWatcher
 }
 
@@ -52,6 +53,15 @@ func withWatcher(w fileWatcher) WatchOption {
 // also refreshes clients). A nil hook disables publishing.
 func WithPublisher(p func(context.Context, wiki.Changed)) WatchOption {
 	return func(c *watchConfig) { c.publisher = p }
+}
+
+// WithRulebookChange registers a hook fired once per debounce flush when the
+// wiki-root rulebook (CLAUDE.md) changed. The rulebook is hidden from the
+// tree, so its edits are never a wiki.Changed batch — they ride this hook,
+// letting serve flush the pooled CLI processes (the next turn of every
+// conversation respawns under the new rules). A nil hook disables it.
+func WithRulebookChange(f func()) WatchOption {
+	return func(c *watchConfig) { c.rulebook = f }
 }
 
 // Watch keeps ix in sync with root until ctx is cancelled. Directories
@@ -103,11 +113,15 @@ func Watch(ctx context.Context, root string, ix *Index, log *slog.Logger, opts .
 	}
 
 	pending := map[string]fsnotify.Op{}
+	rulebookPath := filepath.Join(root, "CLAUDE.md")
 	debounce := time.NewTimer(time.Hour)
 	debounce.Stop()
 	defer debounce.Stop()
 
 	flush := func() {
+		// Capture before the loop below deletes entries. The rulebook is
+		// hidden from the tree, so it never reaches the publisher's batch.
+		_, rulebookChanged := pending[rulebookPath]
 		changes := make([]wiki.Change, 0, len(pending))
 		for p, mask := range pending {
 			apply(ix, root, p, log)
@@ -130,6 +144,9 @@ func Watch(ctx context.Context, root string, ix *Index, log *slog.Logger, opts .
 		}
 		if len(changes) > 0 && cfg.publisher != nil {
 			cfg.publisher(ctx, wiki.Changed{Changes: changes})
+		}
+		if cfg.rulebook != nil && rulebookChanged {
+			cfg.rulebook()
 		}
 	}
 

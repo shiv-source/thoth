@@ -439,6 +439,82 @@ func (f *fakeWatcher) Close() error                  { return nil }
 func (f *fakeWatcher) Events() <-chan fsnotify.Event { return f.events }
 func (f *fakeWatcher) Errors() <-chan error          { return f.errors }
 
+// TestWatchRulebookEditFiresHookNotBatch covers the rulebook path's contract:
+// an edit fires the WithRulebookChange hook once per debounce flush (serve
+// flushes the pooled CLI processes on it), and it never publishes a tree
+// batch because the rulebook is hidden from the tree.
+func TestWatchRulebookEditFiresHookNotBatch(t *testing.T) {
+	root := t.TempDir()
+	ix, err := Open(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = ix.Close() })
+	log := slog.New(slog.NewTextHandler(io.Discard, nil))
+	fw := newFakeWatcher()
+
+	var mu sync.Mutex
+	var batches []wiki.Changed
+	fired := 0
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() {
+		done <- Watch(ctx, root, ix, log, withWatcher(fw),
+			WithPublisher(func(_ context.Context, c wiki.Changed) {
+				mu.Lock()
+				defer mu.Unlock()
+				batches = append(batches, c)
+			}),
+			WithRulebookChange(func() {
+				mu.Lock()
+				defer mu.Unlock()
+				fired++
+			}))
+	}()
+	t.Cleanup(func() { cancel(); <-done })
+
+	// A plain note edit must not fire the hook.
+	note := filepath.Join(root, "daily", "note.md")
+	if err := os.MkdirAll(filepath.Dir(note), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(note, []byte("---\ntitle: Watched\ntype: daily\n---\nhello\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	fw.events <- fsnotify.Event{Name: note, Op: fsnotify.Create}
+	waitForChange(t, &mu, &batches, wiki.Change{Op: wiki.OpCreate, Path: "daily/note.md"})
+
+	// A rulebook edit fires the hook exactly once and publishes nothing.
+	rb := filepath.Join(root, "CLAUDE.md")
+	if err := os.WriteFile(rb, []byte("new rules\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	fw.events <- fsnotify.Event{Name: rb, Op: fsnotify.Write}
+
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		mu.Lock()
+		n := fired
+		mu.Unlock()
+		if n >= 1 {
+			break
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if fired != 1 {
+		t.Fatalf("rulebook hook fired %d times, want 1", fired)
+	}
+	for _, b := range batches {
+		for _, c := range b.Changes {
+			if c.Path == "CLAUDE.md" {
+				t.Fatalf("rulebook edit published a tree batch: %+v", c)
+			}
+		}
+	}
+}
+
 // TestWatchLogsWatcherErrors covers the Errors channel: non-fatal watch
 // failures must be logged (not dropped) and must not stop the watcher.
 func TestWatchLogsWatcherErrors(t *testing.T) {

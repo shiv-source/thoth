@@ -9,9 +9,11 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
+	"github.com/go-warehouse/events"
 	"github.com/shiv-source/thoth/internal/assets"
 	"github.com/shiv-source/thoth/internal/claude"
 	"github.com/shiv-source/thoth/internal/config"
@@ -271,6 +273,68 @@ func TestServePort(t *testing.T) {
 				t.Fatalf("servePort(%v) = %d, want %d", tt.dev, got, tt.want)
 			}
 		})
+	}
+}
+
+// TestWatchWikiFlushesPoolOnRulebookEdit covers the serve-side wiring: the
+// watcher's rulebook hook is bound to the pooled-CLI flush, so editing the
+// wiki-root CLAUDE.md drops every idle pooled process (the next turn of each
+// conversation respawns under the new rules). A plain note edit must not
+// flush.
+func TestWatchWikiFlushesPoolOnRulebookEdit(t *testing.T) {
+	log := slog.New(slog.NewTextHandler(io.Discard, nil))
+	root := t.TempDir()
+	ix, err := index.Open(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = ix.Close() })
+
+	bus := events.New(events.WithLogger(log))
+	t.Cleanup(func() { bus.Close(); _ = bus.Wait(context.Background()) })
+
+	var mu sync.Mutex
+	flushed := 0
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		watchWiki(ctx, root, ix, log, bus, func() {
+			mu.Lock()
+			flushed++
+			mu.Unlock()
+		})
+	}()
+	t.Cleanup(func() { cancel(); <-done })
+
+	// A plain note edit must not flush the pool.
+	note := filepath.Join(root, "daily", "note.md")
+	if err := os.MkdirAll(filepath.Dir(note), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(note, []byte("---\ntitle: Watched\ntype: daily\n---\nhello\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(400 * time.Millisecond) // let the watcher debounce and flush
+	mu.Lock()
+	if flushed != 0 {
+		mu.Unlock()
+		t.Fatalf("note edit flushed the pool %d times, want 0", flushed)
+	}
+	mu.Unlock()
+
+	if err := os.WriteFile(filepath.Join(root, "CLAUDE.md"), []byte("new rules\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	waitForCond(t, 5*time.Second, func() bool {
+		mu.Lock()
+		defer mu.Unlock()
+		return flushed >= 1
+	})
+	mu.Lock()
+	defer mu.Unlock()
+	if flushed != 1 {
+		t.Fatalf("one rulebook edit flushed the pool %d times, want 1", flushed)
 	}
 }
 
