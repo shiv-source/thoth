@@ -432,6 +432,29 @@ func TestEnsureWikiRecreatesReservedAttachments(t *testing.T) {
 	}
 }
 
+// TestEnsureWikiErrorWhenAttachmentsBlocked covers the fail-fast side of the
+// reserved-dir guarantee: a file squatting on the attachments name must abort
+// boot with an actionable error instead of a bare "not a directory".
+func TestEnsureWikiErrorWhenAttachmentsBlocked(t *testing.T) {
+	_, stg := openTestRepos(t)
+	log := slog.New(slog.NewTextHandler(io.Discard, nil))
+
+	root := t.TempDir()
+	if err := wiki.ScaffoldWithOptions(root, wiki.ScaffoldOptions{Folders: []string{"notes"}, GitInit: false}); err != nil {
+		t.Fatal(err)
+	}
+	blocker := filepath.Join(root, "attachments")
+	if err := os.WriteFile(blocker, []byte("oops"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := ensureWiki(root, stg, log); err == nil {
+		t.Fatal("expected error when a file blocks the reserved attachments dir")
+	} else if !strings.Contains(err.Error(), "blocked by a file") || !strings.Contains(err.Error(), blocker) {
+		t.Fatalf("error must name the conflict and the blocking path, got: %v", err)
+	}
+}
+
 func TestServeErrorWhenWikiScaffoldFails(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)

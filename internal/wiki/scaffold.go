@@ -66,6 +66,12 @@ func ScaffoldWithOptions(dir string, opts ScaffoldOptions) error {
 // custom folder set or after the directory was deleted.
 func EnsureReservedDir(root string) error {
 	p := filepath.Join(root, AttachmentsDir)
+	// A file squatting on the reserved name blocks the directory. Fail fast
+	// with a hint instead of letting MkdirAll surface a bare "not a
+	// directory", since the check runs on every startup.
+	if fi, err := os.Stat(p); err == nil && !fi.IsDir() {
+		return fmt.Errorf("reserved directory %q is blocked by a file; move or remove %s", AttachmentsDir, p)
+	}
 	if err := os.MkdirAll(p, 0o755); err != nil {
 		return fmt.Errorf("ensure %s: %w", AttachmentsDir, err)
 	}

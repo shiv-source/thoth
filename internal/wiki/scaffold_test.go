@@ -175,6 +175,21 @@ func TestEnsureReservedDirCreatesWhenMissing(t *testing.T) {
 	}
 }
 
+func TestEnsureReservedDirReportsBlockedByFile(t *testing.T) {
+	dir := t.TempDir()
+	blocker := filepath.Join(dir, AttachmentsDir)
+	if err := os.WriteFile(blocker, []byte("oops"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	err := EnsureReservedDir(dir)
+	if err == nil {
+		t.Fatal("expected error when a file blocks the reserved attachments dir")
+	}
+	if !strings.Contains(err.Error(), "blocked by a file") || !strings.Contains(err.Error(), blocker) {
+		t.Fatalf("error must name the conflict and the blocking path, got: %v", err)
+	}
+}
+
 func TestEnsureReservedDirKeepsExistingContents(t *testing.T) {
 	dir := t.TempDir()
 	p := filepath.Join(dir, AttachmentsDir)
