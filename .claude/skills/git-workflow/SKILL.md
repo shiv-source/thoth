@@ -32,7 +32,8 @@ description: >-
    `git switch main && git pull --ff-only && git switch -c <type>/<scope>/<slug>`
    Fast path when the branch already exists: `./scripts/pr.sh` runs this sync plus the whole PR flow (workflow 3) in one command.
    The pre-commit hook enforces this — scripts/main-guard.sh blocks commits made directly on main.
-   Epic exception: native-agent work (epic #121) branches off its epic branch, not main —
+   Epic exception: any change touching the `agent/` module or otherwise related
+   to the native Go agent (epic #121) branches off the epic branch, not main —
    `git switch feat/agent/native-go-agent && git pull --ff-only && git switch -c <type>/<scope>/<slug>`
 2. `<type>` is a conventional-commit prefix: feat, fix, perf, ci, docs, refactor, test, chore — `perf` maps to the `performance` type label (CONTRIBUTING.md § Workflow)
 3. `<scope>` is the short area name (web, api, index, skills, …); `<slug>` is short kebab-case (lowercase letters, digits, hyphens) — the branch mirrors the commit message `<type>(<scope>): <summary>`, e.g. fix/web/reject-empty-titles
@@ -51,7 +52,7 @@ description: >-
 1. Push the branch, then create the PR with the `gh` CLI (not the web UI):
    `gh pr create --title "<type>(<scope>): <summary>" --label <type> --label <area>… --template .github/pull_request_template.md`
    — one type label plus every area label the change touches (workflow 4); the web UI auto-fills the PR template, the CLI does not — pass it explicitly with `--template` (verify flags against `gh pr create --help`)
-   — native-agent PRs (epic #121) target the epic branch instead of main: add `--base feat/agent/native-go-agent`
+   — PRs touching the `agent/` module or otherwise related to the native Go agent (epic #121) target the epic branch instead of main: add `--base feat/agent/native-go-agent`
  2. Write the body per .github/pull_request_template.md:
    - ## Summary — what changed and why; bullets when they help
    - ## Related issue — `Closes #<n>` (auto-closes the issue on merge); omit when there is no issue
