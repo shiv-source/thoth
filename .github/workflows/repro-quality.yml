@@ -1,0 +1,28 @@
+name: repro-quality
+on:
+  workflow_call:
+    inputs:
+      backend:
+        description: run the Go gates
+        type: boolean
+        default: true
+      graph:
+        description: run the graph freshness gate
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  graph-check:
+    if: inputs.graph
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "graph-check ran with input ${{ inputs.graph }}"
+
+  backend-test:
+    if: inputs.backend
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "backend-test ran with input ${{ inputs.backend }}"

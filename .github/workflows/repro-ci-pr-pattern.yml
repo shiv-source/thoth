@@ -1,0 +1,33 @@
+name: repro-ci-pr-pattern
+on: workflow_dispatch
+
+permissions:
+  contents: read
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.diff.outputs.backend }}
+      graph: ${{ steps.diff.outputs.graph }}
+    steps:
+      - id: diff
+        name: classify changed files
+        shell: bash
+        run: |
+          echo "backend=true" >> "$GITHUB_OUTPUT"
+          echo "graph=true" >> "$GITHUB_OUTPUT"
+
+  quality:
+    needs: [changes]
+    uses: ./.github/workflows/repro-quality.yml
+    with:
+      backend: ${{ needs.changes.outputs.backend }}
+      graph: ${{ needs.changes.outputs.graph }}
+
+  final-gate:
+    needs: [changes, quality]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "final-gate ran"
