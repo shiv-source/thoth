@@ -243,8 +243,13 @@ func apply(ix *Index, root, p string, log *slog.Logger) {
 	}
 	meta, _, err := wiki.ParseNote(b)
 	if err != nil {
-		log.Warn("index: skipping malformed note", "path", p, "err", err)
+		for _, pr := range wiki.Validate(rel, b) {
+			log.Warn("index: skipping malformed note", "path", p, "rule", pr.Rule, "msg", pr.Msg)
+		}
 		return
+	}
+	for _, pr := range wiki.Validate(rel, b) {
+		log.Warn("index: save-protocol violation", "path", p, "rule", pr.Rule, "msg", pr.Msg)
 	}
 	if err := ix.Upsert(Note{
 		Path: rel, Title: meta.Title, Kind: meta.Kind,

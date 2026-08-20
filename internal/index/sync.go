@@ -91,8 +91,13 @@ func (ix *Index) Sync(root string, log *slog.Logger) error {
 		}
 		meta, _, perr := wiki.ParseNote(b)
 		if perr != nil {
-			log.Warn("index: skipping malformed note", "path", p, "err", perr)
+			for _, pr := range wiki.Validate(rel, b) {
+				log.Warn("index: skipping malformed note", "path", p, "rule", pr.Rule, "msg", pr.Msg)
+			}
 			return nil // stays in existing → deleted below
+		}
+		for _, pr := range wiki.Validate(rel, b) {
+			log.Warn("index: save-protocol violation", "path", p, "rule", pr.Rule, "msg", pr.Msg)
 		}
 		delete(existing, rel)
 		return upsert(tx, Note{

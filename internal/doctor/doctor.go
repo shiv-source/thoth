@@ -44,10 +44,10 @@ type Check struct {
 
 // Run probes the installation under dir ("" means ~/.thoth) and returns every
 // check, in order: wiki, claude, claude login, api key, model, database,
-// index, api, websocket. Every check runs even when an earlier one fails.
-// addr is the host:port the api/websocket checks probe ("" → 127.0.0.1:8333);
-// tests inject a free port. ctx bounds the claude probes; log is reserved for
-// future diagnostics.
+// index, malformed, api, websocket. Every check runs even when an earlier one
+// fails. addr is the host:port the api/websocket checks probe ("" →
+// 127.0.0.1:8333); tests inject a free port. ctx bounds the claude probes;
+// log is reserved for future diagnostics.
 func Run(ctx context.Context, dir string, addr string, log *slog.Logger) []Check {
 	thDir := dir
 	if thDir == "" {
@@ -62,7 +62,7 @@ func Run(ctx context.Context, dir string, addr string, log *slog.Logger) []Check
 	}
 	dbPath := filepath.Join(thDir, "thoth.db")
 
-	results := make([]Check, 0, 9)
+	results := make([]Check, 0, 10)
 
 	// 1. wiki — the path lives in the settings table; a missing database
 	// falls back to the default (the doctor must not create the DB itself).
@@ -85,14 +85,17 @@ func Run(ctx context.Context, dir string, addr string, log *slog.Logger) []Check
 	// 5. index sync
 	results = append(results, checkIndex(dbPath, expanded))
 
-	// 6. api — REST health at the configured address. Pre-launch (CLI) it
+	// 6. malformed — notes the index silently skips, surfaced by name.
+	results = append(results, checkMalformed(expanded))
+
+	// 7. api — REST health at the configured address. Pre-launch (CLI) it
 	// reports whether the port is free, occupied by a running Thoth, or by
 	// something else; in-flight (GET /api/doctor) it self-checks the very
 	// server answering the request.
 	apiCheck, apiReachable := checkAPI(addr)
 	results = append(results, apiCheck)
 
-	// 7. websocket — the chat upgrade; reported separately, and only probed
+	// 8. websocket — the chat upgrade; reported separately, and only probed
 	// when the REST check reached a Thoth server.
 	results = append(results, checkWebsocket(addr, apiReachable))
 
@@ -323,6 +326,53 @@ func countNotes(root string) (int, error) {
 		return nil
 	})
 	return n, err
+}
+
+// checkMalformed walks the wiki and reports markdown notes that the index
+// silently skips — notes whose frontmatter fails to parse (see index.Sync).
+// Advisory save-protocol warnings (missing type, non-kebab filename) still
+// index, so they are surfaced by the index's own logs, not this check.
+func checkMalformed(root string) Check {
+	bad := []string{}
+	err := filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err // an unreadable wiki (or subtree) is a real problem
+		}
+		if d.IsDir() {
+			return nil
+		}
+		rel, rerr := filepath.Rel(root, p)
+		if rerr != nil {
+			return nil
+		}
+		rel = filepath.ToSlash(rel)
+		if !wiki.Indexable(rel) || !wiki.IsMarkdownPath(rel) {
+			return nil
+		}
+		b, rerr := os.ReadFile(p)
+		if rerr != nil {
+			return nil
+		}
+		if _, _, perr := wiki.ParseNote(b); perr != nil {
+			bad = append(bad, rel+" ("+perr.Error()+")")
+		}
+		return nil
+	})
+	if err != nil {
+		return Check{Name: "malformed", OK: false, Message: fmt.Sprintf("cannot scan %s: %v", root, err)}
+	}
+	if len(bad) == 0 {
+		return Check{Name: "malformed", OK: true, Message: "every note parses as a valid note"}
+	}
+	shown, rest := bad, 0
+	if len(bad) > 5 {
+		shown, rest = bad[:5], len(bad)-5
+	}
+	msg := "notes the index skips: " + strings.Join(shown, "; ")
+	if rest > 0 {
+		msg += fmt.Sprintf("; and %d more", rest)
+	}
+	return Check{Name: "malformed", OK: false, Message: msg}
 }
 
 // checkAPI probes the REST health endpoint at the configured address and
