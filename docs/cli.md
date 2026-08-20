@@ -17,7 +17,8 @@ Startup sequence:
 3. Open `thoth.db` (index + store), sync the search index with the tree
 4. Start the fsnotify watcher
 5. Resolve the claude binary (config → `PATH` → warn)
-6. Serve; SIGINT/SIGTERM → graceful shutdown (cancels in-flight Claude turns, then exits)
+6. Pre-warm the CLI pool for the most recently active conversation (best-effort: empty DB, or a lookup/spawn failure, only logs a warning and serves — the first send on that session spawns normally). The pool is capped at 4 processes (LRU-idle eviction on overflow); idle processes are flushed ~1 min after the user leaves the chat page (socket closed or tab hidden)
+7. Serve; SIGINT/SIGTERM → graceful shutdown (cancels in-flight Claude turns, then exits)
 
 ### `thoth init [path]`
 

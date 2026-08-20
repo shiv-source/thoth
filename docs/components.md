@@ -23,7 +23,7 @@ The Go backend is organized as small packages with one purpose each, communicati
 Everything version-sensitive about the Claude Code CLI lives in exactly two files:
 
 - `client.go` — the flag lists (per-turn `-p --output-format stream-json --verbose --session-id …` and persistent-mode `-p --input-format stream-json … --autocompact auto`; plus `--dangerously-skip-permissions` by default, or `--permission-mode <mode>` when configured, plus optional `--model`), spawn, stream scanning, cancel; stderr is captured and appended to exit errors. A configured `APIKey` is injected into every spawn as `ANTHROPIC_API_KEY` (appended last so it overrides any parent value); no key configured means the process inherits the server's environment untouched
-- `persistent.go` — `PersistentClient`, a pool of long-lived CLI processes keyed by session id: lazily spawned, one dispatcher goroutine per process turns stdout lines into events for the in-flight turn and ends it at the CLI's `result` line; cancel kills the process and the next turn respawns; idle processes evict after 10 min; `Flush` on wiki-path change, `Close` on shutdown
+- `persistent.go` — `PersistentClient`, a pool of long-lived CLI processes keyed by session id: lazily spawned, capped at 4 (`MaxProcs`; the least-recently-used idle process is evicted to make room, busy processes are never killed), one dispatcher goroutine per process turns stdout lines into events for the in-flight turn and ends it at the CLI's `result` line; cancel kills the process and the next turn respawns; idle processes evict after 10 min; `Flush` on wiki-path change or when the user leaves the chat page, `Close` on shutdown. `Warm` eagerly spawns one session's process (same `getOrSpawn`/`spawnLocked` path a turn uses, no prompt) and arms the same idle timer — serve calls it at boot for the most recently active conversation, so resuming it skips the CLI boot
 - `events.go` — tolerant parsing of `stream-json` lines into typed events: `assistant_delta`, `thinking` (thinking-only assistant blocks — the UI shows "Thinking…" with the block text), `tool_activity`, `turn_done`, `error`; the raw stream is also appended to `~/.thoth/stream-dump.json` for debugging (rotated past 10MB)
 
 ```go
@@ -56,7 +56,7 @@ Full mechanics: [Indexing & search](indexing.md).
 
 ## internal/api — the server
 
-`Deps` carries every dependency; `New(d Deps) *echo.Echo` wires all routes. `Hub` owns the WebSocket lifecycle: one active turn per conversation, supersede-on-send, cancel, and a 500-message replay buffer for reconnects. It also keeps a client registry and `Broadcast`s server-push frames (non-blocking; slow clients are skipped). When `Deps.Events` carries the event bus (`go-warehouse/events`, built in `internal/cli/serve.go`), `newServer` subscribes and forwards every `wiki.Changed` batch to all clients as a `wiki_changed` frame. Protocol details: [API](api.md).
+`Deps` carries every dependency; `New(d Deps) *echo.Echo` wires all routes. `Hub` owns the WebSocket lifecycle: one active turn per conversation, supersede-on-send, cancel, and a 500-message replay buffer for reconnects. It also keeps a client registry and `Broadcast`s server-push frames (non-blocking; slow clients are skipped). Each client tracks its tab's visibility (`presence` frames): when no client is active — all disconnected or hidden — the hub runs `OnChatAway` after `RelaxTimeout` (serve wires it to the pool's `Flush`, so idle CLI processes die ~1 min after the user leaves the chat page). When `Deps.Events` carries the event bus (`go-warehouse/events`, built in `internal/cli/serve.go`), `newServer` subscribes and forwards every `wiki.Changed` batch to all clients as a `wiki_changed` frame. Protocol details: [API](api.md).
 
 ## internal/store
 
@@ -66,7 +66,7 @@ Conversations, messages, and the llm_models registry in the same `thoth.db` (sep
 
 ## internal/cli
 
-`Execute()` builds the root Cobra command. `serve` is a thin orchestration function whose helpers (`loadConfig`, `ensureWiki`, `openStores`, `resolveClaudeBin`, `ensureModels`, `onSettingsSaved`, `serveUntilShutdown`) keep each step readable. Details: [CLI](cli.md).
+`Execute()` builds the root Cobra command. `serve` is a thin orchestration function whose helpers (`thothDir`, `settleWikiPath`, `ensureWiki`, `openIndex`, `resolveClaudeBin`, `prewarmPool`, `ensureModels`, `onSettingsSaved`, `serveUntilShutdown`) keep each step readable. Details: [CLI](cli.md).
 
 ## internal/doctor
 

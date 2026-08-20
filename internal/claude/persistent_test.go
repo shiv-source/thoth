@@ -84,6 +84,46 @@ echo 'Session ID 1234 is already in use' >&2
 exit 2
 `
 
+// slowOnceFake sleeps instead of answering on its FIRST spawn; respawns
+// answer normally. Shorter than sleepOnceFake so mid-turn assertions finish
+// quickly.
+const slowOnceFake = `#!/bin/sh
+marker="$(dirname "$0")/slow-done"
+if [ ! -f "$marker" ]; then touch "$marker"; sleep 1; fi
+n=0
+while IFS= read -r line; do
+  case "$line" in
+    *user*)
+      n=$((n+1))
+      echo '{"type":"assistant","message":{"content":[{"type":"text","text":"turn-'$n'"}]}}'
+      echo '{"type":"result","subtype":"success","is_error":false,"result":"done"}'
+      ;;
+  esac
+done
+`
+
+// sessionIsolationFake routes each stdin line into a per-session log file
+// keyed by the invocation's --session-id, proving a turn on one session never
+// touches another session's process (each conversation owns its history).
+const sessionIsolationFake = `#!/bin/sh
+echo "$@" >> "$(dirname "$0")/argv.txt"
+sid=""
+prev=""
+for a in "$@"; do
+  if [ "$prev" = "--session-id" ]; then sid="$a"; fi
+  prev="$a"
+done
+while IFS= read -r line; do
+  echo "$line" >> "$(dirname "$0")/$sid.log"
+  case "$line" in
+    *user*)
+      echo '{"type":"assistant","message":{"content":[{"type":"text","text":"ok"}]}}'
+      echo '{"type":"result","subtype":"success","is_error":false,"result":"done"}'
+      ;;
+  esac
+done
+`
+
 // realResultFake emits the result line with the real CLI's key order —
 // is_error first, "type":"result" later in the object. Turn-end detection
 // must not depend on JSON key order.
@@ -159,6 +199,17 @@ func argvOf(t *testing.T, bin string) string {
 
 func spawnCount(t *testing.T, bin string) int {
 	return strings.Count(argvOf(t, bin), "--input-format")
+}
+
+// waitSpawnCount polls until the fake's argv file records at least want
+// spawns. Warm spawns asynchronously (exec returns before the shell writes
+// its argv line), so spawn assertions after a Warm need to wait.
+func waitSpawnCount(t *testing.T, bin string, want int) {
+	t.Helper()
+	waitFor(t, 5*time.Second, func() bool {
+		raw, err := os.ReadFile(filepath.Join(filepath.Dir(bin), "argv.txt"))
+		return err == nil && strings.Count(string(raw), "--input-format") >= want
+	})
 }
 
 // startTurn runs one turn collecting its events.
@@ -337,6 +388,300 @@ func TestPersistentSpawnLockedSession(t *testing.T) {
 	err := pc.Start(context.Background(), "sess-1", "hello", WriterFunc(func(Event) error { return nil }))
 	if err == nil || !strings.Contains(err.Error(), "already in use") {
 		t.Fatalf("expected already-in-use error, got %v", err)
+	}
+}
+
+func TestPersistentWarmSpawnsIdleProcess(t *testing.T) {
+	bin := writePersistentFakeCLI(t)
+	pc := NewPersistent(bin, t.TempDir())
+	t.Cleanup(func() { _ = pc.Close() })
+
+	if err := pc.Warm("sess-1"); err != nil {
+		t.Fatalf("Warm: %v", err)
+	}
+	if pc.poolSize() != 1 {
+		t.Fatalf("pool size after warm = %d, want 1", pc.poolSize())
+	}
+	waitSpawnCount(t, bin, 1)
+
+	// A turn on the warm session produces zero new spawns: it rides the
+	// process that boot already spawned.
+	events := startTurn(t, pc, "sess-1", "question")
+	if len(events) == 0 || events[0].Text != "turn-1" {
+		t.Fatalf("warm-session turn deltas: %+v", events)
+	}
+	if n := spawnCount(t, bin); n != 1 {
+		t.Fatalf("turn after warm must not respawn, got %d spawns", n)
+	}
+	if pc.poolSize() != 1 {
+		t.Fatalf("pool size after turn = %d, want 1", pc.poolSize())
+	}
+}
+
+func TestPersistentWarmIdempotent(t *testing.T) {
+	bin := writePersistentFakeCLI(t)
+	pc := NewPersistent(bin, t.TempDir())
+	t.Cleanup(func() { _ = pc.Close() })
+
+	if err := pc.Warm("sess-1"); err != nil {
+		t.Fatalf("first Warm: %v", err)
+	}
+	if err := pc.Warm("sess-1"); err != nil {
+		t.Fatalf("second Warm: %v", err)
+	}
+	if pc.poolSize() != 1 {
+		t.Fatalf("pool size after two warms = %d, want 1", pc.poolSize())
+	}
+	waitSpawnCount(t, bin, 1)
+	if n := spawnCount(t, bin); n != 1 {
+		t.Fatalf("double warm must spawn once, got %d spawns", n)
+	}
+}
+
+func TestPersistentWarmIdleEviction(t *testing.T) {
+	bin := writePersistentFakeCLI(t)
+	pc := NewPersistent(bin, t.TempDir())
+	pc.IdleTimeout = 50 * time.Millisecond
+	t.Cleanup(func() { _ = pc.Close() })
+
+	if err := pc.Warm("sess-1"); err != nil {
+		t.Fatalf("Warm: %v", err)
+	}
+	if pc.poolSize() != 1 {
+		t.Fatalf("pool size after warm = %d, want 1", pc.poolSize())
+	}
+	// The idle-eviction timer a warm process arms must reap it, exactly like
+	// a post-turn idle process.
+	waitFor(t, 5*time.Second, func() bool { return pc.poolSize() == 0 })
+}
+
+func TestPersistentWarmErrors(t *testing.T) {
+	pc := NewPersistent(writePersistentFakeCLI(t), t.TempDir())
+
+	if err := pc.Warm(""); err == nil || !strings.Contains(err.Error(), "session id") {
+		t.Fatalf("Warm(\"\"): want session id error, got %v", err)
+	}
+	startTurn(t, pc, "sess-1", "one")
+	if err := pc.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+	if err := pc.Warm("sess-1"); err == nil || !strings.Contains(err.Error(), "closed") {
+		t.Fatalf("Warm after Close: want closed error, got %v", err)
+	}
+}
+
+func TestPersistentWarmSpawnFailureLeavesPoolEmpty(t *testing.T) {
+	pc := NewPersistent(filepath.Join(t.TempDir(), "missing-claude"), t.TempDir())
+	t.Cleanup(func() { _ = pc.Close() })
+
+	if err := pc.Warm("sess-1"); err == nil {
+		t.Fatal("Warm with a missing binary must error")
+	}
+	if pc.poolSize() != 0 {
+		t.Fatalf("pool size after failed warm = %d, want 0", pc.poolSize())
+	}
+	// A later turn spawns fresh and fails loudly rather than reusing a
+	// half-spawned process.
+	err := pc.Start(context.Background(), "sess-1", "hello", WriterFunc(func(Event) error { return nil }))
+	if err == nil || !strings.Contains(err.Error(), "start claude") {
+		t.Fatalf("Start after failed warm: want start error, got %v", err)
+	}
+	if pc.poolSize() != 0 {
+		t.Fatalf("pool size after failed turn = %d, want 0", pc.poolSize())
+	}
+}
+
+func TestPersistentMaxProcsEvictsLRUIdle(t *testing.T) {
+	bin := writePersistentFakeCLI(t)
+	pc := NewPersistent(bin, t.TempDir())
+	pc.MaxProcs = 2
+	t.Cleanup(func() { _ = pc.Close() })
+
+	startTurn(t, pc, "sess-1", "one")
+	startTurn(t, pc, "sess-2", "two")
+	// A third session over the cap evicts the least-recently-used idle
+	// process (sess-1) to make room.
+	startTurn(t, pc, "sess-3", "three")
+	if pc.poolSize() != 2 {
+		t.Fatalf("pool size at cap = %d, want 2", pc.poolSize())
+	}
+	if n := spawnCount(t, bin); n != 3 {
+		t.Fatalf("spawns with cap 2 after three sessions = %d, want 3", n)
+	}
+	// sess-1 was evicted: resuming it spawns fresh (and evicts the next LRU,
+	// sess-2, keeping the pool at the cap).
+	startTurn(t, pc, "sess-1", "again")
+	if n := spawnCount(t, bin); n != 4 {
+		t.Fatalf("resume of evicted session must respawn, got %d spawns", n)
+	}
+	if pc.poolSize() != 2 {
+		t.Fatalf("pool size after evict + respawn = %d, want 2", pc.poolSize())
+	}
+}
+
+func TestPersistentMaxProcsSkipsBusy(t *testing.T) {
+	bin := writeFakeCLIVariant(t, sleepOnceFake)
+	pc := NewPersistent(bin, t.TempDir())
+	pc.MaxProcs = 1
+	t.Cleanup(func() { _ = pc.Close() })
+
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() {
+		done <- pc.Start(ctx, "sess-1", "slow", WriterFunc(func(Event) error { return nil }))
+	}()
+	time.Sleep(300 * time.Millisecond) // sess-1 is mid-turn (busy)
+
+	// A second session over the cap must not kill the busy process: there is
+	// no idle victim, so the cap is exceeded briefly instead.
+	startTurn(t, pc, "sess-2", "quick")
+	if pc.poolSize() != 2 {
+		t.Fatalf("pool size with a busy process = %d, want 2 (cap exceeded, not killed)", pc.poolSize())
+	}
+	if n := spawnCount(t, bin); n != 2 {
+		t.Fatalf("spawns = %d, want 2", n)
+	}
+	cancel()
+	select {
+	case <-done:
+	case <-time.After(10 * time.Second):
+		t.Fatal("slow turn did not return after cancel")
+	}
+	waitFor(t, 10*time.Second, func() bool { return pc.poolSize() == 1 })
+}
+
+func TestPersistentMaxProcsAppliesToWarm(t *testing.T) {
+	bin := writePersistentFakeCLI(t)
+	pc := NewPersistent(bin, t.TempDir())
+	pc.MaxProcs = 2
+	t.Cleanup(func() { _ = pc.Close() })
+
+	// Waiting for each argv line after every warm makes the eviction of
+	// sess-1 deterministic (its line is written before sess-3 evicts it).
+	for i, sid := range []string{"sess-1", "sess-2", "sess-3"} {
+		if err := pc.Warm(sid); err != nil {
+			t.Fatalf("Warm(%s): %v", sid, err)
+		}
+		waitSpawnCount(t, bin, i+1)
+	}
+	if pc.poolSize() != 2 {
+		t.Fatalf("pool size after warm over cap = %d, want 2", pc.poolSize())
+	}
+}
+
+// TestPersistentWarmWhileBusyDoesNotEvict pins the busy guard on Warm's idle
+// timer: warming an in-flight session must not schedule an eviction for it
+// (only the turn's own end may arm the timer).
+func TestPersistentWarmWhileBusyDoesNotEvict(t *testing.T) {
+	bin := writeFakeCLIVariant(t, slowOnceFake)
+	pc := NewPersistent(bin, t.TempDir())
+	pc.IdleTimeout = 300 * time.Millisecond
+	t.Cleanup(func() { _ = pc.Close() })
+
+	done := make(chan error, 1)
+	go func() {
+		done <- pc.Start(context.Background(), "sess-1", "slow", WriterFunc(func(Event) error { return nil }))
+	}()
+	time.Sleep(300 * time.Millisecond) // mid-turn
+
+	if err := pc.Warm("sess-1"); err != nil {
+		t.Fatalf("Warm while busy: %v", err)
+	}
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("turn: %v", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("turn did not finish")
+	}
+	// The turn armed its own idle timer at its end; Warm must not have marked
+	// the process for eviction, so it is still pooled right after the turn.
+	if pc.poolSize() != 1 {
+		t.Fatalf("pool size after warm-while-busy turn = %d, want 1", pc.poolSize())
+	}
+}
+
+func TestPersistentSessionsAreIsolated(t *testing.T) {
+	bin := writeFakeCLIVariant(t, sessionIsolationFake)
+	pc := NewPersistent(bin, t.TempDir())
+	t.Cleanup(func() { _ = pc.Close() })
+
+	startTurn(t, pc, "sess-a", "prompt for A")
+	startTurn(t, pc, "sess-b", "prompt for B")
+
+	// Each conversation got its own process with its own --session-id.
+	argv := argvOf(t, bin)
+	for _, want := range []string{"--session-id sess-a", "--session-id sess-b"} {
+		if !strings.Contains(argv, want) {
+			t.Fatalf("argv %q missing %q", argv, want)
+		}
+	}
+	readLog := func(sid string) string {
+		t.Helper()
+		raw, err := os.ReadFile(filepath.Join(filepath.Dir(bin), sid+".log"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return string(raw)
+	}
+	// A turn on one session must never reach another session's process: each
+	// process only ever sees its own conversation's stdin.
+	a, b := readLog("sess-a"), readLog("sess-b")
+	if !strings.Contains(a, "prompt for A") || !strings.Contains(b, "prompt for B") {
+		t.Fatalf("session logs not routed: A=%q B=%q", a, b)
+	}
+	if strings.Contains(a, "prompt for B") || strings.Contains(b, "prompt for A") {
+		t.Fatalf("history leaked across processes: A=%q B=%q", a, b)
+	}
+}
+
+func TestPersistentGetOrSpawnSkipsEvictingProc(t *testing.T) {
+	bin := writePersistentFakeCLI(t)
+	pc := NewPersistent(bin, t.TempDir())
+	t.Cleanup(func() { _ = pc.Close() })
+
+	if err := pc.Warm("sess-1"); err != nil {
+		t.Fatalf("Warm: %v", err)
+	}
+	// Mark the pooled process evicting (as a concurrent cancel or cap
+	// eviction would): the next claim must discard it and spawn fresh rather
+	// than reuse a dying process.
+	pc.mu.Lock()
+	p := pc.procs["sess-1"]
+	pc.mu.Unlock()
+	p.mu.Lock()
+	p.evicting = true
+	p.mu.Unlock()
+
+	events := startTurn(t, pc, "sess-1", "question")
+	if len(events) == 0 {
+		t.Fatal("no deltas from the fresh spawn")
+	}
+	waitSpawnCount(t, bin, 2) // warm spawn + respawn
+	if pc.poolSize() != 1 {
+		t.Fatalf("pool size = %d, want 1", pc.poolSize())
+	}
+}
+
+func TestPersistentMaxProcsRestoresVictimOnSpawnFailure(t *testing.T) {
+	bin := writePersistentFakeCLI(t)
+	pc := NewPersistent(bin, t.TempDir())
+	pc.MaxProcs = 1
+	t.Cleanup(func() { _ = pc.Close() })
+
+	if err := pc.Warm("sess-1"); err != nil {
+		t.Fatalf("Warm: %v", err)
+	}
+	// Point the bin at something that cannot start, then spawn over the cap:
+	// the selected victim must be restored (still pooled), not left evicting.
+	pc.Bin = filepath.Join(t.TempDir(), "missing-claude")
+	err := pc.Start(context.Background(), "sess-2", "hello", WriterFunc(func(Event) error { return nil }))
+	if err == nil || !strings.Contains(err.Error(), "start claude") {
+		t.Fatalf("Start with missing bin: want start error, got %v", err)
+	}
+	if pc.poolSize() != 1 {
+		t.Fatalf("pool size after failed spawn = %d, want 1 (victim restored)", pc.poolSize())
 	}
 }
 

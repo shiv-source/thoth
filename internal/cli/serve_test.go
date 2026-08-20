@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"context"
+	"errors"
 	"io"
 	"log/slog"
 	"os"
@@ -8,8 +10,10 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/shiv-source/thoth/internal/assets"
+	"github.com/shiv-source/thoth/internal/claude"
 	"github.com/shiv-source/thoth/internal/config"
 	"github.com/shiv-source/thoth/internal/index"
 	"github.com/shiv-source/thoth/internal/settings"
@@ -464,5 +468,200 @@ func TestServeErrorWhenWikiScaffoldFails(t *testing.T) {
 	root.SetArgs([]string{"serve"})
 	if err := root.Execute(); err == nil {
 		t.Fatal("expected error when wiki scaffold fails")
+	}
+}
+
+// writePrewarmFake writes a fake claude that logs each invocation's argv to
+// argv.txt and, per stream-json user control line on stdin, replies with one
+// turn — the contract a pooled process must satisfy for a boot pre-warm: a
+// warm process answers a later turn without a respawn.
+func writePrewarmFake(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	bin := filepath.Join(dir, "claude")
+	script := `#!/bin/sh
+echo "$@" >> "$(dirname "$0")/argv.txt"
+n=0
+while IFS= read -r line; do
+  case "$line" in
+    *user*)
+      n=$((n+1))
+      echo '{"type":"assistant","message":{"content":[{"type":"text","text":"turn-'$n'"}]}}'
+      echo '{"type":"result","subtype":"success","is_error":false,"result":"done"}'
+      ;;
+  esac
+done
+`
+	if err := os.WriteFile(bin, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	return bin
+}
+
+// cliSpawnCount returns how many pooled processes the fake spawned (0 when
+// argv.txt is not there yet — prewarm spawns asynchronously).
+func cliSpawnCount(t *testing.T, bin string) int {
+	t.Helper()
+	raw, err := os.ReadFile(filepath.Join(filepath.Dir(bin), "argv.txt"))
+	if err != nil {
+		return 0
+	}
+	return strings.Count(string(raw), "--input-format")
+}
+
+func waitForCond(t *testing.T, timeout time.Duration, cond func() bool) {
+	t.Helper()
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		if cond() {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatalf("condition not met within %v", timeout)
+}
+
+func TestPrewarmPoolExistingConversation(t *testing.T) {
+	log := slog.New(slog.NewTextHandler(io.Discard, nil))
+	st, _ := openTestRepos(t)
+	bin := writePrewarmFake(t)
+	pc := claude.NewPersistent(bin, t.TempDir())
+	t.Cleanup(func() { _ = pc.Close() })
+
+	id, err := st.CreateConversation("warm me")
+	if err != nil {
+		t.Fatal(err)
+	}
+	prewarmPool(log, st, pc)
+
+	// The warm spawn must be the persistent-mode invocation for the
+	// conversation's session, with no prompt (it rides stdin later).
+	waitForCond(t, 5*time.Second, func() bool { return cliSpawnCount(t, bin) == 1 })
+	raw, err := os.ReadFile(filepath.Join(filepath.Dir(bin), "argv.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"-p", "--input-format", "stream-json", "--output-format", "stream-json", "--verbose", "--session-id", id} {
+		if !strings.Contains(string(raw), want) {
+			t.Fatalf("prewarm argv %q missing %q", raw, want)
+		}
+	}
+
+	// The warmed process is alive and pooled: a turn on the same session
+	// produces zero new spawns.
+	var got []claude.Event
+	if err := pc.Start(context.Background(), id, "hello", claude.WriterFunc(func(e claude.Event) error {
+		got = append(got, e)
+		return nil
+	})); err != nil {
+		t.Fatalf("Start on warmed session: %v", err)
+	}
+	if len(got) == 0 || got[0].Text != "turn-1" {
+		t.Fatalf("warmed-session deltas: %+v", got)
+	}
+	if n := cliSpawnCount(t, bin); n != 1 {
+		t.Fatalf("turn after prewarm respawned: %d spawns, want 1", n)
+	}
+}
+
+func TestPrewarmPoolUsesRotatedSessionID(t *testing.T) {
+	log := slog.New(slog.NewTextHandler(io.Discard, nil))
+	st, _ := openTestRepos(t)
+	bin := writePrewarmFake(t)
+	pc := claude.NewPersistent(bin, t.TempDir())
+	t.Cleanup(func() { _ = pc.Close() })
+
+	id, err := st.CreateConversation("warm me")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// A forked session is the one a turn uses, so it — not the conversation
+	// id — must be warmed.
+	if err := st.SetClaudeSessionID(id, "rotated-session-uuid"); err != nil {
+		t.Fatal(err)
+	}
+	prewarmPool(log, st, pc)
+	waitForCond(t, 5*time.Second, func() bool { return cliSpawnCount(t, bin) == 1 })
+	raw, err := os.ReadFile(filepath.Join(filepath.Dir(bin), "argv.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(raw), "--session-id rotated-session-uuid") {
+		t.Fatalf("prewarm argv %q must carry the rotated session id", raw)
+	}
+}
+
+func TestPrewarmPoolEmptyDBLeavesPoolEmpty(t *testing.T) {
+	log := slog.New(slog.NewTextHandler(io.Discard, nil))
+	st, _ := openTestRepos(t)
+	bin := writePrewarmFake(t)
+	pc := claude.NewPersistent(bin, t.TempDir())
+	t.Cleanup(func() { _ = pc.Close() })
+
+	prewarmPool(log, st, pc)
+	if n := cliSpawnCount(t, bin); n != 0 {
+		t.Fatalf("empty database must not prewarm, got %d spawns", n)
+	}
+}
+
+func TestPrewarmPoolSpawnFailureNonFatal(t *testing.T) {
+	log := slog.New(slog.NewTextHandler(io.Discard, nil))
+	st, _ := openTestRepos(t)
+	if _, err := st.CreateConversation("warm me"); err != nil {
+		t.Fatal(err)
+	}
+	pc := claude.NewPersistent(filepath.Join(t.TempDir(), "missing-claude"), t.TempDir())
+	t.Cleanup(func() { _ = pc.Close() })
+
+	prewarmPool(log, st, pc) // must not panic; boot continues
+	if n := cliSpawnCount(t, filepath.Dir(pc.Bin)); n != 0 {
+		t.Fatalf("failed prewarm spawned: %d", n)
+	}
+}
+
+func TestPrewarmPoolStoreErrorNonFatal(t *testing.T) {
+	log := slog.New(slog.NewTextHandler(io.Discard, nil))
+	bin := writePrewarmFake(t)
+	pc := claude.NewPersistent(bin, t.TempDir())
+	t.Cleanup(func() { _ = pc.Close() })
+	st, _ := openTestRepos(t)
+	if err := st.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	prewarmPool(log, st, pc) // closed store: warn and continue
+	if n := cliSpawnCount(t, bin); n != 0 {
+		t.Fatalf("store error must not prewarm, got %d spawns", n)
+	}
+}
+
+// fakePrewarmStore drives prewarmPool's defensive branches that a real store
+// cannot isolate (a session-id lookup only fails after the recent-conversation
+// lookup succeeded, which a closed db cannot express).
+type fakePrewarmStore struct {
+	recent    store.Conversation
+	recentErr error
+	sid       string
+	sidErr    error
+}
+
+func (f *fakePrewarmStore) RecentConversation() (store.Conversation, error) {
+	return f.recent, f.recentErr
+}
+
+func (f *fakePrewarmStore) ClaudeSessionID(string) (string, error) {
+	return f.sid, f.sidErr
+}
+
+func TestPrewarmPoolSessionIDErrorNonFatal(t *testing.T) {
+	log := slog.New(slog.NewTextHandler(io.Discard, nil))
+	bin := writePrewarmFake(t)
+	pc := claude.NewPersistent(bin, t.TempDir())
+	t.Cleanup(func() { _ = pc.Close() })
+	st := &fakePrewarmStore{recent: store.Conversation{ID: "conv-1"}, sidErr: errors.New("boom")}
+
+	prewarmPool(log, st, pc) // session-id lookup error: warn and continue
+	if n := cliSpawnCount(t, bin); n != 0 {
+		t.Fatalf("session-id error must not prewarm, got %d spawns", n)
 	}
 }

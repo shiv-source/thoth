@@ -17,6 +17,11 @@ import (
 // turn, bounding memory to active conversations plus a short idle window.
 const defaultIdleTimeout = 10 * time.Minute
 
+// defaultMaxProcs caps the number of pooled processes. Each is a full Claude
+// CLI (hundreds of MB RSS), so a hard ceiling keeps memory bounded when a
+// user touches several conversations in quick succession.
+const defaultMaxProcs = 4
+
 // PersistentClient implements Client over a pool of long-lived CLI
 // processes, one per conversation (session id). Spawning is lazy: the first
 // turn of a conversation pays the CLI boot; later turns reuse the process
@@ -28,6 +33,11 @@ type PersistentClient struct {
 	// IdleTimeout evicts an idle process (default 10 min; small values in
 	// tests). Zero disables idle eviction.
 	IdleTimeout time.Duration
+	// MaxProcs caps how many processes the pool holds (default 4). When a
+	// spawn would exceed it, the least-recently-used idle process is evicted
+	// first; busy processes are never killed to make room, so the cap can be
+	// exceeded briefly while several turns run at once. Zero disables the cap.
+	MaxProcs int
 
 	mu        sync.Mutex
 	procs     map[string]*proc
@@ -41,7 +51,7 @@ type PersistentClient struct {
 // hub guarantees at most one in-flight turn per session, so busy is a
 // boolean, not a counter.
 type proc struct {
-	mu        sync.Mutex // guards busy, evict, evicting, seq, w, stdin, idleTimer
+	mu        sync.Mutex // guards busy, evict, evicting, seq, w, stdin, idleTimer, lastUsed
 	cmd       *exec.Cmd
 	stdout    io.ReadCloser // read end; closing it unblocks the dispatcher
 	stdin     *bufio.Writer
@@ -50,6 +60,7 @@ type proc struct {
 	evicting  bool // eviction in progress: never handed to a new turn
 	seq       int  // turn counter: dispatcher detects turn boundaries by it
 	w         EventWriter
+	lastUsed  time.Time // recency for cap eviction (LRU); zero = freshly spawned
 	idleTimer *time.Timer
 	tail      *stderrTail
 	turnDone  chan error // dispatcher → in-flight Start (buffered 1)
@@ -72,6 +83,7 @@ func NewPersistent(bin, dir string, opts ...Option) *PersistentClient {
 	return &PersistentClient{
 		CLIClient:   New(bin, dir, opts...),
 		IdleTimeout: defaultIdleTimeout,
+		MaxProcs:    defaultMaxProcs,
 		procs:       map[string]*proc{},
 	}
 }
@@ -131,11 +143,17 @@ func (c *PersistentClient) start(ctx context.Context, sessionID, prompt string, 
 	}
 
 	p.mu.Lock()
-	if p.busy {
+	if p.busy || p.evicting {
+		// A busy session is transient (a cancelled turn's cleanup is still in
+		// flight). An evicting process is mid-kill — a cancel or the cap
+		// eviction selected it between getOrSpawn's check and this claim — so
+		// it must never be handed to a turn. Both fail fast so Start retries
+		// and spawns fresh.
 		p.mu.Unlock()
 		return fmt.Errorf("%w %s", errBusy, sessionID)
 	}
 	p.busy = true
+	p.lastUsed = time.Now()
 	p.seq++
 	p.w = w
 	if p.idleTimer != nil {
@@ -198,13 +216,16 @@ func (c *PersistentClient) start(ctx context.Context, sessionID, prompt string, 
 }
 
 // getOrSpawn returns the process for sessionID, spawning it on first use.
+// A spawn at the pool's MaxProcs cap evicts the least-recently-used idle
+// process first (busy processes are never killed to make room).
 func (c *PersistentClient) getOrSpawn(sessionID string, cfg *startConfig) (*proc, error) {
 	c.mu.Lock()
-	defer c.mu.Unlock()
 	if c.closed {
+		c.mu.Unlock()
 		return nil, errors.New("claude: client closed")
 	}
 	if sessionID == "" {
+		c.mu.Unlock()
 		return nil, errors.New("claude: session id required")
 	}
 	if p, ok := c.procs[sessionID]; ok {
@@ -212,16 +233,95 @@ func (c *PersistentClient) getOrSpawn(sessionID string, cfg *startConfig) (*proc
 		evicting := p.evicting
 		p.mu.Unlock()
 		if !evicting {
+			c.mu.Unlock()
 			return p, nil
 		}
 		delete(c.procs, sessionID) // dying: spawn fresh below
 	}
+	// Make room under the cap before spawning. The victim is marked evicting
+	// so no concurrent claim can grab it between selection and the kill; a
+	// failed spawn restores it (it was never killed).
+	var victimSid string
+	var victim *proc
+	if c.MaxProcs > 0 && len(c.procs) >= c.MaxProcs {
+		victimSid, victim = c.lruIdleLocked()
+	}
 	p, err := c.spawnLocked(sessionID, cfg)
 	if err != nil {
+		if victim != nil {
+			victim.mu.Lock()
+			victim.evicting = false
+			victim.mu.Unlock()
+		}
+		c.mu.Unlock()
 		return nil, err
 	}
 	c.procs[sessionID] = p
+	c.mu.Unlock()
+
+	if victim != nil {
+		// Kill the evicted process after releasing c.mu: evict → unregister
+		// re-acquires it, so holding the lock here would deadlock.
+		c.evict(victimSid, victim, true)
+	}
 	return p, nil
+}
+
+// lruIdleLocked selects the least-recently-used idle process to evict when
+// the pool is at its cap, marking it evicting so a concurrent claim cannot
+// grab it. Caller holds c.mu; returns ("", nil) when every process is busy or
+// already dying — the cap is then exceeded briefly until a turn ends.
+func (c *PersistentClient) lruIdleLocked() (string, *proc) {
+	var victimSid string
+	var victim *proc
+	var oldest time.Time
+	for sid, p := range c.procs {
+		p.mu.Lock()
+		idle := !p.busy && !p.evicting
+		last := p.lastUsed
+		p.mu.Unlock()
+		if !idle {
+			continue
+		}
+		// The zero timestamp (a spawn that has not yet claimed a turn) counts
+		// as the oldest candidate — it has provably never been used.
+		if victim == nil ||
+			(last.IsZero() && !oldest.IsZero()) ||
+			(!last.IsZero() && !oldest.IsZero() && last.Before(oldest)) {
+			victim, victimSid, oldest = p, sid, last
+		}
+	}
+	if victim != nil {
+		victim.mu.Lock()
+		victim.evicting = true
+		victim.mu.Unlock()
+	}
+	return victimSid, victim
+}
+
+// Warm eagerly spawns the pooled process for sessionID and leaves it idle, so
+// the first turn on that session skips the CLI boot. It goes through the exact
+// getOrSpawn → spawnLocked path a turn takes (same BLAST WALL args, cwd, and
+// debug stream) with no prompt, and arms the same idle-eviction timer a
+// finished turn would set, so an unused warm process is reaped after
+// IdleTimeout. An error — closed client, empty session id, or a failed spawn —
+// leaves the pool unchanged; the next Start on that session spawns normally.
+func (c *PersistentClient) Warm(sessionID string) error {
+	p, err := c.getOrSpawn(sessionID, &startConfig{})
+	if err != nil {
+		return err
+	}
+	// Only a turn's end arms the idle timer; a warm process has run no turn,
+	// so arm it here or an unused process would linger until Close. A busy
+	// process (a turn just claimed it) arms its own timer at turn end, so
+	// arming one now would wrongly schedule an eviction for an active process.
+	p.mu.Lock()
+	p.lastUsed = time.Now()
+	if p.idleTimer == nil && !p.busy && c.IdleTimeout > 0 {
+		p.idleTimer = time.AfterFunc(c.IdleTimeout, func() { c.evict(sessionID, p, false) })
+	}
+	p.mu.Unlock()
+	return nil
 }
 
 // spawnLocked starts the CLI and its dispatcher. Caller holds c.mu. The
@@ -377,8 +477,9 @@ func (c *PersistentClient) unregister(sessionID string, p *proc) {
 }
 
 // Flush drops every pooled process: idle ones die now, a busy one finishes
-// its turn and is evicted. Called when the wiki path changes so the next
-// spawn picks up the new cwd.
+// its turn and is evicted. Called when the wiki path changes (so the next
+// spawn picks up the new cwd) and when the user leaves the chat page for a
+// while (so idle CLI processes do not linger until their own timers).
 func (c *PersistentClient) Flush() {
 	c.mu.Lock()
 	entries := make([]poolEntry, 0, len(c.procs))

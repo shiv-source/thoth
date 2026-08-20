@@ -926,3 +926,146 @@ replayDone:
 		t.Fatalf("replay = %v, want the thinking frame first", replayed)
 	}
 }
+
+func TestHubSessionIDUsesRotated(t *testing.T) {
+	d := testDeps(t)
+	hub := NewHub(d.Claude, d.Store, d.Log, context.Background(), 0, nil)
+
+	id, err := d.Store.CreateConversation("s")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// A rotated (forked) session id is the one a turn — and the boot prewarm —
+	// must use, never the conversation id.
+	if err := d.Store.SetClaudeSessionID(id, "rotated-session-uuid"); err != nil {
+		t.Fatal(err)
+	}
+	if got := hub.sessionID(id); got != "rotated-session-uuid" {
+		t.Fatalf("sessionID = %q, want rotated-session-uuid", got)
+	}
+	// A fresh conversation seeds its own id as the session.
+	id2, err := d.Store.CreateConversation("t")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := hub.sessionID(id2); got != id2 {
+		t.Fatalf("sessionID(fresh) = %q, want %q", got, id2)
+	}
+}
+
+func TestHubRelaxFlushesWhenLastClientGoesAway(t *testing.T) {
+	d := testDeps(t)
+	flushed := make(chan struct{}, 1)
+	hub := NewHub(d.Claude, d.Store, d.Log, context.Background(), 50*time.Millisecond, func() { flushed <- struct{}{} })
+
+	out := make(chan serverMsg, 64)
+	hub.addClient(out)
+	// A connected, visible client counts as active: nothing arms.
+	select {
+	case <-flushed:
+		t.Fatal("flushed while a client is active")
+	case <-time.After(120 * time.Millisecond):
+	}
+	// Hiding the last tab arms the relaxation timer.
+	hub.setPresence(out, false)
+	select {
+	case <-flushed:
+	case <-time.After(5 * time.Second):
+		t.Fatal("relaxation flush did not fire after going away")
+	}
+}
+
+func TestHubRelaxCancelledOnReturn(t *testing.T) {
+	d := testDeps(t)
+	flushed := make(chan struct{}, 1)
+	hub := NewHub(d.Claude, d.Store, d.Log, context.Background(), 100*time.Millisecond, func() { flushed <- struct{}{} })
+
+	out := make(chan serverMsg, 64)
+	hub.addClient(out)
+	hub.setPresence(out, false) // away: arms the timer
+	time.Sleep(30 * time.Millisecond)
+	hub.setPresence(out, true) // back before the timeout: timer cancels
+	select {
+	case <-flushed:
+		t.Fatal("flush fired after the client returned")
+	case <-time.After(200 * time.Millisecond):
+	}
+	// Leaving again restarts the timer.
+	hub.setPresence(out, false)
+	select {
+	case <-flushed:
+	case <-time.After(5 * time.Second):
+		t.Fatal("second relaxation flush did not fire")
+	}
+}
+
+func TestHubRelaxOnDisconnect(t *testing.T) {
+	d := testDeps(t)
+	flushed := make(chan struct{}, 1)
+	hub := NewHub(d.Claude, d.Store, d.Log, context.Background(), 50*time.Millisecond, func() { flushed <- struct{}{} })
+
+	out := make(chan serverMsg, 64)
+	hub.addClient(out)
+	hub.removeClient(out) // last socket closed (navigated away)
+	select {
+	case <-flushed:
+	case <-time.After(5 * time.Second):
+		t.Fatal("relaxation flush did not fire after disconnect")
+	}
+}
+
+func TestChatPresenceFrameArmsRelaxation(t *testing.T) {
+	d := testDeps(t)
+	flushed := make(chan struct{}, 1)
+	d.RelaxTimeout = 80 * time.Millisecond
+	d.OnChatAway = func() { flushed <- struct{}{} }
+	e := New(d)
+
+	conn, _, err := websocket.DefaultDialer.Dial(wsURL(t, e), nil)
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	defer func() { _ = conn.Close() }()
+
+	// Hiding the tab (Page Visibility API) sends the presence frame, which
+	// arms the relaxation flush after the timeout.
+	if err := conn.WriteJSON(map[string]any{"type": "presence", "active": false}); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-flushed:
+	case <-time.After(5 * time.Second):
+		t.Fatal("away presence frame did not trigger the relaxation flush")
+	}
+
+	// A second, visible client keeps the pool warm: nothing may flush while it
+	// is connected even though the first is still hidden.
+	conn2, _, err := websocket.DefaultDialer.Dial(wsURL(t, e), nil)
+	if err != nil {
+		t.Fatalf("dial second: %v", err)
+	}
+	defer func() { _ = conn2.Close() }()
+	select {
+	case <-flushed:
+		t.Fatal("flush fired while a visible client is connected")
+	case <-time.After(200 * time.Millisecond):
+	}
+}
+
+func TestHubFireAwaySkipsWhenClientActive(t *testing.T) {
+	d := testDeps(t)
+	called := 0
+	hub := NewHub(d.Claude, d.Store, d.Log, context.Background(), 50*time.Millisecond, func() { called++ })
+	out := make(chan serverMsg, 64)
+	hub.addClient(out) // a visible client is connected
+	hub.fireAway()     // the "client returned just as the timer fired" guard
+	if called != 0 {
+		t.Fatalf("OnAway ran with an active client: %d", called)
+	}
+	// With no client at all, the same path runs the callback.
+	hub.removeClient(out)
+	hub.fireAway()
+	if called != 1 {
+		t.Fatalf("OnAway did not run with no clients: %d", called)
+	}
+}

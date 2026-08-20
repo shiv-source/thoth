@@ -17,7 +17,9 @@ can only ever break this package — everything else is stable.
 - PersistentClient: lazy-spawned CLI processes keyed by session id
 - One dispatcher goroutine per process turns stdout lines into events for the in-flight turn; the CLI's result line ends it
 - Cancel kills the process; the next turn respawns (no per-turn interrupt in the plain CLI)
-- Idle eviction after 10 min; Flush on wiki-path change; Close on shutdown
+- Idle eviction after 10 min; Flush on wiki-path change or when the user leaves the chat page; Close on shutdown
+- Cap: MaxProcs (default 4) evicts the least-recently-used idle process on overflow; busy processes are never killed to make room (the cap can be exceeded briefly)
+- Warm(sessionID): eager spawn for one session — the exact getOrSpawn/spawnLocked path a turn uses, no prompt; serve pre-warms the most recently active conversation at boot (best-effort; idle eviction reaps it if unused)
 - canonical: internal/claude/persistent.go
 
 ## events.go — stream parsing

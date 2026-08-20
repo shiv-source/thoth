@@ -81,7 +81,7 @@ Deliberate exceptions (documented in `references/patterns.md`): per-keystroke dr
 
 ## WebSocket client
 
-`ChatSocket` sends `send`/`cancel`/`resume`/`open` (`open` pins the server-side conversation without replay and never becomes the reconnect-resume id), forwards `assistant_*`/`tool_activity`/`turn_done`/`error` frames, and reconnects exactly once after 1 s — sending `resume` from `onopen` so the turn re-syncs.
+`ChatSocket` sends `send`/`cancel`/`resume`/`open` (`open` pins the server-side conversation without replay and never becomes the reconnect-resume id), forwards `assistant_*`/`tool_activity`/`turn_done`/`error` frames, and reconnects exactly once after 1 s — sending `resume` from `onopen` so the turn re-syncs. It also sends a `presence` frame (`ChatPanel` wires it to the Page Visibility API): a hidden tab reports `active:false`, which the server treats as "not in the chat page" and uses to flush idle pooled CLI processes after its relaxation timeout; the last reported presence is re-sent from `onopen` so a hidden tab stays counted as away across a reconnect.
 
 ## Design system
 
