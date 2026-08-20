@@ -1,7 +1,9 @@
 package api
 
 import (
+	"mime"
 	"net/http"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -37,14 +39,26 @@ func note(c echo.Context, d Deps) error {
 	if _, err := wiki.SafePath(d.Wiki.Root, rel); err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
 	}
-	if !wiki.IsMarkdownPath(rel) {
-		return c.JSON(http.StatusBadRequest, map[string]string{"error": "path is not a note"})
-	}
 	content, err := d.Wiki.Read(rel)
 	if err != nil {
 		return c.JSON(http.StatusNotFound, map[string]string{"error": "note not found"})
 	}
-	return c.JSON(http.StatusOK, map[string]string{"path": rel, "content": string(content)})
+	if wiki.IsMarkdownPath(rel) {
+		return c.JSON(http.StatusOK, map[string]string{"path": rel, "content": string(content)})
+	}
+	// Attachments (images, scripts, configs, …) are served as raw bytes so
+	// search results are usable from the dashboard. The note-vs-attachment
+	// boundary is still wiki.IsMarkdownPath, shared with the tree and the
+	// index. Images render inline (an <img> can point at this URL);
+	// everything else is a download with its basename.
+	ctype := mime.TypeByExtension(filepath.Ext(rel))
+	if ctype == "" {
+		ctype = "application/octet-stream"
+	}
+	if !wiki.IsImagePath(rel) {
+		c.Response().Header().Set(echo.HeaderContentDisposition, `attachment; filename="`+strings.ReplaceAll(filepath.Base(rel), `"`, ``)+`"`)
+	}
+	return c.Blob(http.StatusOK, ctype, content)
 }
 
 func tree(c echo.Context, d Deps) error {
