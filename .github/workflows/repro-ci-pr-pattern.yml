@@ -21,11 +21,7 @@ jobs:
           echo "graph=true" >> "$GITHUB_OUTPUT"
 
   quality:
-    needs: [changes]
     uses: ./.github/workflows/repro-quality.yml
-    with:
-      backend: ${{ needs.changes.outputs.backend }}
-      graph: ${{ needs.changes.outputs.graph }}
 
   final-gate:
     needs: [changes, quality]
