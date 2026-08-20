@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 640" width="1280" height="640">
+  <rect width="1280" height="640" fill="#f5f5f5"/>
+  <rect x="56" y="56" width="88" height="88" rx="20" fill="#1677ff"/>
+  <path d="M88 78 L96 108 L102 96 L108 112 L114 96 L120 108 L128 78" fill="#ffffff" opacity="0.95"/>
+  <circle cx="98" cy="126" r="11" fill="#ffffff"/>
+  <circle cx="118" cy="126" r="11" fill="#ffffff"/>
+  <circle cx="100" cy="128" r="4.5" fill="#002c8c"/>
+  <circle cx="120" cy="128" r="4.5" fill="#002c8c"/>
+  <path d="M105 138 L111 138 L108 146 Z" fill="#ffc53d"/>
+  <text x="160" y="110" font-family="Fraunces, Georgia, serif" font-size="56" font-weight="600" fill="#141414">Thoth</text>
+  <text x="164" y="146" font-family="Georgia, serif" font-size="20" fill="#595959">Your local-first personal knowledge base</text>
+  <text x="56" y="420" font-family="Georgia, serif" font-size="26" fill="#262626">Plain markdown you own — a built-in assistant that answers from it, and files into it.</text>
+  <text x="56" y="470" font-family="Georgia, serif" font-size="20" fill="#8c8c8c">One binary · No cloud · Localhost only</text>
+</svg>

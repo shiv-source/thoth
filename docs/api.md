@@ -63,7 +63,7 @@ sequenceDiagram
     Go->>Go: persist assistant msg
     Go->>UI: turn_done {conversation_id}
     Note over W,Go: fsnotify reindexes + publishes to the event bus within ~200ms
-    Go->>UI: wiki_changed {changes} (broadcast; UI refetches the tree)
+    Go->>UI: "wiki_changed {changes} (broadcast — UI refetches the tree)"
     Note over UI: GET /api/wiki/tree
 ```
 
@@ -75,7 +75,7 @@ sequenceDiagram
 - **Open** — pins the connection to an existing conversation so the next `send` continues it (conversation-history load). No replay, no other effect; an unknown id gets `error {message:"unknown conversation"}` and the connection stays unpinned
 - **New chat** — unpins the connection (cancels an in-flight turn first, which emits `error {message:"cancelled"}`); the next `send` starts a fresh conversation
 - **Presence** — the tab reports its visibility: `{"type":"presence","active":false}` when hidden/backgrounded, `true` when visible (Page Visibility API). A hidden tab is not an active chat client; when no client is active the server flushes idle pooled CLI processes after a short relaxation timeout (serve: 1 min, `chatRelaxTimeout`) instead of letting them idle for the full 10-minute timer — a busy process finishes its turn and is evicted. Returning to the tab (or reconnecting) cancels a pending flush
-- **Sessions** — every conversation stores its Claude CLI session id (`conversations.claude_session_id`, seeded as the conversation id, migration 0003 backfills legacy rows) and owns one long-lived CLI process, lazily spawned, capped at 4 concurrent processes (least-recently-used idle one evicted on overflow) and evicted after 10 idle minutes (the pool lives in `internal/claude/persistent.go`). A turn reusing a session id the CLI reports as "already in use" (stale lock from a killed process) forks once into a fresh id via `--resume <old> --fork-session` and persists the fork
+- **Sessions** — every conversation stores its Claude CLI session id (`conversations.claude_session_id`, seeded with the conversation id on creation, see [Schema](schema.md)) and owns one long-lived CLI process, lazily spawned, capped at 4 concurrent processes (least-recently-used idle one evicted on overflow) and evicted after 10 idle minutes (the pool lives in `internal/claude/persistent.go`). A turn reusing a session id the CLI reports as "already in use" (stale lock from a killed process) forks once into a fresh id via `--resume <old> --fork-session` and persists the fork
 - **Titles** — derived from the first message, truncated at 60 runes
 - **Origins** — only localhost origins are accepted on the upgrade (see [Security](security.md))
 - **Wiki changes** — the index watcher publishes each 200 ms debounce batch to the in-process event bus (`go-warehouse/events`); the server broadcasts `wiki_changed {changes:[{op,path}]}` (op: `create|write|remove|rename`, wiki-relative path; only paths the tree displays) to every connected client, which refetches `GET /api/wiki/tree`. A watcher (re)start publishes an empty batch so a wiki-path change in Settings also refreshes the tree. Broadcasts are non-blocking: a client with a full write buffer misses the frame and recovers on its next reconnect/focus refetch; `wiki_changed` frames are not replayed on resume

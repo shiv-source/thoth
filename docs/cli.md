@@ -24,6 +24,8 @@ Startup sequence:
 
 Scaffolds a wiki directory — the configured folder set (or the default 9, now including `attachments/`) plus the `CLAUDE.md` rulebook, then initializes a local git repo with a `.gitignore` (`.DS_Store`, `*.db`) when git is installed. Defaults to `~/.thoth/wiki`. Never overwrites an existing rulebook.
 
+**Optional** — `serve` scaffolds the default wiki automatically when it doesn't exist (see the startup sequence above). Run `init` only to choose a custom location.
+
 ```sh
 thoth init                    # ~/.thoth/wiki
 thoth init ~/notes            # custom location
@@ -40,8 +42,9 @@ Runs ten health checks and reports each. The checks live in the shared `internal
 | Check | What it verifies |
 |---|---|
 
-| wiki | wiki exists with all 8 folders + `CLAUDE.md` |
-| claude | binary found; `claude --version` works; login status confirmed |
+| wiki | wiki exists with all 9 folders + `CLAUDE.md` |
+| claude | binary found; `claude --version` works |
+| claude login | `claude auth status` exits 0 (reported when the binary was found) |
 | api key | an API key is stored in the settings table (unset = inherit the server's `ANTHROPIC_API_KEY`) |
 | model | a model is selected in the settings table (unset = the CLI's own default) |
 | database | db opens in WAL with `notes` + `notes_fts` tables |

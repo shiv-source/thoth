@@ -39,7 +39,7 @@ flowchart LR
     P -->|file gone| D[Delete / DeletePrefix]
     P -->|malformed| L[log + skip]
     S[startup / path change] -->|walk, one transaction| R[Sync: upsert changed → delete missing]
-    R --> DB[(thoth.db)]
+    R --> DB[("thoth.db")]
     U --> DB
     D --> DB
 ```

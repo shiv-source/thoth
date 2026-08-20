@@ -10,19 +10,19 @@ flowchart LR
     subgraph Binary["thoth (single Go binary)"]
         API[Echo server — REST + WebSocket]
         CLI[Claude CLI client]
-        INDEX[(SQLite — FTS5 index + conversations)]
+        INDEX[("SQLite — FTS5 index + conversations")]
         WATCH[fsnotify watcher]
     end
     subgraph Data["Knowledge layer"]
         WIKI[~/.thoth/wiki — markdown + CLAUDE.md]
-        ST[settings table (thoth.db)]
+        ST["settings table (thoth.db)"]
     end
     CC[Claude Code CLI process]
 
     UI <-->|REST /api/*| API
     UI <-->|WS /ws| API
     API --> CLI
-    CLI -->|spawns headless per conversation (reused across turns), cwd=wiki| CC
+    CLI -->|"spawns headless per conversation (reused across turns), cwd=wiki"| CC
     CC <-->|reads / writes notes| WIKI
     WATCH -->|fs events| INDEX
     API --> INDEX
@@ -63,7 +63,7 @@ flowchart TB
     subgraph I2["Interface 2: terminal"]
         D[Claude Code] 
     end
-    C --> E[(~/.thoth/wiki)]
+    C --> E[("~/.thoth/wiki")]
     D --> E
     E --> F[CLAUDE.md rulebook]
     E --> G[fsnotify → thoth.db]

@@ -1,2 +1,7 @@
 packages:
   - web
+  - docs-site
+# Docusaurus's bundler needs @swc/core and core-js postinstall scripts to work.
+allowBuilds:
+  '@swc/core': true
+  core-js: true

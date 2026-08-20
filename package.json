@@ -1,7 +1,7 @@
 {
   "name": "thoth",
   "private": true,
-  "description": "Local-first personal knowledge base: a chat dashboard over a plain-markdown wiki, powered by the Claude Code CLI",
+  "description": "Local-first personal knowledge base: a chat dashboard over a plain-markdown wiki, with a built-in assistant",
   "scripts": {
     "dev": "pnpm --filter thoth-web dev",
     "build": "pnpm --filter thoth-web build",
@@ -9,6 +9,8 @@
     "typecheck": "pnpm --filter thoth-web typecheck",
     "lint": "pnpm --filter thoth-web lint",
     "format": "prettier --write .",
+    "docs:dev": "pnpm --filter thoth-docs start",
+    "docs:build": "pnpm --filter thoth-docs build",
     "prepare": "husky"
   },
   "keywords": [

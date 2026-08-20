@@ -12,6 +12,8 @@ internal/webui/dist/
 /thoth
 /thoth.exe
 .playwright-mcp
+docs-site/build/
+docs-site/.docusaurus/
 
 # local debugging dumps
 stream-dump.json

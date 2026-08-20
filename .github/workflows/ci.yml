@@ -63,9 +63,37 @@ jobs:
       - uses: ./.github/actions/setup-web
       - run: pnpm run build
 
+  # Builds the Docusaurus docs site only when docs-site/ changed in this push;
+  # otherwise the job skips (docs/ content is rendered by the same site, and a
+  # docs-only change still needs the site to compile — see quality.yml docs-build).
+  docs-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [quality]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: skip unless docs-site changed
+        id: changes
+        shell: bash
+        run: |
+          base="${{ github.event.before }}"
+          changed=false
+          if [ -z "$base" ] || [ "$base" = "0000000000000000000000000000000000000000" ]; then
+            changed=true
+          elif git diff --name-only "$base...${{ github.sha }}" | grep -q '^docs-site/'; then
+            changed=true
+          fi
+          echo "changed=$changed" >> "$GITHUB_OUTPUT"
+      - uses: ./.github/actions/setup-web
+        if: steps.changes.outputs.changed == 'true'
+      - run: pnpm --filter thoth-docs build
+        if: steps.changes.outputs.changed == 'true'
+
   # Single required check for branch protection — see final-gate.yml.
   final-gate:
-    needs: [quality, frontend-build, build-linux, build-darwin, build-windows]
+    needs: [quality, frontend-build, docs-build, build-linux, build-darwin, build-windows]
     if: always()
     uses: ./.github/workflows/final-gate.yml
     with:

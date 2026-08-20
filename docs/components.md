@@ -34,6 +34,24 @@ type Client interface {
 
 Cancelling `ctx` kills the CLI's process group (unix) or direct child (windows) — `proc_unix.go` / `proc_windows.go` are build-tagged for that; for a pooled process the kill evicts it and the next turn respawns (there is no per-turn interrupt in the plain CLI). A CLI upgrade can only ever break this package; everything else is stable.
 
+### PersistentClient lifecycle
+
+```mermaid
+flowchart TB
+    S[turn arrives for session S] --> G{process for S alive?}
+    G -->|yes| P[stream-json over stdin]
+    G -->|no| SP[getOrSpawn: spawn claude -p with --session-id S]
+    SP --> P
+    P -->|stdout lines| EV[dispatcher goroutine → typed events]
+    EV -->|result| DONE[turn ends]
+    DONE --> IDLE[process sits idle]
+    IDLE -->|10 min idle| EVICT[evict LRU idle process]
+    IDLE -->|pool > 4 processes| EVICT
+    IDLE -->|cancel / Flush / Close| KILL[kill process group]
+    KILL --> NEXT[next turn respawns, resumes session from disk]
+    IDLE -.->|busy process never killed| P
+```
+
 `FakeClient` replays scripted events and records calls — every consumer's tests use it, so no test ever touches the real CLI.
 
 ## internal/wiki — the file contract
@@ -71,7 +89,7 @@ Conversations, messages, and the llm_models registry in the same `thoth.db` (sep
 
 ## internal/doctor
 
-`Run(ctx, dir, addr, log)` runs the nine install checks (wiki, claude, claude login, api key, model, database, index, api, websocket) and returns `[]Check`, each carrying `Name`/`OK`/`Message`. The dashboard's Settings → Doctor tab runs the same suite via `GET /api/doctor` (details: [CLI](cli.md)).
+`Run(ctx, dir, addr, log)` runs the ten install checks (wiki, claude, claude login, api key, model, database, index, malformed, api, websocket) and returns `[]Check`, each carrying `Name`/`OK`/`Message`. The dashboard's Settings → Doctor tab runs the same suite via `GET /api/doctor` (details: [CLI](cli.md)).
 
 ## internal/github
 
