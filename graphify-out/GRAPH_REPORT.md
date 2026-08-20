@@ -1,16 +1,16 @@
 # Graph Report - thoth  (2026-08-20)
 
 ## Corpus Check
-- 264 files · ~145,489 words
+- 267 files · ~138,115 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 1986 nodes · 4625 edges · 121 communities (90 shown, 31 thin omitted)
-- Extraction: 86% EXTRACTED · 14% INFERRED · 0% AMBIGUOUS · INFERRED: 630 edges (avg confidence: 0.81)
+- 1995 nodes · 4695 edges · 116 communities (86 shown, 30 thin omitted)
+- Extraction: 86% EXTRACTED · 14% INFERRED · 0% AMBIGUOUS · INFERRED: 662 edges (avg confidence: 0.81)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `7e39736e`
+- Built from commit: `e23c90c3`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -27,23 +27,23 @@
 - SettingsView.tsx
 - devDependencies
 - package.json
-- New
+- newRootCmd
 - Shared checklist — both layers (yes/no; any "no" gets fixed before the PR)
 - setup-go-web composite action
 - dependencies
 - Hub
 - compilerOptions
-- putSettingsReq
+- Open
 - Components (web/src/components)
-- os/exec.Cmd
+- cli/doctor_test.go
 - documentation.md
 - PersistentClient
-- openTestRepo
-- OpenRepo
+- Repo
+- Scaffold
 - Toolchain versions (go.mod / package.json authoritative)
 - compilerOptions
 - CLAUDE.md - Thoth repository rulebook
-- doctorSlice.ts
+- chat.ts
 - Workflows
 - go.md
 - Development - toolchain, gates, CI
@@ -55,12 +55,12 @@
 - devDependencies
 - newTestEcho
 - Go packages (internal/* + cmd/thoth)
-- Global Constraints
+- NewHub
 - scripts
 - development
 - API - REST endpoints and WebSocket chat protocol
 - Architecture - two layers, one binary
-- App.tsx
+- client.ts
 - pr.sh
 - Git workflow — contribution procedures & expectations
 - ResizeObserverStub
@@ -73,19 +73,19 @@
 - report job (summary + gate)
 - github.com/shiv-source/thoth
 - api/models_test.go
-- useConversationRoute.ts
+- openTestRepo
 - Redux store (web/src/store)
-- Thoth Project Skills Suite — Design
+- conversations_test.go
 - web/package.json
 - react.md
 - openTestRepo
-- onSettingsSaved
+- Init
 - Quality gates — how this repo verifies work
 - Code quality — the pre-PR gate
-- Docusaurus Documentation Site — Design
+- ChartStub
 - ChatSocket
 - Frontend patterns — the cross-cutting conventions
-- useAppSelector
+- NotificationToasts.tsx
 - docs-site/package.json
 - The claude blast wall (internal/claude)
 - Persistence — thoth.db, migrations, index
@@ -94,8 +94,8 @@
 - token-guard.sh
 - testing.T
 - renderWithStore
-- ParseLine
-- Repo
+- healthyThothDir
+- OpenRepo
 - index.tsx
 - database/sql.DB
 - remark-gfm
@@ -103,34 +103,29 @@
 - typescript
 - vite
 - @easyops-cn/docusaurus-search-local
-- EventWriter
+- jsdom
 - README.md
 - setup.sh
-- @testing-library/jest-dom
 - ExpandHome
 - ModelOptions
 - react
 - react-dom
 - graph-check.sh
 - main-guard.sh
-- stderrTail
-- WikiTree.tsx
+- useAppSelector
 - ParseNote
-- CLIClient
 - index.ts
-- events.go
+- ParseBlock
 - sidebars.ts
-- startupBanner
 - plugins
 - react-markdown
 - @tailwindcss/typography
 - Open
 - DashboardView.tsx
-- SearchPanel.tsx
-- Sidebar.test.tsx
+- makeStore
+- Sidebar.tsx
 - @types/node
 - @types/react-dom
-- newLoggingServer
 - TestGitSetupReportsSanitizedFailure
 
 ## God Nodes (most connected - your core abstractions)
@@ -140,8 +135,8 @@
 4. `NewPersistent()` - 38 edges
 5. `Run()` - 38 edges
 6. `Components (web/src/components)` - 38 edges
-7. `WriterFunc` - 37 edges
-8. `Open()` - 37 edges
+7. `Open()` - 37 edges
+8. `WriterFunc` - 36 edges
 9. `Open()` - 35 edges
 10. `useAppSelector` - 35 edges
 
@@ -154,22 +149,22 @@
   CONTRIBUTING.md → docs/schema.md
 - `Project invariants (files as source of truth, percent-w errors, no globals)` --semantically_similar_to--> `Data contract: files are the source of truth, thoth.db is derived`  [INFERRED] [semantically similar]
   CLAUDE.md → docs/architecture.md
-- `web/README.md - stock Vite template README` --conceptually_related_to--> `Frontend - React 19 + TS strict + Tailwind v4`  [INFERRED]
-  web/README.md → docs/frontend.md
+- `TestWriterFuncAdapter()` --calls--> `WriterFunc`  [INFERRED]
+  internal/claude/events_test.go → agent/events.go
 
 ## Import Cycles
-- 2-file cycle: `web/src/store/index.ts -> web/src/store/slices/healthSlice.ts -> web/src/store/index.ts`
-- 2-file cycle: `web/src/store/index.ts -> web/src/store/slices/noteSlice.ts -> web/src/store/index.ts`
 - 2-file cycle: `web/src/store/index.ts -> web/src/store/slices/chatSlice.ts -> web/src/store/index.ts`
 - 2-file cycle: `web/src/store/index.ts -> web/src/store/slices/connectionSlice.ts -> web/src/store/index.ts`
-- 2-file cycle: `web/src/store/index.ts -> web/src/store/slices/gitSlice.ts -> web/src/store/index.ts`
-- 2-file cycle: `web/src/store/index.ts -> web/src/store/slices/uiSlice.ts -> web/src/store/index.ts`
-- 2-file cycle: `web/src/store/index.ts -> web/src/store/slices/notificationsSlice.ts -> web/src/store/index.ts`
 - 2-file cycle: `web/src/store/index.ts -> web/src/store/slices/conversationsSlice.ts -> web/src/store/index.ts`
 - 2-file cycle: `web/src/store/index.ts -> web/src/store/slices/doctorSlice.ts -> web/src/store/index.ts`
+- 2-file cycle: `web/src/store/index.ts -> web/src/store/slices/gitSlice.ts -> web/src/store/index.ts`
+- 2-file cycle: `web/src/store/index.ts -> web/src/store/slices/healthSlice.ts -> web/src/store/index.ts`
+- 2-file cycle: `web/src/store/index.ts -> web/src/store/slices/noteSlice.ts -> web/src/store/index.ts`
+- 2-file cycle: `web/src/store/index.ts -> web/src/store/slices/notificationsSlice.ts -> web/src/store/index.ts`
 - 2-file cycle: `web/src/store/index.ts -> web/src/store/slices/searchHistorySlice.ts -> web/src/store/index.ts`
 - 2-file cycle: `web/src/store/index.ts -> web/src/store/slices/searchSlice.ts -> web/src/store/index.ts`
 - 2-file cycle: `web/src/store/index.ts -> web/src/store/slices/settingsSlice.ts -> web/src/store/index.ts`
+- 2-file cycle: `web/src/store/index.ts -> web/src/store/slices/uiSlice.ts -> web/src/store/index.ts`
 - 2-file cycle: `web/src/store/index.ts -> web/src/store/slices/wikiSlice.ts -> web/src/store/index.ts`
 
 ## Hyperedges (group relationships)
@@ -180,19 +175,19 @@
 - **Shared quality gates (backend + frontend)** — github_workflows_quality_backend_test, github_workflows_quality_backend_lint, github_workflows_quality_frontend_test, github_workflows_quality_frontend_lint, github_workflows_quality_frontend_typecheck [EXTRACTED 1.00]
 - **The rulebook-driven wiki filing system** — internal_wiki_templates_claude_claude, internal_wiki_templates_claude_save_protocol, docs_knowledge_base_wiki_layout, docs_knowledge_base_frontmatter, docs_architecture_knowledge_layer [INFERRED 0.85]
 
-## Communities (121 total, 31 thin omitted)
+## Communities (116 total, 30 thin omitted)
 
 ### Community 0 - "New"
 Cohesion: 0.22
 Nodes (29): github.com/gorilla/websocket.Conn, TestWikiChangedFrameReachesSocket(), readMsg(), TestChatCancelBeforeSendIsNoop(), TestChatCancelStopsInFlightTurn(), TestChatForwardsThinkingFrames(), TestChatHubCancellationEndsTurns(), TestChatNewChatCancelsBusyTurn() (+21 more)
 
 ### Community 1 - "Deps"
-Cohesion: 0.05
-Nodes (61): claudeState, Deps, githubIdentity, healthResponse, modelGroup, modelInput, settingsDTO, wikiState (+53 more)
+Cohesion: 0.06
+Nodes (59): claudeState, Deps, githubIdentity, healthResponse, modelGroup, modelInput, settingsDTO, wikiState (+51 more)
 
 ### Community 2 - "testDeps"
-Cohesion: 0.10
-Nodes (29): TestHubBroadcastDeliversToClients(), TestHubBroadcastDropsSlowClient(), NewHub(), TestHubFireAwaySkipsWhenClientActive(), TestHubRelaxCancelledOnReturn(), TestHubRelaxFlushesWhenLastClientGoesAway(), TestHubRelaxOnDisconnect(), TestHubSessionIDUsesRotated() (+21 more)
+Cohesion: 0.11
+Nodes (34): net/http.Request, net/http.ResponseWriter, TestListDirsEndpoint(), TestListDirsEndpointErrors(), testDeps(), TestHealth(), TestHealthCommit(), TestHealthDefaultWikiPath() (+26 more)
 
 ### Community 3 - "Troubleshooting & FAQ"
 Cohesion: 0.06
@@ -200,15 +195,15 @@ Nodes (33): First run, Getting started, Install Thoth, Next steps, What you need
 
 ### Community 4 - "NewPersistent"
 Cohesion: 0.09
-Nodes (68): Option, StartOption, Client, New(), TestDirProviderOverridesStaticDir(), TestFakeClient(), TestFakeClientPropagatesError(), TestFakeClientPropagatesWriterError() (+60 more)
+Nodes (70): Event, EventType, WriterFunc, Option, StartOption, Client, New(), TestDirProviderOverridesStaticDir() (+62 more)
 
 ### Community 5 - "Run"
 Cohesion: 0.10
-Nodes (57): doctorRunner, net.Listener, failed(), fileExists(), newDoctorCmd(), resolveThothDir(), runDoctor(), checkAPI() (+49 more)
+Nodes (55): doctorRunner, net.Listener, failed(), fileExists(), newDoctorCmd(), resolveThothDir(), runDoctor(), checkAPI() (+47 more)
 
 ### Community 6 - "runServe"
-Cohesion: 0.16
-Nodes (21): prewarmStore, log/slog.Logger, defaultWikiPath(), devCommit(), ensureWiki(), echo.Echo, openIndex(), resolveClaudeBin() (+13 more)
+Cohesion: 0.12
+Nodes (28): prewarmStore, rootHolder, github.com/spf13/cobra.Command, log/slog.Logger, sync.RWMutex, defaultWikiPath(), devCommit(), ensureWiki() (+20 more)
 
 ### Community 7 - "Store"
 Cohesion: 0.15
@@ -219,20 +214,20 @@ Cohesion: 0.07
 Nodes (27): @ant-design/icons, antd, axios, chart.js, react-chartjs-2, react-redux, @reduxjs/toolkit, shiki (+19 more)
 
 ### Community 9 - "SettingsView.tsx"
-Cohesion: 0.06
-Nodes (51): GitHubIdentity, GitHubRepo, http, LLMModel, Message, ModelGroup, ModelInput, Note (+43 more)
+Cohesion: 0.08
+Nodes (38): DoctorCheck, LLMModel, ModelGroup, ModelInput, Settings, SettingsView, defaultFolders, DoctorTab() (+30 more)
 
 ### Community 10 - "devDependencies"
 Cohesion: 0.08
-Nodes (25): eslint, eslint-config-prettier, @eslint/js, globals, jsdom, oxlint, @testing-library/react, @testing-library/user-event (+17 more)
+Nodes (25): eslint, eslint-config-prettier, @eslint/js, globals, oxlint, @testing-library/jest-dom, @testing-library/react, @testing-library/user-event (+17 more)
 
 ### Community 11 - "package.json"
 Cohesion: 0.05
 Nodes (37): husky, lint-staged, author, bugs, url, description, devDependencies, husky (+29 more)
 
-### Community 12 - "New"
+### Community 12 - "newRootCmd"
 Cohesion: 0.17
-Nodes (17): Wiki, Hidden(), Indexable(), IsImagePath(), isReservedPath(), New(), TestIndexable(), TestIsImagePath() (+9 more)
+Nodes (14): main(), TestInitCommandErrorOnUnwritableTarget(), TestInitCommandExpandsTildeInTarget(), TestInitCommandTooManyArgs(), TestInitCommandUsesDefaultPath(), Execute(), newRootCmd(), newVersionCmd() (+6 more)
 
 ### Community 13 - "Shared checklist — both layers (yes/no; any "no" gets fixed before the PR)"
 Cohesion: 0.33
@@ -247,36 +242,36 @@ Cohesion: 0.10
 Nodes (21): clsx, dependencies, clsx, @docusaurus/core, @docusaurus/faster, @docusaurus/preset-classic, @docusaurus/theme-mermaid, @fontsource-variable/fraunces (+13 more)
 
 ### Community 16 - "Hub"
-Cohesion: 0.15
-Nodes (11): clientEntry, clientMsg, Hub, serverMsg, turn, context.CancelFunc, strings.Builder, allowLocalOrigin() (+3 more)
+Cohesion: 0.14
+Nodes (12): clientEntry, clientMsg, Hub, serverMsg, turn, context.CancelFunc, github.com/shiv-source/thoth/internal/claude.WriterFunc, strings.Builder (+4 more)
 
 ### Community 17 - "compilerOptions"
 Cohesion: 0.08
 Nodes (24): DOM, src, vite/client, compilerOptions, allowArbitraryExtensions, allowImportingTsExtensions, jsx, lib (+16 more)
 
-### Community 18 - "putSettingsReq"
-Cohesion: 0.22
-Nodes (17): net/http.Request, net/http.ResponseWriter, getSettingsReq(), putSettingsReq(), TestConversationsEndpoints(), TestDeleteConversationEndpoint(), TestSettingsAPIKeyNeverEchoed(), TestSettingsAPIKeyRoundTrip() (+9 more)
+### Community 18 - "Open"
+Cohesion: 0.20
+Nodes (16): OpenDB(), Open(), TestClaudeSessionIDResolution(), TestClosedStoreErrors(), TestConversationRoundTrip(), TestConversationSessionIDRoundTrip(), TestConversationsGetDistinctSessionIDs(), TestDeleteConversation() (+8 more)
 
 ### Community 19 - "Components (web/src/components)"
 Cohesion: 0.05
 Nodes (38): ActivityChart, App shell & navigation, AppHeader, AppSider, Charts (Chart.js), chartSetup.ts, Chat, ChatActivityChart (+30 more)
 
-### Community 20 - "os/exec.Cmd"
-Cohesion: 0.18
-Nodes (8): os/exec.Cmd, os.Process, CLIClient, killProcess(), setProcessGroup(), CLIClient, killProcess(), setProcessGroup()
+### Community 20 - "cli/doctor_test.go"
+Cohesion: 0.38
+Nodes (13): executeDoctor(), healthyEnv(), serveThothOnFixedPort(), TestDoctorDetectsBusyPort(), TestDoctorDetectsMissingClaude(), TestDoctorDetectsMissingIndexTables(), TestDoctorDetectsNonWALDatabase(), TestDoctorFixesMissingDefaultWiki() (+5 more)
 
 ### Community 22 - "PersistentClient"
-Cohesion: 0.18
-Nodes (10): poolEntry, proc, CLIClient, bufio.Writer, io.ReadCloser, os.File, time.Duration, time.Timer (+2 more)
+Cohesion: 0.07
+Nodes (28): EventWriter, poolEntry, proc, startConfig, stderrTail, CLIClient, bufio.Writer, io.ReadCloser (+20 more)
 
-### Community 23 - "openTestRepo"
-Cohesion: 0.23
-Nodes (10): Repo, Auth, OpenRepo(), Repo, openTestRepo(), saved(), TestRepoClear(), TestRepoClosedErrors() (+2 more)
+### Community 23 - "Repo"
+Cohesion: 0.39
+Nodes (3): Repo, Auth, OpenRepo()
 
-### Community 24 - "OpenRepo"
-Cohesion: 0.05
-Nodes (63): main(), github.com/spf13/cobra.Command, executeDoctor(), healthyEnv(), serveThothOnFixedPort(), TestDoctorDetectsBusyPort(), TestDoctorDetectsMissingClaude(), TestDoctorDetectsMissingIndexTables() (+55 more)
+### Community 24 - "Scaffold"
+Cohesion: 0.12
+Nodes (27): folderMap(), Folders(), noteType(), NoteTypes(), NoteTypesFor(), EnsureReservedDir(), gitInit(), Scaffold() (+19 more)
 
 ### Community 25 - "Toolchain versions (go.mod / package.json authoritative)"
 Cohesion: 0.13
@@ -290,9 +285,9 @@ Nodes (19): node, vite.config.ts, compilerOptions, allowImportingTsExtensions, e
 Cohesion: 0.16
 Nodes (19): Blast wall - all Claude CLI flags live only in client.go, Branch workflow - never commit to main directly, CLAUDE.md - Thoth repository rulebook, Memory and resource safety rules (no leaks), Code rules: DRY, SOLID, KISS, YAGNI, small functions, Runtime data: ~/.thoth (thoth.db + wiki/), Claude Code CLI - driven headless per conversation, Two interfaces, one contract (dashboard and terminal) (+11 more)
 
-### Community 28 - "doctorSlice.ts"
-Cohesion: 0.27
-Nodes (10): DoctorCheck, DoctorTab(), doctorSlice, DoctorState, initialState, runDoctor, selectDoctorChecks(), selectDoctorError() (+2 more)
+### Community 28 - "chat.ts"
+Cohesion: 0.24
+Nodes (7): connectionSlice, ConnectionState, initialState, ConnectionStatus, ServerMessage, WikiChange, WikiChangeOp
 
 ### Community 29 - "Workflows"
 Cohesion: 0.11
@@ -311,8 +306,8 @@ Cohesion: 0.24
 Nodes (11): main(), writeStepOutput(), ALLOWED_KINDS, computeLabels(), loadConfig(), missingLabels(), normalizeLabel(), parseFields() (+3 more)
 
 ### Community 34 - "serve_test.go"
-Cohesion: 0.35
-Nodes (15): prewarmPool(), cliSpawnCount(), openTestRepos(), TestEnsureModelsKeepsUserRows(), TestEnsureWikiErrorWhenAttachmentsBlocked(), TestEnsureWikiRecreatesReservedAttachments(), TestPrewarmPoolEmptyDBLeavesPoolEmpty(), TestPrewarmPoolExistingConversation() (+7 more)
+Cohesion: 0.26
+Nodes (19): time.Duration, ensureModels(), prewarmPool(), cliSpawnCount(), openTestRepos(), TestEnsureModelsKeepsUserRows(), TestEnsureModelsReseedsEmptyTable(), TestEnsureModelsSeedsFirstBoot() (+11 more)
 
 ### Community 35 - "Indexing and search - FTS5 and the file watcher"
 Cohesion: 0.25
@@ -334,9 +329,9 @@ Nodes (8): echo.Echo, Register(), echo.Echo, newTestEcho(), TestRegisterFallsBac
 Cohesion: 0.13
 Nodes (14): cmd/thoth, Go packages (internal/* + cmd/thoth), internal/api, internal/assets, internal/claude — the blast wall, internal/cli, internal/config, internal/doctor (+6 more)
 
-### Community 40 - "Global Constraints"
-Cohesion: 0.13
-Nodes (14): Global Constraints, Task 10: react/references/patterns.md — the cross-cutting conventions, Task 11: CLAUDE.md — the one pointer line, Task 12: Full-suite verification + PR, Task 1: go/SKILL.md — the backend procedure skill, Task 2: go/references/packages.md — the package index, Task 3: go/references/claude-blast-wall.md — the version-sensitive zone, Task 4: go/references/persistence.md — thoth.db and migrations (+6 more)
+### Community 40 - "NewHub"
+Cohesion: 0.25
+Nodes (8): TestHubBroadcastDeliversToClients(), TestHubBroadcastDropsSlowClient(), NewHub(), TestHubFireAwaySkipsWhenClientActive(), TestHubRelaxCancelledOnReturn(), TestHubRelaxFlushesWhenLastClientGoesAway(), TestHubRelaxOnDisconnect(), TestHubSessionIDUsesRotated()
 
 ### Community 41 - "scripts"
 Cohesion: 0.18
@@ -354,9 +349,9 @@ Nodes (8): API - REST endpoints and WebSocket chat protocol, Resume with 500-mes
 Cohesion: 0.43
 Nodes (8): Architecture - two layers, one binary, Knowledge layer - plain markdown wiki you own, internal/wiki - the file contract, Frontmatter contract (title required), Knowledge base - the wiki directory, Wiki folder layout (8 folders), Wiki rulebook template (CLAUDE.md in wiki root), The save protocol (folder map, frontmatter, confirm)
 
-### Community 45 - "App.tsx"
-Cohesion: 0.10
-Nodes (30): Health, App(), SetupScreen, AppSider(), HealthFooter(), ITEMS, healthy, mocks (+22 more)
+### Community 45 - "client.ts"
+Cohesion: 0.07
+Nodes (38): Health, http, Message, Note, TreeNodeSchema, TreeNodeShape, App(), NotesView (+30 more)
 
 ### Community 46 - "pr.sh"
 Cohesion: 0.33
@@ -382,17 +377,17 @@ Nodes (15): 1. Add a component, 2. Add a Redux slice, 3. Add a hook, 4. Wire an 
 Cohesion: 0.22
 Nodes (18): groupBody, modelBody, net/http.Handler, net/http/httptest.ResponseRecorder, decodeGroups(), doModelsRequest(), TestModelsCreate(), TestModelsCreateDuplicate() (+10 more)
 
-### Community 62 - "useConversationRoute.ts"
-Cohesion: 0.23
-Nodes (8): api, mocks, chatIdFromPath(), ConversationRouteOptions, getConversation, renderRoute(), useConversationRoute(), ChatMessage
+### Community 62 - "openTestRepo"
+Cohesion: 0.50
+Nodes (7): Repo, openTestRepo(), saved(), TestRepoClear(), TestRepoClosedErrors(), TestRepoRoundTrip(), TestRepoSingleRowConstraint()
 
 ### Community 63 - "Redux store (web/src/store)"
 Cohesion: 0.11
 Nodes (17): chat, connection, conversations, doctor, git, health, hooks.ts, index.ts (+9 more)
 
-### Community 64 - "Thoth Project Skills Suite — Design"
-Cohesion: 0.17
-Nodes (11): Approach: C — hybrid, Decisions log, Inventory, Maintenance, Out of scope, Purpose, Reference file anatomy, SKILL.md anatomy (+3 more)
+### Community 64 - "conversations_test.go"
+Cohesion: 0.40
+Nodes (4): TestConversationsStoreError(), TestCreateConversationRejectsEmptyTitle(), TestGetConversationFound(), TestGetConversationNotFound()
 
 ### Community 65 - "web/package.json"
 Cohesion: 0.17
@@ -402,9 +397,9 @@ Nodes (11): name, private, scripts, build, dev, lint, preview, test (+3 more)
 Cohesion: 0.33
 Nodes (10): Repo, openTestRepo(), TestFoldersParsing(), TestModelSettingRoundTrip(), TestOpenSeedsDefaults(), TestRepoClosedErrors(), TestSettingAbsent(), TestSettingRoundTrip() (+2 more)
 
-### Community 68 - "onSettingsSaved"
-Cohesion: 0.36
-Nodes (6): rootHolder, sync.RWMutex, newRootHolder(), onSettingsSaved(), TestOnSettingsSavedFailureLeavesRootUntouched(), TestOnSettingsSavedSwitchesRootAndRestartsWatcher()
+### Community 68 - "Init"
+Cohesion: 0.50
+Nodes (3): Init(), TestInitCreatesRepository(), TestInitErrorsWithoutGit()
 
 ### Community 69 - "Quality gates — how this repo verifies work"
 Cohesion: 0.20
@@ -414,17 +409,13 @@ Nodes (9): Commit hygiene, Concurrency, Coverage, Cross-compile, Dependency bump
 Cohesion: 0.18
 Nodes (10): 1. Run the quality gates, 2. Walk the review checklist, 3. Triage a failing gate, Canonical docs, Code quality — the pre-PR gate, Gotchas, Key files, Maintenance (+2 more)
 
-### Community 71 - "Docusaurus Documentation Site — Design"
-Cohesion: 0.25
-Nodes (7): Approach: Docusaurus site that consumes `docs/` directly (DRY), Decisions log, Docusaurus Documentation Site — Design, Mermaid additions, Purpose, Risks / mitigations, Site structure
-
 ### Community 73 - "Frontend patterns — the cross-cutting conventions"
 Cohesion: 0.20
 Nodes (9): Ant Design first, Design tokens, Frontend patterns — the cross-cutting conventions, Package discipline, Routing, State placement, Test doubles (web/src/test), The API boundary (zod) (+1 more)
 
-### Community 74 - "useAppSelector"
-Cohesion: 0.12
-Nodes (28): AppHeader(), ChatPanel(), createSocket(), DashboardView(), greeting(), todayLabel(), NotificationPanel(), NOTIFICATION_ICONS (+20 more)
+### Community 74 - "NotificationToasts.tsx"
+Cohesion: 0.20
+Nodes (11): NOTIFICATION_ICONS, NOTIFICATION_PALETTE, NotificationIcon(), NotificationToasts(), initialState, Notification, NotificationKind, notificationsSlice (+3 more)
 
 ### Community 75 - "docs-site/package.json"
 Cohesion: 0.33
@@ -447,99 +438,87 @@ Cohesion: 0.33
 Nodes (5): Areas (package-aligned), Kept GitHub defaults (outside the three-tier model), Labels — the three-tier GitHub label set, Priority (issues only), Types (mirror the conventional-commit prefixes)
 
 ### Community 81 - "testing.T"
-Cohesion: 0.11
-Nodes (39): testing.T, healthyThothDir(), TestDoctorEndpointHealthy(), Index, openTest(), TestDeletePrefixEscapesLIKEWildcards(), TestDeletePrefixRemovesSubtree(), TestOpenErrorWhenPathIsDirectory() (+31 more)
+Cohesion: 0.10
+Nodes (40): TestEventShapeUnchanged(), TestEventTypeValues(), TestWriterFuncAdapter(), testing.T, echo.Echo, newLoggingServer(), TestRequestLogsAPIPaths(), TestRequestLogsFailureWithErr() (+32 more)
 
 ### Community 82 - "renderWithStore"
 Cohesion: 0.05
-Nodes (41): mocks, renderPanel(), mocks, renderBlock(), renderCopy(), ChartStub, conversations, mocks (+33 more)
+Nodes (35): mocks, mocks, renderPanel(), mocks, renderBlock(), conversations, mocks, renderDashboard() (+27 more)
 
-### Community 83 - "ParseLine"
-Cohesion: 0.29
-Nodes (11): ParseLine(), TestParseLineAssistantText(), TestParseLineAssistantWithEmptyText(), TestParseLineAssistantWithoutMessage(), TestParseLineIgnoresStringShapedMessage(), TestParseLineIgnoresUnknown(), TestParseLineRejectsGarbage(), TestParseLineResult() (+3 more)
+### Community 84 - "OpenRepo"
+Cohesion: 0.27
+Nodes (3): TestServeErrorWhenWikiScaffoldFails(), Repo, OpenRepo()
 
 ### Community 86 - "database/sql.DB"
 Cohesion: 0.60
 Nodes (5): database/sql.DB, applyMigration(), migrate(), splitStatements(), TestUpgradeRenamesDescriptionToTag()
 
-### Community 92 - "EventWriter"
-Cohesion: 0.33
-Nodes (3): ctxAwareFake, hangClient, EventWriter
-
 ### Community 96 - "ExpandHome"
-Cohesion: 0.40
-Nodes (4): ExpandHome(), TestExpandHome(), TestExpandHomeBareTilde(), TestToTilde()
+Cohesion: 0.27
+Nodes (7): initFolders(), newInitCmd(), ExpandHome(), TestExpandHome(), TestExpandHomeBareTilde(), TestToTilde(), ToTilde()
 
 ### Community 97 - "ModelOptions"
-Cohesion: 0.33
-Nodes (7): Option, ModelOptions(), TestModelOptionsParse(), TestModelOptionsSplitShape(), ensureModels(), TestEnsureModelsReseedsEmptyTable(), TestEnsureModelsSeedsFirstBoot()
+Cohesion: 0.47
+Nodes (4): Option, ModelOptions(), TestModelOptionsParse(), TestModelOptionsSplitShape()
 
 ### Community 98 - "react"
-Cohesion: 0.12
-Nodes (21): react, cache, CodeBlock(), highlight(), Composer(), CopyButton(), components, Markdown() (+13 more)
+Cohesion: 0.09
+Nodes (28): react, api, cache, CodeBlock(), highlight(), CopyButton(), renderCopy(), components (+20 more)
 
-### Community 103 - "WikiTree.tsx"
-Cohesion: 0.12
-Nodes (25): TreeNode, NotesView, NotesView(), toTreeData(), WikiDataNode, WikiTree(), connectionSlice, ConnectionState (+17 more)
+### Community 103 - "useAppSelector"
+Cohesion: 0.13
+Nodes (28): TreeNode, SearchView, AppHeader(), ChatPanel(), createSocket(), Composer(), NotesView(), NotificationPanel() (+20 more)
 
 ### Community 104 - "ParseNote"
-Cohesion: 0.11
-Nodes (20): dbLike, Note, Result, del(), Index, upsert(), Index, ParseNote() (+12 more)
+Cohesion: 0.06
+Nodes (41): dbLike, Note, Result, countNotes(), del(), Index, upsert(), Index (+33 more)
 
 ### Community 106 - "index.ts"
 Cohesion: 0.11
-Nodes (32): Conversation, toolLabel(), useChat(), AppDispatch, AppStore, RootState, chatSlice, ChatState (+24 more)
+Nodes (37): GitHubIdentity, GitHubRepo, GitTab(), toolLabel(), useChat(), AppDispatch, AppStore, RootState (+29 more)
 
-### Community 107 - "events.go"
-Cohesion: 0.36
-Nodes (6): Event, EventType, rawBlock, rawLine, rawMsg, encoding/json.RawMessage
-
-### Community 109 - "startupBanner"
-Cohesion: 0.36
-Nodes (6): isTerminal(), startupBanner(), TestStartupBannerAddsColorOnlyWhenAsked(), TestStartupBannerContainsTheFacts(), TestStartupBannerFormatsIPv6Hosts(), TestStartupBannerShowsTheBigWordmark()
+### Community 107 - "ParseBlock"
+Cohesion: 0.11
+Nodes (33): BlockType, Delta, Block, StopDelta(), TestBlockDeltas(), TestDeltaConstructors(), TextDelta(), ThinkingDelta() (+25 more)
 
 ### Community 110 - "plugins"
 Cohesion: 0.22
 Nodes (8): oxc, typescript, warn, plugins, rules, react/only-export-components, react/rules-of-hooks, $schema
 
 ### Community 113 - "Open"
-Cohesion: 0.06
-Nodes (59): staleLockClient, Call, getResult, Profile, Repository, bytes.Buffer, context.Context, github.com/fsnotify/fsnotify.Event (+51 more)
+Cohesion: 0.05
+Nodes (62): ctxAwareFake, hangClient, staleLockClient, Call, getResult, Profile, Repository, bytes.Buffer (+54 more)
 
 ### Community 114 - "DashboardView.tsx"
 Cohesion: 0.15
 Nodes (18): DashboardView, ActivityChart(), ChatActivityChart(), mockActivity, mockChatActivity, mockInbox, mockMeetings, mockNotesByFolder (+10 more)
 
-### Community 115 - "SearchPanel.tsx"
-Cohesion: 0.14
-Nodes (15): SearchResult, SearchView, SearchPanel(), mocks, useSearch(), selectSearchHistory(), initialState, searchNotes (+7 more)
+### Community 115 - "makeStore"
+Cohesion: 0.12
+Nodes (22): SearchResult, renderChatHook(), mocks, renderSearchHook(), useSearch(), makeStore(), loadHistory(), persistSearchHistory() (+14 more)
 
-### Community 116 - "Sidebar.test.tsx"
-Cohesion: 0.20
-Nodes (6): conversations, mocks, older, renderSidebar(), today, yesterday
-
-### Community 121 - "newLoggingServer"
-Cohesion: 0.53
-Nodes (5): echo.Echo, newLoggingServer(), TestRequestLogsAPIPaths(), TestRequestLogsFailureWithErr(), TestRequestLogSkipsNonAPIPaths()
+### Community 116 - "Sidebar.tsx"
+Cohesion: 0.11
+Nodes (22): Conversation, DashboardView(), greeting(), todayLabel(), ChatsList(), groupByDay(), relativeDate(), Sidebar() (+14 more)
 
 ### Community 122 - "TestGitSetupReportsSanitizedFailure"
 Cohesion: 0.60
 Nodes (4): TestGitSetupReportsSanitizedFailure(), TestGitSetupRequiresURL(), TestGitSetupRunsAgainstWiki(), writeFakeGit()
 
 ## Knowledge Gaps
-- **488 isolated node(s):** `ALLOWED_KINDS`, `config`, `@playwright/mcp`, `@ant-design/cli`, `searchLocal` (+483 more)
+- **463 isolated node(s):** `ALLOWED_KINDS`, `config`, `@playwright/mcp`, `@ant-design/cli`, `DeltaKind` (+458 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **31 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **30 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `Deps` connect `Deps` to `New`, `testDeps`, `NewPersistent`, `runServe`, `Store`, `ParseNote`, `New`, `Open`, `Repo`, `PersistentClient`?**
-  _High betweenness centrality (0.026) - this node is a cross-community bridge._
-- **Why does `testDeps()` connect `testDeps` to `New`, `Deps`, `New`, `New`, `testing.T`, `Open`, `putSettingsReq`, `openTestRepo`, `OpenRepo`, `newLoggingServer`, `TestGitSetupReportsSanitizedFailure`, `api/models_test.go`?**
-  _High betweenness centrality (0.013) - this node is a cross-community bridge._
-- **Why does `newServer()` connect `Deps` to `New`, `Hub`, `testDeps`, `newTestEcho`?**
-  _High betweenness centrality (0.013) - this node is a cross-community bridge._
+- **Why does `Hub` connect `Hub` to `Deps`, `serve_test.go`, `NewPersistent`, `runServe`, `Store`, `NewHub`, `Open`, `PersistentClient`?**
+  _High betweenness centrality (0.021) - this node is a cross-community bridge._
+- **Why does `Deps` connect `Deps` to `New`, `serve_test.go`, `testDeps`, `NewPersistent`, `runServe`, `Store`, `ParseNote`, `Open`, `OpenRepo`?**
+  _High betweenness centrality (0.018) - this node is a cross-community bridge._
+- **Why does `newServer()` connect `Deps` to `New`, `Hub`, `NewHub`, `newTestEcho`?**
+  _High betweenness centrality (0.014) - this node is a cross-community bridge._
 - **Are the 85 inferred relationships involving `testDeps()` (e.g. with `TestHubBroadcastDeliversToClients()` and `TestHubBroadcastDropsSlowClient()`) actually correct?**
   _`testDeps()` has 85 INFERRED edges - model-reasoned connections that need verification._
 - **Are the 80 inferred relationships involving `New()` (e.g. with `TestWikiChangedFrameReachesSocket()` and `TestChatCancelBeforeSendIsNoop()`) actually correct?**
@@ -547,4 +526,4 @@ _Questions this graph is uniquely positioned to answer:_
 - **Are the 29 inferred relationships involving `NewPersistent()` (e.g. with `New()` and `TestPersistentArgs()`) actually correct?**
   _`NewPersistent()` has 29 INFERRED edges - model-reasoned connections that need verification._
 - **What connects `ALLOWED_KINDS`, `config`, `@playwright/mcp` to the rest of the system?**
-  _488 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _463 weakly-connected nodes found - possible documentation gaps or missing edges._

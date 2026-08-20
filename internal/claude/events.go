@@ -4,36 +4,31 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+
+	"github.com/shiv-source/thoth/agent"
+)
+
+// Event, EventType, EventWriter, and WriterFunc moved to the public agent
+// package; the aliases below keep existing call sites compiling unchanged
+// until the native agent cutover deletes this package.
+type (
+	Event       = agent.Event
+	EventType   = agent.EventType
+	EventWriter = agent.EventWriter
+)
+
+type WriterFunc = agent.WriterFunc
+
+const (
+	EventDelta    = agent.EventDelta
+	EventTool     = agent.EventTool
+	EventThinking = agent.EventThinking
+	EventDone     = agent.EventDone
+	EventError    = agent.EventError
 )
 
 // ErrIgnore signals a stream line that carries no event worth forwarding.
 var ErrIgnore = errors.New("ignore line")
-
-type EventType string
-
-const (
-	EventDelta    EventType = "assistant_delta"
-	EventTool     EventType = "tool_activity"
-	EventThinking EventType = "thinking"
-	EventDone     EventType = "turn_done"
-	EventError    EventType = "error"
-)
-
-type Event struct {
-	Type   EventType
-	Text   string // assistant_delta payload
-	Tool   string // tool_activity: tool name
-	Detail string // tool_activity: tool input; error: message
-}
-
-type EventWriter interface {
-	Write(Event) error
-}
-
-// WriterFunc adapts a plain function to EventWriter.
-type WriterFunc func(Event) error
-
-func (f WriterFunc) Write(e Event) error { return f(e) }
 
 // rawLine is the tolerant view of one stream-json line. Unknown fields are
 // ignored by design so the parser survives CLI output additions. Message is
