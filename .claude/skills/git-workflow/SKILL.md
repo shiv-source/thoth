@@ -18,7 +18,7 @@ description: >-
 ## Key files
 - CONTRIBUTING.md — the workflow page: § Workflow, § Before you push
 - .github/pull_request_template.md — the PR body shape (Summary / Related issue / Files changed / How verified / Notes)
-- .github/workflows/ — ci-pr.yml (PR gates) · quality.yml (the quality gates, incl. the graph freshness check) · final-gate.yml (single required check + PR report comment) · ci.yml (push to main adds 5 cross-compiles + frontend build) · pr-assignee.yml (auto-assigns PR committers) · issue-labels.yml (applies the form-selected labels to new/edited issues)
+- .github/workflows/ — ci-pr.yml (PR gates; a `changes` job diffs the PR and skips the quality gates for areas the PR didn't touch — docs-only PRs skip them all) · quality.yml (the quality gates, incl. the graph freshness check, each gated on a caller input) · final-gate.yml (single required check + PR report comment; skipped gates count as passing) · ci.yml (push to main adds 5 cross-compiles + frontend build) · pr-assignee.yml (auto-assigns PR committers; runs on every PR, never gated) · issue-labels.yml (applies the form-selected labels to new/edited issues)
 - .github/actions/issue-labels/ — reusable composite action: applies the three-tier labels (type, priority, areas) from issue-form answers; JS, add-only
 - .husky/pre-commit — the commit gate: lint-staged autofixes, plus Go vet/lint/test when Go is staged
 - docs/development.md — § Gates (what make check enforces), § CI (workflow mechanics)
@@ -76,14 +76,14 @@ description: >-
 ### 6. Merge is human-only — squash by default
 1. A session never merges — it delivers: reviewed PR, green final-gate, labels applied. The human merges (human-in-the-loop delivery; squash by default, "unless the commit history is meaningful" — CONTRIBUTING.md § Workflow)
 2. Every PR is reviewed — request a review before handing off (CONTRIBUTING.md § Workflow)
-3. final-gate is the single required check: it always renders a per-job report (step summary; on PRs a `<!-- thoth-ci-report -->` tagged comment, updated in place) and fails unless every other job succeeded (docs/development.md § CI)
+3. final-gate is the single required check: it always renders a per-job report (step summary; on PRs a `<!-- thoth-ci-report -->` tagged comment, updated in place) and fails unless every other job succeeded — jobs skipped because a PR didn't touch their area (ci-pr's `changes` gating) count as passing (docs/development.md § CI)
 4. After the human merges, the next change starts with workflow 1's sync: `git switch main && git pull --ff-only`
 
 ## Gotchas
 - The pre-commit hook can rewrite your staged files (eslint/prettier/golangci-lint --fix) — re-run tests after any hook-triggered edit
 - No secrets in the repo — env vars or placeholders only (CLAUDE.md § Repo rules)
 - Lockfiles (go.sum, pnpm-lock.yaml) are committed; generated dirs (bin/, web/dist/, internal/webui/dist/, node_modules/, *.db) are never committed (CLAUDE.md § Repo rules)
-- ci-pr is the fast feedback loop — it runs no cross-compiles; the extra builds run only after push to main (docs/development.md § CI)
+- ci-pr is the fast feedback loop — it runs no cross-compiles (those run only after push to main) and only the quality gates for the areas a PR touches (docs/development.md § CI)
 - A red final-gate means a job failed — read the PR report comment before re-pushing; it is updated in place, not stacked
 
 ## Canonical docs

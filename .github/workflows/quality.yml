@@ -1,6 +1,23 @@
 name: quality
 on:
   workflow_call:
+    inputs:
+      backend:
+        description: run the Go gates (backend-test, backend-lint)
+        type: boolean
+        default: true
+      frontend:
+        description: run the TS gates (frontend-test, frontend-lint, frontend-typecheck)
+        type: boolean
+        default: true
+      graph:
+        description: run the graph freshness gate (graph-check)
+        type: boolean
+        default: true
+      issue_labels:
+        description: run the issue-labels action test suite
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -9,6 +26,7 @@ jobs:
   # The committed graph must match the committed tree — a PR that changed
   # Go/TS without refreshing the graph fails here (scripts/graph-check.sh).
   graph-check:
+    if: inputs.graph
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -16,6 +34,7 @@ jobs:
       - run: ./scripts/graph-check.sh
 
   backend-test:
+    if: inputs.backend
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -27,6 +46,7 @@ jobs:
         run: make cover
 
   backend-lint:
+    if: inputs.backend
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -55,6 +75,7 @@ jobs:
           golangci-lint run --timeout 5m
 
   frontend-test:
+    if: inputs.frontend
     runs-on: ubuntu-latest
     timeout-minutes: 10
     defaults:
@@ -66,6 +87,7 @@ jobs:
       - run: pnpm exec vitest run
 
   frontend-lint:
+    if: inputs.frontend
     runs-on: ubuntu-latest
     timeout-minutes: 10
     defaults:
@@ -77,6 +99,7 @@ jobs:
       - run: pnpm run lint
 
   frontend-typecheck:
+    if: inputs.frontend
     runs-on: ubuntu-latest
     timeout-minutes: 10
     defaults:
@@ -88,6 +111,7 @@ jobs:
       - run: pnpm exec tsc --noEmit
 
   issue-labels-test:
+    if: inputs.issue_labels
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

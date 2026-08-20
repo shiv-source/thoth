@@ -14,7 +14,8 @@ permissions:
 jobs:
   # Single required check for branch protection: runs regardless of the
   # other jobs' outcomes so its step summary always renders the per-job
-  # report — then fails unless every other job succeeded.
+  # report — then fails unless every other job succeeded or was skipped
+  # (skipped = gated off for areas the PR didn't touch, not a failure).
   report:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -26,7 +27,7 @@ jobs:
           jobs=$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs" \
             --jq '[.jobs[] | select((.name | split(" / ") | last) != "${{ github.job }}" and (.name | split(" / ") | last) != "${{ inputs.wrapper }}") | {name: (.name | split(" / ") | last), conclusion: .conclusion}]' \
             | jq 'sort_by(.conclusion == "success")')
-          failed=$(echo "$jobs" | jq '[.[] | select(.conclusion != "success")] | length')
+          failed=$(echo "$jobs" | jq '[.[] | select(.conclusion != "success" and .conclusion != "skipped")] | length')
           if [ "$failed" -gt 0 ]; then
             echo "## CI failed ❌ — $failed job(s) failed" >> "$GITHUB_STEP_SUMMARY"
           else
@@ -47,7 +48,7 @@ jobs:
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             marker='<!-- thoth-ci-report -->'
             pr="${{ github.event.pull_request.number }}"
-            passed=$(echo "$jobs" | jq '[.[] | select(.conclusion == "success")] | length')
+            passed=$(echo "$jobs" | jq '[.[] | select(.conclusion == "success" or .conclusion == "skipped")] | length')
             total=$(echo "$jobs" | jq 'length')
             if [ "$failed" -gt 0 ]; then
               title="### CI Report ❌"
