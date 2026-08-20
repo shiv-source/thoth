@@ -44,3 +44,5 @@ Every scaffold also initializes a local git repository (when git is installed) w
 Notes are indexed only when their frontmatter parses and has a `title` (`internal/wiki/note.go`). Malformed files are skipped and logged, never fatal — see [Indexing & search](indexing.md).
 
 Non-markdown files (images, scripts, configs) are stored in the reserved `attachments/` directory and indexed by **filename only**, so search can find them even though the folder is hidden from the tree. Their content is not searchable — when a script or config is saved, write a companion note in the folder that uses it (e.g. `setup/servers/x.md` for `attachments/x.yaml`) so its purpose is discoverable by search. The rulebook encodes this protocol.
+
+`attachments/` is app-managed and checked on every startup: if a *file* (not a directory) exists with that name where the directory belongs, `serve` fails fast with an actionable error (`reserved directory "attachments" is blocked by a file; move or remove <path>`) rather than serving without the directory or surfacing a bare "not a directory".
