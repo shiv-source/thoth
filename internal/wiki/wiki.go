@@ -51,6 +51,19 @@ func IsMarkdownPath(p string) bool {
 	return false
 }
 
+// IsImagePath reports whether p names a previewable image attachment — .png,
+// .jpg, .jpeg, .gif, .svg, or .webp, case-insensitive. The /api/notes handler
+// uses it to serve images inline (raw bytes) while every other attachment is
+// served as a download; the dashboard mirrors it so the preview/download
+// decision matches the wire format.
+func IsImagePath(p string) bool {
+	switch strings.ToLower(filepath.Ext(p)) {
+	case ".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp":
+		return true
+	}
+	return false
+}
+
 // Hidden reports whether any segment of a wiki-relative, slash-separated path
 // is a dotfile.
 func Hidden(rel string) bool {

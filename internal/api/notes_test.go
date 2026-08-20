@@ -85,35 +85,53 @@ func TestNoteEndpoint(t *testing.T) {
 	}
 }
 
-func TestNoteEndpointRejectsNonMarkdown(t *testing.T) {
+func TestNoteEndpointServesAttachmentsAsRawBytes(t *testing.T) {
 	d := testDeps(t)
 	if err := wiki.Scaffold(d.Wiki.Root); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.MkdirAll(filepath.Join(d.Wiki.Root, "attachments"), 0o755); err != nil {
+	attachments := filepath.Join(d.Wiki.Root, "attachments")
+	if err := os.MkdirAll(attachments, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(d.Wiki.Root, "attachments", "logo.png"), []byte("png-bytes"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(attachments, "logo.png"), []byte("png-bytes"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(attachments, "install.sh"), []byte("#!/bin/sh\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
 	e := New(d)
-	for _, path := range []string{"attachments/logo.png", "attachments", "meetings/s.txt"} {
-		req := httptest.NewRequest(http.MethodGet, "/api/notes?path="+path, nil)
-		rec := httptest.NewRecorder()
-		e.ServeHTTP(rec, req)
-		if rec.Code != http.StatusBadRequest {
-			t.Fatalf("expected 400 for non-markdown path %q, got %d", path, rec.Code)
-		}
-		var body struct {
-			Error string `json:"error"`
-		}
-		if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
-			t.Fatal(err)
-		}
-		if body.Error != "path is not a note" {
-			t.Fatalf("unexpected error body for %q: %q", path, body.Error)
-		}
+
+	// Images are served inline as raw bytes so an <img> can preview them.
+	req := httptest.NewRequest(http.MethodGet, "/api/notes?path=attachments/logo.png", nil)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 for image attachment, got %d: %s", rec.Code, rec.Body.String())
+	}
+	if got := rec.Header().Get("Content-Type"); got != "image/png" {
+		t.Fatalf("Content-Type = %q, want image/png", got)
+	}
+	if got := rec.Header().Get("Content-Disposition"); got != "" {
+		t.Fatalf("image must not be an attachment, got Content-Disposition %q", got)
+	}
+	if got := rec.Body.String(); got != "png-bytes" {
+		t.Fatalf("body = %q, want png-bytes", got)
+	}
+
+	// Other attachments are downloads carrying their basename.
+	req = httptest.NewRequest(http.MethodGet, "/api/notes?path=attachments/install.sh", nil)
+	rec = httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 for script attachment, got %d: %s", rec.Code, rec.Body.String())
+	}
+	if got := rec.Header().Get("Content-Disposition"); got != `attachment; filename="install.sh"` {
+		t.Fatalf("Content-Disposition = %q, want attachment with basename", got)
+	}
+	if got := rec.Body.String(); got != "#!/bin/sh\n" {
+		t.Fatalf("body = %q, want the file's raw bytes", got)
 	}
 }
 

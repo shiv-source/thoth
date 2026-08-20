@@ -151,6 +151,33 @@ func TestIndexable(t *testing.T) {
 	}
 }
 
+func TestIsImagePath(t *testing.T) {
+	tests := []struct {
+		name string
+		rel  string
+		want bool
+	}{
+		{"png", "attachments/logo.png", true},
+		{"jpg", "images/photo.jpg", true},
+		{"jpeg", "images/photo.jpeg", true},
+		{"gif", "attachments/anim.gif", true},
+		{"svg", "images/logo.svg", true},
+		{"webp", "images/logo.webp", true},
+		{"uppercase", "IMAGES/LOGO.PNG", true},
+		{"markdown note", "notes/a.md", false},
+		{"script", "attachments/install.sh", false},
+		{"config", "attachments/x.yaml", false},
+		{"no extension", "attachments/README", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := IsImagePath(tt.rel); got != tt.want {
+				t.Fatalf("IsImagePath(%q) = %v, want %v", tt.rel, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestVisible(t *testing.T) {
 	tests := []struct {
 		name  string

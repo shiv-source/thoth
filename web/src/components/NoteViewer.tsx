@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { Alert, Button, Empty, Skeleton } from 'antd'
-import { CloseOutlined } from '@ant-design/icons'
+import { CloseOutlined, DownloadOutlined } from '@ant-design/icons'
 import { fetchNote, selectNoteContent, selectNoteError, selectNoteLoading } from '../store'
 import { useAppDispatch, useAppSelector } from '../store/hooks'
 import { CopyButton } from './CopyButton'
@@ -9,10 +9,25 @@ import { Markdown } from './Markdown'
 // isNotePath reports whether a wiki path is a previewable Markdown note
 // (.md or .markdown, case-insensitive — matching wiki.IsMarkdownPath). The
 // tree only lists markdown, but attachments (images, scripts, …) are indexed
-// by filename and reachable by search or direct URL; those get a "cannot
-// preview" state instead of raw bytes rendered as Markdown.
+// by filename and reachable by search or direct URL; those render as an image
+// preview or a download instead of raw bytes as Markdown.
 function isNotePath(path: string): boolean {
     return /\.(?:md|markdown)$/i.test(path)
+}
+
+// isImagePath reports whether a wiki path is a previewable image attachment
+// (.png/.jpg/.jpeg/.gif/.svg/.webp, case-insensitive — matching
+// wiki.IsImagePath). Images render inline; every other attachment gets a
+// download action.
+function isImagePath(path: string): boolean {
+    return /\.(?:png|jpe?g|gif|svg|webp)$/i.test(path)
+}
+
+// noteUrl is the raw-bytes URL for an attachment: the server wraps markdown
+// in JSON but serves any other path as raw bytes (images inline, everything
+// else as a download), so an <img> or download link can point straight at it.
+function noteUrl(path: string): string {
+    return `/api/notes?path=${encodeURIComponent(path)}`
 }
 
 // NoteViewer is the note reader, rendered inline in the Notes view's
@@ -25,6 +40,7 @@ export function NoteViewer({ path, onClose }: { path: string; onClose: () => voi
     const loading = useAppSelector(selectNoteLoading)
     const error = useAppSelector(selectNoteError)
     const isNote = isNotePath(path)
+    const isImage = isImagePath(path)
 
     useEffect(() => {
         if (!isNote) return
@@ -44,12 +60,24 @@ export function NoteViewer({ path, onClose }: { path: string; onClose: () => voi
             <header className="flex shrink-0 items-center justify-between gap-3 border-b border-line px-5 py-3">
                 <span className="truncate font-mono text-xs text-subtle">{path}</span>
                 <div className="flex shrink-0 items-center gap-2">
-                    <CopyButton
-                        text={content ?? ''}
-                        label="Copy raw"
-                        toast="Note copied to clipboard"
-                        className={`rounded-lg border border-line px-3 py-1.5 text-xs font-medium text-ink transition hover:bg-raised ${content ? '' : 'pointer-events-none opacity-40'}`}
-                    />
+                    {isNote ? (
+                        <CopyButton
+                            text={content ?? ''}
+                            label="Copy raw"
+                            toast="Note copied to clipboard"
+                            className={`rounded-lg border border-line px-3 py-1.5 text-xs font-medium text-ink transition hover:bg-raised ${content ? '' : 'pointer-events-none opacity-40'}`}
+                        />
+                    ) : (
+                        <Button
+                            type="text"
+                            size="small"
+                            href={noteUrl(path)}
+                            download={path.split('/').pop()}
+                            icon={<DownloadOutlined aria-hidden="true" />}
+                        >
+                            Download
+                        </Button>
+                    )}
                     <Button
                         type="text"
                         size="small"
@@ -66,6 +94,8 @@ export function NoteViewer({ path, onClose }: { path: string; onClose: () => voi
                         {error && <Alert type="error" showIcon message={error} />}
                         {content && <Markdown>{content}</Markdown>}
                     </>
+                ) : isImage ? (
+                    <img src={noteUrl(path)} alt={path} className="max-w-full rounded-lg border border-line" />
                 ) : (
                     <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="This file type can't be previewed." />
                 )}

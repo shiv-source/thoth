@@ -58,9 +58,24 @@ describe('NoteViewer', () => {
         expect(await screen.findByText('Note copied to clipboard')).toBeInTheDocument()
     })
 
-    it('shows a cannot-preview state for non-markdown paths without fetching', async () => {
-        renderWithStore(<NoteViewer path="images/logo.png" onClose={vi.fn()} />)
+    it('shows a cannot-preview state for non-previewable attachments without fetching', async () => {
+        renderWithStore(<NoteViewer path="attachments/install.sh" onClose={vi.fn()} />)
         expect(await screen.findByText("This file type can't be previewed.")).toBeInTheDocument()
+        expect(mocks.get).not.toHaveBeenCalled()
+    })
+
+    it('renders an image attachment inline without fetching JSON', async () => {
+        renderWithStore(<NoteViewer path="attachments/logo.png" onClose={vi.fn()} />)
+        const img = await screen.findByRole('img', { name: 'attachments/logo.png' })
+        expect(img).toHaveAttribute('src', '/api/notes?path=attachments%2Flogo.png')
+        expect(mocks.get).not.toHaveBeenCalled()
+    })
+
+    it('offers a download for non-image attachments', () => {
+        renderWithStore(<NoteViewer path="attachments/install.sh" onClose={vi.fn()} />)
+        const download = screen.getByRole('link', { name: 'Download' })
+        expect(download).toHaveAttribute('href', '/api/notes?path=attachments%2Finstall.sh')
+        expect(download).toHaveAttribute('download', 'install.sh')
         expect(mocks.get).not.toHaveBeenCalled()
     })
 
