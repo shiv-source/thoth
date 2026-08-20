@@ -37,6 +37,9 @@ func note(c echo.Context, d Deps) error {
 	if _, err := wiki.SafePath(d.Wiki.Root, rel); err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
 	}
+	if !wiki.IsMarkdownPath(rel) {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "path is not a note"})
+	}
 	content, err := d.Wiki.Read(rel)
 	if err != nil {
 		return c.JSON(http.StatusNotFound, map[string]string{"error": "note not found"})

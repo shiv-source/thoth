@@ -85,6 +85,38 @@ func TestNoteEndpoint(t *testing.T) {
 	}
 }
 
+func TestNoteEndpointRejectsNonMarkdown(t *testing.T) {
+	d := testDeps(t)
+	if err := wiki.Scaffold(d.Wiki.Root); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(d.Wiki.Root, "attachments"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(d.Wiki.Root, "attachments", "logo.png"), []byte("png-bytes"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	e := New(d)
+	for _, path := range []string{"attachments/logo.png", "attachments", "meetings/s.txt"} {
+		req := httptest.NewRequest(http.MethodGet, "/api/notes?path="+path, nil)
+		rec := httptest.NewRecorder()
+		e.ServeHTTP(rec, req)
+		if rec.Code != http.StatusBadRequest {
+			t.Fatalf("expected 400 for non-markdown path %q, got %d", path, rec.Code)
+		}
+		var body struct {
+			Error string `json:"error"`
+		}
+		if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+			t.Fatal(err)
+		}
+		if body.Error != "path is not a note" {
+			t.Fatalf("unexpected error body for %q: %q", path, body.Error)
+		}
+	}
+}
+
 func TestTreeEndpoint(t *testing.T) {
 	d := testDeps(t)
 	if err := wiki.Scaffold(d.Wiki.Root); err != nil {
