@@ -35,7 +35,7 @@ Prints `thoth <version>` (`dev` in development builds).
 
 ### `thoth doctor`
 
-Runs nine health checks and reports each. The checks live in the shared `internal/doctor` package — the dashboard's Settings → Doctor tab runs the same suite over `GET /api/doctor`:
+Runs ten health checks and reports each. The checks live in the shared `internal/doctor` package — the dashboard's Settings → Doctor tab runs the same suite over `GET /api/doctor`:
 
 | Check | What it verifies |
 |---|---|
@@ -46,6 +46,7 @@ Runs nine health checks and reports each. The checks live in the shared `interna
 | model | a model is selected in the settings table (unset = the CLI's own default) |
 | database | db opens in WAL with `notes` + `notes_fts` tables |
 | index | indexed count matches the number of valid notes on disk |
+| malformed | no markdown notes the index silently skips (unparseable frontmatter) |
 | api | something speaks the Thoth protocol at the configured port (`GET /api/health` returns `ok`) |
 | websocket | the chat WS upgrade succeeds (skipped when the api is unreachable) |
 

@@ -28,20 +28,22 @@ New top-level domains are added by convention: create the folder and extend the 
 title: <Title>
 date: <YYYY-MM-DD>
 tags: [<tag>, <tag>]
-type: <meeting|project|link|setup|knowledge|todo|daily|note>
+type: <inbox|meeting|project|link|setup|knowledge|todo|daily>
 ---
 ```
 
 - **One TODO list** — `todos/TODO.md`; tasks are never scattered across other files
 - **No secrets** — never store credentials; write placeholders like `<db-password>`
 
-The rulebook ships as a template at `internal/wiki/templates/CLAUDE.md` and is scaffolded by `thoth init`; the template and the in-repo validation are the same source (`Rulebook()`, see [Components](components.md)). The rulebook's folder map is generated from the configured folder set, so it always matches the layout. An existing `CLAUDE.md` is never overwritten — edit it freely to adapt the organization to how you think.
+The rulebook ships as a template at `internal/wiki/templates/CLAUDE.md` and is scaffolded by `thoth init`; the template and the in-repo validation are the same source (`Rulebook()`, see [Components](components.md)). The rulebook's folder map is generated from the configured folder set, so it always matches the layout, and the frontmatter `type:` list is derived from the same folders (singular form: `meetings/` → `meeting`, custom `recipes/` → `recipe`), so the two can never drift. An existing `CLAUDE.md` is never overwritten — edit it freely to adapt the organization to how you think. `type: note` is a legacy value tolerated for old notes; new notes use the type of their folder.
 
 Every scaffold also initializes a local git repository (when git is installed) with a `.gitignore` covering `.DS_Store` and `*.db`, so the wiki is versioned from day one; the Settings → Git remote tab adds the remote and pushes.
 
 ## Notes in the index
 
 Notes are indexed only when their frontmatter parses and has a `title` (`internal/wiki/note.go`). Malformed files are skipped and logged, never fatal — see [Indexing & search](indexing.md).
+
+Save-protocol violations (missing frontmatter, a `type:` that doesn't match the note's folder, non-kebab-case filenames, missing date prefixes in `meetings/`/`daily/`) are validated on the read path by `wiki.Validate` (`internal/wiki/validate.go`): hard frontmatter failures are logged by the index and surfaced by `thoth doctor`'s "malformed" check, while advisory warnings (missing/mismatched `type`, filename shape) are logged when a note is added or changed so the author gets feedback. None of it is fatal — a warning-only note still indexes and stays searchable.
 
 Non-markdown files (images, scripts, configs) are stored in the reserved `attachments/` directory and indexed by **filename only**, so search can find them even though the folder is hidden from the tree. Their content is not searchable — when a script or config is saved, write a companion note in the folder that uses it (e.g. `setup/servers/x.md` for `attachments/x.yaml`) so its purpose is discoverable by search. The rulebook encodes this protocol.
 

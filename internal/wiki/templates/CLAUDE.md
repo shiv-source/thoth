@@ -16,7 +16,7 @@ When asked to save something:
    title: <Title>
    date: <YYYY-MM-DD>
    tags: [<tag>, <tag>]
-   type: <meeting|project|link|setup|knowledge|todo|daily|note>
+   type: <{{note-types}}>
    ---
 
 4. Write it, then confirm with one line: where it was saved.

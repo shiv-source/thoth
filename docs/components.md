@@ -39,8 +39,9 @@ Cancelling `ctx` kills the CLI's process group (unix) or direct child (windows) 
 ## internal/wiki — the file contract
 
 - `Scaffold(dir)` — creates the 9 folders + rulebook; never overwrites an existing `CLAUDE.md`
-- `Rulebook()` — the single source of the rulebook text (embedded template)
+- `Rulebook()` — the single source of the rulebook text (embedded template); the frontmatter `type:` list is derived from the folder set (`NoteTypesFor`), so it can never drift
 - `ParseNote(content)` — splits frontmatter, requires `title`, returns `NoteMeta` + body
+- `Validate(rel, content)` — save-protocol checks (frontmatter, `type` matches the folder, kebab-case filename, date-prefix in `meetings/`/`daily/`); advisory problems, never fatal — the index logs them and the doctor's "malformed" check surfaces parse failures by name
 - `SafePath(root, rel)` — rejects absolute paths and `..` escapes; every filesystem access routes through it
 - `Wiki` — `New`, `Exists`, `Read`, `Tree` (dirs first, dotfiles and the root rulebook skipped via the shared `Visible` predicate); a directory that cannot be read keeps its node with an `Error` and no children instead of failing the whole walk (only an unreadable root errors); `Change`/`Changed` + op constants are the watcher's event-bus payload
 

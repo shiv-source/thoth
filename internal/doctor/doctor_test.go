@@ -3,6 +3,7 @@ package doctor
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"io"
 	"log/slog"
 	"net"
@@ -108,7 +109,7 @@ func healthyThothDir(t *testing.T) string {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(wikiRoot, "inbox", "hello.md"),
-		[]byte("---\ntitle: Hello\n---\n\nHello body\n"), 0o644); err != nil {
+		[]byte("---\ntitle: Hello\ntype: inbox\n---\n\nHello body\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	dbPath := filepath.Join(dir, "thoth.db")
@@ -199,7 +200,7 @@ func TestRunHealthy(t *testing.T) {
 	// regardless of what occupies the fixed port on the machine. The api key
 	// and model checks pass because healthyThothDir configures them.
 	checks := Run(context.Background(), healthyThothDir(t), freeAddr(t), testLog())
-	want := []string{"wiki", "claude", "claude login", "api key", "model", "database", "index", "api", "websocket"}
+	want := []string{"wiki", "claude", "claude login", "api key", "model", "database", "index", "malformed", "api", "websocket"}
 	if len(checks) != len(want) {
 		t.Fatalf("got %d checks, want %d: %+v", len(checks), len(want), checks)
 	}
@@ -487,6 +488,68 @@ func TestRunIndexOutOfSync(t *testing.T) {
 	c := byName(t, Run(context.Background(), dir, "", testLog()), "index")
 	if c.OK || !strings.Contains(c.Message, "notes on disk") {
 		t.Fatalf("index: %s", c.Message)
+	}
+}
+
+func TestRunMalformedNotes(t *testing.T) {
+	dir := healthyThothDir(t)
+	// A note without frontmatter is silently skipped by the index; the
+	// malformed check must surface it by name.
+	if err := os.WriteFile(filepath.Join(dir, "wiki", "inbox", "plain.md"),
+		[]byte("just some text, no frontmatter\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// An advisory violation (missing type) still indexes — it must not fail
+	// the malformed check.
+	if err := os.WriteFile(filepath.Join(dir, "wiki", "knowledge", "topic.md"),
+		[]byte("---\ntitle: Topic\n---\n\nbody\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	c := byName(t, Run(context.Background(), dir, "", testLog()), "malformed")
+	if c.OK || !strings.Contains(c.Message, "inbox/plain.md") {
+		t.Fatalf("malformed: %s", c.Message)
+	}
+	if strings.Contains(c.Message, "topic.md") {
+		t.Fatalf("advisory violations must not fail the malformed check: %s", c.Message)
+	}
+}
+
+func TestCheckMalformed(t *testing.T) {
+	write := func(root, rel, content string) {
+		p := filepath.Join(root, rel)
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// A missing root is reported, not silently OK.
+	c := checkMalformed(filepath.Join(t.TempDir(), "missing"))
+	if c.OK || !strings.Contains(c.Message, "cannot scan") {
+		t.Fatalf("missing root: %s", c.Message)
+	}
+
+	root := t.TempDir()
+	// Valid and advisory-only notes parse; a non-indexable hidden file and a
+	// non-markdown attachment are skipped; only parse failures are flagged.
+	write(root, "inbox/ok.md", "---\ntitle: OK\ntype: inbox\n---\nbody\n")
+	write(root, "knowledge/legacy.md", "---\ntitle: Legacy\ntype: note\n---\nbody\n")
+	write(root, "meetings/notes.md", "---\ntitle: No Type\n---\nbody\n") // advisory only
+	write(root, ".hidden.md", "no frontmatter\n")                        // not indexable
+	write(root, "attachments/install.sh", "#!/bin/sh\n")                 // not markdown
+	if c := checkMalformed(root); !c.OK {
+		t.Fatalf("clean wiki: %s", c.Message)
+	}
+
+	// More than five parse failures are capped with a "+N more" tail.
+	for i := 0; i < 7; i++ {
+		write(root, fmt.Sprintf("inbox/bad-%d.md", i), "no frontmatter\n")
+	}
+	c = checkMalformed(root)
+	if c.OK || !strings.Contains(c.Message, "and 2 more") {
+		t.Fatalf("capped list: %s", c.Message)
 	}
 }
 

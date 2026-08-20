@@ -3,6 +3,7 @@ package wiki
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -155,6 +156,68 @@ func TestRulebookCustomFolderMap(t *testing.T) {
 	}
 	if strings.Contains(got, "- inbox/ —") {
 		t.Fatalf("custom rulebook must not contain the default folder map:\n%s", got)
+	}
+}
+
+func TestRulebookFrontmatterTypes(t *testing.T) {
+	rulebook := Rulebook()
+	want := "type: <" + strings.Join(NoteTypes(), "|") + ">"
+	if !strings.Contains(rulebook, want) {
+		t.Fatalf("rulebook must render the type list from NoteTypes(), got:\n%s", rulebook)
+	}
+	for _, legacy := range []string{"<meeting|project|link|setup|knowledge|todo|daily|note>", "type: note"} {
+		if strings.Contains(rulebook, legacy) {
+			t.Fatalf("rulebook must not contain legacy type list %q", legacy)
+		}
+	}
+}
+
+func TestNoteTypesDeriveFromFolders(t *testing.T) {
+	want := []string{"inbox", "meeting", "project", "link", "setup", "knowledge", "todo", "daily"}
+	if got := NoteTypes(); !slices.Equal(got, want) {
+		t.Fatalf("NoteTypes() = %v, want %v", got, want)
+	}
+	// The type list is derived from the folder list, so it can never drift:
+	// the only folder without a type is the reserved attachments dir.
+	if got := NoteTypesFor(defaultFolders); len(got) != len(defaultFolders)-1 {
+		t.Fatalf("expected one type per folder except attachments, got %d types for %d folders", len(got), len(defaultFolders))
+	}
+	for _, tp := range want {
+		found := false
+		for _, f := range defaultFolders {
+			if f == AttachmentsDir {
+				continue
+			}
+			if noteType(f) == tp {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Fatalf("no default folder derives the type %q", tp)
+		}
+	}
+}
+
+func TestNoteTypesForCustomFolders(t *testing.T) {
+	if got := NoteTypesFor([]string{"journal", "recipes"}); !slices.Equal(got, []string{"journal", "recipe"}) {
+		t.Fatalf("NoteTypesFor(custom) = %v, want [journal recipe]", got)
+	}
+	// Attachments is never a note type, even when listed.
+	if got := NoteTypesFor([]string{"recipes", AttachmentsDir}); !slices.Equal(got, []string{"recipe"}) {
+		t.Fatalf("NoteTypesFor with attachments = %v, want [recipe]", got)
+	}
+}
+
+func TestRulebookCustomFolderTypes(t *testing.T) {
+	rulebook := RulebookFor([]string{"journal", "recipes"})
+	if !strings.Contains(rulebook, "type: <journal|recipe>") {
+		t.Fatalf("custom rulebook must render types derived from its folders:\n%s", rulebook)
+	}
+	for _, leftover := range []string{"inbox|meeting", "type: note"} {
+		if strings.Contains(rulebook, leftover) {
+			t.Fatalf("custom rulebook must not carry default types %q:\n%s", leftover, rulebook)
+		}
 	}
 }
 

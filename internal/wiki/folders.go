@@ -16,6 +16,32 @@ var defaultFolders = []string{
 // Folders returns a copy of the default scaffold folder names.
 func Folders() []string { return append([]string(nil), defaultFolders...) }
 
+// noteType maps a folder name to its frontmatter `type:` value. Default
+// folders are plural directory names with a singular type (meetings ->
+// meeting); custom folders fall back to the same rule (recipes -> recipe).
+// The rule is deliberately mechanical so the type list can never drift from
+// the folder list. The reserved attachments dir is not a note type.
+func noteType(folder string) string {
+	return strings.TrimSuffix(folder, "s")
+}
+
+// NoteTypesFor returns the frontmatter `type:` values for the given folders,
+// derived from the folder names (see noteType). The attachments dir is not a
+// note type. Order follows the folder order.
+func NoteTypesFor(folders []string) []string {
+	types := make([]string, 0, len(folders))
+	for _, f := range folders {
+		if f == AttachmentsDir {
+			continue
+		}
+		types = append(types, noteType(f))
+	}
+	return types
+}
+
+// NoteTypes returns the default frontmatter `type:` values.
+func NoteTypes() []string { return NoteTypesFor(defaultFolders) }
+
 // folderLines maps each default folder to its rulebook bullet text (after the
 // leading "- "). This map is the single source for the rulebook's folder map;
 // a custom folder not listed here falls back to a generic line built from its
