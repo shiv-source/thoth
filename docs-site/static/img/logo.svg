@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- Thoth owl mark: rounded square + stylized owl face -->
+  <rect x="4" y="4" width="56" height="56" rx="14" fill="#1677ff"/>
+  <!-- ears -->
+  <path d="M20 16 L24 28 L28 22 L32 30 L36 22 L40 28 L44 16" fill="#ffffff" opacity="0.95"/>
+  <!-- eyes -->
+  <circle cx="25" cy="36" r="7" fill="#ffffff"/>
+  <circle cx="39" cy="36" r="7" fill="#ffffff"/>
+  <circle cx="26" cy="37" r="3" fill="#002c8c"/>
+  <circle cx="40" cy="37" r="3" fill="#002c8c"/>
+  <!-- beak -->
+  <path d="M30 42 L34 42 L32 49 Z" fill="#ffc53d"/>
+</svg>

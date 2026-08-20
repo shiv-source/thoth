@@ -46,6 +46,25 @@ web-sync:
 	@test -f $(EMBED_DIST)/index.html || $(MAKE) --no-print-directory web
 
 # -----------------------------------------------------------------------------
+# Documentation site — Docusaurus (docs-site/), consumes docs/ directly
+# -----------------------------------------------------------------------------
+
+docs-install: ## install docs-site dependencies (workspace root lockfile)
+.PHONY: docs-install
+docs-install:
+	pnpm install --frozen-lockfile
+
+docs-dev: ## run the Docusaurus dev server with hot reload
+.PHONY: docs-dev
+docs-dev:
+	pnpm docs:dev
+
+docs-build: ## build the static docs site into docs-site/build/
+.PHONY: docs-build
+docs-build:
+	pnpm docs:build
+
+# -----------------------------------------------------------------------------
 # Development — live servers with hot reload
 # -----------------------------------------------------------------------------
 

@@ -1,6 +1,55 @@
 # Database schema
 
-Everything lives in one SQLite file, `~/.thoth/thoth.db` (WAL mode). The schema is defined entirely by SQL migrations in `internal/store/migrations/` — one file per table, applied in filename order, gated on `PRAGMA user_version` (currently 7). Go code issues no DDL of its own.
+Everything lives in one SQLite file, `~/.thoth/thoth.db` (WAL mode). The schema is defined entirely by SQL migrations in `internal/store/migrations/` — one file per table, applied in filename order, gated on `PRAGMA user_version` (currently 9). Go code issues no DDL of its own.
+
+```mermaid
+erDiagram
+    conversations ||--o{ messages : "has"
+    conversations {
+        text id PK
+        text title
+        text created_at
+        text claude_session_id
+    }
+    messages {
+        integer id PK
+        text conversation_id FK
+        text role
+        text content
+        text created_at
+    }
+    notes ||--|| notes_fts : "FTS5 external content"
+    notes {
+        text path PK
+        text title
+        text kind
+        text tags
+        text body
+        text updated_at
+    }
+    settings {
+        text key PK
+        text value
+    }
+    app_metadata {
+        integer id PK "always 1"
+        text installation_id
+        text created_at
+    }
+    github_auth {
+        text token
+        text username
+        text email
+        text created_at
+    }
+    llm_models {
+        integer id PK
+        text value "UNIQUE"
+        text name
+        text tag
+        text provider
+    }
+```
 
 ## Tables
 

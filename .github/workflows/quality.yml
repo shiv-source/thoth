@@ -21,6 +21,7 @@ jobs:
       frontend: ${{ steps.diff.outputs.frontend }}
       graph: ${{ steps.diff.outputs.graph }}
       issue_labels: ${{ steps.diff.outputs.issue_labels }}
+      docs: ${{ steps.diff.outputs.docs }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -33,10 +34,10 @@ jobs:
           head="${{ github.event.pull_request.head.sha }}"
 
           # Push and manual runs are not PRs: run every gate.
-          backend=true; frontend=true; graph=true; issue_labels=true
+          backend=true; frontend=true; graph=true; issue_labels=true; docs=true
           if [ -n "$base" ] && [ -n "$head" ]; then
             files="$(git diff --name-only "$base...$head")"
-            backend=false; frontend=false; graph=false; issue_labels=false
+            backend=false; frontend=false; graph=false; issue_labels=false; docs=false
             if [ -n "$files" ]; then
               # Tooling/config that a gate depends on counts as that area.
               if printf '%s\n' "$files" | grep -Eq '^\.github/(workflows|actions)/' \
@@ -52,6 +53,9 @@ jobs:
               if printf '%s\n' "$files" | grep -Eq '^web/|^(package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|\.npmrc|\.prettierrc)$'; then
                 frontend=true
               fi
+              if printf '%s\n' "$files" | grep -Eq '^docs-site/|^docs/'; then
+                docs=true
+              fi
               if printf '%s\n' "$files" | grep -Eq '^\.github/actions/issue-labels/'; then
                 issue_labels=true
               fi
@@ -60,12 +64,13 @@ jobs:
               fi
             fi
           fi
-          echo "backend=$backend frontend=$frontend graph=$graph issue_labels=$issue_labels"
+          echo "backend=$backend frontend=$frontend graph=$graph issue_labels=$issue_labels docs=$docs"
           {
             echo "backend=$backend"
             echo "frontend=$frontend"
             echo "graph=$graph"
             echo "issue_labels=$issue_labels"
+            echo "docs=$docs"
           } >> "$GITHUB_OUTPUT"
 
   # The committed graph must match the committed tree — a PR that changed
@@ -169,3 +174,13 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - run: node --test .github/actions/issue-labels/test/*.test.mjs
+
+  docs-build:
+    needs: [changes]
+    if: needs.changes.outputs.docs == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-web
+      - run: pnpm --filter thoth-docs build
