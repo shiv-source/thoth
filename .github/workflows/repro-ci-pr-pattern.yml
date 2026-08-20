@@ -21,6 +21,7 @@ jobs:
           echo "graph=true" >> "$GITHUB_OUTPUT"
 
   quality:
+    needs: [changes]
     uses: ./.github/workflows/repro-quality.yml
 
   final-gate:
