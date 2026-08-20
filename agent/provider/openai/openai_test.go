@@ -1,4 +1,4 @@
-package anthropic_test
+package openai_test
 
 import (
 	"context"
@@ -15,7 +15,7 @@ import (
 	"testing"
 
 	"github.com/shiv-source/thoth/agent"
-	"github.com/shiv-source/thoth/agent/provider/anthropic"
+	"github.com/shiv-source/thoth/agent/provider/openai"
 )
 
 // fixtureHandler serves a canned SSE fixture and captures the incoming request.
@@ -57,7 +57,7 @@ func turnRequest() agent.Request {
 	}
 }
 
-func streamTurn(t *testing.T, srv *httptest.Server, c *anthropic.Client) []agent.Delta {
+func streamTurn(t *testing.T, c *openai.Client) []agent.Delta {
 	t.Helper()
 	s, err := c.Stream(context.Background(), turnRequest())
 	if err != nil {
@@ -92,11 +92,11 @@ func TestStreamFixtures(t *testing.T) {
 				agent.TextDelta(" world"),
 				agent.StopDelta("end_turn"),
 			},
-			usage: agent.Usage{InputTokens: 10, OutputTokens: 4, CacheWriteTokens: 3, CacheReadTokens: 5},
+			usage: agent.Usage{InputTokens: 10, OutputTokens: 4},
 		},
 		{
-			name:    "thinking",
-			fixture: "thinking.json",
+			name:    "reasoning",
+			fixture: "reasoning.json",
 			want: []agent.Delta{
 				agent.ThinkingDelta("Let me think"),
 				agent.ThinkingDelta(" deeper."),
@@ -106,19 +106,21 @@ func TestStreamFixtures(t *testing.T) {
 			usage: agent.Usage{InputTokens: 8, OutputTokens: 7},
 		},
 		{
-			name:    "tool_use",
-			fixture: "tool_use.json",
+			name:    "tool_calls",
+			fixture: "tool_calls.json",
 			want: []agent.Delta{
-				agent.TextDelta("I'll read that file."),
-				agent.ToolInputDelta("toolu_01", "Read", `{"path":"a.md"`),
-				agent.ToolInputDelta("toolu_01", "Read", `{"path":"a.md","lines":1}`),
+				agent.TextDelta("I'll read that file and search."),
+				agent.ToolInputDelta("call_01", "Read", `{"path":"a.md"`),
+				agent.ToolInputDelta("call_01", "Read", `{"path":"a.md","lines":1}`),
+				agent.ToolInputDelta("call_02", "Search", `{"query":"a.md"`),
+				agent.ToolInputDelta("call_02", "Search", `{"query":"a.md"}`),
 				agent.StopDelta("tool_use"),
 			},
 			usage: agent.Usage{InputTokens: 12, OutputTokens: 9},
 		},
 		{
-			name:    "max_tokens",
-			fixture: "max_tokens.json",
+			name:    "length",
+			fixture: "length.json",
 			want: []agent.Delta{
 				agent.TextDelta("Let me"),
 				agent.StopDelta("max_tokens"),
@@ -130,8 +132,8 @@ func TestStreamFixtures(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			srv := httptest.NewServer(&fixtureHandler{t: t, body: readFixture(t, tt.fixture)})
 			defer srv.Close()
-			c := anthropic.New("test-key", anthropic.WithBaseURL(srv.URL), anthropic.WithModel("claude-test"))
-			got := streamTurn(t, srv, c)
+			c := openai.New("test-key", openai.WithBaseURL(srv.URL), openai.WithModel("gpt-test"))
+			got := streamTurn(t, c)
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Fatalf("deltas: got %+v, want %+v", got, tt.want)
 			}
@@ -139,10 +141,10 @@ func TestStreamFixtures(t *testing.T) {
 	}
 }
 
-func TestStreamAccumulatesToolUseMessage(t *testing.T) {
-	srv := httptest.NewServer(&fixtureHandler{t: t, body: readFixture(t, "tool_use.json")})
+func TestStreamAccumulatesMultiToolUseMessage(t *testing.T) {
+	srv := httptest.NewServer(&fixtureHandler{t: t, body: readFixture(t, "tool_calls.json")})
 	defer srv.Close()
-	c := anthropic.New("test-key", anthropic.WithBaseURL(srv.URL))
+	c := openai.New("test-key", openai.WithBaseURL(srv.URL))
 	s, err := c.Stream(context.Background(), turnRequest())
 	if err != nil {
 		t.Fatalf("Stream: %v", err)
@@ -152,8 +154,9 @@ func TestStreamAccumulatesToolUseMessage(t *testing.T) {
 		t.Fatalf("Accumulate: %v", err)
 	}
 	want := agent.Message{Role: agent.RoleAssistant, Content: []agent.Block{
-		agent.NewTextBlock("I'll read that file."),
-		agent.NewToolUseBlock("toolu_01", "Read", map[string]any{"path": "a.md", "lines": json.Number("1")}),
+		agent.NewTextBlock("I'll read that file and search."),
+		agent.NewToolUseBlock("call_01", "Read", map[string]any{"path": "a.md", "lines": json.Number("1")}),
+		agent.NewToolUseBlock("call_02", "Search", map[string]any{"query": "a.md"}),
 	}}
 	if !reflect.DeepEqual(resp.Message, want) {
 		t.Fatalf("got %+v, want %+v", resp.Message, want)
@@ -166,7 +169,7 @@ func TestStreamAccumulatesToolUseMessage(t *testing.T) {
 func TestStreamErrorEvent(t *testing.T) {
 	srv := httptest.NewServer(&fixtureHandler{t: t, body: readFixture(t, "error.json")})
 	defer srv.Close()
-	c := anthropic.New("test-key", anthropic.WithBaseURL(srv.URL))
+	c := openai.New("test-key", openai.WithBaseURL(srv.URL))
 	s, err := c.Stream(context.Background(), turnRequest())
 	if err != nil {
 		t.Fatalf("Stream: %v", err)
@@ -176,7 +179,7 @@ func TestStreamErrorEvent(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected an error from the error event")
 	}
-	if !strings.Contains(err.Error(), "overloaded_error") || !strings.Contains(err.Error(), "try again") {
+	if !strings.Contains(err.Error(), "rate_limit_error") || !strings.Contains(err.Error(), "rate limit hit") {
 		t.Fatalf("got %v", err)
 	}
 }
@@ -187,7 +190,7 @@ func TestStreamHTTPErrors(t *testing.T) {
 		body   string
 		want   string
 	}{
-		{http.StatusUnauthorized, `{"type":"error","error":{"type":"authentication_error","message":"bad key"}}`, "401"},
+		{http.StatusUnauthorized, `{"error":{"message":"bad key","type":"authentication_error"}}`, "401"},
 		{http.StatusTooManyRequests, `{"error":{"message":"rate limited"}}`, "429"},
 		{http.StatusInternalServerError, "boom", "500"},
 	}
@@ -198,7 +201,7 @@ func TestStreamHTTPErrors(t *testing.T) {
 				_, _ = w.Write([]byte(tt.body))
 			}))
 			defer srv.Close()
-			c := anthropic.New("test-key", anthropic.WithBaseURL(srv.URL))
+			c := openai.New("test-key", openai.WithBaseURL(srv.URL))
 			s, err := c.Stream(context.Background(), turnRequest())
 			if err == nil {
 				_ = s.Close()
@@ -212,7 +215,7 @@ func TestStreamHTTPErrors(t *testing.T) {
 }
 
 func TestStreamCancel(t *testing.T) {
-	c := anthropic.New("test-key", anthropic.WithBaseURL("http://127.0.0.1:1"))
+	c := openai.New("test-key", openai.WithBaseURL("http://127.0.0.1:1"))
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	_, err := c.Stream(ctx, turnRequest())
@@ -224,13 +227,13 @@ func TestStreamCancel(t *testing.T) {
 func TestStreamBuildsRequest(t *testing.T) {
 	srv := httptest.NewServer(&fixtureHandler{t: t, body: readFixture(t, "text.json")})
 	defer srv.Close()
-	c := anthropic.New("secret-key", anthropic.WithBaseURL(srv.URL))
+	c := openai.New("secret-key", openai.WithBaseURL(srv.URL))
 	req := agent.Request{
 		System: "sys prompt",
 		Messages: []agent.Message{
 			{Role: agent.RoleUser, Content: []agent.Block{agent.NewTextBlock("hi")}},
-			{Role: agent.RoleAssistant, Content: []agent.Block{agent.NewToolUseBlock("toolu_1", "Read", map[string]any{"path": "x.md"})}},
-			{Role: agent.RoleTool, Content: []agent.Block{agent.NewToolResultBlock("toolu_1", "file contents", false)}},
+			{Role: agent.RoleAssistant, Content: []agent.Block{agent.NewToolUseBlock("call_1", "Read", map[string]any{"path": "x.md"})}},
+			{Role: agent.RoleTool, Content: []agent.Block{agent.NewToolResultBlock("call_1", "file contents", false)}},
 		},
 		Tools:     []agent.Tool{{Name: "Read", Description: "reads", Schema: map[string]any{"type": "object"}}},
 		MaxTokens: 2048,
@@ -245,14 +248,11 @@ func TestStreamBuildsRequest(t *testing.T) {
 	if h.req == nil {
 		t.Fatal("no request captured")
 	}
-	if got := h.req.URL.Path; got != "/v1/messages" {
-		t.Fatalf("path %q, want /v1/messages", got)
+	if got := h.req.URL.Path; got != "/v1/chat/completions" {
+		t.Fatalf("path %q, want /v1/chat/completions", got)
 	}
-	if got := h.req.Header.Get("x-api-key"); got != "secret-key" {
-		t.Fatalf("x-api-key %q", got)
-	}
-	if got := h.req.Header.Get("anthropic-version"); got != "2023-06-01" {
-		t.Fatalf("anthropic-version %q", got)
+	if got := h.req.Header.Get("Authorization"); got != "Bearer secret-key" {
+		t.Fatalf("authorization %q", got)
 	}
 	if got := h.req.Header.Get("Content-Type"); got != "application/json" {
 		t.Fatalf("content-type %q", got)
@@ -262,7 +262,7 @@ func TestStreamBuildsRequest(t *testing.T) {
 	if err := json.Unmarshal(h.reqBody, &body); err != nil {
 		t.Fatalf("request body: %v", err)
 	}
-	if body["model"] != "claude-sonnet-5" {
+	if body["model"] != "gpt-5.6-mini" {
 		t.Fatalf("model %v", body["model"])
 	}
 	if body["max_tokens"] != float64(2048) {
@@ -271,44 +271,48 @@ func TestStreamBuildsRequest(t *testing.T) {
 	if body["stream"] != true {
 		t.Fatalf("stream %v", body["stream"])
 	}
-
-	sys := body["system"].([]any)[0].(map[string]any)
-	if sys["type"] != "text" || sys["text"] != "sys prompt" {
-		t.Fatalf("system %+v", sys)
-	}
-	if sys["cache_control"].(map[string]any)["type"] != "ephemeral" {
-		t.Fatalf("system cache_control %+v", sys)
+	if body["tool_choice"] != "auto" {
+		t.Fatalf("tool_choice %v", body["tool_choice"])
 	}
 
 	msgs := body["messages"].([]any)
-	if len(msgs) != 3 {
+	if len(msgs) != 4 {
 		t.Fatalf("messages %+v", body["messages"])
 	}
 	m0 := msgs[0].(map[string]any)
-	if m0["role"] != "user" || m0["content"].([]any)[0].(map[string]any)["text"] != "hi" {
+	if m0["role"] != "system" || m0["content"] != "sys prompt" {
 		t.Fatalf("message 0 %+v", m0)
 	}
 	m1 := msgs[1].(map[string]any)
-	blk1 := m1["content"].([]any)[0].(map[string]any)
-	if m1["role"] != "assistant" || blk1["type"] != "tool_use" || blk1["id"] != "toolu_1" || blk1["name"] != "Read" {
+	part := m1["content"].([]any)[0].(map[string]any)
+	if m1["role"] != "user" || part["type"] != "text" || part["text"] != "hi" {
 		t.Fatalf("message 1 %+v", m1)
 	}
 	m2 := msgs[2].(map[string]any)
-	blk2 := m2["content"].([]any)[0].(map[string]any)
-	if m2["role"] != "user" || blk2["type"] != "tool_result" || blk2["tool_use_id"] != "toolu_1" || blk2["content"] != "file contents" {
+	tc := m2["tool_calls"].([]any)[0].(map[string]any)
+	fn := tc["function"].(map[string]any)
+	if m2["role"] != "assistant" || tc["id"] != "call_1" || fn["name"] != "Read" || fn["arguments"] != `{"path":"x.md"}` {
 		t.Fatalf("message 2 %+v", m2)
+	}
+	m3 := msgs[3].(map[string]any)
+	if m3["role"] != "tool" || m3["tool_call_id"] != "call_1" || m3["content"] != "file contents" {
+		t.Fatalf("message 3 %+v", m3)
 	}
 
 	tl := body["tools"].([]any)[0].(map[string]any)
-	if tl["name"] != "Read" || tl["description"] != "reads" || tl["input_schema"].(map[string]any)["type"] != "object" {
+	if tl["type"] != "function" {
 		t.Fatalf("tools %+v", body["tools"])
+	}
+	tfn := tl["function"].(map[string]any)
+	if tfn["name"] != "Read" || tfn["description"] != "reads" || tfn["parameters"].(map[string]any)["type"] != "object" {
+		t.Fatalf("tool function %+v", tfn)
 	}
 }
 
 func TestStreamDefaultsMaxTokens(t *testing.T) {
 	srv := httptest.NewServer(&fixtureHandler{t: t, body: readFixture(t, "text.json")})
 	defer srv.Close()
-	c := anthropic.New("test-key", anthropic.WithBaseURL(srv.URL), anthropic.WithMaxTokens(2048))
+	c := openai.New("test-key", openai.WithBaseURL(srv.URL), openai.WithMaxTokens(2048))
 	req := turnRequest()
 	req.MaxTokens = 0
 	s, err := c.Stream(context.Background(), req)
@@ -326,10 +330,10 @@ func TestStreamDefaultsMaxTokens(t *testing.T) {
 }
 
 func TestStreamToolUseWithEmptyInput(t *testing.T) {
-	fixture := "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_06\",\"usage\":{\"input_tokens\":3}}}\n\nevent: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_9\",\"name\":\"Noop\",\"input\":{}}}\n\nevent: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\nevent: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"tool_use\"}}\n\nevent: message_stop\ndata: {\"type\":\"message_stop\"}\n\n"
+	fixture := "data: {\"id\":\"c\",\"object\":\"chat.completion.chunk\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"tool_calls\":[{\"index\":0,\"id\":\"call_9\",\"type\":\"function\",\"function\":{\"name\":\"Noop\",\"arguments\":\"\"}}]}}]}\n\ndata: {\"id\":\"c\",\"object\":\"chat.completion.chunk\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"tool_calls\"}]}\n\ndata: [DONE]\n"
 	srv := httptest.NewServer(&fixtureHandler{t: t, body: []byte(fixture)})
 	defer srv.Close()
-	c := anthropic.New("test-key", anthropic.WithBaseURL(srv.URL))
+	c := openai.New("test-key", openai.WithBaseURL(srv.URL))
 	s, err := c.Stream(context.Background(), turnRequest())
 	if err != nil {
 		t.Fatalf("Stream: %v", err)
@@ -339,9 +343,28 @@ func TestStreamToolUseWithEmptyInput(t *testing.T) {
 		t.Fatalf("Accumulate: %v", err)
 	}
 	want := agent.Message{Role: agent.RoleAssistant, Content: []agent.Block{
-		agent.NewToolUseBlock("toolu_9", "Noop", map[string]any{}),
+		agent.NewToolUseBlock("call_9", "Noop", map[string]any{}),
 	}}
 	if !reflect.DeepEqual(resp.Message, want) {
 		t.Fatalf("got %+v, want %+v", resp.Message, want)
+	}
+}
+
+func TestStreamToolArgumentsBeforeToolStart(t *testing.T) {
+	fixture := "data: {\"id\":\"c\",\"object\":\"chat.completion.chunk\",\"choices\":[{\"index\":0,\"delta\":{\"tool_calls\":[{\"index\":0,\"function\":{\"arguments\":\"{\\\"a\\\":1}\"}}]}}]}\n\ndata: [DONE]\n"
+	srv := httptest.NewServer(&fixtureHandler{t: t, body: []byte(fixture)})
+	defer srv.Close()
+	c := openai.New("test-key", openai.WithBaseURL(srv.URL))
+	s, err := c.Stream(context.Background(), turnRequest())
+	if err != nil {
+		t.Fatalf("Stream: %v", err)
+	}
+	defer func() { _ = s.Close() }()
+	_, err = s.Next()
+	if err == nil {
+		t.Fatal("expected an error for arguments before tool id/name")
+	}
+	if !strings.Contains(err.Error(), "arguments before id/name") {
+		t.Fatalf("got %v", err)
 	}
 }

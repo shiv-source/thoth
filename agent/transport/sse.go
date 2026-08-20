@@ -5,6 +5,7 @@ package transport
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -31,7 +32,8 @@ func (f Frame) Decode(v any) error {
 // SSEReader splits an SSE byte stream into JSON frames. It accepts LF and
 // CRLF line endings, ignores ":" comments (keep-alives) and blank lines, and
 // reassembles multi-line "data:" fields, so frames arrive whole regardless of
-// write chunk boundaries. It is not safe for concurrent use.
+// write chunk boundaries. The LLM streaming "[DONE]" terminator ends the
+// stream cleanly. It is not safe for concurrent use.
 type SSEReader struct {
 	br *bufio.Reader
 }
@@ -41,9 +43,10 @@ func NewSSEReader(r io.Reader) *SSEReader {
 	return &SSEReader{br: bufio.NewReaderSize(r, 64*1024)}
 }
 
-// Next returns the next frame, or io.EOF when the stream ends cleanly. A
-// frame cut off by EOF (data without its terminating blank line) or a data
-// payload that is not valid JSON is an error.
+// Next returns the next frame, or io.EOF when the stream ends cleanly or hits
+// the LLM streaming "[DONE]" terminator. A frame cut off by EOF (data without
+// its terminating blank line) or a data payload that is not valid JSON is an
+// error.
 func (r *SSEReader) Next() (Frame, error) {
 	var name string
 	var data []byte
@@ -51,37 +54,51 @@ func (r *SSEReader) Next() (Frame, error) {
 	for {
 		line, err := r.br.ReadString('\n')
 		line = strings.TrimRight(line, "\r\n")
+		if line != "" {
+			switch {
+			case strings.HasPrefix(line, ":"):
+				// comment (keep-alive); ignored
+			default:
+				field, value, _ := strings.Cut(line, ":")
+				value = strings.TrimPrefix(value, " ")
+				switch field {
+				case "event":
+					name = value
+					pending = true
+				case "data":
+					data = append(data, value...)
+					data = append(data, '\n')
+					pending = true
+				}
+			}
+		}
 		if err != nil {
 			if pending {
-				return Frame{}, fmt.Errorf("transport: sse: stream ended mid-frame: %w", err)
+				if isDONE(data) {
+					return Frame{}, io.EOF
+				}
+				return Frame{}, fmt.Errorf("transport: sse: stream ended mid-frame")
 			}
 			if errors.Is(err, io.EOF) {
 				return Frame{}, io.EOF
 			}
 			return Frame{}, err
 		}
-		switch {
-		case line == "":
-			if pending {
-				if len(data) > 0 && !json.Valid(data) {
-					return Frame{}, fmt.Errorf("transport: sse: %q frame has invalid JSON", name)
-				}
-				return Frame{Event: name, Data: data}, nil
+		if line == "" && pending {
+			if isDONE(data) {
+				return Frame{}, io.EOF
 			}
-		case strings.HasPrefix(line, ":"):
-			// comment (keep-alive); ignored
-		default:
-			field, value, _ := strings.Cut(line, ":")
-			value = strings.TrimPrefix(value, " ")
-			switch field {
-			case "event":
-				name = value
-				pending = true
-			case "data":
-				data = append(data, value...)
-				data = append(data, '\n')
-				pending = true
+			if len(data) > 0 && !json.Valid(data) {
+				return Frame{}, fmt.Errorf("transport: sse: %q frame has invalid JSON", name)
 			}
+			return Frame{Event: name, Data: data}, nil
 		}
 	}
+}
+
+// isDONE reports whether data is the "[DONE]" terminator some LLM streaming
+// APIs send after the final chunk. It is not valid JSON, so the reader treats
+// it as a clean end-of-stream instead of a malformed frame.
+func isDONE(data []byte) bool {
+	return string(bytes.TrimSpace(data)) == "[DONE]"
 }

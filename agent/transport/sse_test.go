@@ -100,11 +100,34 @@ func TestSSEReaderMalformedJSON(t *testing.T) {
 	}
 }
 
+func TestSSEReaderDONETerminator(t *testing.T) {
+	for _, body := range []string{
+		"data: {\"id\":\"x\"}\n\ndata: [DONE]\n\n",
+		"data: {\"id\":\"x\"}\n\ndata: [DONE]\n", // no trailing blank line
+	} {
+		r := NewSSEReader(strings.NewReader(body))
+		f, err := r.Next()
+		if err != nil {
+			t.Fatalf("frame before [DONE]: %v", err)
+		}
+		if string(f.Data) != "{\"id\":\"x\"}\n" {
+			t.Fatalf("got %q", f.Data)
+		}
+		if _, err := r.Next(); !errors.Is(err, io.EOF) {
+			t.Fatalf("want io.EOF after [DONE], got %v", err)
+		}
+	}
+}
+
 func TestSSEReaderEOFMidFrame(t *testing.T) {
 	for _, body := range []string{"data: {\"partial\":", "event: e\ndata: {\"partial\":"} {
 		r := NewSSEReader(strings.NewReader(body))
-		if _, err := r.Next(); err == nil {
+		_, err := r.Next()
+		if err == nil {
 			t.Fatalf("expected error for truncated frame %q", body)
+		}
+		if errors.Is(err, io.EOF) {
+			t.Fatalf("truncated frame %q must not read as io.EOF: %v", body, err)
 		}
 	}
 }
