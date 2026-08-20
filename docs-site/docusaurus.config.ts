@@ -43,7 +43,6 @@ const config: Config = {
           sidebarPath: './sidebars.ts',
           path: '../docs',
           routeBasePath: '/docs',
-          exclude: ['specs/**', 'superpowers/**'],
           editUrl: 'https://github.com/shiv-source/thoth/edit/main/docs',
         },
         blog: false,
