@@ -1,7 +1,10 @@
 name: ci-pr
 on:
   pull_request:
-    branches: [main]
+    # The native-agent epic branch is the working base for agent PRs (they
+    # target it instead of main), so it runs the same gates. Drop it from the
+    # list when the epic closes and the branch merges (git-workflow skill).
+    branches: [main, feat/agent/native-go-agent]
 
 permissions:
   contents: read

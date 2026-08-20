@@ -18,7 +18,7 @@ description: >-
 ## Key files
 - CONTRIBUTING.md — the workflow page: § Workflow, § Before you push
 - .github/pull_request_template.md — the PR body shape (Summary / Related issue / Files changed / How verified / Notes)
-- .github/workflows/ — ci-pr.yml (PR gates; quality.yml is path-aware — its internal `changes` job diffs the PR and skips the quality gates for areas the PR didn't touch — docs-only PRs skip them all) · quality.yml (the quality gates, incl. the graph freshness check, each gated on its own `changes` job's area outputs) · final-gate.yml (single required check + PR report comment; skipped gates count as passing) · ci.yml (push to main adds 5 cross-compiles + frontend build) · pr-assignee.yml (auto-assigns PR committers; runs on every PR, never gated) · issue-labels.yml (applies the form-selected labels to new/edited issues)
+- .github/workflows/ — ci-pr.yml (PR gates on PRs targeting `main` or the epic branch `feat/agent/native-go-agent`; quality.yml is path-aware — its internal `changes` job diffs the PR and skips the quality gates for areas the PR didn't touch — docs-only PRs skip them all) · quality.yml (the quality gates, incl. the graph freshness check, each gated on its own `changes` job's area outputs) · final-gate.yml (single required check + PR report comment; skipped gates count as passing) · ci.yml (push to main adds 5 cross-compiles + frontend build) · pr-assignee.yml (auto-assigns PR committers; runs on every PR, never gated) · issue-labels.yml (applies the form-selected labels to new/edited issues)
 - .github/actions/issue-labels/ — reusable composite action: applies the three-tier labels (type, priority, areas) from issue-form answers; JS, add-only
 - .husky/pre-commit — the commit gate: lint-staged autofixes, plus Go vet/lint/test when Go is staged
 - docs/development.md — § Gates (what make check enforces), § CI (workflow mechanics)
@@ -104,6 +104,8 @@ the branch or PR commands in CONTRIBUTING.md differ from these steps, the label
 set changes, a workflow file changes gate names, order, or the report marker,
 `gh pr create --help` no longer shows the `--template` flag, scripts/pr.sh or
 scripts/graph-check.sh changes the steps they automate, the native-agent epic
-closes (its `feat/agent/native-go-agent` branch merges and the exception above
-must be dropped), or the label tables in references/labels.md change shape
+closes (its `feat/agent/native-go-agent` branch merges, the exception above
+must be dropped, and `feat/agent/native-go-agent` must be removed from
+ci-pr.yml's `branches` list), or the label tables in references/labels.md
+change shape
 (scripts/pr.sh parses `| label |` rows under `## Types` / `## Areas`).
