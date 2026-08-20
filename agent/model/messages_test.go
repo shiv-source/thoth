@@ -1,4 +1,4 @@
-package agent
+package model
 
 import (
 	"reflect"
@@ -141,5 +141,40 @@ func TestParseMessage(t *testing.T) {
 	}
 	if msg.Content[1].Type != BlockToolResult || msg.Content[1].ToolUseID != "toolu_1" {
 		t.Fatalf("unexpected tool_result block: %+v", msg.Content[1])
+	}
+}
+
+func TestParseBlockInvalidToolInput(t *testing.T) {
+	if _, err := ParseBlock([]byte(`{"type":"tool_use","id":"t","name":"Read","input":"not-an-object"}`)); err == nil {
+		t.Fatal("expected error for non-object tool input")
+	}
+}
+
+func TestMarshalJSONUnknownBlockType(t *testing.T) {
+	if _, err := (Block{Type: "nope"}).MarshalJSON(); err == nil {
+		t.Fatal("expected error for unknown block type")
+	}
+}
+
+func TestMarshalJSONToolInputError(t *testing.T) {
+	b := NewToolUseBlock("t", "Read", map[string]any{"f": func() {}})
+	if _, err := b.MarshalJSON(); err == nil {
+		t.Fatal("expected error for unencodable tool input")
+	}
+}
+
+func TestUnmarshalJSONError(t *testing.T) {
+	var b Block
+	if err := b.UnmarshalJSON([]byte(`not json`)); err == nil {
+		t.Fatal("expected error for garbage block")
+	}
+}
+
+func TestParseMessageErrors(t *testing.T) {
+	if _, err := ParseMessage([]byte(`not json`)); err == nil {
+		t.Fatal("expected error for garbage message")
+	}
+	if _, err := ParseMessage([]byte(`{"role":"user","content":"not-blocks"}`)); err == nil {
+		t.Fatal("expected error for non-block content")
 	}
 }

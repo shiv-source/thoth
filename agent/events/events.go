@@ -1,8 +1,8 @@
-// Package agent is the reusable, provider-agnostic core of Thoth's native
-// Go agent: normalized conversation model, streaming events, and the
-// provider/tool seams. It has no imports outside the standard library, so any
-// Go project can embed it.
-package agent
+// Package events holds the normalized turn events a host forwards to its UI:
+// one Event per streaming step, decoupled from any provider wire format. The
+// type names and fields are stable public API — the WS protocol and the
+// frontend depend on them.
+package events
 
 // EventType enumerates the kinds of events a turn can emit.
 type EventType string
