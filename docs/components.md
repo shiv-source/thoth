@@ -7,6 +7,7 @@ The Go backend is organized as small packages with one purpose each, communicati
 | `cmd/thoth` | Thin `main` — calls the CLI and exits | `main` |
 | `internal/cli` | Cobra commands: serve, init, version, doctor | `Execute()` |
 | `internal/claude` | **The blast wall** — the only package that knows CLI flags, stream parsing, and process kill mechanics | `Client`, `CLIClient`, `PersistentClient`, `Event`, `ParseLine`, `FakeClient` |
+| `internal/agent` | The native agent host — the only Thoth-aware code that talks to the reusable `agent` library; the drop-in chat `Client` seam on `agent.Agent` | `Client`, `New`, `SystemPrompt`, `History` |
 | `internal/wiki` | The file contract: scaffolding, parsing, path safety, tree | `Scaffold`, `ParseNote`, `SafePath`, `Wiki`, `Rulebook` |
 | `internal/index` | SQLite + FTS5 + watcher | `Index`, `Sync`, `Watch`, `Search` |
 | `internal/assets` | Static data files served by the API (embedded) | `models.json` → `ModelOptions` (the llm_models seed) |
@@ -53,6 +54,18 @@ flowchart TB
 ```
 
 `FakeClient` replays scripted events and records calls — every consumer's tests use it, so no test ever touches the real CLI.
+
+## internal/agent — the native agent host
+
+The only Thoth-aware code that talks to the reusable `agent` library (imported as `agentlib`). `Client` implements the chat seam the Hub depends on — the same `Start(ctx, sessionID, prompt, w, opts…)` signature as `claude.Client` — by driving `agent.Agent` instead of the CLI; `sessionID` is the conversation id for history lookup.
+
+- `New(model, apiKey, wiki, store, index, opts…)` wires everything: the provider is picked from the model id (`claude-*` → Anthropic, `gpt-*` → OpenAI-compatible; `WithProvider` overrides for tests), and the tools are built from the wiki.
+- `Start` builds a fresh `agent.Agent` per turn: the system prompt is re-read from `wiki/CLAUDE.md` (the user-editable rulebook) so edits apply without restart, and the loop is single-turn while the Hub serves many conversations at once. `opts` are accepted for signature parity and ignored — the native agent has no CLI session to fork.
+- `tools.go` — `wikiFS` implements the agent `tools.FS` seam, resolving every path through `wiki.SafePath` (reads/writes/lists can never escape the wiki); `search` runs over the FTS `index.Index`.
+- `system.go` — `SystemPrompt(w, folders)` reads the rulebook per call, falling back to `RulebookFor(folders)` when absent.
+- `history.go` — `History(store)` maps `store.Messages` (roles user/assistant) to agent messages; the trailing user message (the in-flight prompt the loop appends) is dropped, and the loop caps the rest (`HistoryCap`).
+
+Not yet wired into `serve` — the switch-over (T9) replaces `internal/claude` in the Hub and deletes this package's CLI twin.
 
 ## internal/wiki — the file contract
 

@@ -29,3 +29,4 @@ graphify-out/*
 
 # air: hot-reload tmp dir (.air.toml)
 tmp/
+docs/specs/
