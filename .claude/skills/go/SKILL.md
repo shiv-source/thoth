@@ -17,9 +17,12 @@ description: >-
 - Not frontend work — use the `react` skill
 
 ## Key files
+- agent/tools/ — the reusable native-agent tool library: the `FS` seam (read/write/mkdir/list/stat/remove/rename), `OSFS`, shared arg/path/truncation helpers, and the COMMON wiki-agnostic tools (read_file, write_file, list, edit_file, append_file, rename_file, delete_file, grep, get_time, search)
+- internal/agent/tools/ — the WIKI-SPECIFIC tools (write_note, read_note, list_tree, list_recent, search_by_tag, get_todos, update_todos, get_inbox, file_inbox, remember); they import the note contract from internal/wiki (ParseNote/FormatNote) and the folder-to-type rule (wiki.NoteType) — never fork them
+- internal/agent/ — the host on the agent library: client.go, tools.go (wikiFS + RegistryOptions + registry), system.go, history.go
 - internal/api/ — Echo server: server.go = Deps + New() wiring all routes; chat.go = Hub + WS protocol; one handler file per domain (notes.go, git.go, github.go, doctor.go, health.go, conversations.go, …)
 - internal/claude/ — the blast wall: client.go = every CLI flag; persistent.go = process pool; events.go = stream parsing; proc_unix.go / proc_windows.go = process-group kill
-- internal/wiki/ — the file contract: note.go (ParseNote), path.go (SafePath), scaffold.go, template.go (Rulebook), wiki.go (Wiki), templates/CLAUDE.md
+- internal/wiki/ — the file contract: note.go (ParseNote/FormatNote), path.go (SafePath), scaffold.go, template.go (Rulebook), wiki.go (Wiki), templates/CLAUDE.md
 - internal/index/ — SQLite + FTS5 + fsnotify watcher: index.go, sync.go, watcher.go
 - internal/store/ — conversations/messages; migrations/ holds ALL DDL (0001–0007), applied in order
 - internal/settings/ — the settings KV table (single source for user-facing settings)
@@ -72,8 +75,15 @@ description: >-
 1. Contract functions live in internal/wiki (note.go, path.go, scaffold.go, template.go)
 2. Rulebook text == Rulebook() == internal/wiki/templates/CLAUDE.md — one source, templated
 3. Every filesystem access routes through SafePath (absolute paths and .. rejected)
-4. Notes require --- frontmatter with a title (ParseNote enforces it)
+4. Notes require --- frontmatter with a title (ParseNote enforces it); write-side FormatNote is the single source for the note shape
 5. Update docs/knowledge-base.md and docs/components.md in the same commit
+
+### 6b. Add an agent tool
+1. Decide the home by what the tool knows: no wiki knowledge → agent/tools (works through the `FS` seam; reused by every host); understands the wiki's frontmatter/type rule/scaffolded layout → internal/agent/tools (imports ParseNote/FormatNote/NoteType from internal/wiki — never fork the note contract)
+2. The tool implements agenttools.Tool (Name/Description/Schema/Run); every path goes through `FS` (bounded by SafePath on the host's wikiFS), outputs are size-capped, no shell/network
+3. Register it in internal/agent/tools.go's registry() — common tools in the agent/tools block, wiki tools in the wikitoos block; hosts add custom tools via RegistryOptions.CustomTools / Client.WithTools(...)
+4. Table-driven test per tool; update docs/components.md's tool list in the same commit
+5. Tool names are stable public API for model prompts — never rename without a reason
 
 ### 7. Bump a dependency
 1. go get <pkg>@latest — go.mod is authoritative; lockfiles (go.sum) are committed

@@ -7,7 +7,9 @@ The Go backend is organized as small packages with one purpose each, communicati
 | `cmd/thoth` | Thin `main` — calls the CLI and exits | `main` |
 | `internal/cli` | Cobra commands: serve, init, version, doctor | `Execute()` |
 | `agent` | The reusable native-agent library (repo-root module): provider-agnostic tool-use loop, the `Provider` wire seam, the tool registry, normalized events/model — the engine behind **Thoth Agent** | `Agent`, `New`, `Options`, `Event`, `Provider`, `Registry` |
-| `internal/agent` | The Thoth host on the `agent` library — the only Thoth-aware code that talks to it; the drop-in chat `Client` seam the Hub depends on | `Client`, `New`, `SystemPrompt`, `History` |
+| `agent/tools` | The common, wiki-agnostic tool library: the `Tool`/`Registry` extension points, the `FS`/`OSFS` seam, shared arg/path/truncation helpers, and the generic file/search/get_time tools | `Tool`, `Registry`, `FS`, `OSFS`, `WalkFiles`, `ReadFile`, `WriteFile`, `List`, `Grep`, `Search` |
+| `internal/agent` | The Thoth host on the `agent` library — the only Thoth-aware code that talks to it; the drop-in chat `Client` seam the Hub depends on | `Client`, `New`, `SystemPrompt`, `History`, `RegistryOptions` |
+| `internal/agent/tools` | The wiki-specific agent tools: note authoring, todos, inbox, memory, tags, tree, recents — built on the `agent/tools` FS seam and the `internal/wiki` note contract | `WriteNote`, `ReadNote`, `ListTree`, `GetTodos`, `Remember` |
 | `internal/wiki` | The file contract: scaffolding, parsing, path safety, tree | `Scaffold`, `ParseNote`, `SafePath`, `Wiki`, `Rulebook` |
 | `internal/index` | SQLite + FTS5 + watcher | `Index`, `Sync`, `Watch`, `Search` |
 | `internal/assets` | Static data files served by the API (embedded) | `models.json` → `ModelOptions` (the llm_models seed) |
