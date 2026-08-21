@@ -99,6 +99,31 @@ describe('api.getConversation and health', () => {
         expect(mocks.get).toHaveBeenCalledWith('/api/conversations/c1')
     })
 
+    it('parses message token usage through zod', async () => {
+        mocks.get.mockResolvedValue({
+            data: {
+                conversation: { id: 'c1', title: 'T', created_at: '2026-08-13T09:00:00Z' },
+                messages: [
+                    {
+                        id: 2,
+                        conversation_id: 'c1',
+                        role: 'assistant',
+                        content: 'answer',
+                        created_at: '2026-08-13T09:00:01Z',
+                        usage: { input_tokens: 10, output_tokens: 4, cache_read_tokens: 5, cache_write_tokens: 3 }
+                    }
+                ]
+            }
+        })
+        const { messages } = await api.getConversation('c1')
+        expect(messages[0]?.usage).toEqual({
+            input_tokens: 10,
+            output_tokens: 4,
+            cache_read_tokens: 5,
+            cache_write_tokens: 3
+        })
+    })
+
     it('rejects unknown message roles', async () => {
         mocks.get.mockResolvedValue({
             data: {

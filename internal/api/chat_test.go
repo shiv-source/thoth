@@ -377,8 +377,11 @@ func TestChatTurnDoneCarriesConversationID(t *testing.T) {
 func TestChatTurnDoneCarriesUsage(t *testing.T) {
 	d := testDeps(t)
 	d.Claude = &FakeClient{
-		Script: []agentlib.Event{{Type: agentlib.EventDone}},
-		Usage:  agentlib.Usage{InputTokens: 10, OutputTokens: 4, CacheReadTokens: 5, CacheWriteTokens: 3},
+		Script: []agentlib.Event{
+			{Type: agentlib.EventDelta, Text: "answer"},
+			{Type: agentlib.EventDone},
+		},
+		Usage: agentlib.Usage{InputTokens: 10, OutputTokens: 4, CacheReadTokens: 5, CacheWriteTokens: 3},
 	}
 	e := New(d)
 
@@ -404,7 +407,20 @@ func TestChatTurnDoneCarriesUsage(t *testing.T) {
 			u["cache_read_tokens"] != float64(5) || u["cache_write_tokens"] != float64(3) {
 			t.Fatalf("usage = %v, want input 10 / output 4 / cache read 5 / cache write 3", u)
 		}
-		return
+		break
+	}
+
+	// The assistant message row carries the same breakdown as JSON.
+	convs, err := d.Store.ListConversations()
+	if err != nil || len(convs) != 1 {
+		t.Fatalf("conversation not persisted: %v %+v", err, convs)
+	}
+	msgs, err := d.Store.Messages(convs[0].ID)
+	if err != nil || len(msgs) != 2 {
+		t.Fatalf("messages not persisted: %v %+v", err, msgs)
+	}
+	if got := string(msgs[1].Usage); got != `{"input_tokens":10,"output_tokens":4,"cache_read_tokens":5,"cache_write_tokens":3}` {
+		t.Fatalf("persisted usage = %s", got)
 	}
 }
 

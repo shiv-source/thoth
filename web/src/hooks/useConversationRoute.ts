@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { api } from '../api/client'
+import { api, type TokenUsage } from '../api/client'
 import type { ChatSocket } from '../ws/chat'
 import type { ChatMessage } from './useChat'
 
@@ -22,7 +22,7 @@ export function navigate(path: string): void {
 export interface ConversationRouteOptions {
     socket: ChatSocket | null
     conversationId: string | null
-    load: (msgs: ChatMessage[], convId: string) => void
+    load: (msgs: ChatMessage[], convId: string, usage?: TokenUsage) => void
     reset: () => void
     onError: (message: string) => void
 }
@@ -60,7 +60,8 @@ export function useConversationRoute(opts: ConversationRouteOptions): void {
                 .then((res) => {
                     load(
                         res.messages.map((m) => ({ role: m.role, content: m.content })),
-                        id
+                        id,
+                        res.messages.at(-1)?.usage
                     )
                     socket?.open(id)
                 })

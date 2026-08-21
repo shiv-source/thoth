@@ -95,14 +95,14 @@ export const chatSlice = createSlice({
             s.lastUsage = null
             s.freshMessage = false
         },
-        loadChat: (s, a: PayloadAction<{ messages: ChatMessage[]; conversationId: string }>) => {
+        loadChat: (s, a: PayloadAction<{ messages: ChatMessage[]; conversationId: string; usage?: TokenUsage }>) => {
             s.messages = a.payload.messages
             s.conversationId = a.payload.conversationId
             s.streaming = false
             s.lastTool = null
             s.thinking = false
             s.thinkingText = ''
-            s.lastUsage = null
+            s.lastUsage = a.payload.usage ?? null
             s.freshMessage = false
         },
         resetChat: (s) => {

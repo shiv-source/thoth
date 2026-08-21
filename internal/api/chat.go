@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -354,7 +355,7 @@ func (h *Hub) runTurn(convID, prompt string, write func(serverMsg)) {
 	if h.finishTurn(convID, err, write) {
 		return
 	}
-	h.persistTurn(convID, sb.String())
+	h.persistTurn(convID, sb.String(), usage)
 	m := serverMsg{Type: "turn_done", ConversationID: convID, Usage: usagePtr(usage)}
 	// Record before writing: once the client has seen this frame it may
 	// already be resuming, and the replay must include everything sent.
@@ -402,13 +403,23 @@ func (h *Hub) finishTurn(convID string, err error, write func(serverMsg)) bool {
 	return false
 }
 
-// persistTurn stores a completed assistant answer (no-op when the turn
-// produced no text).
-func (h *Hub) persistTurn(convID, text string) {
+// persistTurn stores a completed assistant answer with its token usage (no-op
+// when the turn produced no text — usage rides on the answer's row, so a
+// tool-only turn that stored nothing has no usage to persist either).
+func (h *Hub) persistTurn(convID, text string, usage agentlib.Usage) {
 	if text == "" {
 		return
 	}
-	if err := h.store.AddMessage(convID, "assistant", text); err != nil {
+	var raw string
+	if usage != (agentlib.Usage{}) {
+		b, err := json.Marshal(usage)
+		if err != nil {
+			h.log.Warn("encode token usage", "err", err)
+		} else {
+			raw = string(b)
+		}
+	}
+	if err := h.store.AddMessage(convID, "assistant", text, raw); err != nil {
 		h.log.Warn("persist assistant message", "err", err)
 	}
 }

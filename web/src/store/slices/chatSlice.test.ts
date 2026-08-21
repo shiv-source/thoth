@@ -168,6 +168,25 @@ describe('chatSlice', () => {
         expect(selectStreaming(store.getState())).toBe(false)
     })
 
+    it('restores lastUsage when loaded history carries it', () => {
+        store.dispatch(
+            loadChat({
+                messages: [
+                    { role: 'user', content: 'q' },
+                    { role: 'assistant', content: 'a' }
+                ],
+                conversationId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1',
+                usage: { input_tokens: 10, output_tokens: 4, cache_read_tokens: 0, cache_write_tokens: 0 }
+            })
+        )
+        expect(selectLastUsage(store.getState())).toEqual({
+            input_tokens: 10,
+            output_tokens: 4,
+            cache_read_tokens: 0,
+            cache_write_tokens: 0
+        })
+    })
+
     it('stops streaming on cancel', () => {
         store.dispatch(userMessage('hi'))
         store.dispatch(stopStreaming())

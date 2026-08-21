@@ -21,7 +21,7 @@ import {
 } from '../store'
 import { useAppDispatch, useAppSelector } from '../store/hooks'
 import type { ChatMessage } from '../store/slices/chatSlice'
-import { ChatSocket, type ServerMessage } from '../ws/chat'
+import { ChatSocket, type ServerMessage, type TokenUsage } from '../ws/chat'
 
 export type { ChatMessage }
 
@@ -88,9 +88,11 @@ export function useChat(socket: ChatSocket | null) {
 
     // load replaces the whole conversation with history fetched from the server.
     // Local only — the caller pins the server side via socket.open(conversationId).
+    // usage restores the last completed turn's token footer, when the persisted
+    // assistant message carries one.
     const load = useCallback(
-        (msgs: ChatMessage[], convId: string) => {
-            dispatch(loadChat({ messages: msgs, conversationId: convId }))
+        (msgs: ChatMessage[], convId: string, usage?: TokenUsage) => {
+            dispatch(loadChat({ messages: msgs, conversationId: convId, usage }))
         },
         [dispatch]
     )

@@ -24,7 +24,7 @@ The server exposes REST for everything except the live chat and server-push noti
 | `GET /api/github/repos` | — | `{repos:[{full_name, clone_url}]}` — the connected account's repos (fetched with the stored token; empty when not connected; 400 "github rejected the token" when revoked) |
 | `GET /api/conversations` | — | `{conversations:[{id,title,created_at}]}` |
 | `POST /api/conversations` | `{title}` | `{id,title}` |
-| `GET /api/conversations/:id` | — | `{conversation, messages:[…]}` |
+| `GET /api/conversations/:id` | — | `{conversation, messages:[…]}` — each message may carry an optional `usage` token breakdown `{input_tokens, output_tokens, cache_read_tokens, cache_write_tokens}` on the assistant message that ended a turn (persisted alongside the answer; absent on user messages and pre-telemetry rows) |
 | `DELETE /api/conversations/:id` | — | `{ok:true}` — removes the conversation and its messages (idempotent) |
 | `POST /api/git/setup` | `{url}` | `{ok:true}` or `{ok:false, error}` — inits a repo in the wiki dir if needed, points `origin` at `url`, commits the tree, and pushes `HEAD`; each git command has a 15 s timeout, errors are sanitized (never echo credentials/URLs) |
 

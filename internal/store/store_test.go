@@ -242,8 +242,8 @@ func TestFreshOpenRunsAllMigrations(t *testing.T) {
 	if err := s.db.QueryRow(`PRAGMA user_version`).Scan(&v); err != nil {
 		t.Fatal(err)
 	}
-	if v != 9 {
-		t.Fatalf("user_version = %d, want 9 (one migration per table)", v)
+	if v != 10 {
+		t.Fatalf("user_version = %d, want 10 (one migration per table)", v)
 	}
 	// The settings seed lands with the migrations.
 	var wikiPath, repoURL, syncEnabled string
@@ -258,6 +258,37 @@ func TestFreshOpenRunsAllMigrations(t *testing.T) {
 	}
 	if wikiPath != "~/.thoth/wiki" || repoURL != "" || syncEnabled != "false" {
 		t.Fatalf("seeded settings = %q/%q/%q", wikiPath, repoURL, syncEnabled)
+	}
+}
+
+func TestMessageUsageRoundTrip(t *testing.T) {
+	s, err := Open(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = s.Close() })
+
+	id, err := s.CreateConversation("usage")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.AddMessage(id, "user", "question"); err != nil {
+		t.Fatal(err)
+	}
+	const usage = `{"input_tokens":10,"output_tokens":4,"cache_read_tokens":5,"cache_write_tokens":3}`
+	if err := s.AddMessage(id, "assistant", "answer", usage); err != nil {
+		t.Fatal(err)
+	}
+
+	msgs, err := s.Messages(id)
+	if err != nil || len(msgs) != 2 {
+		t.Fatalf("Messages: %v %+v", err, msgs)
+	}
+	if msgs[0].Usage != nil {
+		t.Fatalf("user message has usage %s, want none", msgs[0].Usage)
+	}
+	if string(msgs[1].Usage) != usage {
+		t.Fatalf("assistant usage = %s, want %s", msgs[1].Usage, usage)
 	}
 }
 
