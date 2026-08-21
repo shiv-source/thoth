@@ -15,6 +15,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/go-git/go-git/v5"
 	"github.com/gorilla/websocket"
 	"github.com/labstack/echo/v4"
 	agentlib "github.com/shiv-source/thoth/agent"
@@ -163,61 +164,17 @@ func TestModelsDeleteClearsSelectedSettingError(t *testing.T) {
 
 // ---- git ----
 
-// writeFailGit writes a git stub that records invocations and fails on a
-// command line matching FAKE_GIT_FAIL (regex) or, for FAKE_GIT_COMMIT_EMPTY,
-// simulates an empty-tree commit.
-func writeFailGit(t *testing.T) (binDir, logPath string) {
-	t.Helper()
-	logPath = filepath.Join(t.TempDir(), "git.log")
-	script := `#!/bin/sh
-echo "$@" >> "$FAKE_GIT_LOG"
-if [ -n "$FAKE_GIT_COMMIT_EMPTY" ] && [ "$1" = "commit" ]; then
-  echo "nothing to commit" >&2
-  exit 1
-fi
-if [ -n "$FAKE_GIT_FAIL" ] && echo "$*" | grep -qE "$FAKE_GIT_FAIL"; then
-  echo "simulated failure" >&2
-  exit 1
-fi
-exit 0
-`
-	binDir = t.TempDir()
-	if err := os.WriteFile(filepath.Join(binDir, "git"), []byte(script), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	return binDir, logPath
-}
-
-func setupGitDeps(t *testing.T, fail, commitEmpty string) (Deps, *httptest.ResponseRecorder) {
-	t.Helper()
-	d := testDeps(t)
-	if err := d.Store.EnsureMetadata(); err != nil {
-		t.Fatal(err)
-	}
-	binDir, logPath := writeFailGit(t)
-	// Prepend, don't replace: the fake script shells out to grep.
-	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
-	t.Setenv("FAKE_GIT_LOG", logPath)
-	if fail != "" {
-		t.Setenv("FAKE_GIT_FAIL", fail)
-	}
-	if commitEmpty != "" {
-		t.Setenv("FAKE_GIT_COMMIT_EMPTY", commitEmpty)
-	}
-	rec := doReq(t, New(d), http.MethodPost, "/api/git/setup", `{"url":"https://example.com/wiki.git"}`)
-	return d, rec
-}
-
 func TestGitSetupInitFailure(t *testing.T) {
 	d := testDeps(t)
 	if err := d.Store.EnsureMetadata(); err != nil {
 		t.Fatal(err)
 	}
-	// A wiki root that does not exist makes `git init` fail.
-	d.Wiki = wiki.New(filepath.Join(t.TempDir(), "missing"))
-	binDir, logPath := writeFailGit(t)
-	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
-	t.Setenv("FAKE_GIT_LOG", logPath)
+	// A file squatting on the wiki root makes repo init fail.
+	root := filepath.Join(t.TempDir(), "blocked")
+	if err := os.WriteFile(root, nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	d.Wiki = wiki.New(root)
 	rec := doReq(t, New(d), http.MethodPost, "/api/git/setup", `{"url":"https://example.com/wiki.git"}`)
 	var body struct {
 		OK bool `json:"ok"`
@@ -228,61 +185,43 @@ func TestGitSetupInitFailure(t *testing.T) {
 }
 
 func TestGitSetRemoteAddPath(t *testing.T) {
-	// get-url fails (no origin yet) and `remote add` succeeds: the remote is
-	// added and the flow continues to a successful sync.
-	_, rec := setupGitDeps(t, "remote get-url", "")
-	var body struct {
-		OK bool `json:"ok"`
+	// The first sync adds the origin remote (none exists yet) and completes.
+	d, bare := gitTestDeps(t)
+	e := New(d)
+	if rec := gitSetupReq(e, bare); rec.Code != http.StatusOK {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
 	}
-	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil || !body.OK {
-		t.Fatalf("expected ok:true after remote add, got %+v %s", body, rec.Body.String())
+	repo, err := git.PlainOpen(d.Wiki.Root())
+	if err != nil {
+		t.Fatal(err)
 	}
-}
-
-func TestGitSetRemoteAddFailure(t *testing.T) {
-	_, rec := setupGitDeps(t, "remote get-url origin|remote add", "")
-	if !strings.Contains(rec.Body.String(), `"ok":false`) {
-		t.Fatalf("expected ok:false from a failing remote add: %s", rec.Body.String())
+	if _, err := repo.Remote("origin"); err != nil {
+		t.Fatalf("origin remote should exist after the first sync: %v", err)
 	}
 }
 
-func TestGitSetRemoteSetURLFailure(t *testing.T) {
-	_, rec := setupGitDeps(t, "remote set-url", "")
-	if !strings.Contains(rec.Body.String(), `"ok":false`) {
-		t.Fatalf("expected ok:false from a failing set-url: %s", rec.Body.String())
+func TestGitSetRemoteReplacesURL(t *testing.T) {
+	// A second sync with a different URL replaces the origin (set-url path).
+	d, bare := gitTestDeps(t)
+	e := New(d)
+	if rec := gitSetupReq(e, bare); rec.Code != http.StatusOK {
+		t.Fatalf("first status %d: %s", rec.Code, rec.Body.String())
 	}
-}
-
-func TestGitCommitAddFailure(t *testing.T) {
-	_, rec := setupGitDeps(t, "add -A", "")
-	if !strings.Contains(rec.Body.String(), `"ok":false`) {
-		t.Fatalf("expected ok:false from a failing git add: %s", rec.Body.String())
+	other := initBare(t)
+	if rec := gitSetupReq(e, other); rec.Code != http.StatusOK {
+		t.Fatalf("second status %d: %s", rec.Code, rec.Body.String())
 	}
-}
-
-func TestGitCommitFailure(t *testing.T) {
-	_, rec := setupGitDeps(t, "commit -m", "")
-	if !strings.Contains(rec.Body.String(), `"ok":false`) {
-		t.Fatalf("expected ok:false from a failing git commit: %s", rec.Body.String())
+	repo, err := git.PlainOpen(d.Wiki.Root())
+	if err != nil {
+		t.Fatal(err)
 	}
-}
-
-func TestGitCommitNothingToCommit(t *testing.T) {
-	// An empty tree is not an error: the commit step reports nothing-to-commit
-	// and the sync still completes.
-	_, rec := setupGitDeps(t, "", "1")
-	var body struct {
-		OK bool `json:"ok"`
+	remote, err := repo.Remote("origin")
+	if err != nil {
+		t.Fatal(err)
 	}
-	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil || !body.OK {
-		t.Fatalf("expected ok:true for an empty-tree commit, got %+v %s", body, rec.Body.String())
-	}
-}
-
-func TestGitPushFailure(t *testing.T) {
-	_, rec := setupGitDeps(t, "push -u", "")
-	if !strings.Contains(rec.Body.String(), `"ok":false`) {
-		t.Fatalf("expected ok:false from a failing git push: %s", rec.Body.String())
+	urls := remote.Config().URLs
+	if len(urls) != 1 || urls[0] != other {
+		t.Fatalf("origin URLs after set-url = %v, want [%s]", urls, other)
 	}
 }
 

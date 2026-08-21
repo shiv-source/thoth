@@ -22,7 +22,7 @@ Startup sequence:
 
 ### `thoth init [path]`
 
-Scaffolds a wiki directory — the configured folder set (or the default 9, now including `attachments/`) plus the `CLAUDE.md` rulebook, then initializes a local git repo with a `.gitignore` (`.DS_Store`, `*.db`) when git is installed. Defaults to `~/.thoth/wiki`. Never overwrites an existing rulebook.
+Scaffolds a wiki directory — the configured folder set (or the default 9, now including `attachments/`) plus the `CLAUDE.md` rulebook, then initializes a local git repo with a `.gitignore` (`.DS_Store`, `*.db`) via the pure-Go `agent/git` backend — no git binary needed. Defaults to `~/.thoth/wiki`. Never overwrites an existing rulebook.
 
 **Optional** — `serve` scaffolds the default wiki automatically when it doesn't exist (see the startup sequence above). Run `init` only to choose a custom location.
 

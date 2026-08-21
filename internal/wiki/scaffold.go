@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 
 	agentgit "github.com/shiv-source/thoth/agent/git"
-	"github.com/shiv-source/thoth/internal/gitutil"
 )
 
 // ScaffoldOptions tunes ScaffoldWithOptions. Folders replaces the default set
@@ -27,8 +26,9 @@ func Scaffold(dir string) error {
 }
 
 // ScaffoldWithOptions creates the wiki skeleton with the given options. Git
-// init is best-effort: a missing git binary skips the repository step rather
-// than failing the scaffold, since the folder skeleton is the real contract.
+// init is best-effort: a failure to version-control skips the repository step
+// rather than failing the scaffold, since the folder skeleton is the real
+// contract.
 func ScaffoldWithOptions(dir string, opts ScaffoldOptions) error {
 	folders := opts.Folders
 	if len(folders) == 0 {
@@ -86,14 +86,15 @@ func EnsureReservedDir(root string) error {
 
 // gitInit writes the .gitignore (unless present) and initializes a repository
 // so the wiki is versioned from day one. Failures are ignored: versioning is
-// additive to the scaffold, and a machine without git still gets a valid wiki.
+// additive to the scaffold, and a machine without a usable path still gets a
+// valid wiki.
 func gitInit(dir string) {
 	if _, err := os.Stat(filepath.Join(dir, ".gitignore")); errors.Is(err, os.ErrNotExist) {
 		if err := os.WriteFile(filepath.Join(dir, ".gitignore"), []byte(gitignore), 0o644); err != nil {
 			return
 		}
 	}
-	_ = gitutil.Init(dir)
+	_, _ = agentgit.Init(dir)
 }
 
 // EnsureGitRepo initializes a pure-Go git repository in root when it is not
