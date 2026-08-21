@@ -8,11 +8,13 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/gorilla/websocket"
 	_ "modernc.org/sqlite"
@@ -63,18 +65,23 @@ func seedSettingsRaw(t *testing.T, dir, wikiPath, journalMode string) {
 	}
 }
 
-// fakeClaude writes an executable "claude" script to a fresh dir, puts that
-// dir on PATH, and returns the path. The script matches "$1" against the given
-// version and auth exit codes.
-func fakeClaude(t *testing.T, versionExit, authExit int) string {
+// providerStub serves the provider models endpoint with status for every
+// request and returns the server, whose URL and Client the checks probe.
+func providerStub(t *testing.T, status int) *httptest.Server {
 	t.Helper()
-	bin := filepath.Join(t.TempDir(), "claude")
-	script := "#!/bin/sh\ncase \"$1\" in\n  --version) exit " + strconv.Itoa(versionExit) + " ;;\n  auth) exit " + strconv.Itoa(authExit) + " ;;\n  *) exit 1 ;;\nesac\n"
-	if err := os.WriteFile(bin, []byte(script), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	t.Setenv("PATH", filepath.Dir(bin))
-	return bin
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(status)
+	}))
+	t.Cleanup(srv.Close)
+	return srv
+}
+
+// runChecks runs the suite with a stub provider endpoint answering 200, so
+// the provider check never touches the live network in tests.
+func runChecks(t *testing.T, dir, addr string) []Check {
+	t.Helper()
+	srv := providerStub(t, http.StatusOK)
+	return Run(context.Background(), Options{Dir: dir, Addr: addr, Log: testLog(), HTTP: srv.Client(), BaseURL: srv.URL})
 }
 
 // seedWikiPath stores a wiki path into the settings table of thoth.db under
@@ -97,12 +104,12 @@ func seedWikiPath(t *testing.T, dir, wikiPath string) {
 }
 
 // healthyThothDir builds a fully healthy installation in a temp dir: a wiki
-// with one note, a synced index, the settings table pointing at the wiki, and
-// a fake claude on PATH. Returns the thoth dir.
+// with one note, a synced index, the settings table pointing at the wiki, the
+// selected model seeded into the registry, and a configured api key. Returns
+// the thoth dir.
 func healthyThothDir(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()
-	fakeClaude(t, 0, 0)
 
 	wikiRoot := filepath.Join(dir, "wiki")
 	if err := wiki.Scaffold(wikiRoot); err != nil {
@@ -131,9 +138,13 @@ func healthyThothDir(t *testing.T) string {
 		t.Fatal(err)
 	}
 	seedWikiPath(t, dir, wikiRoot)
-	// The setup checks pass in a healthy install: key + model configured.
+	// The setup checks pass in a healthy install: key + model configured,
+	// and the model exists in the llm_models registry.
 	st, err = store.Open(dbPath)
 	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := st.CreateModel("claude-sonnet-5", "Claude Sonnet 5", "balanced", "Anthropic"); err != nil {
 		t.Fatal(err)
 	}
 	r, err := settings.OpenRepo(dbPath)
@@ -163,7 +174,7 @@ func TestRunSetupUnset(t *testing.T) {
 		t.Fatal(err)
 	}
 	_ = st.Close()
-	checks := Run(context.Background(), dir, "", testLog())
+	checks := runChecks(t, dir, "")
 	if c := byName(t, checks, "api key"); c.OK || !strings.Contains(c.Message, "no API key") {
 		t.Fatalf("api key: %s", c.Message)
 	}
@@ -174,11 +185,207 @@ func TestRunSetupUnset(t *testing.T) {
 
 func TestRunSetupConfigured(t *testing.T) {
 	dir := healthyThothDir(t)
-	checks := Run(context.Background(), dir, freeAddr(t), testLog())
+	checks := runChecks(t, dir, freeAddr(t))
 	if c := byName(t, checks, "api key"); !c.OK || !strings.Contains(c.Message, "configured") {
 		t.Fatalf("api key: %s", c.Message)
 	}
 	if c := byName(t, checks, "model"); !c.OK || !strings.Contains(c.Message, "claude-sonnet-5") {
+		t.Fatalf("model: %s", c.Message)
+	}
+}
+
+// runProviderChecks runs the suite with the provider stub answering status.
+func runProviderChecks(t *testing.T, dir string, status int) []Check {
+	t.Helper()
+	srv := providerStub(t, status)
+	return Run(context.Background(), Options{Dir: dir, Log: testLog(), HTTP: srv.Client(), BaseURL: srv.URL})
+}
+
+func TestRunProviderReachable(t *testing.T) {
+	dir := healthyThothDir(t)
+	c := byName(t, runProviderChecks(t, dir, http.StatusOK), "provider")
+	if !c.OK || !strings.Contains(c.Message, "reachable") {
+		t.Fatalf("provider: %s", c.Message)
+	}
+}
+
+func TestRunProviderFailures(t *testing.T) {
+	for _, tt := range []struct {
+		name   string
+		status int
+		want   string
+	}{
+		{"auth", http.StatusUnauthorized, "401"},
+		{"rate limit", http.StatusTooManyRequests, "429"},
+		{"server error", http.StatusInternalServerError, "server error"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := healthyThothDir(t)
+			c := byName(t, runProviderChecks(t, dir, tt.status), "provider")
+			if c.OK || !strings.Contains(c.Message, tt.want) {
+				t.Fatalf("provider: %s", c.Message)
+			}
+		})
+	}
+}
+
+func TestRunProviderTimeout(t *testing.T) {
+	dir := healthyThothDir(t)
+	// A stub that hangs until the client gives up: the probe must time out.
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		<-r.Context().Done()
+	}))
+	t.Cleanup(srv.Close)
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+	c := byName(t, Run(ctx, Options{Dir: dir, Log: testLog(), HTTP: srv.Client(), BaseURL: srv.URL}), "provider")
+	if c.OK || !strings.Contains(c.Message, "timed out") {
+		t.Fatalf("provider: %s", c.Message)
+	}
+}
+
+func TestRunProviderNoModel(t *testing.T) {
+	// Without a model the provider cannot be determined: the check fails with
+	// guidance and never probes.
+	dir := t.TempDir()
+	st, err := store.Open(filepath.Join(dir, "thoth.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = st.Close()
+	hit := false
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { hit = true }))
+	t.Cleanup(srv.Close)
+	checks := Run(context.Background(), Options{Dir: dir, Log: testLog(), HTTP: srv.Client(), BaseURL: srv.URL})
+	c := byName(t, checks, "provider")
+	if c.OK || !strings.Contains(c.Message, "no model selected") {
+		t.Fatalf("provider: %s", c.Message)
+	}
+	if hit {
+		t.Fatal("provider probe must not be issued without a model")
+	}
+}
+
+func TestRunProviderUnknownModelFamily(t *testing.T) {
+	dir := healthyThothDir(t)
+	// A model with no concrete provider maps to the same failure the agent
+	// would report when asked to run it.
+	r, err := settings.OpenRepo(filepath.Join(dir, "thoth.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := r.SetSetting(settings.KeyModel, "deepseek-v4-flash"); err != nil {
+		t.Fatal(err)
+	}
+	_ = r.Close()
+	c := byName(t, runProviderChecks(t, dir, http.StatusOK), "provider")
+	if c.OK || !strings.Contains(c.Message, "no provider for model") {
+		t.Fatalf("provider: %s", c.Message)
+	}
+}
+
+func TestRunProviderRoutesByRegistryProvider(t *testing.T) {
+	// A DeepSeek model with its own key + base url resolves to the
+	// OpenAI-compatible probe, and the per-provider key rides the probe — the
+	// same model→provider→config chain serve resolves at boot.
+	dir := healthyThothDir(t)
+	dbPath := filepath.Join(dir, "thoth.db")
+	st, err := store.Open(dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := st.CreateModel("deepseek-v4-flash", "V4 Flash", "fastest", "DeepSeek"); err != nil {
+		t.Fatal(err)
+	}
+	r, err := settings.OpenRepo(dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := r.SetSetting(settings.KeyModel, "deepseek-v4-flash"); err != nil {
+		t.Fatal(err)
+	}
+	if err := r.SetSetting(settings.ProviderAPIKeyKey("DeepSeek"), "ds-secret"); err != nil {
+		t.Fatal(err)
+	}
+	if err := r.SetSetting(settings.ProviderBaseURLKey("DeepSeek"), "https://api.deepseek.com"); err != nil {
+		t.Fatal(err)
+	}
+	_ = r.Close()
+	_ = st.Close()
+
+	var mu sync.Mutex
+	var gotKey, gotPath string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		mu.Lock()
+		gotKey = req.Header.Get("Authorization")
+		gotPath = req.URL.Path
+		mu.Unlock()
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(srv.Close)
+
+	c := byName(t, Run(context.Background(), Options{Dir: dir, Log: testLog(), HTTP: srv.Client(), BaseURL: srv.URL}), "provider")
+	if !c.OK || !strings.Contains(c.Message, "reachable") {
+		t.Fatalf("provider: %s", c.Message)
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if gotKey != "Bearer ds-secret" {
+		t.Fatalf("probe Authorization = %q, want Bearer ds-secret", gotKey)
+	}
+	if gotPath != "/v1/models" {
+		t.Fatalf("probe path = %q, want /v1/models", gotPath)
+	}
+}
+
+func TestRunApiKeyCheckResolvesPerProviderKey(t *testing.T) {
+	// The shared api_key is empty; only the selected provider's own key is
+	// set — the check must pass with the credential the agent will use.
+	dir := healthyThothDir(t)
+	dbPath := filepath.Join(dir, "thoth.db")
+	st, err := store.Open(dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := st.CreateModel("deepseek-v4-flash", "V4 Flash", "fastest", "DeepSeek"); err != nil {
+		t.Fatal(err)
+	}
+	r, err := settings.OpenRepo(dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := r.SetSetting(settings.KeyAPIKey, ""); err != nil {
+		t.Fatal(err)
+	}
+	if err := r.SetSetting(settings.KeyModel, "deepseek-v4-flash"); err != nil {
+		t.Fatal(err)
+	}
+	if err := r.SetSetting(settings.ProviderAPIKeyKey("DeepSeek"), "ds-secret"); err != nil {
+		t.Fatal(err)
+	}
+	_ = r.Close()
+	_ = st.Close()
+
+	checks := runChecks(t, dir, freeAddr(t))
+	if c := byName(t, checks, "api key"); !c.OK {
+		t.Fatalf("api key: %s", c.Message)
+	}
+}
+
+func TestRunUnknownModel(t *testing.T) {
+	dir := healthyThothDir(t)
+	// A model value absent from the llm_models registry fails the model check
+	// with "unknown model", even though the settings key is set.
+	r, err := settings.OpenRepo(filepath.Join(dir, "thoth.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := r.SetSetting(settings.KeyModel, "not-a-real-model"); err != nil {
+		t.Fatal(err)
+	}
+	_ = r.Close()
+	c := byName(t, runProviderChecks(t, dir, http.StatusOK), "model")
+	if c.OK || !strings.Contains(c.Message, "unknown model") {
 		t.Fatalf("model: %s", c.Message)
 	}
 }
@@ -199,8 +406,8 @@ func TestRunHealthy(t *testing.T) {
 	// there, so api reports "not running" (OK) and websocket is skipped (OK)
 	// regardless of what occupies the fixed port on the machine. The api key
 	// and model checks pass because healthyThothDir configures them.
-	checks := Run(context.Background(), healthyThothDir(t), freeAddr(t), testLog())
-	want := []string{"wiki", "claude", "claude login", "api key", "model", "database", "index", "malformed", "api", "websocket"}
+	checks := runChecks(t, healthyThothDir(t), freeAddr(t))
+	want := []string{"wiki", "provider", "api key", "model", "database", "index", "malformed", "api", "websocket"}
 	if len(checks) != len(want) {
 		t.Fatalf("got %d checks, want %d: %+v", len(checks), len(want), checks)
 	}
@@ -215,20 +422,14 @@ func TestRunHealthy(t *testing.T) {
 }
 
 // TestRunEmptyDir exercises the default-resolution path (dir == "") against a
-// HOME that has nothing in it: every probe that can fail must fail, and the
-// claude check must not attempt a login probe when the binary is missing.
+// HOME that has nothing in it: every probe that can fail must fail.
 func TestRunEmptyDir(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	t.Setenv("PATH", t.TempDir())
-	checks := Run(context.Background(), "", "", testLog())
-	for _, name := range []string{"wiki", "claude", "database", "index"} {
+	checks := runChecks(t, "", "")
+	for _, name := range []string{"wiki", "provider", "database", "index"} {
 		if byName(t, checks, name).OK {
 			t.Fatalf("check %q must fail in an empty installation", name)
-		}
-	}
-	for _, c := range checks {
-		if c.Name == "claude login" {
-			t.Fatalf("claude login must be skipped when the binary is missing: %+v", checks)
 		}
 	}
 }
@@ -241,7 +442,7 @@ func TestRunWikiMissingFolders(t *testing.T) {
 		t.Fatal(err)
 	}
 	seedWikiPath(t, dir, wikiRoot)
-	c := byName(t, Run(context.Background(), dir, "", testLog()), "wiki")
+	c := byName(t, runChecks(t, dir, ""), "wiki")
 	if c.OK || !strings.Contains(c.Message, "is missing") {
 		t.Fatalf("wiki: %s", c.Message)
 	}
@@ -274,7 +475,7 @@ func TestRunWikiConfiguredFolders(t *testing.T) {
 	seedWikiPath(t, dir, wikiRoot)
 	seedWikiFolders(t, dir, "journal")
 
-	checks := Run(context.Background(), dir, "", testLog())
+	checks := runChecks(t, dir, "")
 	c := byName(t, checks, "wiki")
 	if !c.OK || !strings.Contains(c.Message, "1 scaffold folders") {
 		t.Fatalf("wiki with journal only: %s", c.Message)
@@ -284,38 +485,9 @@ func TestRunWikiConfiguredFolders(t *testing.T) {
 	if err := os.RemoveAll(filepath.Join(wikiRoot, "journal")); err != nil {
 		t.Fatal(err)
 	}
-	c = byName(t, Run(context.Background(), dir, "", testLog()), "wiki")
+	c = byName(t, runChecks(t, dir, ""), "wiki")
 	if c.OK || !strings.Contains(c.Message, "journal") {
 		t.Fatalf("wiki after removing journal: %s", c.Message)
-	}
-}
-
-func TestRunClaudeVersionFailure(t *testing.T) {
-	dir := healthyThothDir(t)
-	// Override the PATH claude with one that fails --version.
-	fakeClaude(t, 1, 1)
-	checks := Run(context.Background(), dir, "", testLog())
-	c := byName(t, checks, "claude")
-	if c.OK || !strings.Contains(c.Message, "--version failed") {
-		t.Fatalf("claude: %s", c.Message)
-	}
-	for _, chk := range checks {
-		if chk.Name == "claude login" {
-			t.Fatalf("claude login must be skipped when the binary is broken: %+v", checks)
-		}
-	}
-}
-
-func TestRunClaudeLoginUnknown(t *testing.T) {
-	dir := healthyThothDir(t)
-	fakeClaude(t, 0, 1)
-	checks := Run(context.Background(), dir, "", testLog())
-	if !byName(t, checks, "claude").OK {
-		t.Fatalf("claude check must pass when --version works: %+v", checks)
-	}
-	login := byName(t, checks, "claude login")
-	if login.OK || !strings.Contains(login.Message, "login status unknown") {
-		t.Fatalf("claude login: %s", login.Message)
 	}
 }
 
@@ -327,7 +499,7 @@ func TestRunNonThothProcessOnPort(t *testing.T) {
 	}
 	defer func() { _ = ln.Close() }()
 
-	checks := Run(context.Background(), dir, ln.Addr().String(), testLog())
+	checks := runChecks(t, dir, ln.Addr().String())
 	c := byName(t, checks, "api")
 	if c.OK || !strings.Contains(c.Message, "non-thoth") {
 		t.Fatalf("api: %s", c.Message)
@@ -368,9 +540,9 @@ func TestRunAPIHealthy(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() { _ = ln.Close() }()
-	serveThothAPI(t, ln, `{"status":"ok","claude":{"found":true,"path":"/fake/claude"},"wiki":{"path":"/fake/wiki","exists":true}}`)
+	serveThothAPI(t, ln, `{"status":"ok","wiki":{"path":"/fake/wiki","exists":true}}`)
 
-	checks := Run(context.Background(), dir, ln.Addr().String(), testLog())
+	checks := runChecks(t, dir, ln.Addr().String())
 	c := byName(t, checks, "api")
 	if !c.OK || !strings.Contains(c.Message, "REST") {
 		t.Fatalf("api: %s", c.Message)
@@ -383,8 +555,7 @@ func TestRunAPIHealthy(t *testing.T) {
 
 func TestRunAPIPartialFailures(t *testing.T) {
 	for name, health := range map[string]string{
-		"claude missing": `{"status":"ok","claude":{"found":false,"path":""},"wiki":{"exists":true}}`,
-		"wiki missing":   `{"status":"ok","claude":{"found":true,"path":"/f"},"wiki":{"exists":false}}`,
+		"wiki missing": `{"status":"ok","wiki":{"exists":false}}`,
 	} {
 		t.Run(name, func(t *testing.T) {
 			dir := healthyThothDir(t)
@@ -395,7 +566,7 @@ func TestRunAPIPartialFailures(t *testing.T) {
 			defer func() { _ = ln.Close() }()
 			serveThothAPI(t, ln, health)
 
-			c := byName(t, Run(context.Background(), dir, ln.Addr().String(), testLog()), "api")
+			c := byName(t, runChecks(t, dir, ln.Addr().String()), "api")
 			if c.OK || !strings.Contains(c.Message, strings.Split(name, " ")[0]) {
 				t.Fatalf("api: %s", c.Message)
 			}
@@ -413,7 +584,7 @@ func TestRunAPIWebsocketFails(t *testing.T) {
 	// REST health works but the /ws upgrade does not.
 	srv := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/api/health" {
-			_, _ = w.Write([]byte(`{"status":"ok","claude":{"found":true,"path":"/f"},"wiki":{"exists":true}}`))
+			_, _ = w.Write([]byte(`{"status":"ok","wiki":{"exists":true}}`))
 			return
 		}
 		http.NotFound(w, r)
@@ -421,7 +592,7 @@ func TestRunAPIWebsocketFails(t *testing.T) {
 	go func() { _ = srv.Serve(ln) }()
 	t.Cleanup(func() { _ = srv.Close() })
 
-	checks := Run(context.Background(), dir, ln.Addr().String(), testLog())
+	checks := runChecks(t, dir, ln.Addr().String())
 	if c := byName(t, checks, "api"); !c.OK {
 		t.Fatalf("api: %s", c.Message)
 	}
@@ -435,7 +606,7 @@ func TestRunNonWALDatabase(t *testing.T) {
 	dir := t.TempDir()
 	seedSettingsRaw(t, dir, filepath.Join(dir, "wiki"), "DELETE")
 
-	c := byName(t, Run(context.Background(), dir, "", testLog()), "database")
+	c := byName(t, runChecks(t, dir, ""), "database")
 	if c.OK || !strings.Contains(c.Message, `journal mode is "delete"`) {
 		t.Fatalf("database: %s", c.Message)
 	}
@@ -446,7 +617,7 @@ func TestRunDatabaseMissingTables(t *testing.T) {
 	dir := t.TempDir()
 	seedSettingsRaw(t, dir, filepath.Join(dir, "wiki"), "WAL")
 
-	c := byName(t, Run(context.Background(), dir, "", testLog()), "database")
+	c := byName(t, runChecks(t, dir, ""), "database")
 	if c.OK || !strings.Contains(c.Message, "missing the notes/notes_fts tables") {
 		t.Fatalf("database: %s", c.Message)
 	}
@@ -458,7 +629,7 @@ func TestRunCorruptDatabase(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "thoth.db"), []byte("definitely not a sqlite file"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	c := byName(t, Run(context.Background(), dir, "", testLog()), "database")
+	c := byName(t, runChecks(t, dir, ""), "database")
 	if c.OK || !strings.Contains(c.Message, "not a usable sqlite database") {
 		t.Fatalf("database: %s", c.Message)
 	}
@@ -469,7 +640,7 @@ func TestRunMissingDatabaseIndex(t *testing.T) {
 	dir := t.TempDir()
 	// thoth.db was never created: both the database and the index checks
 	// must fail, each with its own message.
-	checks := Run(context.Background(), dir, "", testLog())
+	checks := runChecks(t, dir, "")
 	if db := byName(t, checks, "database"); db.OK || !strings.Contains(db.Message, "does not exist") {
 		t.Fatalf("database: %s", db.Message)
 	}
@@ -485,7 +656,7 @@ func TestRunIndexOutOfSync(t *testing.T) {
 		[]byte("---\ntitle: Later\n---\n\nAdded after indexing\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	c := byName(t, Run(context.Background(), dir, "", testLog()), "index")
+	c := byName(t, runChecks(t, dir, ""), "index")
 	if c.OK || !strings.Contains(c.Message, "notes on disk") {
 		t.Fatalf("index: %s", c.Message)
 	}
@@ -505,7 +676,7 @@ func TestRunMalformedNotes(t *testing.T) {
 		[]byte("---\ntitle: Topic\n---\n\nbody\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	c := byName(t, Run(context.Background(), dir, "", testLog()), "malformed")
+	c := byName(t, runChecks(t, dir, ""), "malformed")
 	if c.OK || !strings.Contains(c.Message, "inbox/plain.md") {
 		t.Fatalf("malformed: %s", c.Message)
 	}
@@ -561,7 +732,7 @@ func TestRunWikiMissingNoteIsSkipped(t *testing.T) {
 		[]byte("just some text, no frontmatter\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if !byName(t, Run(context.Background(), dir, "", testLog()), "index").OK {
+	if !byName(t, runChecks(t, dir, ""), "index").OK {
 		t.Fatalf("index must ignore non-indexable notes")
 	}
 }
@@ -573,7 +744,7 @@ func TestRunDefaultWikiPathWhenDatabaseMissing(t *testing.T) {
 	t.Setenv("HOME", home)
 	t.Setenv("PATH", t.TempDir())
 	dir := t.TempDir()
-	c := byName(t, Run(context.Background(), dir, "", testLog()), "wiki")
+	c := byName(t, runChecks(t, dir, ""), "wiki")
 	if c.OK || !strings.Contains(c.Message, filepath.Join(home, ".thoth", "wiki")) {
 		t.Fatalf("wiki: %s", c.Message)
 	}

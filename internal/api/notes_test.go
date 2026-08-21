@@ -14,7 +14,7 @@ import (
 
 func TestSearchEndpoint(t *testing.T) {
 	d := testDeps(t)
-	root := d.Wiki.Root
+	root := d.Wiki.Root()
 	if err := wiki.Scaffold(root); err != nil {
 		t.Fatal(err)
 	}
@@ -49,11 +49,11 @@ func TestSearchEndpoint(t *testing.T) {
 
 func TestNoteEndpoint(t *testing.T) {
 	d := testDeps(t)
-	if err := wiki.Scaffold(d.Wiki.Root); err != nil {
+	if err := wiki.Scaffold(d.Wiki.Root()); err != nil {
 		t.Fatal(err)
 	}
 	content := "---\ntitle: Standup\ntype: meeting\n---\nnotes\n"
-	p := filepath.Join(d.Wiki.Root, "meetings", "s.md")
+	p := filepath.Join(d.Wiki.Root(), "meetings", "s.md")
 	if err := os.WriteFile(p, []byte(content), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -87,10 +87,10 @@ func TestNoteEndpoint(t *testing.T) {
 
 func TestNoteEndpointServesAttachmentsAsRawBytes(t *testing.T) {
 	d := testDeps(t)
-	if err := wiki.Scaffold(d.Wiki.Root); err != nil {
+	if err := wiki.Scaffold(d.Wiki.Root()); err != nil {
 		t.Fatal(err)
 	}
-	attachments := filepath.Join(d.Wiki.Root, "attachments")
+	attachments := filepath.Join(d.Wiki.Root(), "attachments")
 	if err := os.MkdirAll(attachments, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -137,7 +137,7 @@ func TestNoteEndpointServesAttachmentsAsRawBytes(t *testing.T) {
 
 func TestTreeEndpoint(t *testing.T) {
 	d := testDeps(t)
-	if err := wiki.Scaffold(d.Wiki.Root); err != nil {
+	if err := wiki.Scaffold(d.Wiki.Root()); err != nil {
 		t.Fatal(err)
 	}
 	e := New(d)

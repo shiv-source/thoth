@@ -5,12 +5,10 @@
 -- title             the first user message, truncated (display only)
 -- created_at        UTC RFC3339; the list orders by it lexically DESC, so a
 --                   fixed offset is required (local offsets would misorder)
--- claude_session_id the Claude CLI session backing the chat. Seeded with the
---                   conversation id by CreateConversation and rotated to a
---                   fresh id (via --resume/--fork-session) when the CLI
---                   reports the stored session as locked ("already in use").
---                   The CLI keeps that session's history in
---                   ~/.claude/projects/, so revisiting a chat resumes it.
+-- claude_session_id the Claude CLI session that used to back the chat. The
+--                   native agent dropped the CLI (and the column's writes);
+--                   the column is retained for schema stability — nothing
+--                   reads or writes it, and no migration drops it (T12).
 
 CREATE TABLE IF NOT EXISTS conversations (
     id TEXT PRIMARY KEY,

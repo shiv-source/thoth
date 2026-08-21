@@ -16,11 +16,11 @@ The dashboard is organized into five views, reachable from the sidebar:
 
 ### Chat
 
-The chat view is the heart of Thoth. Every conversation is backed by a long-lived assistant process that reads your wiki and writes into it under the rulebook's rules.
+The chat view is the heart of Thoth. Every conversation runs against the built-in **Thoth Agent**, which reads your wiki and writes into it under the rulebook's rules.
 
 - **Ask** — type a question and get an answer grounded in your notes. The assistant searches the index and cites what it reads.
 - **Save** — say *"save this: …"* and the assistant files the note into the right folder (see [Knowledge base](knowledge-base.md)) with correct frontmatter. Watch the wiki tree refresh within about 200 ms as the note is indexed.
-- **Stop** — cancel an in-flight turn with the Stop button. The process is killed cleanly; the next send resumes the session from disk.
+- **Stop** — cancel an in-flight turn with the Stop button. The turn's request is aborted and nothing from that turn is saved.
 - **New chat** — start a fresh conversation with the New chat button. Conversations are listed and day-grouped in the sidebar; delete them there too.
 
 ### Notes
@@ -41,7 +41,7 @@ Open Settings (gear icon in the header) to configure Thoth.
 
 | Tab | What it does |
 |---|---|
-| **General** | The wiki path (change it here, with a folder browser), the model used for new conversations, and the API key (`ANTHROPIC_API_KEY` for spawned assistant processes — stored locally, never returned by the API) |
+| **General** | The wiki path (change it here, with a folder browser), the model used for new conversations, the shared API key, and per-provider credentials (an API key and base URL for each provider in the model registry — a provider without its own key falls back to the shared one; all keys are stored locally, never returned by the API) |
 | **LLM Models** | The model registry: add, edit, or delete models shown in the picker. Seeded from a built-in list on first boot; afterwards the table is yours |
 | **Doctor** | The same health checks as `thoth doctor`, in the UI — run them any time, read each row's status |
 | **Git remote** | Connect a GitHub account and push your wiki to a remote repo for sync and backup |
@@ -55,7 +55,7 @@ With the **Git remote** tab you can:
 3. Turn on **auto-sync** to record the sync preference
 4. **Initialize & Push** — the server initializes the repo if needed, points `origin` at the URL, commits the current tree, and pushes the branch
 
-The wiki keeps its own local git history regardless — every scaffold runs `git init`.
+The wiki keeps its own local git history regardless — every scaffold initializes a repository (in-process, via the pure-Go `agent/git` backend — no git binary needed).
 
 ## The wiki itself
 
@@ -63,7 +63,7 @@ The real source of truth is the `~/.thoth/wiki` directory. You can:
 
 - Open it in any editor and write/edit notes by hand
 - Run `git` in it directly (every scaffold — whether from `thoth serve` or `thoth init` — initializes a repository)
-- Point Claude Code at it in a terminal — `cd ~/.thoth/wiki && claude` — and use the assistant without the dashboard
+- Point Claude Code at it in a terminal — `cd ~/.thoth/wiki && claude` — and use an assistant without the dashboard (Claude Code is a separate, optional tool; Thoth itself never spawns it)
 
 Because files are the source of truth, `thoth.db` (the index + conversation history) is disposable — delete it and the index rebuilds from your files. Nothing is ever lost.
 

@@ -50,7 +50,7 @@ semantic tokens.
 | `WikiPathInput` | The wiki path field: a `FolderOpenOutlined` prefix icon opens a directory browser `Modal` backed by `GET /api/fs/dirs` (enter a subdirectory, `Up` to the parent, OK fills the field); the value stays hand-editable at all times |
 | `DashboardView` | Landing: greeting, four `Statistic` KPI tiles, quick-action `Button`s, **Overview** cards (inbox, meetings, todos with `Progress`, recent notes, real recent chats, tag `Button`s) and **Insights** (four Chart.js charts, blue palette). Mock data lives in `dashboardMock.ts`, tagged with its issue until the index endpoints land |
 | `ActivityChart` | Single-series mini bar chart (Chart.js): notes/day, last 7 days — blue palette, canvas `role="img"` + aria-label; colors read from the CSS variables; the chart instance is destroyed on unmount |
-| `SetupScreen` | antd `Result` shown while `/api/health` reports problems: per-problem `Alert`s with exact fix commands, Re-check primary button (loading) |
+| `SetupScreen` | antd `Result` shown when `/api/health` reports problems: per-problem `Alert`s with exact fix commands, Re-check primary button (loading). Problems derive from the health schema — server unreachable, no provider API key (`health.backend.api_key_configured`), or missing wiki (`health.wiki.exists`); `App` shows it whenever `health.backend.api_key_configured` is false, unless the user is already on Settings |
 | `NotificationPanel` | The bell `Popover` content: header with mark-all-read/close buttons, antd `List` of notifications, `Empty` state, per-item dismiss |
 | `NotificationToasts` | NEW notifications (not seen at mount) as transient antd `Alert`s top-left, auto-dismissed after 5 s, close dispatches dismiss |
 
@@ -63,7 +63,7 @@ semantic tokens.
 
 Redux Toolkit owns the server-backed, shared, and screen-spanning state. Slices live in `store/slices/` with their thunks/actions and selectors co-located; `makeStore()` wires them and `store/hooks.ts` exports the typed `useAppDispatch`/`useAppSelector`:
 
-- **health** — fetched at boot (`main.tsx`), re-checked by the setup screen
+- **health** — fetched at boot (`main.tsx`), re-checked by the setup screen; the slice holds the `{status, backend:{name, api_key_configured, model, provider}, wiki:{path, exists}, version, dev, commit, default_wiki_path}` shape — `App`/`SetupScreen` gate on `backend.api_key_configured` + `wiki.exists`, `DevBanner` reads `dev`/`commit`, `AppSider`'s footer reads `version`
 - **settings** — loaded on mount, saved through the slice (submit button reflects `saving`); also holds the `/api/models` picker list
 - **conversations** — refetched on URL changes and when a new chat is created; deletes filter the list in the slice
 - **chat** — the live conversation (messages, streaming, thinking, lastTool, conversationId), fed by WS frames via `useChat`
@@ -81,7 +81,7 @@ Deliberate exceptions (documented in `references/patterns.md`): per-keystroke dr
 
 ## WebSocket client
 
-`ChatSocket` sends `send`/`cancel`/`resume`/`open` (`open` pins the server-side conversation without replay and never becomes the reconnect-resume id), forwards `assistant_*`/`tool_activity`/`turn_done`/`error` frames, and reconnects exactly once after 1 s — sending `resume` from `onopen` so the turn re-syncs. It also sends a `presence` frame (`ChatPanel` wires it to the Page Visibility API): a hidden tab reports `active:false`, which the server treats as "not in the chat page" and uses to flush idle pooled CLI processes after its relaxation timeout; the last reported presence is re-sent from `onopen` so a hidden tab stays counted as away across a reconnect.
+`ChatSocket` sends `send`/`cancel`/`resume`/`open` (`open` pins the server-side conversation without replay and never becomes the reconnect-resume id), forwards `assistant_*`/`tool_activity`/`turn_done`/`error` frames (the optional `usage` breakdown on `turn_done`, and on persisted messages loaded from history, feeds the token-usage footer under the last message), and reconnects exactly once after 1 s — sending `resume` from `onopen` so the turn re-syncs. It also sends a `presence` frame (`ChatPanel` wires it to the Page Visibility API): a hidden tab reports `active:false`. The frame is kept for protocol compatibility — Thoth Agent keeps no idle processes to flush, so the server ignores it — and the last reported presence is re-sent from `onopen`.
 
 ## Design system
 

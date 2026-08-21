@@ -1,20 +1,17 @@
 package cli
 
 import (
-	"context"
-	"errors"
 	"io"
 	"log/slog"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
+	agentgit "github.com/shiv-source/thoth/agent/git"
 	"github.com/shiv-source/thoth/internal/assets"
-	"github.com/shiv-source/thoth/internal/claude"
 	"github.com/shiv-source/thoth/internal/config"
+	"github.com/shiv-source/thoth/internal/github"
 	"github.com/shiv-source/thoth/internal/index"
 	"github.com/shiv-source/thoth/internal/settings"
 	"github.com/shiv-source/thoth/internal/store"
@@ -225,22 +222,25 @@ func TestSettleWikiPath(t *testing.T) {
 func TestDevCommit(t *testing.T) {
 	t.Run("returns the full commit id inside a repo", func(t *testing.T) {
 		dir := t.TempDir()
-		run := func(args ...string) string {
-			out, err := exec.Command("git", append([]string{"-C", dir}, args...)...).CombinedOutput()
-			if err != nil {
-				t.Fatalf("git %v: %v\n%s", args, err, out)
-			}
-			return strings.TrimSpace(string(out))
+		repo, err := agentgit.Init(dir)
+		if err != nil {
+			t.Fatalf("Init: %v", err)
 		}
-		run("init", "-q", "-b", "main")
-		run("config", "user.email", "test@example.com")
-		run("config", "user.name", "test")
+		id := agentgit.Identity{Name: "test", Email: "test@example.com"}
 		if err := os.WriteFile(filepath.Join(dir, "f"), []byte("x"), 0o644); err != nil {
 			t.Fatal(err)
 		}
-		run("add", "f")
-		run("commit", "-q", "-m", "c")
-		want := run("rev-parse", "HEAD")
+		committed, err := repo.CommitAll("c", id)
+		if err != nil {
+			t.Fatalf("CommitAll: %v", err)
+		}
+		if !committed {
+			t.Fatal("CommitAll: nothing committed")
+		}
+		want, err := repo.Head()
+		if err != nil {
+			t.Fatalf("Head: %v", err)
+		}
 		got := devCommit(dir)
 		if got != want {
 			t.Fatalf("devCommit(%q) = %q, want %q", dir, got, want)
@@ -305,28 +305,19 @@ func TestOnSettingsSavedSwitchesRootAndRestartsWatcher(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	root := newRootHolder(oldRoot)
 	w := wiki.New(oldRoot)
 	var watched []string
 	startWatcher := func(r string) { watched = append(watched, r) }
-	flushed := 0
-	flush := func() { flushed++ }
 
-	cb := onSettingsSaved(log, stg, root, w, ix, startWatcher, flush)
+	cb := onSettingsSaved(log, stg, w, ix, startWatcher)
 	if err := cb(newRoot); err != nil {
 		t.Fatalf("callback: %v", err)
 	}
-	if got := root.get(); got != newRoot {
-		t.Fatalf("rootHolder = %q, want %q", got, newRoot)
-	}
-	if w.Root != newRoot {
-		t.Fatalf("wiki root = %q, want %q", w.Root, newRoot)
+	if w.Root() != newRoot {
+		t.Fatalf("wiki root = %q, want %q", w.Root(), newRoot)
 	}
 	if len(watched) != 1 || watched[0] != newRoot {
 		t.Fatalf("watcher restarted with %v, want [%q]", watched, newRoot)
-	}
-	if flushed != 1 {
-		t.Fatalf("pooled CLI flush ran %d times, want 1", flushed)
 	}
 	// The new root was scaffolded by the callback.
 	if !w.Exists() {
@@ -338,9 +329,6 @@ func TestOnSettingsSavedSwitchesRootAndRestartsWatcher(t *testing.T) {
 	}
 	if len(watched) != 1 {
 		t.Fatalf("no-op callback restarted the watcher: %v", watched)
-	}
-	if flushed != 1 {
-		t.Fatalf("no-op callback flushed again: %d", flushed)
 	}
 }
 
@@ -376,28 +364,19 @@ func TestOnSettingsSavedFailureLeavesRootUntouched(t *testing.T) {
 	}
 	newRoot := filepath.Join(blocker, "wiki")
 
-	root := newRootHolder(oldRoot)
 	w := wiki.New(oldRoot)
 	var watched []string
 	startWatcher := func(r string) { watched = append(watched, r) }
-	flushed := 0
-	flush := func() { flushed++ }
 
-	cb := onSettingsSaved(log, stg, root, w, ix, startWatcher, flush)
+	cb := onSettingsSaved(log, stg, w, ix, startWatcher)
 	if err := cb(newRoot); err == nil {
 		t.Fatal("expected error when scaffold fails")
 	}
-	if got := root.get(); got != oldRoot {
-		t.Fatalf("rootHolder mutated after failure: %q", got)
-	}
-	if w.Root != oldRoot {
-		t.Fatalf("wiki root mutated after failure: %q", w.Root)
+	if w.Root() != oldRoot {
+		t.Fatalf("wiki root mutated after failure: %q", w.Root())
 	}
 	if len(watched) != 0 {
 		t.Fatalf("watcher restarted after failure: %v", watched)
-	}
-	if flushed != 0 {
-		t.Fatalf("pooled CLI flushed after failure: %d", flushed)
 	}
 }
 
@@ -421,14 +400,125 @@ func TestEnsureWikiRecreatesReservedAttachments(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ensureWiki: %v", err)
 	}
-	if w.Root != root {
-		t.Fatalf("wiki root = %q, want %q", w.Root, root)
+	if w.Root() != root {
+		t.Fatalf("wiki root = %q, want %q", w.Root(), root)
 	}
 	if _, err := os.Stat(filepath.Join(root, "attachments")); err != nil {
 		t.Fatalf("ensureWiki must create the reserved attachments dir: %v", err)
 	}
 	if _, err := os.Stat(filepath.Join(root, "attachments", ".gitkeep")); err != nil {
 		t.Fatalf("reserved attachments dir must carry a .gitkeep: %v", err)
+	}
+}
+
+// TestGitToolOptions asserts the agent git tools are wired to the live wiki
+// root, the sync switch (Guard), and the stored GitHub connection (Auth and
+// Identity), all evaluated lazily so a connection change applies without
+// restart.
+func TestGitToolOptions(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "test.db")
+	st, err := store.Open(dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = st.Close() })
+	stg, err := settings.OpenRepo(dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = stg.Close() })
+	gh, err := github.OpenRepo(dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = gh.Close() })
+
+	root := t.TempDir()
+	w := wiki.New(root)
+	opts := gitToolOptions(w, stg, gh)
+
+	// RepoPath follows the live wiki root (it can move).
+	if opts.RepoPath == nil {
+		t.Fatal("RepoPath must be set")
+	}
+	if got := opts.RepoPath(); got != root {
+		t.Fatalf("RepoPath() = %q, want %q", got, root)
+	}
+
+	// Guard: disabled blocks, enabled passes.
+	if err := opts.Guard(); err == nil || !strings.Contains(err.Error(), "sync is disabled") {
+		t.Fatalf("Guard (disabled) = %v, want sync-disabled error", err)
+	}
+	if err := stg.SetSetting(settings.KeySyncEnabled, "true"); err != nil {
+		t.Fatal(err)
+	}
+	if err := opts.Guard(); err != nil {
+		t.Fatalf("Guard (enabled) = %v, want nil", err)
+	}
+
+	// Auth and identity error cleanly before a connection exists.
+	if _, err := opts.Auth(); err == nil || !strings.Contains(err.Error(), "no GitHub connection") {
+		t.Fatalf("Auth (no connection) = %v, want connection error", err)
+	}
+	if _, err := opts.Identity(); err == nil || !strings.Contains(err.Error(), "no GitHub connection") {
+		t.Fatalf("Identity (no connection) = %v, want connection error", err)
+	}
+
+	// The stored connection supplies push credentials and the identity; the
+	// display name overrides the username as the committer name.
+	if err := gh.Save(github.Auth{Token: "tok", Username: "user", Email: "u@e.com"}); err != nil {
+		t.Fatal(err)
+	}
+	a, err := opts.Auth()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if a.Token != "tok" || a.Username != "user" {
+		t.Fatalf("Auth = %+v, want stored credentials", a)
+	}
+	id, err := opts.Identity()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if id.Name != "user" || id.Email != "u@e.com" {
+		t.Fatalf("Identity = %+v, want username fallback", id)
+	}
+	if err := gh.Save(github.Auth{Token: "t2", Username: "user", DisplayName: "Real Name", Email: "u@e.com"}); err != nil {
+		t.Fatal(err)
+	}
+	id, err = opts.Identity()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if id.Name != "Real Name" || id.Email != "u@e.com" {
+		t.Fatalf("Identity = %+v, want display name", id)
+	}
+}
+
+// TestEnsureWikiGitInitsPreExistingWiki covers the EnsureGitRepo step: a
+// wiki that exists but was never versioned is git-inited on startup, so the
+// agent's git tools always have a repository to act on.
+func TestEnsureWikiGitInitsPreExistingWiki(t *testing.T) {
+	_, stg := openTestRepos(t)
+	log := slog.New(slog.NewTextHandler(io.Discard, nil))
+
+	root := t.TempDir()
+	if err := wiki.ScaffoldWithOptions(root, wiki.ScaffoldOptions{Folders: []string{"notes"}, GitInit: false}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(root, ".git")); !os.IsNotExist(err) {
+		t.Fatal("precondition: wiki must not be a git repo")
+	}
+
+	w, err := ensureWiki(root, stg, log)
+	if err != nil {
+		t.Fatalf("ensureWiki: %v", err)
+	}
+	if w.Root() != root {
+		t.Fatalf("wiki root = %q, want %q", w.Root(), root)
+	}
+	if _, err := os.Stat(filepath.Join(root, ".git")); err != nil {
+		t.Fatalf("ensureWiki must git-init a pre-existing wiki: %v", err)
 	}
 }
 
@@ -494,197 +584,115 @@ func TestServeErrorWhenWikiScaffoldFails(t *testing.T) {
 	}
 }
 
-// writePrewarmFake writes a fake claude that logs each invocation's argv to
-// argv.txt and, per stream-json user control line on stdin, replies with one
-// turn — the contract a pooled process must satisfy for a boot pre-warm: a
-// warm process answers a later turn without a respawn.
-func writePrewarmFake(t *testing.T) string {
-	t.Helper()
-	dir := t.TempDir()
-	bin := filepath.Join(dir, "claude")
-	script := `#!/bin/sh
-echo "$@" >> "$(dirname "$0")/argv.txt"
-n=0
-while IFS= read -r line; do
-  case "$line" in
-    *user*)
-      n=$((n+1))
-      echo '{"type":"assistant","message":{"content":[{"type":"text","text":"turn-'$n'"}]}}'
-      echo '{"type":"result","subtype":"success","is_error":false,"result":"done"}'
-      ;;
-  esac
-done
-`
-	if err := os.WriteFile(bin, []byte(script), 0o755); err != nil {
+// TestModelProvider resolves the llm_models provider label for a model value.
+func TestModelProvider(t *testing.T) {
+	st, _ := openTestRepos(t)
+	if err := ensureModels(st); err != nil {
+		t.Fatalf("ensureModels: %v", err)
+	}
+	tests := []struct{ value, want string }{
+		{"deepseek-v4-flash", "DeepSeek"},
+		{"claude-opus-4-8", "Anthropic"},
+		{"", ""},
+		{"unknown-model", ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.value, func(t *testing.T) {
+			got, err := modelProvider(st, tt.value)
+			if err != nil {
+				t.Fatalf("modelProvider(%q): %v", tt.value, err)
+			}
+			if got != tt.want {
+				t.Fatalf("modelProvider(%q) = %q, want %q", tt.value, got, tt.want)
+			}
+		})
+	}
+}
+
+// TestServeProviderConfigResolution covers the boot chain model → provider →
+// config: the model's registry row names the provider, the per-provider
+// settings resolve from it (own key/base URL win; the shared api_key is the
+// fallback).
+func TestServeProviderConfigResolution(t *testing.T) {
+	st, stg := openTestRepos(t)
+	if err := ensureModels(st); err != nil {
+		t.Fatalf("ensureModels: %v", err)
+	}
+
+	// A model with a configured provider: per-provider key + base URL win.
+	if err := stg.SetSetting(settings.ProviderAPIKeyKey("DeepSeek"), "ds-key"); err != nil {
 		t.Fatal(err)
 	}
-	return bin
-}
-
-// cliSpawnCount returns how many pooled processes the fake spawned (0 when
-// argv.txt is not there yet — prewarm spawns asynchronously).
-func cliSpawnCount(t *testing.T, bin string) int {
-	t.Helper()
-	raw, err := os.ReadFile(filepath.Join(filepath.Dir(bin), "argv.txt"))
-	if err != nil {
-		return 0
+	if err := stg.SetSetting(settings.ProviderBaseURLKey("DeepSeek"), "https://api.deepseek.com"); err != nil {
+		t.Fatal(err)
 	}
-	return strings.Count(string(raw), "--input-format")
+	provider, err := modelProvider(st, "deepseek-v4-flash")
+	if err != nil {
+		t.Fatal(err)
+	}
+	apiKey, baseURL, err := stg.ProviderConfig(provider)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if provider != "DeepSeek" || apiKey != "ds-key" || baseURL != "https://api.deepseek.com" {
+		t.Fatalf("configured: provider=%q key=%q base=%q", provider, apiKey, baseURL)
+	}
+
+	// A provider without per-provider config falls back to the shared key
+	// and the default endpoint (empty base URL).
+	if err := stg.SetSetting(settings.KeyAPIKey, "shared-key"); err != nil {
+		t.Fatal(err)
+	}
+	provider, err = modelProvider(st, "claude-opus-4-8")
+	if err != nil {
+		t.Fatal(err)
+	}
+	apiKey, baseURL, err = stg.ProviderConfig(provider)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if provider != "Anthropic" || apiKey != "shared-key" || baseURL != "" {
+		t.Fatalf("fallback: provider=%q key=%q base=%q", provider, apiKey, baseURL)
+	}
 }
 
-func waitForCond(t *testing.T, timeout time.Duration, cond func() bool) {
-	t.Helper()
-	deadline := time.Now().Add(timeout)
-	for time.Now().Before(deadline) {
-		if cond() {
-			return
+// TestDefaultModel picks the first seeded claude model for a fresh install
+// whose settings model key is unset.
+func TestDefaultModel(t *testing.T) {
+	st, _ := openTestRepos(t)
+	if err := ensureModels(st); err != nil {
+		t.Fatalf("ensureModels: %v", err)
+	}
+	if got := defaultModel(st); got != "claude-opus-4-8" {
+		t.Fatalf("defaultModel = %q, want claude-opus-4-8 (first seeded claude model)", got)
+	}
+
+	// A user who removed every claude model gets no default; agent.New then
+	// surfaces its own required-model error rather than booting on a guess.
+	models, err := st.ListModels()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, m := range models {
+		if strings.HasPrefix(m.Value, "claude-") {
+			if err := st.DeleteModel(m.ID); err != nil {
+				t.Fatal(err)
+			}
 		}
-		time.Sleep(10 * time.Millisecond)
 	}
-	t.Fatalf("condition not met within %v", timeout)
-}
-
-func TestPrewarmPoolExistingConversation(t *testing.T) {
-	log := slog.New(slog.NewTextHandler(io.Discard, nil))
-	st, _ := openTestRepos(t)
-	bin := writePrewarmFake(t)
-	pc := claude.NewPersistent(bin, t.TempDir())
-	t.Cleanup(func() { _ = pc.Close() })
-
-	id, err := st.CreateConversation("warm me")
-	if err != nil {
-		t.Fatal(err)
-	}
-	prewarmPool(log, st, pc)
-
-	// The warm spawn must be the persistent-mode invocation for the
-	// conversation's session, with no prompt (it rides stdin later).
-	waitForCond(t, 5*time.Second, func() bool { return cliSpawnCount(t, bin) == 1 })
-	raw, err := os.ReadFile(filepath.Join(filepath.Dir(bin), "argv.txt"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, want := range []string{"-p", "--input-format", "stream-json", "--output-format", "stream-json", "--verbose", "--session-id", id} {
-		if !strings.Contains(string(raw), want) {
-			t.Fatalf("prewarm argv %q missing %q", raw, want)
-		}
-	}
-
-	// The warmed process is alive and pooled: a turn on the same session
-	// produces zero new spawns.
-	var got []claude.Event
-	if err := pc.Start(context.Background(), id, "hello", claude.WriterFunc(func(e claude.Event) error {
-		got = append(got, e)
-		return nil
-	})); err != nil {
-		t.Fatalf("Start on warmed session: %v", err)
-	}
-	if len(got) == 0 || got[0].Text != "turn-1" {
-		t.Fatalf("warmed-session deltas: %+v", got)
-	}
-	if n := cliSpawnCount(t, bin); n != 1 {
-		t.Fatalf("turn after prewarm respawned: %d spawns, want 1", n)
+	if got := defaultModel(st); got != "" {
+		t.Fatalf("defaultModel after deleting claude models = %q, want empty", got)
 	}
 }
 
-func TestPrewarmPoolUsesRotatedSessionID(t *testing.T) {
-	log := slog.New(slog.NewTextHandler(io.Discard, nil))
-	st, _ := openTestRepos(t)
-	bin := writePrewarmFake(t)
-	pc := claude.NewPersistent(bin, t.TempDir())
-	t.Cleanup(func() { _ = pc.Close() })
-
-	id, err := st.CreateConversation("warm me")
-	if err != nil {
-		t.Fatal(err)
-	}
-	// A forked session is the one a turn uses, so it — not the conversation
-	// id — must be warmed.
-	if err := st.SetClaudeSessionID(id, "rotated-session-uuid"); err != nil {
-		t.Fatal(err)
-	}
-	prewarmPool(log, st, pc)
-	waitForCond(t, 5*time.Second, func() bool { return cliSpawnCount(t, bin) == 1 })
-	raw, err := os.ReadFile(filepath.Join(filepath.Dir(bin), "argv.txt"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(string(raw), "--session-id rotated-session-uuid") {
-		t.Fatalf("prewarm argv %q must carry the rotated session id", raw)
-	}
-}
-
-func TestPrewarmPoolEmptyDBLeavesPoolEmpty(t *testing.T) {
-	log := slog.New(slog.NewTextHandler(io.Discard, nil))
-	st, _ := openTestRepos(t)
-	bin := writePrewarmFake(t)
-	pc := claude.NewPersistent(bin, t.TempDir())
-	t.Cleanup(func() { _ = pc.Close() })
-
-	prewarmPool(log, st, pc)
-	if n := cliSpawnCount(t, bin); n != 0 {
-		t.Fatalf("empty database must not prewarm, got %d spawns", n)
-	}
-}
-
-func TestPrewarmPoolSpawnFailureNonFatal(t *testing.T) {
-	log := slog.New(slog.NewTextHandler(io.Discard, nil))
-	st, _ := openTestRepos(t)
-	if _, err := st.CreateConversation("warm me"); err != nil {
-		t.Fatal(err)
-	}
-	pc := claude.NewPersistent(filepath.Join(t.TempDir(), "missing-claude"), t.TempDir())
-	t.Cleanup(func() { _ = pc.Close() })
-
-	prewarmPool(log, st, pc) // must not panic; boot continues
-	if n := cliSpawnCount(t, filepath.Dir(pc.Bin)); n != 0 {
-		t.Fatalf("failed prewarm spawned: %d", n)
-	}
-}
-
-func TestPrewarmPoolStoreErrorNonFatal(t *testing.T) {
-	log := slog.New(slog.NewTextHandler(io.Discard, nil))
-	bin := writePrewarmFake(t)
-	pc := claude.NewPersistent(bin, t.TempDir())
-	t.Cleanup(func() { _ = pc.Close() })
+// TestDefaultModelStoreErrorFallsBackToEmpty covers the defensive branch: a
+// closed store must not panic, just report no default.
+func TestDefaultModelStoreErrorFallsBackToEmpty(t *testing.T) {
 	st, _ := openTestRepos(t)
 	if err := st.Close(); err != nil {
 		t.Fatal(err)
 	}
-
-	prewarmPool(log, st, pc) // closed store: warn and continue
-	if n := cliSpawnCount(t, bin); n != 0 {
-		t.Fatalf("store error must not prewarm, got %d spawns", n)
-	}
-}
-
-// fakePrewarmStore drives prewarmPool's defensive branches that a real store
-// cannot isolate (a session-id lookup only fails after the recent-conversation
-// lookup succeeded, which a closed db cannot express).
-type fakePrewarmStore struct {
-	recent    store.Conversation
-	recentErr error
-	sid       string
-	sidErr    error
-}
-
-func (f *fakePrewarmStore) RecentConversation() (store.Conversation, error) {
-	return f.recent, f.recentErr
-}
-
-func (f *fakePrewarmStore) ClaudeSessionID(string) (string, error) {
-	return f.sid, f.sidErr
-}
-
-func TestPrewarmPoolSessionIDErrorNonFatal(t *testing.T) {
-	log := slog.New(slog.NewTextHandler(io.Discard, nil))
-	bin := writePrewarmFake(t)
-	pc := claude.NewPersistent(bin, t.TempDir())
-	t.Cleanup(func() { _ = pc.Close() })
-	st := &fakePrewarmStore{recent: store.Conversation{ID: "conv-1"}, sidErr: errors.New("boom")}
-
-	prewarmPool(log, st, pc) // session-id lookup error: warn and continue
-	if n := cliSpawnCount(t, bin); n != 0 {
-		t.Fatalf("session-id error must not prewarm, got %d spawns", n)
+	if got := defaultModel(st); got != "" {
+		t.Fatalf("defaultModel on closed store = %q, want empty", got)
 	}
 }

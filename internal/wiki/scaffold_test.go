@@ -81,6 +81,38 @@ func TestScaffoldErrorWhenParentIsFile(t *testing.T) {
 	}
 }
 
+func TestScaffoldErrorWhenFolderIsFile(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "inbox"), []byte("file"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := ScaffoldWithOptions(dir, ScaffoldOptions{Folders: []string{"inbox"}, GitInit: false}); err == nil {
+		t.Fatal("expected error when a scaffold folder name is blocked by a file")
+	}
+}
+
+func TestEnsureReservedDirErrorWhenRootIsFile(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "file")
+	if err := os.WriteFile(root, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := EnsureReservedDir(root); err == nil {
+		t.Fatal("expected error when the wiki root is a file")
+	}
+}
+
+func TestFoldersReturnsCopy(t *testing.T) {
+	got := Folders()
+	if !slices.Equal(got, defaultFolders) {
+		t.Fatalf("Folders() = %v, want %v", got, defaultFolders)
+	}
+	// The returned slice is a copy: mutating it must not mutate the default.
+	got[0] = "mutated"
+	if Folders()[0] == "mutated" {
+		t.Fatal("Folders() must return a copy of the defaults")
+	}
+}
+
 func TestScaffoldCustomFolders(t *testing.T) {
 	dir := t.TempDir()
 	custom := []string{"journal", "recipes"}
@@ -133,6 +165,41 @@ func TestScaffoldInitializesGit(t *testing.T) {
 	// Idempotent: a second scaffold must not error.
 	if err := Scaffold(dir); err != nil {
 		t.Fatalf("second Scaffold: %v", err)
+	}
+}
+
+// TestEnsureGitRepoInitsUnversionedWiki covers the startup git-init step: a
+// pre-existing wiki with no repository becomes versioned (with the same
+// .gitignore the scaffold writes), and an already-versioned wiki is left
+// alone.
+func TestEnsureGitRepoInitsUnversionedWiki(t *testing.T) {
+	dir := t.TempDir()
+	if err := EnsureGitRepo(dir); err != nil {
+		t.Fatalf("EnsureGitRepo: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, ".git")); err != nil {
+		t.Fatalf("expected a git repo: %v", err)
+	}
+	gitignore, err := os.ReadFile(filepath.Join(dir, ".gitignore"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{".DS_Store", "*.db"} {
+		if !strings.Contains(string(gitignore), want) {
+			t.Fatalf(".gitignore missing %q: %q", want, gitignore)
+		}
+	}
+	// Idempotent on the repo it just created.
+	if err := EnsureGitRepo(dir); err != nil {
+		t.Fatalf("second EnsureGitRepo: %v", err)
+	}
+	// Idempotent on a shell-git-initialized wiki too.
+	other := t.TempDir()
+	if err := Scaffold(other); err != nil {
+		t.Fatalf("Scaffold: %v", err)
+	}
+	if err := EnsureGitRepo(other); err != nil {
+		t.Fatalf("EnsureGitRepo on versioned wiki: %v", err)
 	}
 }
 

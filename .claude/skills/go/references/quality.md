@@ -2,11 +2,11 @@
 
 ## make check — everything CI enforces, locally
 `make check` runs, in order: fmt, lint, race, cover, web-test, build.
-CI (.github/ workflows) runs: vet → race → `make cover` (the 80% gate) → lint →
+CI (.github/ workflows) runs: vet → race → `make cover` (the 90% gate) → lint →
 5 cross-compiles → frontend.
 
 ## Coverage
-- Floor: 80% on internal/ + cmd/ — CI-enforced (`make cover`)
+- Floor: 90% on agent/ + internal/ + cmd/ — CI-enforced (`make cover`)
 - Table-driven tests; assert real outcomes, not mocks of yourself (CLAUDE.md)
 - internal/claude tests use FakeClient — no test ever touches the real CLI
 

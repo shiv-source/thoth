@@ -1,5 +1,6 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit'
 import type { RootState } from '../index'
+import type { TokenUsage } from '../../ws/chat'
 
 export interface ChatMessage {
     role: 'user' | 'assistant'
@@ -13,6 +14,9 @@ interface ChatState {
     lastTool: string | null
     thinking: boolean
     thinkingText: string
+    // lastUsage is the last completed turn's token breakdown, rendered under
+    // the final assistant message; null when the turn reported none.
+    lastUsage: TokenUsage | null
     // freshMessage marks that assistant_start opened a new turn whose first
     // delta must start a NEW assistant message (never append into a previous
     // turn's message or an error marker).
@@ -26,6 +30,7 @@ const initialState: ChatState = {
     lastTool: null,
     thinking: false,
     thinkingText: '',
+    lastUsage: null,
     freshMessage: false
 }
 
@@ -39,6 +44,7 @@ export const chatSlice = createSlice({
         userMessage: (s, a: PayloadAction<string>) => {
             s.messages.push({ role: 'user', content: a.payload })
             s.streaming = true
+            s.lastUsage = null
             s.freshMessage = false
         },
         assistantStart: (s) => {
@@ -66,8 +72,9 @@ export const chatSlice = createSlice({
             s.thinkingText = ''
             s.lastTool = a.payload
         },
-        turnDone: (s, a: PayloadAction<string | null>) => {
-            if (a.payload !== null) s.conversationId = a.payload
+        turnDone: (s, a: PayloadAction<{ conversationId: string | null; usage?: TokenUsage }>) => {
+            if (a.payload.conversationId !== null) s.conversationId = a.payload.conversationId
+            s.lastUsage = a.payload.usage ?? null
             s.streaming = false
             s.lastTool = null
             s.thinking = false
@@ -80,19 +87,22 @@ export const chatSlice = createSlice({
             s.lastTool = null
             s.thinking = false
             s.thinkingText = ''
+            s.lastUsage = null
             s.freshMessage = false
         },
         stopStreaming: (s) => {
             s.streaming = false
+            s.lastUsage = null
             s.freshMessage = false
         },
-        loadChat: (s, a: PayloadAction<{ messages: ChatMessage[]; conversationId: string }>) => {
+        loadChat: (s, a: PayloadAction<{ messages: ChatMessage[]; conversationId: string; usage?: TokenUsage }>) => {
             s.messages = a.payload.messages
             s.conversationId = a.payload.conversationId
             s.streaming = false
             s.lastTool = null
             s.thinking = false
             s.thinkingText = ''
+            s.lastUsage = a.payload.usage ?? null
             s.freshMessage = false
         },
         resetChat: (s) => {
@@ -102,6 +112,7 @@ export const chatSlice = createSlice({
             s.lastTool = null
             s.thinking = false
             s.thinkingText = ''
+            s.lastUsage = null
             s.freshMessage = false
         }
     }
@@ -126,3 +137,4 @@ export const selectConversationId = (s: RootState) => s.chat.conversationId
 export const selectLastTool = (s: RootState) => s.chat.lastTool
 export const selectThinking = (s: RootState) => s.chat.thinking
 export const selectThinkingText = (s: RootState) => s.chat.thinkingText
+export const selectLastUsage = (s: RootState) => s.chat.lastUsage

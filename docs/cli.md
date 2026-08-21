@@ -8,7 +8,7 @@ All commands live in `internal/cli` (Cobra). The binary entrypoint is `cmd/thoth
 
 Starts the app on `127.0.0.1:8333` (default). Flags:
 
-- `--dev` — bind the dev port (`127.0.0.1:8334`, `config.DevPort`) and isolate all data under `~/.thoth/dev/` (its own `thoth.db`, default wiki `~/.thoth/dev/wiki/`, and stream dump), so a running instance keeps 8333 and its data; `make dev` uses this. Vite's proxy follows via the `THOTH_PORT` env var. At boot the dev server rewrites the seeded prod wiki default to the dev wiki and reports `dev: true` plus the checkout's full commit id in `/api/health`; the UI shows a warning banner with that commit.
+- `--dev` — bind the dev port (`127.0.0.1:8334`, `config.DevPort`) and isolate all data under `~/.thoth/dev/` (its own `thoth.db`, default wiki `~/.thoth/dev/wiki/`), so a running instance keeps 8333 and its data; `make dev` uses this. Vite's proxy follows via the `THOTH_PORT` env var. At boot the dev server rewrites the seeded prod wiki default to the dev wiki and reports `dev: true` plus the checkout's full commit id in `/api/health`; the UI shows a warning banner with that commit.
 
 Startup sequence:
 
@@ -16,13 +16,13 @@ Startup sequence:
 2. Scaffold the wiki if it doesn't exist
 3. Open `thoth.db` (index + store), sync the search index with the tree
 4. Start the fsnotify watcher
-5. Resolve the claude binary (config → `PATH` → warn)
-6. Pre-warm the CLI pool for the most recently active conversation (best-effort: empty DB, or a lookup/spawn failure, only logs a warning and serves — the first send on that session spawns normally). The pool is capped at 4 processes (LRU-idle eviction on overflow); idle processes are flushed ~1 min after the user leaves the chat page (socket closed or tab hidden)
-7. Serve; SIGINT/SIGTERM → graceful shutdown (cancels in-flight Claude turns, then exits)
+5. Resolve the turn's model and credential: the selected model's `llm_models` row names the provider, whose per-provider api key/base URL win over the shared key and the provider's default endpoint (`modelProvider` + `ProviderConfig`)
+6. Build the Thoth Agent host — `agent.New(model, apiKey, wiki, store, index, …)` with the provider config and folder set. It runs in-process: there is no CLI subprocess to spawn or pool to pre-warm anywhere in the chat path
+7. Serve; SIGINT/SIGTERM → graceful shutdown (cancels in-flight agent turns, then exits)
 
 ### `thoth init [path]`
 
-Scaffolds a wiki directory — the configured folder set (or the default 9, now including `attachments/`) plus the `CLAUDE.md` rulebook, then initializes a local git repo with a `.gitignore` (`.DS_Store`, `*.db`) when git is installed. Defaults to `~/.thoth/wiki`. Never overwrites an existing rulebook.
+Scaffolds a wiki directory — the configured folder set (or the default 9, now including `attachments/`) plus the `CLAUDE.md` rulebook, then initializes a local git repo with a `.gitignore` (`.DS_Store`, `*.db`) via the pure-Go `agent/git` backend — no git binary needed. Defaults to `~/.thoth/wiki`. Never overwrites an existing rulebook.
 
 **Optional** — `serve` scaffolds the default wiki automatically when it doesn't exist (see the startup sequence above). Run `init` only to choose a custom location.
 
@@ -37,16 +37,15 @@ Prints `thoth <version>` (`dev` in development builds).
 
 ### `thoth doctor`
 
-Runs ten health checks and reports each. The checks live in the shared `internal/doctor` package — the dashboard's Settings → Doctor tab runs the same suite over `GET /api/doctor`:
+Runs nine health checks and reports each. The checks live in the shared `internal/doctor` package — the dashboard's Settings → Doctor tab runs the same suite over `GET /api/doctor`:
 
 | Check | What it verifies |
 |---|---|
 
 | wiki | wiki exists with all 9 folders + `CLAUDE.md` |
-| claude | binary found; `claude --version` works |
-| claude login | `claude auth status` exits 0 (reported when the binary was found) |
-| api key | an API key is stored in the settings table (unset = inherit the server's `ANTHROPIC_API_KEY`) |
-| model | a model is selected in the settings table (unset = the CLI's own default) |
+| provider | the provider the selected model's `llm_models` row names answers its models endpoint, probed with the per-provider API key and base URL (falling back to the shared key and the provider default); 200 = reachable; 401 = bad/absent API key, 429 = rate limited, 5xx = provider error, timeout = unreachable |
+| api key | a usable API key is configured for the selected provider — its own key, or the shared `api_key` fallback (unset = the agent inherits the key from the server environment) |
+| model | a model is selected and exists in the `llm_models` registry (unset = the default model; a value not in the registry = "unknown model") |
 | database | db opens in WAL with `notes` + `notes_fts` tables |
 | index | indexed count matches the number of valid notes on disk |
 | malformed | no markdown notes the index silently skips (unparseable frontmatter) |
@@ -57,8 +56,9 @@ Flags:
 
 | Flag | Purpose |
 |---|---|
-| `--fix` | Repair the safe failures: missing config (writes defaults), missing wiki (scaffolds), out-of-sync index (syncs). Never touches your Claude login. |
+| `--fix` | Repair the safe failures: missing wiki (scaffolds), out-of-sync index (syncs). Never touches provider connectivity or API keys. |
 | `--dir` | (hidden, test-only) Override `~/.thoth` |
+| `--provider-base-url` | (hidden, test-only) Provider base URL the provider check probes instead of the provider's public endpoint |
 
 **Exit codes:** `0` when all checks pass, `1` when any fails. Script-friendly:
 

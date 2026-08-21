@@ -3,11 +3,10 @@ package api
 import (
 	"context"
 	"log/slog"
-	"time"
+	"net/http"
 
 	"github.com/go-warehouse/events"
 	"github.com/labstack/echo/v4"
-	"github.com/shiv-source/thoth/internal/claude"
 	"github.com/shiv-source/thoth/internal/github"
 	"github.com/shiv-source/thoth/internal/index"
 	"github.com/shiv-source/thoth/internal/settings"
@@ -19,27 +18,21 @@ import (
 type Deps struct {
 	Log             *slog.Logger
 	Store           *store.Store
-	Claude          claude.Client
+	Claude          Client
 	GitHub          *github.Service
 	Settings        *settings.Repo
-	DataDir         string // thoth dir (~/.thoth) — the doctor handler probes it
-	DoctorAddr      string // host:port for the doctor's api/websocket probes ("" → 127.0.0.1:8333); tests point it at a free port
-	Version         string // build version, shown in /api/health and the UI footer
-	Dev             bool   // serve --dev — exposed via /api/health so the UI can show the dev banner
-	Commit          string // full git commit id the server runs from (dev only), shown in the dev banner
-	DefaultWikiPath string // the mode's wiki default in tilde form (~/.thoth/wiki, or ~/.thoth/dev/wiki in dev) — the settings hint reads it
+	DataDir         string       // thoth dir (~/.thoth) — the doctor handler probes it
+	DoctorAddr      string       // host:port for the doctor's api/websocket probes ("" → 127.0.0.1:8333); tests point it at a free port
+	DoctorHTTP      *http.Client // HTTP client for the doctor's provider probe (nil → http.DefaultClient); tests stub the endpoint
+	DoctorBaseURL   string       // provider base URL the doctor's provider probe targets ("" → the provider default); tests point it at a stub
+	Version         string       // build version, shown in /api/health and the UI footer
+	Dev             bool         // serve --dev — exposed via /api/health so the UI can show the dev banner
+	Commit          string       // full git commit id the server runs from (dev only), shown in the dev banner
+	DefaultWikiPath string       // the mode's wiki default in tilde form (~/.thoth/wiki, or ~/.thoth/dev/wiki in dev) — the settings hint reads it
 	Wiki            *wiki.Wiki
 	Index           *index.Index
 	OnSettingsSaved func(wikiPath string) error
 	Ctx             context.Context // cancelled on shutdown; reaps in-flight turns
-	// RelaxTimeout, when positive, flushes idle pooled CLI processes
-	// (OnChatAway) this long after the last chat client disconnects or hides
-	// its tab, so they do not idle for their full 10-minute timer. Zero
-	// disables the relaxation flush.
-	RelaxTimeout time.Duration
-	// OnChatAway runs when RelaxTimeout elapses with no active chat client.
-	// serve wires it to the pool's Flush.
-	OnChatAway func()
 	// Events is the in-process event bus. When set, wiki change batches are
 	// forwarded to connected clients as wiki_changed frames; nil disables
 	// the push (tests without a bus).
@@ -92,7 +85,7 @@ func newServer(d Deps) (*echo.Echo, *Hub) {
 	e.DELETE("/api/github/auth", func(c echo.Context) error { return disconnectGitHub(c, d) })
 	e.GET("/api/github/repos", func(c echo.Context) error { return listGitHubRepos(c, d) })
 
-	hub := NewHub(d.Claude, d.Store, d.Log, d.ctx(), d.RelaxTimeout, d.OnChatAway)
+	hub := NewHub(d.Claude, d.Store, d.Log, d.ctx())
 	if d.Events != nil {
 		// Forward wiki change batches to every connected client, so the UI
 		// refetches the tree only when files actually changed.

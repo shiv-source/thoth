@@ -2,7 +2,7 @@ package store
 
 import (
 	"database/sql"
-	"errors"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -22,6 +22,11 @@ type Message struct {
 	Role           string    `json:"role"`
 	Content        string    `json:"content"`
 	CreatedAt      time.Time `json:"created_at"`
+	// Usage is the assistant turn's token breakdown as raw JSON
+	// ({"input_tokens":N,"output_tokens":N,"cache_read_tokens":N,
+	// "cache_write_tokens":N}); nil on user messages and rows written before
+	// usage was tracked.
+	Usage json.RawMessage `json:"usage,omitempty"`
 }
 
 type Store struct {
@@ -47,8 +52,7 @@ func Open(path string) (*Store, error) {
 }
 
 func newID() (string, error) {
-	// Valid RFC 4122 v4: the claude CLI rejects --session-id values that are
-	// not valid UUIDs.
+	// Valid RFC 4122 v4, so ids never collide and parse everywhere.
 	u, err := uuid.NewRandom()
 	if err != nil {
 		return "", fmt.Errorf("generate id: %w", err)
@@ -81,45 +85,16 @@ func (s *Store) CreateConversation(title string) (string, error) {
 	}
 	// created_at is stored as RFC3339 text and compared lexically by
 	// ORDER BY, so it must be UTC: local offsets would misorder rows
-	// written under different offsets.
+	// written under different offsets. The legacy claude_session_id column
+	// is retained but unused — the T12 decision kept it (no migration) to
+	// avoid rewriting the conversations table for a column nothing reads.
 	_, err = s.db.Exec(
-		`INSERT INTO conversations(id, title, created_at, claude_session_id) VALUES (?, ?, ?, ?)`,
-		id, title, time.Now().UTC().Format(time.RFC3339), id)
+		`INSERT INTO conversations(id, title, created_at) VALUES (?, ?, ?)`,
+		id, title, time.Now().UTC().Format(time.RFC3339))
 	if err != nil {
 		return "", fmt.Errorf("create conversation: %w", err)
 	}
 	return id, nil
-}
-
-// ConversationSessionID returns the Claude CLI session id stored for the
-// conversation ("" when the conversation does not exist).
-func (s *Store) ConversationSessionID(convID string) (string, error) {
-	var sid string
-	err := s.db.QueryRow(`SELECT claude_session_id FROM conversations WHERE id = ?`, convID).Scan(&sid)
-	if errors.Is(err, sql.ErrNoRows) {
-		return "", nil
-	}
-	if err != nil {
-		return "", fmt.Errorf("read session id: %w", err)
-	}
-	return sid, nil
-}
-
-// ClaudeSessionID resolves the CLI session id for a conversation: the stored
-// claude_session_id, falling back to the conversation id when none is stored
-// (every app-created conversation seeds its own id, so only legacy rows or a
-// rotated-to-empty value diverge). This is the single resolution the chat hub
-// and the boot prewarm share, so a turn and the process warmed for it always
-// target the same session.
-func (s *Store) ClaudeSessionID(convID string) (string, error) {
-	sid, err := s.ConversationSessionID(convID)
-	if err != nil {
-		return "", err
-	}
-	if sid == "" {
-		return convID, nil
-	}
-	return sid, nil
 }
 
 // DeleteConversation removes the conversation and its messages; deleting a
@@ -143,19 +118,17 @@ func (s *Store) DeleteConversation(convID string) error {
 	return nil
 }
 
-// SetClaudeSessionID stores the Claude CLI session id for the conversation
-// (rotation writes a fresh id after forking away from a stale-locked one).
-func (s *Store) SetClaudeSessionID(convID, sessionID string) error {
-	if _, err := s.db.Exec(`UPDATE conversations SET claude_session_id = ? WHERE id = ?`, sessionID, convID); err != nil {
-		return fmt.Errorf("set session id: %w", err)
+// AddMessage inserts a message. The optional usage is a raw JSON token
+// breakdown carried by the turn's assistant message (see Message.Usage); it is
+// stored as NULL when absent.
+func (s *Store) AddMessage(convID, role, content string, usage ...string) error {
+	var usageVal any
+	if len(usage) > 0 && usage[0] != "" {
+		usageVal = usage[0]
 	}
-	return nil
-}
-
-func (s *Store) AddMessage(convID, role, content string) error {
 	_, err := s.db.Exec(
-		`INSERT INTO messages(conversation_id, role, content, created_at) VALUES (?, ?, ?, ?)`,
-		convID, role, content, time.Now().UTC().Format(time.RFC3339))
+		`INSERT INTO messages(conversation_id, role, content, usage, created_at) VALUES (?, ?, ?, ?, ?)`,
+		convID, role, content, usageVal, time.Now().UTC().Format(time.RFC3339))
 	if err != nil {
 		return fmt.Errorf("add message: %w", err)
 	}
@@ -186,25 +159,10 @@ func (s *Store) ListConversations() ([]Conversation, error) {
 	return out, rows.Err()
 }
 
-// RecentConversation returns the most recently created conversation — the
-// first row of the app's newest-first list, so "most recent" is defined in
-// exactly one place — or the zero Conversation when the store has none. Boot
-// uses it to pre-warm a pooled CLI process for the conversation a user is
-// most likely to resume.
-func (s *Store) RecentConversation() (Conversation, error) {
-	convs, err := s.ListConversations()
-	if err != nil {
-		return Conversation{}, err
-	}
-	if len(convs) == 0 {
-		return Conversation{}, nil
-	}
-	return convs[0], nil
-}
-
+// Messages returns the messages of a conversation in insertion order.
 func (s *Store) Messages(convID string) ([]Message, error) {
 	rows, err := s.db.Query(
-		`SELECT id, conversation_id, role, content, created_at FROM messages WHERE conversation_id = ? ORDER BY id ASC`,
+		`SELECT id, conversation_id, role, content, created_at, usage FROM messages WHERE conversation_id = ? ORDER BY id ASC`,
 		convID)
 	if err != nil {
 		return nil, fmt.Errorf("list messages: %w", err)
@@ -214,11 +172,15 @@ func (s *Store) Messages(convID string) ([]Message, error) {
 	for rows.Next() {
 		var m Message
 		var created string
-		if err := rows.Scan(&m.ID, &m.ConversationID, &m.Role, &m.Content, &created); err != nil {
+		var usage sql.NullString
+		if err := rows.Scan(&m.ID, &m.ConversationID, &m.Role, &m.Content, &created, &usage); err != nil {
 			return nil, fmt.Errorf("scan message: %w", err)
 		}
 		if t, err := time.Parse(time.RFC3339, created); err == nil {
 			m.CreatedAt = t
+		}
+		if usage.Valid && usage.String != "" {
+			m.Usage = json.RawMessage(usage.String)
 		}
 		out = append(out, m)
 	}

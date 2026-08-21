@@ -18,16 +18,17 @@ make install-bin PREFIX=/usr/local/bin
 
 …or run it in place from the repo: `./bin/thoth serve`.
 
-## "claude" is not found
+## Chat turns fail — no API key or provider unreachable
 
-Thoth drives the Claude Code CLI, which must be installed, logged in, and on your `PATH`. From the terminal:
+The assistant calls the model provider's API directly — there is no CLI to install, log in, or keep on `PATH`. When turns fail, check the provider side:
 
 ```sh
-claude --version      # should print a version
-claude login          # sign in if prompted
+thoth doctor    # the "provider" and "api key" checks name the problem
 ```
 
-The **claude** doctor check verifies the binary is found, `claude --version` works, and login is confirmed. If the check passes, `thoth doctor` will tell you exactly which part is missing.
+- The **provider** check probes the selected model's provider endpoint with the resolved credential (per-provider key/base URL, else the shared key and the provider's default). 401 = bad/absent API key, 429 = rate limited, timeout = unreachable.
+- The **api key** check tells you whether a usable key is configured. Add or fix it in Settings → General (per-provider keys win over the shared key).
+- A cancelled or superseded turn saves nothing beyond the user message — that is expected, not a bug.
 
 ## The wiki isn't being indexed
 
@@ -44,9 +45,9 @@ The index is derived data — it always syncs with the tree at startup and on ch
 
 ## The chat says the assistant is unavailable or a turn fails
 
-- Check the **claude** doctor check: binary present, version works, logged in.
-- If you set an API key in Settings → General, it is passed to spawned assistant processes as `ANTHROPIC_API_KEY`. A wrong/expired key fails turns — check it, or clear it to inherit the server's environment.
-- The conversation's assistant process is killed on cancel; the next send respawns it and resumes the session from disk. If a process was killed and the CLI reports the stored session as "already in use", the session is forked to a fresh id automatically.
+- Run `thoth doctor` and read the **provider** and **api key** checks (see above).
+- A wrong, expired, or missing API key fails turns — set the right key for the provider in Settings → General (or the per-provider key). The provider check names the failing endpoint.
+- The model setting must point at a model in the registry (Settings → LLM Models). A value not in the registry shows as *unknown model*.
 
 ## Port 8333 is already in use
 
@@ -98,11 +99,10 @@ Deleting only the database is always safe. Deleting the wiki deletes your knowle
 |---|---|
 | `~/.thoth/wiki/` | Your notes — plain markdown (the source of truth) |
 | `~/.thoth/thoth.db` | SQLite: search index + conversation history (derived, rebuildable) |
-| `~/.thoth/stream-dump.json` | Raw assistant stream output (debugging, rotated past 10 MB) |
 
 ## FAQ
 
-**Does Thoth work offline?** Yes — everything is local (server, index, wiki). The assistant needs network access to the model provider (Claude), but all your data stays on your machine.
+**Does Thoth work offline?** Yes — everything is local (server, index, wiki). The assistant needs network access to the model provider you configured, but all your data stays on your machine.
 
 **Is my data encrypted?** The data is stored in plain files on your disk and the server binds localhost only. There's no cloud copy unless you enable GitHub sync. For security details see [Security](security.md).
 

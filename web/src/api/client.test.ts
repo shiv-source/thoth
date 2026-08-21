@@ -99,6 +99,31 @@ describe('api.getConversation and health', () => {
         expect(mocks.get).toHaveBeenCalledWith('/api/conversations/c1')
     })
 
+    it('parses message token usage through zod', async () => {
+        mocks.get.mockResolvedValue({
+            data: {
+                conversation: { id: 'c1', title: 'T', created_at: '2026-08-13T09:00:00Z' },
+                messages: [
+                    {
+                        id: 2,
+                        conversation_id: 'c1',
+                        role: 'assistant',
+                        content: 'answer',
+                        created_at: '2026-08-13T09:00:01Z',
+                        usage: { input_tokens: 10, output_tokens: 4, cache_read_tokens: 5, cache_write_tokens: 3 }
+                    }
+                ]
+            }
+        })
+        const { messages } = await api.getConversation('c1')
+        expect(messages[0]?.usage).toEqual({
+            input_tokens: 10,
+            output_tokens: 4,
+            cache_read_tokens: 5,
+            cache_write_tokens: 3
+        })
+    })
+
     it('rejects unknown message roles', async () => {
         mocks.get.mockResolvedValue({
             data: {
@@ -115,7 +140,12 @@ describe('api.getConversation and health', () => {
         mocks.get.mockResolvedValueOnce({
             data: {
                 status: 'ok',
-                claude: { found: true, path: '/usr/local/bin/claude' },
+                backend: {
+                    name: 'thoth-agent',
+                    api_key_configured: true,
+                    model: 'claude-sonnet-5',
+                    provider: 'Anthropic'
+                },
                 wiki: { path: '/tmp/wiki', exists: true },
                 version: '1.2.3',
                 dev: true,
@@ -127,11 +157,23 @@ describe('api.getConversation and health', () => {
             data: { checks: [{ name: 'config', ok: true, message: 'parses' }] }
         })
         const health = await api.health()
-        expect(health.claude.found).toBe(true)
+        expect(health.backend.api_key_configured).toBe(true)
+        expect(health.backend.name).toBe('thoth-agent')
         expect(health.dev).toBe(true)
         expect(health.commit).toBe('abc1234')
         expect(health.default_wiki_path).toBe('~/.thoth/dev/wiki')
         const { checks } = await api.doctor()
         expect(checks[0]?.name).toBe('config')
+    })
+
+    it('rejects a health payload without the native backend shape', async () => {
+        mocks.get.mockResolvedValue({
+            data: {
+                status: 'ok',
+                claude: { found: true, path: '/usr/local/bin/claude' },
+                wiki: { path: '/tmp/wiki', exists: true }
+            }
+        })
+        await expect(api.health()).rejects.toThrow()
     })
 })

@@ -227,6 +227,10 @@ function GeneralTab({ status }: { status: 'idle' | 'saved' | 'error' }) {
             })),
         [groups]
     )
+    // The provider credential section lists every registry provider (the
+    // /api/settings providers map is keyed by the same names, so the form
+    // joins on them).
+    const providers = useMemo(() => groups.filter((g) => g.provider !== '').map((g) => g.provider), [groups])
 
     return (
         <Card size="small" className="max-w-3xl" title={<CardTitle icon={SettingsIcon}>General</CardTitle>}>
@@ -268,7 +272,7 @@ function GeneralTab({ status }: { status: 'idle' | 'saved' | 'error' }) {
                     extra={
                         settings.data?.has_api_key
                             ? 'A key is saved — leave blank to keep it.'
-                            : 'Not set — the server inherits ANTHROPIC_API_KEY from its environment.'
+                            : 'Not set — the server inherits ANTHROPIC_API_KEY from its environment. Used for providers without a key of their own.'
                     }
                 >
                     <Input.Password
@@ -277,6 +281,59 @@ function GeneralTab({ status }: { status: 'idle' | 'saved' | 'error' }) {
                     />
                 </Form.Item>
             </div>
+            {providers.length > 0 && (
+                <>
+                    <Divider />
+                    <SectionHeading icon={ApiOutlined}>Provider credentials</SectionHeading>
+                    <p className="mb-3 text-sm text-subtle">
+                        Per-provider API keys and endpoints for the models above. A provider without its own key falls
+                        back to the shared API key; an empty endpoint uses the provider's default URL.
+                    </p>
+                    <div className="grid gap-3">
+                        {providers.map((provider) => (
+                            <div key={provider} className="rounded-lg border border-line p-3">
+                                <p className="mb-2 text-sm font-medium text-heading">{provider}</p>
+                                <div className="grid gap-3 md:grid-cols-2">
+                                    <Form.Item
+                                        label="Base URL"
+                                        name={['providers', provider, 'base_url']}
+                                        extra="Empty uses the provider's default endpoint."
+                                    >
+                                        <Input placeholder="https://api.example.com" autoComplete="off" />
+                                    </Form.Item>
+                                    <Form.Item
+                                        label={
+                                            <Flex align="center" gap={6}>
+                                                API key
+                                                {settings.data?.providers?.[provider]?.has_api_key ? (
+                                                    <Tag color="success">Configured</Tag>
+                                                ) : (
+                                                    <Tag>Not set</Tag>
+                                                )}
+                                            </Flex>
+                                        }
+                                        name={['providers', provider, 'api_key']}
+                                        extra={
+                                            settings.data?.providers?.[provider]?.has_api_key
+                                                ? 'A key is saved — leave blank to keep it.'
+                                                : 'Falls back to the shared API key when blank.'
+                                        }
+                                    >
+                                        <Input.Password
+                                            placeholder={
+                                                settings.data?.providers?.[provider]?.has_api_key
+                                                    ? '•••••••• (saved)'
+                                                    : 'sk-…'
+                                            }
+                                            autoComplete="off"
+                                        />
+                                    </Form.Item>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </>
+            )}
             <Form.Item
                 label="Scaffold folders"
                 name="wiki_folders"
@@ -470,10 +527,10 @@ function ModelsTab() {
             >
                 <Form form={form} layout="vertical" className="mt-4">
                     <Form.Item label="Value" name="value" rules={[{ required: true, message: 'Value is required' }]}>
-                        <Input placeholder="claude-sonnet-5" />
+                        <Input placeholder="my-model" />
                     </Form.Item>
                     <Form.Item label="Name" name="name" rules={[{ required: true, message: 'Name is required' }]}>
-                        <Input placeholder="Claude Sonnet 5" />
+                        <Input placeholder="My Model" />
                     </Form.Item>
                     <Form.Item label="Tag" name="tag" extra="Pick a preset or type your own.">
                         <Select virtual={false} mode="tags" options={tagOptions} placeholder="balanced" />

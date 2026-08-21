@@ -29,7 +29,7 @@ Run each gate; every one must pass before the PR:
 1. `gofmt -l .` — must print nothing (formatting drift)
 2. `go vet ./...` — must be clean (correctness suspicions)
 3. `go test -race ./...` — must pass (data races are real bugs, never skip)
-4. `make cover` — coverage ≥ 80% on internal/ + cmd/ (the CI-enforced floor)
+4. `make cover` — coverage ≥ 90% on agent/ + internal/ + cmd/ (the CI-enforced floor)
 5. `golangci-lint run` — must be clean (staticcheck/errcheck)
 6. `pnpm typecheck && pnpm lint && pnpm test` — TS strict, eslint, vitest
 Details and floors: .claude/skills/go/references/quality.md
@@ -43,7 +43,7 @@ Details and floors: .claude/skills/go/references/quality.md
 ### 3. Triage a failing gate
 - gofmt/vet/lint failing → fix the code; never suppress with lint directives
 - race failing → a real data race: mutex/atomic/ownership — investigate, don't skip
-- coverage < 80% → add tests for the new/changed code; never delete tests to raise the floor
+- coverage < 90% → add tests for the new/changed code; never delete tests to raise the floor
 - tsc errors → fix the types; no `any` escape hatches (CLAUDE.md invariant)
 - vitest failing → reproduce the failure, then fix the test if it asserts wrong or the code if it behaves wrong
 - After the fix: re-run the failed gate AND its neighbors (a fmt fix can shift a test)
@@ -52,7 +52,7 @@ Details and floors: .claude/skills/go/references/quality.md
 - The pre-commit hook autofixes staged files (eslint/prettier/golangci-lint --fix) — re-run the gates after any hook-triggered edit
 - ci-pr runs the quality gates but NOT the cross-compiles — those run only on push to main, so a PR can be green and a main push red (docs/development.md § CI)
 - The gate checks here are the local commands; CI's quality.yml runs them as 6 jobs (vet+race+coverage, golangci-lint, vitest, eslint, tsc, and `issue-labels-test` running `node --test` over the `.github/actions/issue-labels` JS suite) — same gates, different packaging; `make check` includes the same JS suite via `tools-test` so local and CI stay in sync
-- New code must be covered to keep the total ≥ 80% on internal/ + cmd/ — a large feature with thin tests fails CI
+- New code must be covered to keep the total ≥ 90% on agent/ + internal/ + cmd/ — a large feature with thin tests fails CI
 - Pre-commit runs the full Go suite when Go files are staged — keep focused tests while iterating, full suite once before commit (CLAUDE.md § Token Efficiency)
 
 ## Canonical docs

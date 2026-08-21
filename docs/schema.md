@@ -62,9 +62,9 @@ One row per chat shown in the UI history.
 | `id` | TEXT PK | Conversation id (v4 UUID) — also the `/chat/<id>` URL id |
 | `title` | TEXT NOT NULL | First user message, truncated (display only) |
 | `created_at` | TEXT NOT NULL | UTC RFC3339 — the list orders by it lexically DESC, with `rowid DESC` breaking same-second ties so "most recent" is deterministic |
-| `claude_session_id` | TEXT NOT NULL DEFAULT '' | The Claude CLI session backing the chat. Seeded with the conversation id; rotated to a fresh id via `--resume/--fork-session` when the CLI reports the stored session as locked |
+| `claude_session_id` | TEXT NOT NULL DEFAULT '' | Legacy Claude CLI session id. Thoth Agent no longer spawns the CLI and nothing reads or writes the column; it is **retained for schema stability** — the decision was to leave it rather than migrate it out (see below) |
 
-### `messages` (migration `0002_messages.sql`)
+### `messages` (migrations `0002_messages.sql` + `0010_message_usage.sql`)
 
 The chat transcript, persisted for the UI history view.
 
@@ -75,6 +75,7 @@ The chat transcript, persisted for the UI history view.
 | `role` | TEXT NOT NULL | `user` or `assistant` |
 | `content` | TEXT NOT NULL | Plain markdown text |
 | `created_at` | TEXT NOT NULL | UTC RFC3339 |
+| `usage` | TEXT NULL | The assistant turn's token breakdown as JSON: `{"input_tokens":N,"output_tokens":N,"cache_read_tokens":N,"cache_write_tokens":N}`; NULL on user messages and rows written before usage was tracked |
 
 ### `notes` (migration `0003_notes.sql`)
 
@@ -124,8 +125,10 @@ The app's user-facing settings, key/value. `config.toml` is deprecated — this 
 |---|---|---|
 | `wiki_path` | `~/.thoth/wiki` | Where the wiki lives (seed mirrors `settings.DefaultWikiPath`) |
 | `wiki_folders` | — (absent) | Comma-separated scaffold folder set; absent/empty means the default 9 (`inbox, meetings, projects, links, setup, knowledge, todos, daily, attachments`). Applied when a wiki is scaffolded |
-| `model` | — (absent) | The `--model` value enforced on every Claude CLI spawn; absent/empty keeps the CLI's default. Read at boot, applied on next start |
-| `api_key` | `''` | The API key passed to spawned Claude CLI processes as `ANTHROPIC_API_KEY`; set from the web Settings (General tab). Empty (`''`) = not configured, inherit the server's environment. Never returned by the API — GET reports `has_api_key` only |
+| `model` | — (absent) | The model value selected for every turn; absent/empty falls back to the first seeded claude model. Read at boot, applied on next start |
+| `api_key` | `''` | The shared API key — the fallback credential for any provider without its own key (see the `provider_*` keys). Empty (`''`) = not configured, inherit the server's environment. Never returned by the API — GET reports `has_api_key` only |
+| `provider_<slug>_api_key` | — (absent) | A provider's own API key; `slug` is the lowercased provider label with non-alphanumerics stripped (`DeepSeek` → `deepseek`, `Z.AI` → `zai`). Wins over the shared `api_key` for that provider's models. Write-only like the shared key — GET reports `has_api_key` only |
+| `provider_<slug>_base_url` | — (absent) | A provider's API base URL override (`DeepSeek` → `provider_deepseek_base_url`). Empty/absent = the provider's default endpoint. Applied on next boot |
 | `github_sync_repo` | `''` | The wiki's sync repo URL |
 | `github_sync_enabled` | `'false'` | The auto-sync switch (`'true'`/`'false'`) |
 | `github_last_synced_at` | `''` | UTC RFC3339 of the last successful git sync |
@@ -138,16 +141,16 @@ The user-editable model registry. Every startup seeds it from `internal/assets/m
 | Column | Meaning |
 |---|---|
 | `id` | `INTEGER PRIMARY KEY AUTOINCREMENT` |
-| `value` | The `--model` argument; `UNIQUE` — the `model` setting points at it |
+| `value` | The model id sent to the provider on every turn; `UNIQUE` — the `model` setting points at it |
 | `name` | Display name (e.g. `Claude Opus 4.8`) |
 | `tag` | Preset-friendly label rendered as a colored chip (e.g. `strongest`) |
 | `provider` | Grouping label for the picker (e.g. `Anthropic`) |
 
 ## Reading and writing
 
-- `internal/settings` owns the `settings` table (KV access, `SyncEnabled`/`SyncState`/`SetSyncResult` conveniences). Its `OpenRepo` deliberately runs no migrations and no WAL pragma — the doctor must never mutate a database it only reads.
+- `internal/settings` owns the `settings` table (KV access, `SyncEnabled`/`SyncState`/`SetSyncResult` conveniences, and `ProviderConfig` for the model→provider→credential resolution). Its `OpenRepo` deliberately runs no migrations and no WAL pragma — the doctor must never mutate a database it only reads.
 - `internal/github` owns `github_auth`; `internal/store` owns conversations/messages/app_metadata and `llm_models`; `internal/index` owns notes/notes_fts.
-- `conversations.claude_session_id` is the Claude CLI session backing a chat; `store.ClaudeSessionID(convID)` resolves it (falling back to the conversation id for legacy rows) and is the single resolution shared by the chat hub and the boot pre-warm. `store.RecentConversation()` returns the most recently created conversation — `created_at` DESC, the same ordering the app's list uses — so `serve` warms the pool for the conversation a user is most likely to resume.
+- **`claude_session_id` decision (T12):** the column is retained, no migration. Thoth Agent stopped writing it when it replaced the CLI; dropping it would rewrite `conversations` for a column nothing reads, and keeping it preserves the schema for any rollback tooling. The settings resolution at boot is: the selected model's `llm_models` row names the provider → `provider_<slug>_api_key`/`provider_<slug>_base_url` when set, else the shared `api_key` and the provider's default endpoint (`settings.ProviderConfig`).
 
 ## Upgrade note
 

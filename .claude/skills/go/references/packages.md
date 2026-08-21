@@ -60,8 +60,8 @@ internal/ plus cmd/thoth — a missing package means this index is stale.
 
 ## internal/doctor
 - path: internal/doctor/
-- purpose: The seven shared install checks (CLI + Settings → Doctor tab)
-- api: Run(ctx, dir, addr, log) []Check; Check{Name, OK, Message}
+- purpose: The shared install checks (CLI + Settings → Doctor tab)
+- api: Run(ctx, Options{Dir, Addr, Log, HTTP, BaseURL}) []Check; Check{Name, OK, Message}; provider probe resolves model→provider→credential like serve (modelProvider/providerConfig/providerProbeFor)
 - canonical: docs/components.md §internal/doctor · internal/doctor/doctor.go
 
 ## internal/github
@@ -73,7 +73,7 @@ internal/ plus cmd/thoth — a missing package means this index is stale.
 ## internal/settings
 - path: internal/settings/
 - purpose: The settings KV table — single source for user-facing settings
-- api: Repo, OpenRepo(path); SyncEnabled/SyncState/SetSyncResult conveniences
+- api: Repo, OpenRepo(path); SyncEnabled/SyncState/SetSyncResult conveniences; ProviderConfig(provider) + ProviderAPIKeyKey/ProviderBaseURLKey (per-provider key/base_url resolution)
 - canonical: docs/components.md §internal/settings · internal/settings/settings.go
 
 ## internal/webui

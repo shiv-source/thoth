@@ -33,8 +33,15 @@ Frontend: `pnpm <cmd>` from the repo root (workspace proxies) or `cd web && pnpm
 
 ```
 thoth/
+├── agent/                 # reusable native agent library (epic #121); imports nothing from internal/*
+│   └── tools/             # COMMON, wiki-agnostic tools + FS seam (read/write/list/edit/append/
+│                          #   rename/delete/grep/get_time/search); new tools here unless wiki-specific
 ├── cmd/thoth/            # thin binary entrypoint (main.go)
 ├── internal/
+│   ├── agent/             # Thoth host on the agent library: Client, wikiFS, registry()
+│   │   └── tools/         # WIKI-SPECIFIC tools (write_note/read_note/list_tree/list_recent/
+│   │                      #   search_by_tag/todos/inbox/memory/remember); the wiki's note contract
+│   │                      #   lives in internal/wiki (ParseNote/FormatNote), never forked
 │   ├── api/              # Echo: WS chat (/ws) + REST; Deps carries all wiring
 │   ├── assets/           # embedded models.json (Settings model picker)
 │   ├── claude/           # BLAST WALL — ALL CLI flags live only in client.go
@@ -85,7 +92,7 @@ thoth/
 │   ├── development.md    # toolchain, commands, gates, dev tools, CI
 ├── docs-site/            # Docusaurus site that renders docs/ (make docs-dev / docs-build)
 ├── .claude/              # project skills (go, react, git-workflow, code-quality) + local settings
-├── .github/              # CI workflows (vet → race → 80% coverage gate → lint →
+├── .github/              # CI workflows (vet → race → 90% coverage gate → lint →
 │   │                     #   5 cross-compiles → frontend) + composite actions
 │   └── actions/          # setup-go-web, setup-web (workspace-root install)
 ├── .husky/               # pre-commit: lint-staged + Go vet/lint/test gate
@@ -128,6 +135,7 @@ Apply the standard principles — modular, composable, boring code that's easy t
 - **context.Context first** — first parameter, never stored in structs; goroutines and long-lived loops select on `ctx.Done()`.
 - **Logging** — structured `slog` with lowercase keys; warn paths always carry `path` and `err`.
 - **Security** — security-sensitive changes consult `docs/security.md` (the threat model); wiki filesystem access routes through `SafePath`.
+- **Agent tool placement** — a new tool's home is decided by what it knows: tools that operate on any filesystem with no wiki knowledge go in `agent/tools` (common, wiki-agnostic; work through the `FS` seam); tools that understand the wiki — its frontmatter/note contract, `type:` rule, or scaffolded layout (todos, inbox, memory) — go in `internal/agent/tools` and import the wiki contract from `internal/wiki` (`ParseNote`/`FormatNote`), never forking it. Everything else (shared arg/path/truncation helpers, the `FS` seam) lives in `agent/tools` and is imported, not duplicated. A host registers its own tools via `RegistryOptions.CustomTools` / `Client.WithTools(...)`.
 - **No magic values** — numbers and strings with meaning get named constants; no unexplained literals in logic.
 - **Go doc comments** — exported symbols carry doc comments (Go idiom; no linter enforces it here, so the rule must).
 - **Match surrounding style** when editing; don't reformat code you're not changing.
@@ -158,11 +166,11 @@ Apply the standard principles — modular, composable, boring code that's easy t
 - Go: `%w` errors, `context.Context` everywhere (cancel = the stop button), no panics in library code, no package-level mutable globals.
 - TS: `strict`, no `any` (eslint), zod at the API boundary.
 - Cross-compile: all five targets (darwin/linux × amd64/arm64, windows/amd64) must build — process-group code is build-tagged in `internal/claude`.
-- Coverage floor 80% on `internal/` + `cmd/`, CI-enforced.
+- Coverage floor 90% on `agent/` + `internal/` + `cmd/`, CI-enforced.
 
 ## Repo rules
 
-- **Branch workflow** — `main` is always deployable; never commit to it directly. Changes live on `<type>/<scope>/<slug>` branches with conventional-commit messages and land via reviewed PRs that a human squash-merges — a session never merges. The full procedure — sync-and-branch commands, commit conventions, PR template sections, label application, squash-merge specifics, and the `ci-pr`/`final-gate` expectations — is the `git-workflow` skill (`.claude/skills/git-workflow/SKILL.md`).
+- **Branch workflow** — `main` is always deployable; never commit to it directly. Changes live on `<type>/<scope>/<slug>` branches with conventional-commit messages and land via reviewed PRs that a human squash-merges — a session never merges. Any change touching the `agent/` module or otherwise related to the native Go agent (epic #121) branches off — and PRs target — its epic branch `feat/agent/native-go-agent` instead of main. The full procedure — sync-and-branch commands, commit conventions, PR template sections, label application, squash-merge specifics, and the `ci-pr`/`final-gate` expectations — is the `git-workflow` skill (`.claude/skills/git-workflow/SKILL.md`).
 - **No secrets in the repo** — never commit real credentials, tokens, or keys in code, configs, tests, or docs; env vars or placeholders only.
 - **Design authority** — design docs for large or cross-package changes live (untracked) in `docs/specs/` when needed; the committed `docs/` pages are the reference for current behavior.
 - **Project docs** — committed documentation lives in `docs/` (`index.md` is the hub: architecture, API, CLI, indexing, frontend, security, development). Update the relevant page when behavior changes.

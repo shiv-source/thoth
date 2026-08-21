@@ -3,9 +3,18 @@ export type ServerMessage =
     | { type: 'assistant_thinking'; text: string }
     | { type: 'assistant_delta'; text: string }
     | { type: 'tool_activity'; tool: string; detail: string }
-    | { type: 'turn_done'; conversation_id?: string }
+    | { type: 'turn_done'; conversation_id?: string; usage?: TokenUsage }
     | { type: 'wiki_changed'; changes?: WikiChange[] }
     | { type: 'error'; message: string }
+
+// TokenUsage is the per-turn token breakdown on turn_done. It is optional:
+// a provider that reports no usage (or an older server) omits the field.
+export interface TokenUsage {
+    input_tokens: number
+    output_tokens: number
+    cache_read_tokens: number
+    cache_write_tokens: number
+}
 
 // wiki_changed is the server push for wiki filesystem changes: the watcher
 // batches one frame per debounce flush (changes may be empty on startup).

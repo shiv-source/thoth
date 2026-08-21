@@ -69,6 +69,29 @@ describe('useChat', () => {
         expect(result.current.conversationId).toBe('conv-9')
     })
 
+    it('surfaces token usage from turn_done', () => {
+        const socket = freshSocket()
+        const { result } = renderChatHook(socket)
+
+        const ws = FakeWS.instances[0]!
+        act(() =>
+            ws?.onmessage?.({
+                data: JSON.stringify({
+                    type: 'turn_done',
+                    conversation_id: 'conv-9',
+                    usage: { input_tokens: 8, output_tokens: 2, cache_read_tokens: 0, cache_write_tokens: 0 }
+                })
+            })
+        )
+
+        expect(result.current.lastUsage).toEqual({
+            input_tokens: 8,
+            output_tokens: 2,
+            cache_read_tokens: 0,
+            cache_write_tokens: 0
+        })
+    })
+
     it('renders error frames as a visible assistant message', () => {
         const socket = freshSocket()
         const { result } = renderChatHook(socket)
@@ -147,8 +170,30 @@ describe('useChat', () => {
         expect(result.current.conversationId).toBe('conv-7')
         expect(result.current.streaming).toBe(false)
         expect(result.current.lastTool).toBeNull()
+        expect(result.current.lastUsage).toBeNull()
         // load is local-only: no frame left the socket
         expect(FakeWS.instances[0]!.sent).toEqual([JSON.stringify({ type: 'send', text: 'hello' })])
+    })
+
+    it('load() restores lastUsage from persisted history', () => {
+        const socket = freshSocket()
+        const { result } = renderChatHook(socket)
+
+        act(() =>
+            result.current.load([{ role: 'assistant', content: 'persisted answer' }], 'conv-7', {
+                input_tokens: 8,
+                output_tokens: 2,
+                cache_read_tokens: 5,
+                cache_write_tokens: 0
+            })
+        )
+
+        expect(result.current.lastUsage).toEqual({
+            input_tokens: 8,
+            output_tokens: 2,
+            cache_read_tokens: 5,
+            cache_write_tokens: 0
+        })
     })
 
     it('refetches the wiki tree when a wiki_changed frame arrives', async () => {

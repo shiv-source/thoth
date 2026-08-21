@@ -94,7 +94,7 @@ jobs:
       - uses: ./.github/actions/setup-go-web
       - run: go vet ./...
       - run: go test -race -failfast ./...
-      - name: coverage gate (>= 80% on internal/ and cmd/)
+      - name: coverage gate (>= 90% on the Go backend)
         run: make cover
 
   backend-lint:

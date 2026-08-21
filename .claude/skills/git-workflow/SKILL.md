@@ -18,7 +18,7 @@ description: >-
 ## Key files
 - CONTRIBUTING.md — the workflow page: § Workflow, § Before you push
 - .github/pull_request_template.md — the PR body shape (Summary / Related issue / Files changed / How verified / Notes)
-- .github/workflows/ — ci-pr.yml (PR gates; quality.yml is path-aware — its internal `changes` job diffs the PR and skips the quality gates for areas the PR didn't touch — docs-only PRs skip them all) · quality.yml (the quality gates, incl. the graph freshness check, each gated on its own `changes` job's area outputs) · final-gate.yml (single required check + PR report comment; skipped gates count as passing) · ci.yml (push to main adds 5 cross-compiles + frontend build) · pr-assignee.yml (auto-assigns PR committers; runs on every PR, never gated) · issue-labels.yml (applies the form-selected labels to new/edited issues)
+- .github/workflows/ — ci-pr.yml (PR gates on PRs targeting `main` or the epic branch `feat/agent/native-go-agent`; quality.yml is path-aware — its internal `changes` job diffs the PR and skips the quality gates for areas the PR didn't touch — docs-only PRs skip them all) · quality.yml (the quality gates, incl. the graph freshness check, each gated on its own `changes` job's area outputs) · final-gate.yml (single required check + PR report comment; skipped gates count as passing) · ci.yml (push to main adds 5 cross-compiles + frontend build) · pr-assignee.yml (auto-assigns PR committers; runs on every PR, never gated) · issue-labels.yml (applies the form-selected labels to new/edited issues)
 - .github/actions/issue-labels/ — reusable composite action: applies the three-tier labels (type, priority, areas) from issue-form answers; JS, add-only
 - .husky/pre-commit — the commit gate: lint-staged autofixes, plus Go vet/lint/test when Go is staged
 - docs/development.md — § Gates (what make check enforces), § CI (workflow mechanics)
@@ -32,6 +32,9 @@ description: >-
    `git switch main && git pull --ff-only && git switch -c <type>/<scope>/<slug>`
    Fast path when the branch already exists: `./scripts/pr.sh` runs this sync plus the whole PR flow (workflow 3) in one command.
    The pre-commit hook enforces this — scripts/main-guard.sh blocks commits made directly on main.
+   Epic exception: any change touching the `agent/` module or otherwise related
+   to the native Go agent (epic #121) branches off the epic branch, not main —
+   `git switch feat/agent/native-go-agent && git pull --ff-only && git switch -c <type>/<scope>/<slug>`
 2. `<type>` is a conventional-commit prefix: feat, fix, perf, ci, docs, refactor, test, chore — `perf` maps to the `performance` type label (CONTRIBUTING.md § Workflow)
 3. `<scope>` is the short area name (web, api, index, skills, …); `<slug>` is short kebab-case (lowercase letters, digits, hyphens) — the branch mirrors the commit message `<type>(<scope>): <summary>`, e.g. fix/web/reject-empty-titles
 4. Large or cross-package change? Write the design doc first — see workflow 5
@@ -45,18 +48,19 @@ description: >-
 6. Stage only what the change needs: no secrets, no generated dirs (bin/, web/dist/, internal/webui/dist/, node_modules/, *.db)
 
 ### 3. Open a PR
-0. Or run `./scripts/pr.sh` to automate this workflow from an existing branch: it syncs main, validates the branch name, derives labels from the branch (validated against references/labels.md), runs the graph staleness guard (scripts/graph-check.sh), runs `make check` (`--no-check` skips), pushes, and creates the PR with the template. `--title` overrides the derived title; repeat `--area <label>` to add areas. The steps below remain authoritative when run by hand.
-1. Push the branch, then create the PR with the `gh` CLI (not the web UI):
+1. **Preferred — deliver with `./scripts/pr.sh`** from the feature branch: it is the single guarded command for the whole flow — syncs main, validates the branch name, derives labels from the branch (validated against references/labels.md), runs the graph staleness guard (scripts/graph-check.sh), runs `make check` (`--no-check` skips), pushes, and creates the PR with the template. `--title` overrides the derived title; repeat `--area <label>` to add areas. Run it on every PR delivery so the guarded flow runs end-to-end. Caveat: it creates the PR without a base, so it targets `main` — for epic-branch PRs (workflow 1's epic exception) use the manual flow below, or re-point the base afterwards with `gh pr edit --base feat/agent/native-go-agent`.
+2. Manual fallback — push the branch, then create the PR with the `gh` CLI (not the web UI):
    `gh pr create --title "<type>(<scope>): <summary>" --label <type> --label <area>… --template .github/pull_request_template.md`
    — one type label plus every area label the change touches (workflow 4); the web UI auto-fills the PR template, the CLI does not — pass it explicitly with `--template` (verify flags against `gh pr create --help`)
- 2. Write the body per .github/pull_request_template.md:
+   — PRs touching the `agent/` module or otherwise related to the native Go agent (epic #121) target the epic branch instead of main: add `--base feat/agent/native-go-agent`
+3. Write the body per .github/pull_request_template.md:
    - ## Summary — what changed and why; bullets when they help
    - ## Related issue — `Closes #<n>` (auto-closes the issue on merge); omit when there is no issue
    - ## Files changed — key files/packages and the role of each
-   - ## How verified — check the boxes you ran: gofmt/vet clean, go test -race ./..., coverage >= 80% (make cover), golangci-lint run, frontend tsc --noEmit / lint / vitest run, docs updated
+   - ## How verified — check the boxes you ran: gofmt/vet clean, go test -race ./..., coverage >= 90% (make cover), golangci-lint run, frontend tsc --noEmit / lint / vitest run, docs updated
    - ## Notes — optional; design decisions, follow-ups
-3. Run `make check` before opening — it is everything CI enforces, locally — and confirm `graphify update .` has been run if code changed (workflow 2 step 5) (CONTRIBUTING.md § Before you push)
-4. ci-pr quality gates run automatically; final-gate posts its report as a PR comment and must pass before the human merges — don't hand off a red PR
+4. Run `make check` before opening — it is everything CI enforces, locally — and confirm `graphify update .` has been run if code changed (workflow 2 step 5) (CONTRIBUTING.md § Before you push)
+5. ci-pr quality gates run automatically; final-gate posts its report as a PR comment and must pass before the human merges — don't hand off a red PR
 
 ### 4. Label issues and PRs
 1. Every issue/PR carries exactly one type label and one label per area it touches; issues also carry one priority label (CLAUDE.md § Repo rules)
@@ -99,6 +103,9 @@ or .husky/pre-commit behavior changes; then run `graphify update .`. Stale if:
 the branch or PR commands in CONTRIBUTING.md differ from these steps, the label
 set changes, a workflow file changes gate names, order, or the report marker,
 `gh pr create --help` no longer shows the `--template` flag, scripts/pr.sh or
-scripts/graph-check.sh changes the steps they automate, or the label tables in
-references/labels.md change shape (scripts/pr.sh parses `| label |` rows under
-`## Types` / `## Areas`).
+scripts/graph-check.sh changes the steps they automate, the native-agent epic
+closes (its `feat/agent/native-go-agent` branch merges, the exception above
+must be dropped, and `feat/agent/native-go-agent` must be removed from
+ci-pr.yml's `branches` list), or the label tables in references/labels.md
+change shape
+(scripts/pr.sh parses `| label |` rows under `## Types` / `## Areas`).

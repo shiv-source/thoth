@@ -26,12 +26,20 @@ const TreeNodeSchema: z.ZodType<TreeNodeShape> = z.lazy(() =>
 )
 export type TreeNode = z.infer<typeof TreeNodeSchema>
 
+export const ProviderConfig = z.object({
+    api_key: z.string().optional(),
+    has_api_key: z.boolean(),
+    base_url: z.string()
+})
+export type ProviderConfig = z.infer<typeof ProviderConfig>
+
 export const Settings = z.object({
     wiki_path: z.string(),
     wiki_folders: z.array(z.string()),
     model: z.string(),
     has_api_key: z.boolean(),
     api_key: z.string().optional(),
+    providers: z.record(z.string(), ProviderConfig),
     repo_url: z.string(),
     sync_enabled: z.boolean()
 })
@@ -75,18 +83,32 @@ export type GitHubRepo = z.infer<typeof GitHubRepo>
 const Conversation = z.object({ id: z.string(), title: z.string(), created_at: z.string() })
 export type Conversation = z.infer<typeof Conversation>
 
+const TokenUsage = z.object({
+    input_tokens: z.number(),
+    output_tokens: z.number(),
+    cache_read_tokens: z.number(),
+    cache_write_tokens: z.number()
+})
+export type TokenUsage = z.infer<typeof TokenUsage>
+
 const Message = z.object({
     id: z.number(),
     conversation_id: z.string(),
     role: z.enum(['user', 'assistant']),
     content: z.string(),
-    created_at: z.string()
+    created_at: z.string(),
+    usage: TokenUsage.optional()
 })
 export type Message = z.infer<typeof Message>
 
 export const Health = z.object({
     status: z.string(),
-    claude: z.object({ found: z.boolean(), path: z.string() }),
+    backend: z.object({
+        name: z.string(),
+        api_key_configured: z.boolean(),
+        model: z.string(),
+        provider: z.string()
+    }),
     wiki: z.object({ path: z.string(), exists: z.boolean() }),
     version: z.string(),
     dev: z.boolean(),

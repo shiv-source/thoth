@@ -18,7 +18,7 @@ vi.mock('axios', () => ({
 
 const healthy: Health = {
     status: 'ok',
-    claude: { found: true, path: '/usr/local/bin/claude' },
+    backend: { name: 'thoth-agent', api_key_configured: true, model: 'claude-sonnet-5', provider: 'Anthropic' },
     wiki: { path: '/tmp/wiki', exists: true },
     version: '1.2.3',
     dev: false,
@@ -64,11 +64,11 @@ describe('AppSider health footer', () => {
         expect(screen.getByText('v1.2.3')).toBeInTheDocument()
     })
 
-    it('shows the missing-claude state', async () => {
-        stubHealth({ ...healthy, claude: { found: false, path: 'claude' } })
+    it('shows the missing-key state', async () => {
+        stubHealth({ ...healthy, backend: { ...healthy.backend, api_key_configured: false } })
         const { store } = renderWithStore(<AppSider />)
         void store.dispatch(fetchHealth())
-        expect(await screen.findByText('Claude CLI missing')).toBeInTheDocument()
+        expect(await screen.findByText('API key not configured')).toBeInTheDocument()
     })
 
     it('shows the loading state until health resolves', async () => {

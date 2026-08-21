@@ -1,0 +1,6 @@
+event: message_start
+data: {"type":"message_start","message":{"id":"msg_05","type":"message","role":"assistant","content":[],"model":"claude-test","usage":{"input_tokens":4,"output_tokens":0}}}
+
+event: error
+data: {"type":"error","error":{"type":"overloaded_error","message":"Overloaded, try again shortly"}}
+
