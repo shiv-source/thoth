@@ -39,6 +39,7 @@ type options struct {
 	maxIterations   int
 	maxOutputTokens int
 	turnTimeout     time.Duration
+	gitOptions      agenttools.GitOptions
 	customTools     []agenttools.Tool
 }
 
@@ -82,6 +83,13 @@ func WithTurnTimeout(d time.Duration) Option { return func(o *options) { o.turnT
 // with its own capabilities.
 func WithTools(tools ...agenttools.Tool) Option {
 	return func(o *options) { o.customTools = append(o.customTools, tools...) }
+}
+
+// WithGitOptions wires the git tools with host-injected guard, auth and
+// identity funcs. RepoPath comes from the live wiki root. The git tools are
+// registered only when RepoPath is non-nil.
+func WithGitOptions(opts agenttools.GitOptions) Option {
+	return func(o *options) { o.gitOptions = opts }
 }
 
 // Client is the Thoth host layer on the reusable agent library: the chat
@@ -134,7 +142,7 @@ func New(model, apiKey string, w *wiki.Wiki, st *store.Store, ix *index.Index, o
 	if logger == nil {
 		logger = slog.Default()
 	}
-	reg, err := registry(RegistryOptions{Wiki: w, Index: ix, CustomTools: o.customTools})
+	reg, err := registry(RegistryOptions{Wiki: w, Index: ix, Git: o.gitOptions, CustomTools: o.customTools})
 	if err != nil {
 		return nil, fmt.Errorf("agent: build tools: %w", err)
 	}

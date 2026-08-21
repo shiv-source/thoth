@@ -146,6 +146,11 @@ type RegistryOptions struct {
 	TodosPath  string
 	InboxDir   string
 	MemoryPath string
+	// Git configures the git tools (git_init/git_status/git_log/git_diff/
+	// git_commit/git_push). RepoPath follows the live wiki root; Guard, Auth
+	// and Identity are host-injected. A nil RepoPath keeps the git tools out
+	// of the registry.
+	Git agenttools.GitOptions
 	// CustomTools are registered after the built-in catalog. A host registers
 	// its own tools here to extend the agent.
 	CustomTools []agenttools.Tool
@@ -195,6 +200,20 @@ func registry(opts RegistryOptions) (*agenttools.Registry, error) {
 	if opts.Index != nil {
 		if err := reg.Register(agenttools.NewSearch(indexSearch(opts.Index), 0)); err != nil {
 			return nil, err
+		}
+	}
+	if opts.Git.RepoPath != nil {
+		for _, t := range []agenttools.Tool{
+			agenttools.NewGitInit(opts.Git),
+			agenttools.NewGitStatus(opts.Git),
+			agenttools.NewGitLog(opts.Git),
+			agenttools.NewGitDiff(opts.Git),
+			agenttools.NewGitCommit(opts.Git),
+			agenttools.NewGitPush(opts.Git),
+		} {
+			if err := reg.Register(t); err != nil {
+				return nil, err
+			}
 		}
 	}
 	for _, t := range opts.CustomTools {

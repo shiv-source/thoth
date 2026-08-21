@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
+	agentgit "github.com/shiv-source/thoth/agent/git"
 	"github.com/shiv-source/thoth/internal/gitutil"
 )
 
@@ -93,4 +94,20 @@ func gitInit(dir string) {
 		}
 	}
 	_ = gitutil.Init(dir)
+}
+
+// EnsureGitRepo initializes a pure-Go git repository in root when it is not
+// already one, writing the same .gitignore the scaffold uses. It runs on every
+// startup so a pre-existing-but-unversioned wiki becomes versioned without a
+// shell git dependency; it is a no-op when root is already a repository.
+func EnsureGitRepo(root string) error {
+	if _, err := os.Stat(filepath.Join(root, ".gitignore")); errors.Is(err, os.ErrNotExist) {
+		if err := os.WriteFile(filepath.Join(root, ".gitignore"), []byte(gitignore), 0o644); err != nil {
+			return fmt.Errorf("ensure git: %w", err)
+		}
+	}
+	if _, err := agentgit.Init(root); err != nil {
+		return fmt.Errorf("ensure git: %w", err)
+	}
+	return nil
 }

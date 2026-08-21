@@ -19,6 +19,7 @@ import (
 
 	"github.com/go-warehouse/events"
 	"github.com/labstack/echo/v4"
+	agenttools "github.com/shiv-source/thoth/agent/tools"
 	agent "github.com/shiv-source/thoth/internal/agent"
 	"github.com/shiv-source/thoth/internal/api"
 	"github.com/shiv-source/thoth/internal/assets"
@@ -156,10 +157,14 @@ func runServe(cmd *cobra.Command, dev bool) error {
 	// The native agent host drives every turn — no CLI subprocess exists
 	// anywhere in the chat path. Model, provider config, wiki (tools +
 	// rulebook), store (history) and index (search) are all read at boot.
+	// The git tools follow the live wiki root and are guarded by the sync
+	// switch: commit/push run only after the user opted into sync, with the
+	// stored GitHub connection supplying identity and push credentials.
 	ac, err := agent.New(model, apiKey, w, st, ix,
 		agent.WithProviderConfig(providerName, baseURL),
 		agent.WithLogger(log),
 		agent.WithFolders(scaffoldFolders(stg, log)),
+		agent.WithGitOptions(gitToolOptions(w, stg, gh)),
 	)
 	if err != nil {
 		return err
@@ -315,7 +320,58 @@ func ensureWiki(path string, stg *settings.Repo, log *slog.Logger) (*wiki.Wiki, 
 	if err := wiki.EnsureReservedDir(wikiPath); err != nil {
 		return nil, err
 	}
+	// A pre-existing but unversioned wiki is git-inited on startup (the agent's
+	// git_commit/git_push tools also auto-init), so the git tools always have a
+	// repo to act on. Idempotent.
+	if err := wiki.EnsureGitRepo(wikiPath); err != nil {
+		return nil, err
+	}
 	return w, nil
+}
+
+// gitToolOptions wires the agent's git tools to the live wiki root and the
+// stored GitHub connection. The guard gates the mutating tools on the sync
+// switch; identity and push credentials come from the github_auth row, read
+// lazily per call so a token is never held and a connection change applies
+// without restart.
+func gitToolOptions(w *wiki.Wiki, stg *settings.Repo, gh *github.Repo) agenttools.GitOptions {
+	return agenttools.GitOptions{
+		RepoPath: func() string { return w.Root() },
+		Guard: func() error {
+			on, err := stg.SyncEnabled()
+			if err != nil {
+				return err
+			}
+			if !on {
+				return errors.New("git sync is disabled — enable it in Settings to commit or push")
+			}
+			return nil
+		},
+		Auth: func() (agenttools.GitAuth, error) {
+			a, ok, err := gh.Get()
+			if err != nil {
+				return agenttools.GitAuth{}, err
+			}
+			if !ok {
+				return agenttools.GitAuth{}, errors.New("no GitHub connection — connect one in Settings to push")
+			}
+			return agenttools.GitAuth{Username: a.Username, Token: a.Token}, nil
+		},
+		Identity: func() (agenttools.GitIdentity, error) {
+			a, ok, err := gh.Get()
+			if err != nil {
+				return agenttools.GitIdentity{}, err
+			}
+			if !ok {
+				return agenttools.GitIdentity{}, errors.New("no GitHub connection — connect one in Settings to commit")
+			}
+			name := a.DisplayName
+			if name == "" {
+				name = a.Username
+			}
+			return agenttools.GitIdentity{Name: name, Email: a.Email}, nil
+		},
+	}
 }
 
 // openIndex opens the note index and syncs it from wikiPath.
