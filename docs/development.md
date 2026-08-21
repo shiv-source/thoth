@@ -44,7 +44,7 @@ Run `make help` for the full self-documenting list.
 
 1. `gofmt -l` empty · `go vet ./...` clean
 2. `go test -race ./...`
-3. Coverage ≥ **80%** on `internal/` + `cmd/` (CI-enforced): `make cover` — the single gate, shared by the Makefile and CI
+3. Coverage ≥ **90%** on `agent/` + `internal/` + `cmd/` (CI-enforced): `make cover` — the single gate, shared by the Makefile and CI
 
 4. Cross-compiles: darwin amd64/arm64, linux amd64/arm64, windows amd64
 5. Frontend: `pnpm typecheck` · `pnpm lint` · `pnpm test` · `pnpm run build`

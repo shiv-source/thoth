@@ -151,8 +151,9 @@ type wireTool struct {
 }
 
 type wireTextBlock struct {
-	Type string `json:"type"`
-	Text string `json:"text"`
+	Type         string            `json:"type"`
+	Text         string            `json:"text"`
+	CacheControl *wireCacheControl `json:"cache_control,omitempty"`
 }
 
 type wireThinkingBlock struct {
@@ -161,21 +162,26 @@ type wireThinkingBlock struct {
 }
 
 type wireToolUseBlock struct {
-	Type  string         `json:"type"`
-	ID    string         `json:"id"`
-	Name  string         `json:"name"`
-	Input map[string]any `json:"input"`
+	Type         string            `json:"type"`
+	ID           string            `json:"id"`
+	Name         string            `json:"name"`
+	Input        map[string]any    `json:"input"`
+	CacheControl *wireCacheControl `json:"cache_control,omitempty"`
 }
 
 type wireToolResultBlock struct {
-	Type      string `json:"type"`
-	ToolUseID string `json:"tool_use_id"`
-	Content   string `json:"content"`
-	IsError   bool   `json:"is_error"`
+	Type         string            `json:"type"`
+	ToolUseID    string            `json:"tool_use_id"`
+	Content      string            `json:"content"`
+	IsError      bool              `json:"is_error"`
+	CacheControl *wireCacheControl `json:"cache_control,omitempty"`
 }
 
 // buildRequest maps a normalized Request onto the Anthropic wire shape. The
-// system prompt becomes a single stable text block marked for prompt caching.
+// system prompt becomes a single stable text block marked for prompt caching;
+// the stable history prefix breakpoint from CacheMarkers is applied to the
+// message right before the final user turn, so the model can reuse the cached
+// prefix across turns.
 func buildRequest(c *Client, req agent.Request) (wireRequest, error) {
 	messages, err := wireMessages(req.Messages)
 	if err != nil {
@@ -197,6 +203,14 @@ func buildRequest(c *Client, req agent.Request) (wireRequest, error) {
 			CacheControl: &wireCacheControl{Type: "ephemeral"},
 		}}
 	}
+	for _, marker := range agent.CacheMarkers(req.Messages) {
+		if marker == agent.SystemMarker {
+			continue // the system block above is already a breakpoint
+		}
+		if marker >= 0 && marker < len(w.Messages) {
+			markMessage(w.Messages[marker])
+		}
+	}
 	if len(req.Tools) > 0 {
 		w.Tools = make([]wireTool, 0, len(req.Tools))
 		for _, t := range req.Tools {
@@ -204,6 +218,26 @@ func buildRequest(c *Client, req agent.Request) (wireRequest, error) {
 		}
 	}
 	return w, nil
+}
+
+// markMessage sets the prompt-cache breakpoint on the last content block of a
+// wire message, which is where the Anthropic API accepts cache_control.
+func markMessage(m wireMessage) {
+	if len(m.Content) == 0 {
+		return
+	}
+	i := len(m.Content) - 1
+	switch b := m.Content[i].(type) {
+	case wireTextBlock:
+		b.CacheControl = &wireCacheControl{Type: "ephemeral"}
+		m.Content[i] = b
+	case wireToolUseBlock:
+		b.CacheControl = &wireCacheControl{Type: "ephemeral"}
+		m.Content[i] = b
+	case wireToolResultBlock:
+		b.CacheControl = &wireCacheControl{Type: "ephemeral"}
+		m.Content[i] = b
+	}
 }
 
 func wireMessages(msgs []agent.Message) ([]wireMessage, error) {

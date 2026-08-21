@@ -85,7 +85,7 @@ thoth/
 │   ├── development.md    # toolchain, commands, gates, dev tools, CI
 ├── docs-site/            # Docusaurus site that renders docs/ (make docs-dev / docs-build)
 ├── .claude/              # project skills (go, react, git-workflow, code-quality) + local settings
-├── .github/              # CI workflows (vet → race → 80% coverage gate → lint →
+├── .github/              # CI workflows (vet → race → 90% coverage gate → lint →
 │   │                     #   5 cross-compiles → frontend) + composite actions
 │   └── actions/          # setup-go-web, setup-web (workspace-root install)
 ├── .husky/               # pre-commit: lint-staged + Go vet/lint/test gate
@@ -158,7 +158,7 @@ Apply the standard principles — modular, composable, boring code that's easy t
 - Go: `%w` errors, `context.Context` everywhere (cancel = the stop button), no panics in library code, no package-level mutable globals.
 - TS: `strict`, no `any` (eslint), zod at the API boundary.
 - Cross-compile: all five targets (darwin/linux × amd64/arm64, windows/amd64) must build — process-group code is build-tagged in `internal/claude`.
-- Coverage floor 80% on `internal/` + `cmd/`, CI-enforced.
+- Coverage floor 90% on `agent/` + `internal/` + `cmd/`, CI-enforced.
 
 ## Repo rules
 

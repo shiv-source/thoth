@@ -132,6 +132,19 @@ func TestSSEReaderEOFMidFrame(t *testing.T) {
 	}
 }
 
+func TestSSEReaderCapsOversizedFrame(t *testing.T) {
+	big := strings.Repeat("x", maxFrameBytes+1)
+	body := "data: " + big + "\n\n"
+	r := NewSSEReader(strings.NewReader(body))
+	_, err := r.Next()
+	if err == nil {
+		t.Fatal("expected an error for an oversized frame")
+	}
+	if !strings.Contains(err.Error(), "exceeds") {
+		t.Fatalf("error %q, want a bounded-size message", err)
+	}
+}
+
 func TestSSEReaderUnderlyingError(t *testing.T) {
 	wantErr := errors.New("boom")
 	r := NewSSEReader(errReader{err: wantErr})

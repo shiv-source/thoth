@@ -325,6 +325,50 @@ func TestStreamDefaultsMaxTokens(t *testing.T) {
 	}
 }
 
+func TestStreamAppliesStableHistoryCacheMarker(t *testing.T) {
+	srv := httptest.NewServer(&fixtureHandler{t: t, body: readFixture(t, "text.json")})
+	defer srv.Close()
+	c := anthropic.New("secret-key", anthropic.WithBaseURL(srv.URL))
+	req := agent.Request{
+		System: "sys prompt",
+		Messages: []agent.Message{
+			{Role: agent.RoleUser, Content: []agent.Block{agent.NewTextBlock("q1")}},
+			{Role: agent.RoleAssistant, Content: []agent.Block{agent.NewTextBlock("a1")}},
+			{Role: agent.RoleUser, Content: []agent.Block{agent.NewTextBlock("q2")}},
+			{Role: agent.RoleAssistant, Content: []agent.Block{agent.NewTextBlock("a2")}},
+			{Role: agent.RoleUser, Content: []agent.Block{agent.NewTextBlock("q3")}},
+		},
+		MaxTokens: 512,
+	}
+	s, err := c.Stream(context.Background(), req)
+	if err != nil {
+		t.Fatalf("Stream: %v", err)
+	}
+	_ = s.Close()
+	var body map[string]any
+	if err := json.Unmarshal(srv.Config.Handler.(*fixtureHandler).reqBody, &body); err != nil {
+		t.Fatalf("request body: %v", err)
+	}
+	msgs := body["messages"].([]any)
+	if len(msgs) != 5 {
+		t.Fatalf("messages = %v", body["messages"])
+	}
+	// The stable history prefix breakpoint (CacheMarkers) lands on the
+	// message before the final user turn: index 3 ("a2") carries
+	// cache_control on its last content block.
+	m3 := msgs[3].(map[string]any)
+	blk3 := m3["content"].([]any)[0].(map[string]any)
+	if cc, ok := blk3["cache_control"].(map[string]any); !ok || cc["type"] != "ephemeral" {
+		t.Fatalf("message 3 must carry cache_control: %+v", m3)
+	}
+	// The final user turn must not be marked.
+	m4 := msgs[4].(map[string]any)
+	blk4 := m4["content"].([]any)[0].(map[string]any)
+	if _, ok := blk4["cache_control"]; ok {
+		t.Fatalf("final user turn must not carry cache_control: %+v", m4)
+	}
+}
+
 func TestStreamToolUseWithEmptyInput(t *testing.T) {
 	fixture := "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_06\",\"usage\":{\"input_tokens\":3}}}\n\nevent: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_9\",\"name\":\"Noop\",\"input\":{}}}\n\nevent: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\nevent: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"tool_use\"}}\n\nevent: message_stop\ndata: {\"type\":\"message_stop\"}\n\n"
 	srv := httptest.NewServer(&fixtureHandler{t: t, body: []byte(fixture)})

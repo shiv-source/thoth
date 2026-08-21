@@ -2,6 +2,7 @@ package tools
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -332,5 +333,94 @@ func TestListTool(t *testing.T) {
 
 	if _, err := tl.Run(ctx, map[string]any{"path": "nope"}); err == nil {
 		t.Fatal("list of missing dir succeeded")
+	}
+}
+
+func TestOSFSRoot(t *testing.T) {
+	root := t.TempDir()
+	fs, err := NewOSFS(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	canonical, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fs.Root() != canonical {
+		t.Fatalf("Root() = %q, want %q", fs.Root(), canonical)
+	}
+}
+
+func TestOSFSWithinRejectsUnrelativizablePath(t *testing.T) {
+	fs := newTestFS(t)
+	// A relative path cannot be made relative to the canonical root, so the
+	// within check must reject it rather than misreport containment.
+	if fs.within("relative-path") {
+		t.Fatal("within must reject a path that cannot be relativized to the root")
+	}
+}
+
+func TestAtomicWriteCreatesFile(t *testing.T) {
+	root := t.TempDir()
+	p := filepath.Join(root, "notes.md")
+	if err := AtomicWrite(p, []byte("body"), 0o644); err != nil {
+		t.Fatalf("AtomicWrite: %v", err)
+	}
+	data, err := os.ReadFile(p)
+	if err != nil || string(data) != "body" {
+		t.Fatalf("read back = %q, %v", data, err)
+	}
+}
+
+func TestAtomicWriteFailsWhenParentIsNotDir(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "file"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := AtomicWrite(filepath.Join(root, "file", "x.md"), []byte("x"), 0o644); err == nil {
+		t.Fatal("AtomicWrite under a regular-file parent succeeded, want error")
+	}
+}
+
+func TestOSFSMkdirAllErrorWhenParentIsFile(t *testing.T) {
+	root := t.TempDir()
+	fs, err := NewOSFS(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := fs.WriteFile("file", []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := fs.MkdirAll("file/sub", 0o755); err == nil {
+		t.Fatal("MkdirAll under a regular file succeeded, want error")
+	}
+}
+
+func TestWriteFileToolMkdirAllError(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "file"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	fs, err := NewOSFS(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := NewWriteFile(fs).Run(context.Background(), map[string]any{"path": "file/sub.md", "content": "x"}); err == nil {
+		t.Fatal("write_file under a regular-file parent succeeded, want error")
+	}
+}
+
+func TestToolsCtxCancelled(t *testing.T) {
+	fs := newTestFS(t)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := NewReadFile(fs, 0).Run(ctx, map[string]any{"path": "x.md"}); !errors.Is(err, context.Canceled) {
+		t.Fatalf("read_file on cancelled ctx = %v", err)
+	}
+	if _, err := NewWriteFile(fs).Run(ctx, map[string]any{"path": "x.md", "content": "x"}); !errors.Is(err, context.Canceled) {
+		t.Fatalf("write_file on cancelled ctx = %v", err)
+	}
+	if _, err := NewList(fs).Run(ctx, map[string]any{"path": "."}); !errors.Is(err, context.Canceled) {
+		t.Fatalf("list on cancelled ctx = %v", err)
 	}
 }

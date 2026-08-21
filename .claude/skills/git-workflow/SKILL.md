@@ -57,7 +57,7 @@ description: >-
    - ## Summary — what changed and why; bullets when they help
    - ## Related issue — `Closes #<n>` (auto-closes the issue on merge); omit when there is no issue
    - ## Files changed — key files/packages and the role of each
-   - ## How verified — check the boxes you ran: gofmt/vet clean, go test -race ./..., coverage >= 80% (make cover), golangci-lint run, frontend tsc --noEmit / lint / vitest run, docs updated
+   - ## How verified — check the boxes you ran: gofmt/vet clean, go test -race ./..., coverage >= 90% (make cover), golangci-lint run, frontend tsc --noEmit / lint / vitest run, docs updated
    - ## Notes — optional; design decisions, follow-ups
 4. Run `make check` before opening — it is everything CI enforces, locally — and confirm `graphify update .` has been run if code changed (workflow 2 step 5) (CONTRIBUTING.md § Before you push)
 5. ci-pr quality gates run automatically; final-gate posts its report as a PR comment and must pass before the human merges — don't hand off a red PR

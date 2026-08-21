@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
+	"time"
 
 	agentlib "github.com/shiv-source/thoth/agent"
 	"github.com/shiv-source/thoth/agent/provider/anthropic"
@@ -20,6 +21,11 @@ import (
 // last 20 user-initiated turns are replayed to the model (T7).
 const defaultHistoryCap = 20
 
+// defaultTurnTimeout bounds a turn (history + tool loop + provider streams)
+// when Options leaves it zero. A provider that stalls on the wire with no
+// error would otherwise hang the turn and its socket forever.
+const defaultTurnTimeout = 10 * time.Minute
+
 // Option configures a Client.
 type Option func(*options)
 
@@ -32,6 +38,7 @@ type options struct {
 	historyCap      int
 	maxIterations   int
 	maxOutputTokens int
+	turnTimeout     time.Duration
 }
 
 // WithProvider overrides the provider New would choose from the model id
@@ -65,12 +72,15 @@ func WithMaxIterations(n int) Option { return func(o *options) { o.maxIterations
 // WithMaxOutputTokens bounds each provider turn's output tokens.
 func WithMaxOutputTokens(n int) Option { return func(o *options) { o.maxOutputTokens = n } }
 
+// WithTurnTimeout bounds each turn, cancelling the provider stream and tool
+// loop when it fires. Zero selects the default of 10 minutes.
+func WithTurnTimeout(d time.Duration) Option { return func(o *options) { o.turnTimeout = d } }
+
 // Client is the Thoth host layer on the reusable agent library: the chat
 // seam the api Hub depends on (Start with an EventWriter), driving
 // agent.Agent instead of the CLI. sessionID is treated as the conversation
 // id for history lookup.
 type Client struct {
-	model           string
 	provider        agentlib.Provider
 	wiki            *wiki.Wiki
 	store           *store.Store
@@ -80,6 +90,7 @@ type Client struct {
 	historyCap      int
 	maxIterations   int
 	maxOutputTokens int
+	turnTimeout     time.Duration
 }
 
 // New wires a Client from the model id and API key plus the wiki (tools and
@@ -99,7 +110,7 @@ func New(model, apiKey string, w *wiki.Wiki, st *store.Store, ix *index.Index, o
 	if st == nil {
 		return nil, errors.New("agent: store is required")
 	}
-	o := options{folders: wiki.Folders(), historyCap: defaultHistoryCap}
+	o := options{folders: wiki.Folders(), historyCap: defaultHistoryCap, turnTimeout: defaultTurnTimeout}
 	for _, opt := range opts {
 		opt(&o)
 	}
@@ -115,12 +126,11 @@ func New(model, apiKey string, w *wiki.Wiki, st *store.Store, ix *index.Index, o
 	if logger == nil {
 		logger = slog.Default()
 	}
-	reg, err := registry(w.Root, ix)
+	reg, err := registry(w, ix)
 	if err != nil {
 		return nil, fmt.Errorf("agent: build tools: %w", err)
 	}
 	return &Client{
-		model:           model,
 		provider:        prov,
 		wiki:            w,
 		store:           st,
@@ -130,6 +140,7 @@ func New(model, apiKey string, w *wiki.Wiki, st *store.Store, ix *index.Index, o
 		historyCap:      o.historyCap,
 		maxIterations:   o.maxIterations,
 		maxOutputTokens: o.maxOutputTokens,
+		turnTimeout:     o.turnTimeout,
 	}, nil
 }
 
@@ -184,18 +195,17 @@ func openaiClient(model, apiKey, baseURL string) agentlib.Provider {
 // returning the turn's accumulated token usage. It builds a fresh agent.Agent
 // per turn: the system prompt is re-read from the rulebook so edits apply
 // without restart, and the loop is single-turn, while the Hub serves many
-// conversations at once.
+// conversations at once. The turn is bounded by the client's turn timeout so
+// a stalled provider cannot hang the socket.
 func (c *Client) Start(ctx context.Context, sessionID, prompt string, w agentlib.EventWriter) (agentlib.Usage, error) {
 	if w == nil {
 		return agentlib.Usage{}, errors.New("agent: EventWriter is required")
 	}
-	system, err := SystemPrompt(c.wiki, c.folders)
-	if err != nil {
-		return agentlib.Usage{}, err
-	}
+	ctx, cancel := context.WithTimeout(ctx, c.turnTimeout)
+	defer cancel()
+	system := SystemPrompt(c.wiki, c.folders)
 	ag, err := agentlib.New(agentlib.Options{
 		Provider:        c.provider,
-		Model:           c.model,
 		System:          system,
 		History:         History(c.store),
 		HistoryCap:      c.historyCap,

@@ -18,8 +18,9 @@ const gitStepTimeout = 15 * time.Second
 
 // gitSetup pushes the wiki to a git remote: initializes a repository when the
 // wiki is not one yet, points origin at url, commits the current tree, and
-// pushes. The wiki path is read live from d.Wiki.Root — the settings callback
-// mutates it on wiki-path changes, so this always targets the current root.
+// pushes. The wiki path is read live from d.Wiki.Root() — the settings
+// callback mutates it on wiki-path changes, so this always targets the
+// current root.
 func gitSetup(c echo.Context, d Deps) error {
 	var body struct {
 		URL string `json:"url"`
@@ -27,7 +28,7 @@ func gitSetup(c echo.Context, d Deps) error {
 	if err := c.Bind(&body); err != nil || body.URL == "" {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "url is required"})
 	}
-	root := d.Wiki.Root
+	root := d.Wiki.Root()
 	if err := gitutil.Init(root); err != nil {
 		return gitFailure(c, d, err)
 	}

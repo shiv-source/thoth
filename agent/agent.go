@@ -29,10 +29,6 @@ import (
 type Options struct {
 	// Provider drives every turn of the tool-use loop. Required.
 	Provider Provider
-	// Model is the model id the conversation runs on. Required. Wire
-	// propagation lands with the provider request wiring (T3/T4); hosts pick
-	// the model at the provider client they construct.
-	Model string
 	// System is the system prompt prepended to every provider request.
 	System string
 	// History returns the prior messages of a conversation. The loop caps it
@@ -65,7 +61,6 @@ const defaultMaxIterations = 25
 // not safe for concurrent Start calls.
 type Agent struct {
 	provider        Provider
-	model           string
 	system          string
 	history         func(ctx context.Context, convID string) ([]Message, error)
 	historyCap      int
@@ -78,18 +73,14 @@ type Agent struct {
 	usage Usage
 }
 
-// New returns an Agent configured by opts. It fails when opts.Provider or
-// opts.Model is missing.
+// New returns an Agent configured by opts. It fails when opts.Provider is
+// missing.
 func New(opts Options) (*Agent, error) {
 	if opts.Provider == nil {
 		return nil, errors.New("agent: Provider is required")
 	}
-	if opts.Model == "" {
-		return nil, errors.New("agent: Model is required")
-	}
 	a := &Agent{
 		provider:        opts.Provider,
-		model:           opts.Model,
 		system:          opts.System,
 		history:         opts.History,
 		historyCap:      opts.HistoryCap,

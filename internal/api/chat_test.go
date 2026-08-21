@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -578,6 +579,66 @@ type ctxAwareFake struct{}
 func (ctxAwareFake) Start(ctx context.Context, _, _ string, _ agentlib.EventWriter) (agentlib.Usage, error) {
 	<-ctx.Done()
 	return agentlib.Usage{}, ctx.Err()
+}
+
+// scriptedHangClient blocks on the first Start until cancelled, then streams a
+// completed turn on every later call — exercising the supersede path with a
+// visible second turn.
+type scriptedHangClient struct {
+	mu   sync.Mutex
+	done bool
+}
+
+func (c *scriptedHangClient) Start(ctx context.Context, _, _ string, w agentlib.EventWriter) (agentlib.Usage, error) {
+	c.mu.Lock()
+	if !c.done {
+		c.done = true
+		c.mu.Unlock()
+		<-ctx.Done()
+		return agentlib.Usage{}, ctx.Err()
+	}
+	c.mu.Unlock()
+	if err := w.Write(agentlib.Event{Type: agentlib.EventDelta, Text: "second answer"}); err != nil {
+		return agentlib.Usage{}, err
+	}
+	if err := w.Write(agentlib.Event{Type: agentlib.EventDone}); err != nil {
+		return agentlib.Usage{}, err
+	}
+	return agentlib.Usage{}, nil
+}
+
+func TestChatSupersededTurnSuppressesCancelledFrame(t *testing.T) {
+	d := testDeps(t)
+	d.Claude = &scriptedHangClient{}
+	e := New(d)
+
+	conn, _, err := websocket.DefaultDialer.Dial(wsURL(t, e), nil)
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	defer func() { _ = conn.Close() }()
+
+	if err := conn.WriteJSON(map[string]string{"type": "send", "text": "first"}); err != nil {
+		t.Fatal(err)
+	}
+	if m := readMsg(t, conn); m["type"] != "assistant_start" {
+		t.Fatalf("expected assistant_start, got %+v", m)
+	}
+	// Supersede with a second send that produces a real answer. The
+	// superseded turn must not leak a spurious "cancelled" frame into the
+	// second turn's stream.
+	if err := conn.WriteJSON(map[string]string{"type": "send", "text": "second"}); err != nil {
+		t.Fatal(err)
+	}
+	for {
+		m := readMsg(t, conn)
+		switch m["type"] {
+		case "error":
+			t.Fatalf("spurious error frame: %+v", m)
+		case "turn_done":
+			return
+		}
+	}
 }
 
 func TestChatHubCancellationEndsTurns(t *testing.T) {

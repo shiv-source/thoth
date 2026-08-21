@@ -64,7 +64,7 @@ Or read the markdown directly: **[docs/index.md](docs/index.md)**.
 ```sh
 make help     # self-documenting target list
 make dev      # Vite HMR + Go server together
-make check    # everything CI enforces: fmt, lint, race, coverage (≥80%), build
+make check    # everything CI enforces: fmt, lint, race, coverage (≥90%), build
 ```
 
 - Backend: Go 1.26 · Echo · Cobra · SQLite (FTS5) · fsnotify — `internal/`

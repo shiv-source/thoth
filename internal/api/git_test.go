@@ -41,7 +41,7 @@ func TestGitSetupRunsAgainstWiki(t *testing.T) {
 	t.Setenv("PATH", binDir)
 	t.Setenv("FAKE_GIT_LOG", logPath)
 	// A note so the commit has something to stage.
-	if err := os.WriteFile(filepath.Join(d.Wiki.Root, "hello.md"),
+	if err := os.WriteFile(filepath.Join(d.Wiki.Root(), "hello.md"),
 		[]byte("---\ntitle: Hi\n---\n\nHi\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}

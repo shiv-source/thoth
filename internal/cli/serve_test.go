@@ -309,8 +309,8 @@ func TestOnSettingsSavedSwitchesRootAndRestartsWatcher(t *testing.T) {
 	if err := cb(newRoot); err != nil {
 		t.Fatalf("callback: %v", err)
 	}
-	if w.Root != newRoot {
-		t.Fatalf("wiki root = %q, want %q", w.Root, newRoot)
+	if w.Root() != newRoot {
+		t.Fatalf("wiki root = %q, want %q", w.Root(), newRoot)
 	}
 	if len(watched) != 1 || watched[0] != newRoot {
 		t.Fatalf("watcher restarted with %v, want [%q]", watched, newRoot)
@@ -368,8 +368,8 @@ func TestOnSettingsSavedFailureLeavesRootUntouched(t *testing.T) {
 	if err := cb(newRoot); err == nil {
 		t.Fatal("expected error when scaffold fails")
 	}
-	if w.Root != oldRoot {
-		t.Fatalf("wiki root mutated after failure: %q", w.Root)
+	if w.Root() != oldRoot {
+		t.Fatalf("wiki root mutated after failure: %q", w.Root())
 	}
 	if len(watched) != 0 {
 		t.Fatalf("watcher restarted after failure: %v", watched)
@@ -396,8 +396,8 @@ func TestEnsureWikiRecreatesReservedAttachments(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ensureWiki: %v", err)
 	}
-	if w.Root != root {
-		t.Fatalf("wiki root = %q, want %q", w.Root, root)
+	if w.Root() != root {
+		t.Fatalf("wiki root = %q, want %q", w.Root(), root)
 	}
 	if _, err := os.Stat(filepath.Join(root, "attachments")); err != nil {
 		t.Fatalf("ensureWiki must create the reserved attachments dir: %v", err)

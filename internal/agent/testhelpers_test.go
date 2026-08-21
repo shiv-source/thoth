@@ -55,6 +55,16 @@ func (p *fakeProvider) Stream(ctx context.Context, req agentlib.Request) (agentl
 	return p.stream, nil
 }
 
+// blockingProvider blocks in Stream until the context is done, then returns
+// its error — exercising the turn-timeout path (fakeProvider replays
+// instantly and never exposes an in-flight request).
+type blockingProvider struct{}
+
+func (blockingProvider) Stream(ctx context.Context, _ agentlib.Request) (agentlib.Stream, error) {
+	<-ctx.Done()
+	return nil, ctx.Err()
+}
+
 // openStore opens a store on a fresh temp db.
 func openStore(t *testing.T) *store.Store {
 	t.Helper()
@@ -99,5 +109,5 @@ func newWiki(t *testing.T, rulebook string) *wiki.Wiki {
 // writeRulebook rewrites the wiki's CLAUDE.md in place.
 func writeRulebook(t *testing.T, w *wiki.Wiki, content string) error {
 	t.Helper()
-	return os.WriteFile(filepath.Join(w.Root, "CLAUDE.md"), []byte(content), 0o644)
+	return os.WriteFile(filepath.Join(w.Root(), "CLAUDE.md"), []byte(content), 0o644)
 }

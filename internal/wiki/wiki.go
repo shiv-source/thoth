@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 )
 
 type Node struct {
@@ -105,18 +106,37 @@ func Indexable(rel string) bool {
 }
 
 type Wiki struct {
-	Root string
+	mu   sync.RWMutex
+	root string
 }
 
-func New(root string) *Wiki { return &Wiki{Root: root} }
+func New(root string) *Wiki { return &Wiki{root: root} }
+
+// Root returns the current wiki root directory. It may change when the
+// settings wiki path is updated (SetRoot), so callers read it once per
+// filesystem operation to keep rulebook and tools on the same root.
+func (w *Wiki) Root() string {
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+	return w.root
+}
+
+// SetRoot switches the wiki root directory, e.g. after a settings change.
+// It is safe to call concurrently with Root: readers see either the old or
+// the new root, never a torn value.
+func (w *Wiki) SetRoot(root string) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	w.root = root
+}
 
 func (w *Wiki) Exists() bool {
-	fi, err := os.Stat(w.Root)
+	fi, err := os.Stat(w.Root())
 	return err == nil && fi.IsDir()
 }
 
 func (w *Wiki) Read(rel string) ([]byte, error) {
-	p, err := SafePath(w.Root, rel)
+	p, err := SafePath(w.Root(), rel)
 	if err != nil {
 		return nil, err
 	}
@@ -133,7 +153,7 @@ func (w *Wiki) Read(rel string) ([]byte, error) {
 // (permissions, …) are kept as nodes carrying an Error instead of failing
 // the whole walk; only an unreadable root aborts.
 func (w *Wiki) Tree() ([]Node, error) {
-	return tree(w.Root, "")
+	return tree(w.Root(), "")
 }
 
 func tree(base, rel string) ([]Node, error) {
