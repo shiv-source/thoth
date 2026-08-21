@@ -10,9 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
-	"github.com/shiv-source/thoth/internal/claude"
+	agentlib "github.com/shiv-source/thoth/agent"
 )
 
 func wsURL(t *testing.T, e http.Handler) string {
@@ -40,10 +39,10 @@ func readMsg(t *testing.T, conn *websocket.Conn) map[string]any {
 
 func TestChatSendStreamsAndPersists(t *testing.T) {
 	d := testDeps(t)
-	fake := &claude.FakeClient{Script: []claude.Event{
-		{Type: claude.EventDelta, Text: "Hello "},
-		{Type: claude.EventDelta, Text: "wiki"},
-		{Type: claude.EventDone},
+	fake := &FakeClient{Script: []agentlib.Event{
+		{Type: agentlib.EventDelta, Text: "Hello "},
+		{Type: agentlib.EventDelta, Text: "wiki"},
+		{Type: agentlib.EventDone},
 	}}
 	d.Claude = fake
 	e := New(d)
@@ -86,10 +85,10 @@ func TestChatSendStreamsAndPersists(t *testing.T) {
 
 func TestChatStreamsToolActivity(t *testing.T) {
 	d := testDeps(t)
-	d.Claude = &claude.FakeClient{Script: []claude.Event{
-		{Type: claude.EventTool, Tool: "Read", Detail: "note.md"},
-		{Type: claude.EventDelta, Text: "answer"},
-		{Type: claude.EventDone},
+	d.Claude = &FakeClient{Script: []agentlib.Event{
+		{Type: agentlib.EventTool, Tool: "Read", Detail: "note.md"},
+		{Type: agentlib.EventDelta, Text: "answer"},
+		{Type: agentlib.EventDone},
 	}}
 	e := New(d)
 
@@ -124,9 +123,9 @@ func TestChatStreamsToolActivity(t *testing.T) {
 
 func TestChatResumeReplays(t *testing.T) {
 	d := testDeps(t)
-	d.Claude = &claude.FakeClient{Script: []claude.Event{
-		{Type: claude.EventDelta, Text: "previous answer"},
-		{Type: claude.EventDone},
+	d.Claude = &FakeClient{Script: []agentlib.Event{
+		{Type: agentlib.EventDelta, Text: "previous answer"},
+		{Type: agentlib.EventDone},
 	}}
 	e := New(d)
 
@@ -168,7 +167,7 @@ func TestChatResumeReplays(t *testing.T) {
 // instantly and never exposes an in-flight turn).
 type hangClient struct{}
 
-func (hangClient) Start(ctx context.Context, _, _ string, _ claude.EventWriter, _ ...claude.StartOption) error {
+func (hangClient) Start(ctx context.Context, _, _ string, _ agentlib.EventWriter) error {
 	<-ctx.Done()
 	return ctx.Err()
 }
@@ -242,7 +241,7 @@ func TestChatSendStoreError(t *testing.T) {
 
 func TestChatTurnErrorFromClient(t *testing.T) {
 	d := testDeps(t)
-	d.Claude = &claude.FakeClient{Err: errors.New("boom")}
+	d.Claude = &FakeClient{Err: errors.New("boom")}
 	e := New(d)
 
 	conn, _, err := websocket.DefaultDialer.Dial(wsURL(t, e), nil)
@@ -267,7 +266,7 @@ func TestChatTurnErrorFromClient(t *testing.T) {
 
 func TestChatTruncatesLongTitle(t *testing.T) {
 	d := testDeps(t)
-	d.Claude = &claude.FakeClient{Script: []claude.Event{{Type: claude.EventDone}}}
+	d.Claude = &FakeClient{Script: []agentlib.Event{{Type: agentlib.EventDone}}}
 	e := New(d)
 
 	conn, _, err := websocket.DefaultDialer.Dial(wsURL(t, e), nil)
@@ -351,7 +350,7 @@ func TestChatOriginCheck(t *testing.T) {
 
 func TestChatTurnDoneCarriesConversationID(t *testing.T) {
 	d := testDeps(t)
-	d.Claude = &claude.FakeClient{Script: []claude.Event{{Type: claude.EventDone}}}
+	d.Claude = &FakeClient{Script: []agentlib.Event{{Type: agentlib.EventDone}}}
 	e := New(d)
 
 	conn, _, err := websocket.DefaultDialer.Dial(wsURL(t, e), nil)
@@ -377,7 +376,7 @@ func TestChatTurnDoneCarriesConversationID(t *testing.T) {
 
 func TestChatOpenPinsConnectionForNextSend(t *testing.T) {
 	d := testDeps(t)
-	d.Claude = &claude.FakeClient{Script: []claude.Event{{Type: claude.EventDone}}}
+	d.Claude = &FakeClient{Script: []agentlib.Event{{Type: agentlib.EventDone}}}
 	e := New(d)
 
 	// The conversation exists before the socket connects (it was loaded from
@@ -404,7 +403,7 @@ func TestChatOpenPinsConnectionForNextSend(t *testing.T) {
 
 	// The turn ran against the opened conversation's id, and no new
 	// conversation was created.
-	fake := d.Claude.(*claude.FakeClient)
+	fake := d.Claude.(*FakeClient)
 	if len(fake.Calls) != 1 || fake.Calls[0].SessionID != id {
 		t.Fatalf("send after open must use the opened conversation, got %+v", fake.Calls)
 	}
@@ -446,9 +445,9 @@ func TestChatOpenUnknownConversation(t *testing.T) {
 
 func TestChatResumePinsConnectionForNextSend(t *testing.T) {
 	d := testDeps(t)
-	d.Claude = &claude.FakeClient{Script: []claude.Event{
-		{Type: claude.EventDelta, Text: "previous answer"},
-		{Type: claude.EventDone},
+	d.Claude = &FakeClient{Script: []agentlib.Event{
+		{Type: agentlib.EventDelta, Text: "previous answer"},
+		{Type: agentlib.EventDone},
 	}}
 	e := New(d)
 
@@ -497,11 +496,10 @@ func TestChatResumePinsConnectionForNextSend(t *testing.T) {
 }
 
 // ctxAwareFake respects its context: it blocks until the context is done and
-// returns its error, exercising the hub's shutdown wiring (the real CLI
-// client behaves the same way via exec.CommandContext).
+// returns its error, exercising the hub's shutdown wiring.
 type ctxAwareFake struct{}
 
-func (ctxAwareFake) Start(ctx context.Context, _, _ string, _ claude.EventWriter, _ ...claude.StartOption) error {
+func (ctxAwareFake) Start(ctx context.Context, _, _ string, _ agentlib.EventWriter) error {
 	<-ctx.Done()
 	return ctx.Err()
 }
@@ -596,7 +594,7 @@ func TestChatSupersededTurnDoesNotDeleteNewTurn(t *testing.T) {
 
 func TestChatTruncatesTitleRuneSafe(t *testing.T) {
 	d := testDeps(t)
-	d.Claude = &claude.FakeClient{Script: []claude.Event{{Type: claude.EventDone}}}
+	d.Claude = &FakeClient{Script: []agentlib.Event{{Type: agentlib.EventDone}}}
 	e := New(d)
 
 	conn, _, err := websocket.DefaultDialer.Dial(wsURL(t, e), nil)
@@ -658,82 +656,13 @@ func TestChatCancelStopsInFlightTurn(t *testing.T) {
 	}
 }
 
-// staleLockClient fails its first Start with the CLI's stale-lock error
-// (what a killed turn leaves behind), then delegates to a FakeClient so the
-// fork retry can succeed and be inspected.
-type staleLockClient struct {
-	fake  claude.FakeClient
-	first string
-	calls int
-}
-
-func (s *staleLockClient) Start(ctx context.Context, sessionID, prompt string, w claude.EventWriter, opts ...claude.StartOption) error {
-	s.calls++
-	if s.calls == 1 {
-		s.first = sessionID
-		return errors.New("claude exited: exit status 1 (stderr: Error: Session ID abc is already in use. )")
-	}
-	return s.fake.Start(ctx, sessionID, prompt, w, opts...)
-}
-
-func TestChatRotatesStaleSessionID(t *testing.T) {
-	d := testDeps(t)
-	stale := &staleLockClient{fake: claude.FakeClient{Script: []claude.Event{
-		{Type: claude.EventDelta, Text: "recovered"},
-		{Type: claude.EventDone},
-	}}}
-	d.Claude = stale
-	e := New(d)
-
-	conn, _, err := websocket.DefaultDialer.Dial(wsURL(t, e), nil)
-	if err != nil {
-		t.Fatalf("dial: %v", err)
-	}
-	defer func() { _ = conn.Close() }()
-
-	if err := conn.WriteJSON(map[string]string{"type": "send", "text": "hello"}); err != nil {
-		t.Fatal(err)
-	}
-	var convID string
-	for {
-		m := readMsg(t, conn)
-		switch m["type"] {
-		case "error":
-			t.Fatalf("turn must recover from the stale lock, got %+v", m)
-		case "turn_done":
-			convID, _ = m["conversation_id"].(string)
-			goto done
-		}
-	}
-done:
-	if stale.first == "" || convID == "" || stale.first != convID {
-		t.Fatalf("first attempt session = %q, conversation = %q (a fresh conversation seeds its own id)", stale.first, convID)
-	}
-	// The retry forked into a fresh valid id resumed from the locked one,
-	// and the store now holds the fork.
-	if len(stale.fake.Calls) != 1 {
-		t.Fatalf("expected exactly one retry call, got %d", len(stale.fake.Calls))
-	}
-	forked := stale.fake.Calls[0]
-	if forked.SessionID == stale.first || forked.Resume != stale.first {
-		t.Fatalf("retry call = %+v, want fresh id resumed from %q", forked, stale.first)
-	}
-	if _, err := uuid.Parse(forked.SessionID); err != nil {
-		t.Fatalf("forked session id %q is not a valid UUID: %v", forked.SessionID, err)
-	}
-	sid, err := d.Store.ConversationSessionID(convID)
-	if err != nil || sid != forked.SessionID {
-		t.Fatalf("stored session id = %q/%v, want %q", sid, err, forked.SessionID)
-	}
-}
-
 func TestChatNewChatUnpinsConnection(t *testing.T) {
 	d := testDeps(t)
 	id1, err := d.Store.CreateConversation("first")
 	if err != nil {
 		t.Fatal(err)
 	}
-	fake := &claude.FakeClient{Script: []claude.Event{{Type: claude.EventDone}}}
+	fake := &FakeClient{Script: []agentlib.Event{{Type: agentlib.EventDone}}}
 	d.Claude = fake
 	e := New(d)
 
@@ -860,10 +789,10 @@ func TestChatNewChatCancelsBusyTurn(t *testing.T) {
 
 func TestChatForwardsThinkingFrames(t *testing.T) {
 	d := testDeps(t)
-	fake := &claude.FakeClient{Script: []claude.Event{
-		{Type: claude.EventThinking},
-		{Type: claude.EventDelta, Text: "answer"},
-		{Type: claude.EventDone},
+	fake := &FakeClient{Script: []agentlib.Event{
+		{Type: agentlib.EventThinking},
+		{Type: agentlib.EventDelta, Text: "answer"},
+		{Type: agentlib.EventDone},
 	}}
 	d.Claude = fake
 	e := New(d)
@@ -927,98 +856,16 @@ replayDone:
 	}
 }
 
-func TestHubSessionIDUsesRotated(t *testing.T) {
+// TestChatToolTurnFrameSequence pins the exact WS frame order for a
+// tool-using turn: start, tool activity, deltas, then done — the sequence
+// the UI renders and a reconnect must replay.
+func TestChatToolTurnFrameSequence(t *testing.T) {
 	d := testDeps(t)
-	hub := NewHub(d.Claude, d.Store, d.Log, context.Background(), 0, nil)
-
-	id, err := d.Store.CreateConversation("s")
-	if err != nil {
-		t.Fatal(err)
-	}
-	// A rotated (forked) session id is the one a turn — and the boot prewarm —
-	// must use, never the conversation id.
-	if err := d.Store.SetClaudeSessionID(id, "rotated-session-uuid"); err != nil {
-		t.Fatal(err)
-	}
-	if got := hub.sessionID(id); got != "rotated-session-uuid" {
-		t.Fatalf("sessionID = %q, want rotated-session-uuid", got)
-	}
-	// A fresh conversation seeds its own id as the session.
-	id2, err := d.Store.CreateConversation("t")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got := hub.sessionID(id2); got != id2 {
-		t.Fatalf("sessionID(fresh) = %q, want %q", got, id2)
-	}
-}
-
-func TestHubRelaxFlushesWhenLastClientGoesAway(t *testing.T) {
-	d := testDeps(t)
-	flushed := make(chan struct{}, 1)
-	hub := NewHub(d.Claude, d.Store, d.Log, context.Background(), 50*time.Millisecond, func() { flushed <- struct{}{} })
-
-	out := make(chan serverMsg, 64)
-	hub.addClient(out)
-	// A connected, visible client counts as active: nothing arms.
-	select {
-	case <-flushed:
-		t.Fatal("flushed while a client is active")
-	case <-time.After(120 * time.Millisecond):
-	}
-	// Hiding the last tab arms the relaxation timer.
-	hub.setPresence(out, false)
-	select {
-	case <-flushed:
-	case <-time.After(5 * time.Second):
-		t.Fatal("relaxation flush did not fire after going away")
-	}
-}
-
-func TestHubRelaxCancelledOnReturn(t *testing.T) {
-	d := testDeps(t)
-	flushed := make(chan struct{}, 1)
-	hub := NewHub(d.Claude, d.Store, d.Log, context.Background(), 100*time.Millisecond, func() { flushed <- struct{}{} })
-
-	out := make(chan serverMsg, 64)
-	hub.addClient(out)
-	hub.setPresence(out, false) // away: arms the timer
-	time.Sleep(30 * time.Millisecond)
-	hub.setPresence(out, true) // back before the timeout: timer cancels
-	select {
-	case <-flushed:
-		t.Fatal("flush fired after the client returned")
-	case <-time.After(200 * time.Millisecond):
-	}
-	// Leaving again restarts the timer.
-	hub.setPresence(out, false)
-	select {
-	case <-flushed:
-	case <-time.After(5 * time.Second):
-		t.Fatal("second relaxation flush did not fire")
-	}
-}
-
-func TestHubRelaxOnDisconnect(t *testing.T) {
-	d := testDeps(t)
-	flushed := make(chan struct{}, 1)
-	hub := NewHub(d.Claude, d.Store, d.Log, context.Background(), 50*time.Millisecond, func() { flushed <- struct{}{} })
-
-	out := make(chan serverMsg, 64)
-	hub.addClient(out)
-	hub.removeClient(out) // last socket closed (navigated away)
-	select {
-	case <-flushed:
-	case <-time.After(5 * time.Second):
-		t.Fatal("relaxation flush did not fire after disconnect")
-	}
-}
-
-func TestChatPresenceFrameArmsRelaxation(t *testing.T) {
-	d := testDeps(t)
-	flushed := make(chan struct{}, 1)
-	d.RelaxTimeout = 80 * time.Millisecond
-	d.OnChatAway = func() { flushed <- struct{}{} }
+	d.Claude = &FakeClient{Script: []agentlib.Event{
+		{Type: agentlib.EventTool, Tool: "read_file", Detail: `{"path":"note.md"}`},
+		{Type: agentlib.EventDelta, Text: "here it is"},
+		{Type: agentlib.EventDone},
+	}}
 	e := New(d)
 
 	conn, _, err := websocket.DefaultDialer.Dial(wsURL(t, e), nil)
@@ -1027,45 +874,87 @@ func TestChatPresenceFrameArmsRelaxation(t *testing.T) {
 	}
 	defer func() { _ = conn.Close() }()
 
-	// Hiding the tab (Page Visibility API) sends the presence frame, which
-	// arms the relaxation flush after the timeout.
-	if err := conn.WriteJSON(map[string]any{"type": "presence", "active": false}); err != nil {
+	if err := conn.WriteJSON(map[string]string{"type": "send", "text": "read my note"}); err != nil {
 		t.Fatal(err)
 	}
-	select {
-	case <-flushed:
-	case <-time.After(5 * time.Second):
-		t.Fatal("away presence frame did not trigger the relaxation flush")
+	got := []string{}
+	for {
+		m := readMsg(t, conn)
+		switch m["type"] {
+		case "error":
+			t.Fatalf("unexpected error frame: %+v", m)
+		case "turn_done":
+			goto done
+		default:
+			got = append(got, m["type"].(string))
+		}
 	}
-
-	// A second, visible client keeps the pool warm: nothing may flush while it
-	// is connected even though the first is still hidden.
+done:
+	want := []string{"assistant_start", "tool_activity", "assistant_delta"}
+	if len(got) != len(want) {
+		t.Fatalf("frames = %v, want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("frame %d = %q, want %q (%v)", i, got[i], want[i], got)
+		}
+	}
+	// A reconnect replay must include the tool frame in the same position.
+	convs, err := d.Store.ListConversations()
+	if err != nil || len(convs) != 1 {
+		t.Fatalf("conversation not persisted: %v %+v", err, convs)
+	}
 	conn2, _, err := websocket.DefaultDialer.Dial(wsURL(t, e), nil)
 	if err != nil {
-		t.Fatalf("dial second: %v", err)
+		t.Fatalf("dial2: %v", err)
 	}
 	defer func() { _ = conn2.Close() }()
-	select {
-	case <-flushed:
-		t.Fatal("flush fired while a visible client is connected")
-	case <-time.After(200 * time.Millisecond):
+	if err := conn2.WriteJSON(map[string]string{"type": "resume", "conversation_id": convs[0].ID}); err != nil {
+		t.Fatal(err)
+	}
+	replayed := []string{}
+	for {
+		m := readMsg(t, conn2)
+		switch m["type"] {
+		case "turn_done":
+			goto replayDone
+		default:
+			replayed = append(replayed, m["type"].(string))
+		}
+	}
+replayDone:
+	// The replay reflects the recorded frames only (assistant_start is not
+	// replayed): the tool frame must come before the delta, as sent.
+	if len(replayed) == 0 || replayed[0] != "tool_activity" {
+		t.Fatalf("replay = %v, want the turn replayed from tool_activity", replayed)
+	}
+	if replayed[1] != "assistant_delta" {
+		t.Fatalf("replay = %v, want assistant_delta after the tool frame", replayed)
 	}
 }
 
-func TestHubFireAwaySkipsWhenClientActive(t *testing.T) {
+// TestChatAcceptsPresenceFrames guards the WS protocol contract: the frontend
+// keeps sending presence frames (Page Visibility), and even though the native
+// agent has no idle processes to flush they must be accepted — never an
+// unknown-type error.
+func TestChatAcceptsPresenceFrames(t *testing.T) {
 	d := testDeps(t)
-	called := 0
-	hub := NewHub(d.Claude, d.Store, d.Log, context.Background(), 50*time.Millisecond, func() { called++ })
-	out := make(chan serverMsg, 64)
-	hub.addClient(out) // a visible client is connected
-	hub.fireAway()     // the "client returned just as the timer fired" guard
-	if called != 0 {
-		t.Fatalf("OnAway ran with an active client: %d", called)
+	d.Claude = &FakeClient{Script: []agentlib.Event{{Type: agentlib.EventDone}}}
+	e := New(d)
+
+	conn, _, err := websocket.DefaultDialer.Dial(wsURL(t, e), nil)
+	if err != nil {
+		t.Fatalf("dial: %v", err)
 	}
-	// With no client at all, the same path runs the callback.
-	hub.removeClient(out)
-	hub.fireAway()
-	if called != 1 {
-		t.Fatalf("OnAway did not run with no clients: %d", called)
+	defer func() { _ = conn.Close() }()
+
+	if err := conn.WriteJSON(map[string]any{"type": "presence", "active": false}); err != nil {
+		t.Fatal(err)
+	}
+	// The connection stays usable after the presence frame.
+	if err := conn.WriteJSON(map[string]string{"type": "send", "text": "hello"}); err != nil {
+		t.Fatal(err)
+	}
+	for readMsg(t, conn)["type"] != "turn_done" {
 	}
 }

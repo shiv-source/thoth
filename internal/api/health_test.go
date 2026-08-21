@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/shiv-source/thoth/internal/claude"
 	"github.com/shiv-source/thoth/internal/github"
 	"github.com/shiv-source/thoth/internal/index"
 	"github.com/shiv-source/thoth/internal/settings"
@@ -45,7 +44,7 @@ func testDeps(t *testing.T) Deps {
 	return Deps{
 		Log:      slog.New(slog.NewTextHandler(io.Discard, nil)),
 		Store:    st,
-		Claude:   &claude.FakeClient{},
+		Claude:   &FakeClient{},
 		GitHub:   &github.Service{Repo: gh},
 		Settings: stg,
 		DataDir:  t.TempDir(),

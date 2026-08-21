@@ -1,8 +1,6 @@
 package cli
 
 import (
-	"context"
-	"errors"
 	"io"
 	"log/slog"
 	"os"
@@ -10,10 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/shiv-source/thoth/internal/assets"
-	"github.com/shiv-source/thoth/internal/claude"
 	"github.com/shiv-source/thoth/internal/config"
 	"github.com/shiv-source/thoth/internal/index"
 	"github.com/shiv-source/thoth/internal/settings"
@@ -305,28 +301,19 @@ func TestOnSettingsSavedSwitchesRootAndRestartsWatcher(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	root := newRootHolder(oldRoot)
 	w := wiki.New(oldRoot)
 	var watched []string
 	startWatcher := func(r string) { watched = append(watched, r) }
-	flushed := 0
-	flush := func() { flushed++ }
 
-	cb := onSettingsSaved(log, stg, root, w, ix, startWatcher, flush)
+	cb := onSettingsSaved(log, stg, w, ix, startWatcher)
 	if err := cb(newRoot); err != nil {
 		t.Fatalf("callback: %v", err)
-	}
-	if got := root.get(); got != newRoot {
-		t.Fatalf("rootHolder = %q, want %q", got, newRoot)
 	}
 	if w.Root != newRoot {
 		t.Fatalf("wiki root = %q, want %q", w.Root, newRoot)
 	}
 	if len(watched) != 1 || watched[0] != newRoot {
 		t.Fatalf("watcher restarted with %v, want [%q]", watched, newRoot)
-	}
-	if flushed != 1 {
-		t.Fatalf("pooled CLI flush ran %d times, want 1", flushed)
 	}
 	// The new root was scaffolded by the callback.
 	if !w.Exists() {
@@ -338,9 +325,6 @@ func TestOnSettingsSavedSwitchesRootAndRestartsWatcher(t *testing.T) {
 	}
 	if len(watched) != 1 {
 		t.Fatalf("no-op callback restarted the watcher: %v", watched)
-	}
-	if flushed != 1 {
-		t.Fatalf("no-op callback flushed again: %d", flushed)
 	}
 }
 
@@ -376,28 +360,19 @@ func TestOnSettingsSavedFailureLeavesRootUntouched(t *testing.T) {
 	}
 	newRoot := filepath.Join(blocker, "wiki")
 
-	root := newRootHolder(oldRoot)
 	w := wiki.New(oldRoot)
 	var watched []string
 	startWatcher := func(r string) { watched = append(watched, r) }
-	flushed := 0
-	flush := func() { flushed++ }
 
-	cb := onSettingsSaved(log, stg, root, w, ix, startWatcher, flush)
+	cb := onSettingsSaved(log, stg, w, ix, startWatcher)
 	if err := cb(newRoot); err == nil {
 		t.Fatal("expected error when scaffold fails")
-	}
-	if got := root.get(); got != oldRoot {
-		t.Fatalf("rootHolder mutated after failure: %q", got)
 	}
 	if w.Root != oldRoot {
 		t.Fatalf("wiki root mutated after failure: %q", w.Root)
 	}
 	if len(watched) != 0 {
 		t.Fatalf("watcher restarted after failure: %v", watched)
-	}
-	if flushed != 0 {
-		t.Fatalf("pooled CLI flushed after failure: %d", flushed)
 	}
 }
 
@@ -494,197 +469,43 @@ func TestServeErrorWhenWikiScaffoldFails(t *testing.T) {
 	}
 }
 
-// writePrewarmFake writes a fake claude that logs each invocation's argv to
-// argv.txt and, per stream-json user control line on stdin, replies with one
-// turn — the contract a pooled process must satisfy for a boot pre-warm: a
-// warm process answers a later turn without a respawn.
-func writePrewarmFake(t *testing.T) string {
-	t.Helper()
-	dir := t.TempDir()
-	bin := filepath.Join(dir, "claude")
-	script := `#!/bin/sh
-echo "$@" >> "$(dirname "$0")/argv.txt"
-n=0
-while IFS= read -r line; do
-  case "$line" in
-    *user*)
-      n=$((n+1))
-      echo '{"type":"assistant","message":{"content":[{"type":"text","text":"turn-'$n'"}]}}'
-      echo '{"type":"result","subtype":"success","is_error":false,"result":"done"}'
-      ;;
-  esac
-done
-`
-	if err := os.WriteFile(bin, []byte(script), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	return bin
-}
-
-// cliSpawnCount returns how many pooled processes the fake spawned (0 when
-// argv.txt is not there yet — prewarm spawns asynchronously).
-func cliSpawnCount(t *testing.T, bin string) int {
-	t.Helper()
-	raw, err := os.ReadFile(filepath.Join(filepath.Dir(bin), "argv.txt"))
-	if err != nil {
-		return 0
-	}
-	return strings.Count(string(raw), "--input-format")
-}
-
-func waitForCond(t *testing.T, timeout time.Duration, cond func() bool) {
-	t.Helper()
-	deadline := time.Now().Add(timeout)
-	for time.Now().Before(deadline) {
-		if cond() {
-			return
-		}
-		time.Sleep(10 * time.Millisecond)
-	}
-	t.Fatalf("condition not met within %v", timeout)
-}
-
-func TestPrewarmPoolExistingConversation(t *testing.T) {
-	log := slog.New(slog.NewTextHandler(io.Discard, nil))
+// TestDefaultModel picks the first seeded claude model for a fresh install
+// whose settings model key is unset.
+func TestDefaultModel(t *testing.T) {
 	st, _ := openTestRepos(t)
-	bin := writePrewarmFake(t)
-	pc := claude.NewPersistent(bin, t.TempDir())
-	t.Cleanup(func() { _ = pc.Close() })
+	if err := ensureModels(st); err != nil {
+		t.Fatalf("ensureModels: %v", err)
+	}
+	if got := defaultModel(st); got != "claude-opus-4-8" {
+		t.Fatalf("defaultModel = %q, want claude-opus-4-8 (first seeded claude model)", got)
+	}
 
-	id, err := st.CreateConversation("warm me")
+	// A user who removed every claude model gets no default; agent.New then
+	// surfaces its own required-model error rather than booting on a guess.
+	models, err := st.ListModels()
 	if err != nil {
 		t.Fatal(err)
 	}
-	prewarmPool(log, st, pc)
-
-	// The warm spawn must be the persistent-mode invocation for the
-	// conversation's session, with no prompt (it rides stdin later).
-	waitForCond(t, 5*time.Second, func() bool { return cliSpawnCount(t, bin) == 1 })
-	raw, err := os.ReadFile(filepath.Join(filepath.Dir(bin), "argv.txt"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, want := range []string{"-p", "--input-format", "stream-json", "--output-format", "stream-json", "--verbose", "--session-id", id} {
-		if !strings.Contains(string(raw), want) {
-			t.Fatalf("prewarm argv %q missing %q", raw, want)
+	for _, m := range models {
+		if strings.HasPrefix(m.Value, "claude-") {
+			if err := st.DeleteModel(m.ID); err != nil {
+				t.Fatal(err)
+			}
 		}
 	}
-
-	// The warmed process is alive and pooled: a turn on the same session
-	// produces zero new spawns.
-	var got []claude.Event
-	if err := pc.Start(context.Background(), id, "hello", claude.WriterFunc(func(e claude.Event) error {
-		got = append(got, e)
-		return nil
-	})); err != nil {
-		t.Fatalf("Start on warmed session: %v", err)
-	}
-	if len(got) == 0 || got[0].Text != "turn-1" {
-		t.Fatalf("warmed-session deltas: %+v", got)
-	}
-	if n := cliSpawnCount(t, bin); n != 1 {
-		t.Fatalf("turn after prewarm respawned: %d spawns, want 1", n)
+	if got := defaultModel(st); got != "" {
+		t.Fatalf("defaultModel after deleting claude models = %q, want empty", got)
 	}
 }
 
-func TestPrewarmPoolUsesRotatedSessionID(t *testing.T) {
-	log := slog.New(slog.NewTextHandler(io.Discard, nil))
-	st, _ := openTestRepos(t)
-	bin := writePrewarmFake(t)
-	pc := claude.NewPersistent(bin, t.TempDir())
-	t.Cleanup(func() { _ = pc.Close() })
-
-	id, err := st.CreateConversation("warm me")
-	if err != nil {
-		t.Fatal(err)
-	}
-	// A forked session is the one a turn uses, so it — not the conversation
-	// id — must be warmed.
-	if err := st.SetClaudeSessionID(id, "rotated-session-uuid"); err != nil {
-		t.Fatal(err)
-	}
-	prewarmPool(log, st, pc)
-	waitForCond(t, 5*time.Second, func() bool { return cliSpawnCount(t, bin) == 1 })
-	raw, err := os.ReadFile(filepath.Join(filepath.Dir(bin), "argv.txt"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(string(raw), "--session-id rotated-session-uuid") {
-		t.Fatalf("prewarm argv %q must carry the rotated session id", raw)
-	}
-}
-
-func TestPrewarmPoolEmptyDBLeavesPoolEmpty(t *testing.T) {
-	log := slog.New(slog.NewTextHandler(io.Discard, nil))
-	st, _ := openTestRepos(t)
-	bin := writePrewarmFake(t)
-	pc := claude.NewPersistent(bin, t.TempDir())
-	t.Cleanup(func() { _ = pc.Close() })
-
-	prewarmPool(log, st, pc)
-	if n := cliSpawnCount(t, bin); n != 0 {
-		t.Fatalf("empty database must not prewarm, got %d spawns", n)
-	}
-}
-
-func TestPrewarmPoolSpawnFailureNonFatal(t *testing.T) {
-	log := slog.New(slog.NewTextHandler(io.Discard, nil))
-	st, _ := openTestRepos(t)
-	if _, err := st.CreateConversation("warm me"); err != nil {
-		t.Fatal(err)
-	}
-	pc := claude.NewPersistent(filepath.Join(t.TempDir(), "missing-claude"), t.TempDir())
-	t.Cleanup(func() { _ = pc.Close() })
-
-	prewarmPool(log, st, pc) // must not panic; boot continues
-	if n := cliSpawnCount(t, filepath.Dir(pc.Bin)); n != 0 {
-		t.Fatalf("failed prewarm spawned: %d", n)
-	}
-}
-
-func TestPrewarmPoolStoreErrorNonFatal(t *testing.T) {
-	log := slog.New(slog.NewTextHandler(io.Discard, nil))
-	bin := writePrewarmFake(t)
-	pc := claude.NewPersistent(bin, t.TempDir())
-	t.Cleanup(func() { _ = pc.Close() })
+// TestDefaultModelStoreErrorFallsBackToEmpty covers the defensive branch: a
+// closed store must not panic, just report no default.
+func TestDefaultModelStoreErrorFallsBackToEmpty(t *testing.T) {
 	st, _ := openTestRepos(t)
 	if err := st.Close(); err != nil {
 		t.Fatal(err)
 	}
-
-	prewarmPool(log, st, pc) // closed store: warn and continue
-	if n := cliSpawnCount(t, bin); n != 0 {
-		t.Fatalf("store error must not prewarm, got %d spawns", n)
-	}
-}
-
-// fakePrewarmStore drives prewarmPool's defensive branches that a real store
-// cannot isolate (a session-id lookup only fails after the recent-conversation
-// lookup succeeded, which a closed db cannot express).
-type fakePrewarmStore struct {
-	recent    store.Conversation
-	recentErr error
-	sid       string
-	sidErr    error
-}
-
-func (f *fakePrewarmStore) RecentConversation() (store.Conversation, error) {
-	return f.recent, f.recentErr
-}
-
-func (f *fakePrewarmStore) ClaudeSessionID(string) (string, error) {
-	return f.sid, f.sidErr
-}
-
-func TestPrewarmPoolSessionIDErrorNonFatal(t *testing.T) {
-	log := slog.New(slog.NewTextHandler(io.Discard, nil))
-	bin := writePrewarmFake(t)
-	pc := claude.NewPersistent(bin, t.TempDir())
-	t.Cleanup(func() { _ = pc.Close() })
-	st := &fakePrewarmStore{recent: store.Conversation{ID: "conv-1"}, sidErr: errors.New("boom")}
-
-	prewarmPool(log, st, pc) // session-id lookup error: warn and continue
-	if n := cliSpawnCount(t, bin); n != 0 {
-		t.Fatalf("session-id error must not prewarm, got %d spawns", n)
+	if got := defaultModel(st); got != "" {
+		t.Fatalf("defaultModel on closed store = %q, want empty", got)
 	}
 }

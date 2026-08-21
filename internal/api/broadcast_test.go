@@ -14,7 +14,7 @@ import (
 
 func TestHubBroadcastDeliversToClients(t *testing.T) {
 	d := testDeps(t)
-	hub := NewHub(d.Claude, d.Store, d.Log, context.Background(), 0, nil)
+	hub := NewHub(d.Claude, d.Store, d.Log, context.Background())
 	a, b := make(chan serverMsg, 64), make(chan serverMsg, 64)
 	hub.addClient(a)
 	hub.addClient(b)
@@ -38,7 +38,7 @@ func TestHubBroadcastDeliversToClients(t *testing.T) {
 
 func TestHubBroadcastDropsSlowClient(t *testing.T) {
 	d := testDeps(t)
-	hub := NewHub(d.Claude, d.Store, d.Log, context.Background(), 0, nil)
+	hub := NewHub(d.Claude, d.Store, d.Log, context.Background())
 
 	// A slow client whose write buffer is full (a dead socket that never
 	// drains) must be skipped, never blocking the broadcast.

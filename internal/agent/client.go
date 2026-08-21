@@ -11,7 +11,6 @@ import (
 	"github.com/shiv-source/thoth/agent/provider/anthropic"
 	"github.com/shiv-source/thoth/agent/provider/openai"
 	agenttools "github.com/shiv-source/thoth/agent/tools"
-	"github.com/shiv-source/thoth/internal/claude"
 	"github.com/shiv-source/thoth/internal/index"
 	"github.com/shiv-source/thoth/internal/store"
 	"github.com/shiv-source/thoth/internal/wiki"
@@ -56,9 +55,9 @@ func WithMaxIterations(n int) Option { return func(o *options) { o.maxIterations
 func WithMaxOutputTokens(n int) Option { return func(o *options) { o.maxOutputTokens = n } }
 
 // Client is the Thoth host layer on the reusable agent library: the chat
-// Client seam the Hub depends on (same Start signature as claude.Client), but
-// driving agent.Agent instead of the CLI. sessionID is treated as the
-// conversation id for history lookup.
+// seam the api Hub depends on (Start with an EventWriter), driving
+// agent.Agent instead of the CLI. sessionID is treated as the conversation
+// id for history lookup.
 type Client struct {
 	model           string
 	provider        agentlib.Provider
@@ -138,10 +137,8 @@ func providerFor(model, apiKey string) (agentlib.Provider, error) {
 // Start runs one turn for conversation sessionID, streaming events to w. It
 // builds a fresh agent.Agent per turn: the system prompt is re-read from the
 // rulebook so edits apply without restart, and the loop is single-turn, while
-// the Hub serves many conversations at once. The opts are accepted for
-// signature parity with claude.Client and ignored — the native agent has no
-// CLI session to fork.
-func (c *Client) Start(ctx context.Context, sessionID, prompt string, w claude.EventWriter, opts ...claude.StartOption) error {
+// the Hub serves many conversations at once.
+func (c *Client) Start(ctx context.Context, sessionID, prompt string, w agentlib.EventWriter) error {
 	if w == nil {
 		return errors.New("agent: EventWriter is required")
 	}

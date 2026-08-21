@@ -19,9 +19,9 @@ import (
 
 	"github.com/go-warehouse/events"
 	"github.com/labstack/echo/v4"
+	agent "github.com/shiv-source/thoth/internal/agent"
 	"github.com/shiv-source/thoth/internal/api"
 	"github.com/shiv-source/thoth/internal/assets"
-	"github.com/shiv-source/thoth/internal/claude"
 	"github.com/shiv-source/thoth/internal/config"
 	"github.com/shiv-source/thoth/internal/github"
 	"github.com/shiv-source/thoth/internal/index"
@@ -30,28 +30,6 @@ import (
 	"github.com/shiv-source/thoth/internal/wiki"
 	"github.com/spf13/cobra"
 )
-
-// rootHolder is the single source of truth for the current wiki path. The
-// claude client reads it on every Start and the settings callback writes it,
-// so a wiki-path change takes effect for new turns without restarting.
-type rootHolder struct {
-	mu   sync.RWMutex
-	root string
-}
-
-func newRootHolder(root string) *rootHolder { return &rootHolder{root: root} }
-
-func (r *rootHolder) get() string {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-	return r.root
-}
-
-func (r *rootHolder) set(root string) {
-	r.mu.Lock()
-	r.root = root
-	r.mu.Unlock()
-}
 
 func newServeCmd() *cobra.Command {
 	var dev bool
@@ -108,15 +86,19 @@ func runServe(cmd *cobra.Command, dev bool) error {
 	if err != nil {
 		return err
 	}
-	// The model setting enforces --model on every CLI spawn; empty keeps
-	// the CLI's own default. Read at boot — a change applies on next start.
+	// The model setting selects the provider model for every turn; empty
+	// falls back to the first seeded claude model (the family the CLI itself
+	// defaulted to). Read at boot — a change applies on next start.
 	model, _, err := stg.Setting(settings.KeyModel)
 	if err != nil {
 		return err
 	}
-	// The api key setting becomes ANTHROPIC_API_KEY on every CLI spawn;
-	// empty inherits the server's own environment. Read at boot like the
-	// model — a change applies on next start.
+	if model == "" {
+		model = defaultModel(st)
+	}
+	// The api key setting becomes the provider's auth token; empty inherits
+	// the server's own environment. Read at boot like the model — a change
+	// applies on next start.
 	apiKey, _, err := stg.Setting(settings.KeyAPIKey)
 	if err != nil {
 		return err
@@ -165,17 +147,16 @@ func runServe(cmd *cobra.Command, dev bool) error {
 	}
 	defer func() { _ = gh.Close() }()
 
-	root := newRootHolder(w.Root)
-	// One long-lived CLI process per conversation: the first turn of each
-	// conversation pays the CLI boot, later turns reuse the process. Close
-	// guarantees no CLI process outlives the server.
-	pc := claude.NewPersistent(resolveClaudeBin(log), w.Root, claude.WithDirProvider(root.get), claude.WithModel(model), claude.WithAPIKey(apiKey), claude.WithDebugStream(filepath.Join(dir, "stream-dump.json")))
-	defer func() { _ = pc.Close() }()
-	// Eagerly spawn the pooled process for the most recently active
-	// conversation so resuming it after a restart skips the CLI boot (~1.6 s
-	// of spawn + init). The pool's idle-eviction timer reaps it if the user
-	// never resumes that conversation.
-	prewarmPool(log, st, pc)
+	// The native agent host drives every turn — no CLI subprocess exists
+	// anywhere in the chat path. Model, api key, wiki (tools + rulebook),
+	// store (history) and index (search) are all read at boot.
+	ac, err := agent.New(model, apiKey, w, st, ix,
+		agent.WithLogger(log),
+		agent.WithFolders(scaffoldFolders(stg, log)),
+	)
+	if err != nil {
+		return err
+	}
 	// The dev banner shows the commit the dev server runs from; prod has no
 	// banner, so the lookup is dev-only.
 	commit := ""
@@ -185,7 +166,7 @@ func runServe(cmd *cobra.Command, dev bool) error {
 	e := api.New(api.Deps{
 		Log:             log,
 		Store:           st,
-		Claude:          pc,
+		Claude:          ac,
 		GitHub:          &github.Service{Client: github.New(http.DefaultClient), Repo: gh},
 		Settings:        stg,
 		DataDir:         dir,
@@ -195,15 +176,9 @@ func runServe(cmd *cobra.Command, dev bool) error {
 		DefaultWikiPath: config.ToTilde(defaultWikiPath(dev, dir)),
 		Wiki:            w,
 		Index:           ix,
-		OnSettingsSaved: onSettingsSaved(log, stg, root, w, ix, startWatcher, pc.Flush),
+		OnSettingsSaved: onSettingsSaved(log, stg, w, ix, startWatcher),
 		Ctx:             ctx,
-		// When the user leaves the chat page (socket closed or tab hidden),
-		// flush idle pooled CLI processes RelaxTimeout later instead of letting
-		// them idle for their full 10-minute timer; a busy process finishes its
-		// turn and is evicted.
-		RelaxTimeout: chatRelaxTimeout,
-		OnChatAway:   pc.Flush,
-		Events:       bus,
+		Events:          bus,
 	})
 
 	host, port := config.DefaultHost, servePort(dev)
@@ -221,12 +196,6 @@ func servePort(dev bool) int {
 	}
 	return config.DefaultPort
 }
-
-// chatRelaxTimeout is how long idle pooled CLI processes survive after the
-// user leaves the chat page (socket closed or tab hidden). Shorter than the
-// per-process idle timer, so an away user does not hold heavyweight Claude
-// processes for minutes; resuming after that pays the CLI boot again.
-const chatRelaxTimeout = time.Minute
 
 // thothDir returns the server's data dir: ~/.thoth, or ~/.thoth/dev when
 // serve --dev keeps its database and wiki isolated from production data.
@@ -371,61 +340,36 @@ func devCommit(dir string) string {
 	return strings.TrimSpace(string(out))
 }
 
-// resolveClaudeBin returns the claude binary from PATH, falling back to a
-// bare "claude" that will fail loudly at chat time.
-func resolveClaudeBin(log *slog.Logger) string {
-	if p, err := exec.LookPath("claude"); err == nil {
-		return p
-	}
-	log.Warn("claude CLI not found on PATH — chat will fail until it is installed")
-	return "claude"
-}
-
-// prewarmStore is the slice of the store prewarmPool needs, kept as a small
-// consumer-side interface so every defensive failure branch is testable.
-type prewarmStore interface {
-	RecentConversation() (store.Conversation, error)
-	ClaudeSessionID(convID string) (string, error)
-}
-
-// prewarmPool spawns the pooled CLI process for the most recently created
-// conversation, so resuming it after a restart skips the CLI boot. It warms
-// the exact session a turn on that conversation would use (store.ClaudeSessionID).
-// Best-effort: an empty database or any lookup/spawn failure only logs a
-// warning — the first send on that session spawns normally.
-func prewarmPool(log *slog.Logger, st prewarmStore, pc *claude.PersistentClient) {
-	recent, err := st.RecentConversation()
+// defaultModel returns the model a fresh install runs on when the settings
+// model key is unset: the first seeded claude-family model — the family the
+// CLI itself defaulted to, so an unset model keeps working after the cutover.
+// An empty return (no claude model in the registry) lets agent.New surface
+// its own "model is required" error.
+func defaultModel(st *store.Store) string {
+	models, err := st.ListModels()
 	if err != nil {
-		log.Warn("prewarm: list conversations", "err", err)
-		return
+		return ""
 	}
-	if recent.ID == "" {
-		return // no conversations: nothing to pre-warm
+	for _, m := range models {
+		if strings.HasPrefix(m.Value, "claude-") {
+			return m.Value
+		}
 	}
-	sid, err := st.ClaudeSessionID(recent.ID)
-	if err != nil {
-		log.Warn("prewarm: read session id", "err", err)
-		return
-	}
-	if err := pc.Warm(sid); err != nil {
-		log.Warn("prewarm: spawn claude", "session_id", sid, "err", err)
-		return
-	}
-	log.Info("prewarmed claude process", "conversation_id", recent.ID, "session_id", sid)
+	return ""
 }
 
 // onSettingsSaved rebuilds the index and switches the live wiki root when
 // the wiki path changes. Nothing is mutated until every step that can fail
-// has succeeded: scaffold, then rebuild, and only then the root swap, the
-// watcher restart, and the pooled-CLI flush (idle processes die now, a busy
-// one is evicted at its turn's end — same semantics as the per-Start cwd).
-func onSettingsSaved(log *slog.Logger, stg *settings.Repo, root *rootHolder, w *wiki.Wiki, ix *index.Index, startWatcher func(string), flush func()) func(string) error {
+// has succeeded: scaffold, then rebuild, and only then the root swap and the
+// watcher restart. The rulebook the agent reads each turn follows the new
+// root immediately; the tool registry's root is fixed at boot.
+func onSettingsSaved(log *slog.Logger, stg *settings.Repo, w *wiki.Wiki, ix *index.Index, startWatcher func(string)) func(string) error {
 	return func(wikiPath string) error {
 		newPath, err := config.ExpandHome(wikiPath)
 		if err != nil {
 			return err
 		}
-		if newPath == root.get() {
+		if newPath == w.Root {
 			return nil // already current (e.g. a retry after a failed save)
 		}
 		log.Info("wiki path changed, syncing index", "path", newPath)
@@ -440,10 +384,8 @@ func onSettingsSaved(log *slog.Logger, stg *settings.Repo, root *rootHolder, w *
 			return err
 		}
 		// All fallible steps done: commit the new root atomically-ish.
-		root.set(newPath)
 		w.Root = newPath
 		startWatcher(newPath)
-		flush()
 		return nil
 	}
 }

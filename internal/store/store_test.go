@@ -161,18 +161,6 @@ func TestClosedStoreErrors(t *testing.T) {
 	if _, err := s.Messages("c"); err == nil {
 		t.Fatal("Messages on closed store must error")
 	}
-	if _, err := s.ConversationSessionID("c"); err == nil {
-		t.Fatal("ConversationSessionID on closed store must error")
-	}
-	if _, err := s.ClaudeSessionID("c"); err == nil {
-		t.Fatal("ClaudeSessionID on closed store must error")
-	}
-	if _, err := s.RecentConversation(); err == nil {
-		t.Fatal("RecentConversation on closed store must error")
-	}
-	if err := s.SetClaudeSessionID("c", "s"); err == nil {
-		t.Fatal("SetClaudeSessionID on closed store must error")
-	}
 }
 
 func TestNewIDIsUUIDShaped(t *testing.T) {
@@ -181,7 +169,7 @@ func TestNewIDIsUUIDShaped(t *testing.T) {
 		if err != nil {
 			t.Fatalf("newID: %v", err)
 		}
-		// 8-4-4-4-12 hex groups; the claude CLI requires UUID-shaped session ids.
+		// 8-4-4-4-12 hex groups.
 		if len(id) != 36 {
 			t.Fatalf("id %q is not UUID shaped", id)
 		}
@@ -239,164 +227,6 @@ func TestEnsureMetadataSeedsOnce(t *testing.T) {
 	// The CHECK (id = 1) constraint keeps the table to one row.
 	if _, err := s.db.Exec(`INSERT INTO app_metadata(id, installation_id, created_at) VALUES (2, 'x', 'y')`); err == nil {
 		t.Fatal("second app_metadata row must violate the id = 1 constraint")
-	}
-}
-
-func TestConversationSessionIDRoundTrip(t *testing.T) {
-	s, err := Open(filepath.Join(t.TempDir(), "test.db"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = s.Close() })
-
-	id, err := s.CreateConversation("session check")
-	if err != nil {
-		t.Fatal(err)
-	}
-	// A fresh conversation seeds its own id as the CLI session.
-	sid, err := s.ConversationSessionID(id)
-	if err != nil || sid != id {
-		t.Fatalf("session id = %q/%v, want %q", sid, err, id)
-	}
-	// Rotation overwrites it; unknown conversations read empty.
-	if err := s.SetClaudeSessionID(id, "fresh-session-uuid"); err != nil {
-		t.Fatal(err)
-	}
-	if sid, err = s.ConversationSessionID(id); err != nil || sid != "fresh-session-uuid" {
-		t.Fatalf("after rotation: %q/%v", sid, err)
-	}
-	if sid, err = s.ConversationSessionID("no-such-conv"); err != nil || sid != "" {
-		t.Fatalf("unknown conversation: %q/%v, want empty/nil", sid, err)
-	}
-}
-
-func TestClaudeSessionIDResolution(t *testing.T) {
-	s, err := Open(filepath.Join(t.TempDir(), "test.db"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = s.Close() })
-
-	id, err := s.CreateConversation("session check")
-	if err != nil {
-		t.Fatal(err)
-	}
-	// A fresh conversation resolves to its seeded session id.
-	if sid, err := s.ClaudeSessionID(id); err != nil || sid != id {
-		t.Fatalf("ClaudeSessionID = %q/%v, want %q", sid, err, id)
-	}
-	// A rotated session id is what the turn (and the prewarm) must use.
-	if err := s.SetClaudeSessionID(id, "rotated-session-uuid"); err != nil {
-		t.Fatal(err)
-	}
-	if sid, err := s.ClaudeSessionID(id); err != nil || sid != "rotated-session-uuid" {
-		t.Fatalf("after rotation: %q/%v", sid, err)
-	}
-	// An empty stored session falls back to the conversation id — the exact
-	// resolution a turn on the conversation applies.
-	if err := s.SetClaudeSessionID(id, ""); err != nil {
-		t.Fatal(err)
-	}
-	if sid, err := s.ClaudeSessionID(id); err != nil || sid != id {
-		t.Fatalf("empty session fallback: %q/%v, want %q", sid, err, id)
-	}
-	// Unknown conversations resolve to the id itself (how a turn would spawn).
-	if sid, err := s.ClaudeSessionID("no-such-conv"); err != nil || sid != "no-such-conv" {
-		t.Fatalf("unknown conversation: %q/%v, want no-such-conv", sid, err)
-	}
-}
-
-func TestRecentConversation(t *testing.T) {
-	s, err := Open(filepath.Join(t.TempDir(), "test.db"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = s.Close() })
-
-	// Empty store: zero conversation, no error.
-	if c, err := s.RecentConversation(); err != nil || c.ID != "" {
-		t.Fatalf("empty RecentConversation = %+v/%v, want zero/nil", c, err)
-	}
-
-	// Seed with explicit timestamps so "most recent" is deterministic (the
-	// created_at ordering the app's list uses).
-	for _, row := range []struct{ id, title, created string }{
-		{"older", "older", "2026-01-01T10:00:00Z"},
-		{"newer", "newer", "2026-03-01T10:00:00Z"},
-	} {
-		if _, err := s.db.Exec(
-			`INSERT INTO conversations(id, title, created_at) VALUES (?, ?, ?)`,
-			row.id, row.title, row.created); err != nil {
-			t.Fatalf("seed conversation %s: %v", row.id, err)
-		}
-	}
-	c, err := s.RecentConversation()
-	if err != nil {
-		t.Fatalf("RecentConversation: %v", err)
-	}
-	if c.ID != "newer" || c.Title != "newer" {
-		t.Fatalf("RecentConversation = %+v, want the newer row", c)
-	}
-}
-
-func TestConversationsGetDistinctSessionIDs(t *testing.T) {
-	s, err := Open(filepath.Join(t.TempDir(), "test.db"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = s.Close() })
-
-	a, err := s.CreateConversation("first")
-	if err != nil {
-		t.Fatal(err)
-	}
-	b, err := s.CreateConversation("second")
-	if err != nil {
-		t.Fatal(err)
-	}
-	sa, err := s.ClaudeSessionID(a)
-	if err != nil {
-		t.Fatal(err)
-	}
-	sb, err := s.ClaudeSessionID(b)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if a == b {
-		t.Fatal("conversation ids must differ")
-	}
-	if sa == sb {
-		t.Fatalf("conversations %q and %q must never share a CLI session (%q)", a, b, sa)
-	}
-	// A fresh conversation always seeds its own id as the session — a new
-	// chat can never pick up another conversation's history.
-	if sa != a || sb != b {
-		t.Fatalf("fresh conversations must seed their own session: %q/%q", sa, sb)
-	}
-}
-
-func TestRecentConversationTiebreaksSameSecond(t *testing.T) {
-	s, err := Open(filepath.Join(t.TempDir(), "test.db"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = s.Close() })
-
-	// Identical created_at (same second): the rowid tiebreak must pick the
-	// later insert deterministically.
-	for _, id := range []string{"first", "second"} {
-		if _, err := s.db.Exec(
-			`INSERT INTO conversations(id, title, created_at) VALUES (?, ?, '2026-01-01T10:00:00Z')`,
-			id, id); err != nil {
-			t.Fatalf("seed conversation %s: %v", id, err)
-		}
-	}
-	c, err := s.RecentConversation()
-	if err != nil {
-		t.Fatalf("RecentConversation: %v", err)
-	}
-	if c.ID != "second" {
-		t.Fatalf("RecentConversation = %q, want second (rowid DESC tiebreak)", c.ID)
 	}
 }
 
