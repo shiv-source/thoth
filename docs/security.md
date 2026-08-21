@@ -12,7 +12,8 @@ Thoth's security model is simple by design: **local-only, single-user, no authen
 | Stored XSS via note content | Snippets are HTML-escaped server-side before `<mark>` highlighting; markdown rendering escapes HTML |
 | Secrets leaking into the wiki | The rulebook forbids secrets (placeholders only) |
 | Secrets leaking out of the settings API | The API key is write-only: `GET /api/settings` reports `has_api_key` only, never the key |
-| Orphaned Claude processes | Cancel kills the process group; shutdown cancels all in-flight turns |
+| Runaway agent turns / orphaned provider streams | Cancel, supersede, and server shutdown cancel the turn's context, aborting the provider stream; the tool loop is bounded by `MaxIterations` so a model stuck requesting tools ends with an explicit error instead of hanging |
+| Turn content leaving the machine | The prompt, history, and tool results go only to the model provider configured in Settings (localhost single-user app) — never anywhere else; the never-store-secrets rulebook keeps credentials out of prompts |
 | Error details leaking internals | 500s return a generic body; details go to the server log only |
 
 ## Implementation pointers
@@ -21,13 +22,13 @@ Thoth's security model is simple by design: **local-only, single-user, no authen
 - **Origin check** — `allowLocalOrigin` in `internal/api/chat.go`: accepts a missing Origin header (curl, tests, non-browser clients) or hostnames `localhost` / `127.0.0.1` / `::1`
 - **Path safety** — `internal/wiki/path.go` `SafePath`, used by `Wiki.Read` and the `/api/notes` handler; the directory picker (`GET /api/fs/dirs`) lists subdirectories only — it never returns file contents and is bound by the same localhost-only origin rules
 - **Snippet escaping** — `html.EscapeString` then control-marker → `<mark>` replacement in `internal/index/index.go`, covered by `TestSearchSnippetEscapesHTML`
-- **Process hygiene** — process-group kill on unix (`internal/claude/proc_unix.go`), direct-child kill on windows; in-flight turns cancelled on SIGTERM before shutdown completes
+- **Turn lifecycle** — every turn runs on a context derived from the Hub's (`internal/api/chat.go`): cancel, supersede, and server shutdown cancel it, which aborts the provider stream; the tool loop is capped by `agent.MaxIterations`, so no turn or subprocess can hang the server
 - **Secrets policy** — the wiki rulebook (`internal/wiki/templates/CLAUDE.md`) plus the repo-level rule in the root `CLAUDE.md`
 
 ## Deliberate trade-offs
 
 - No authentication — correct for a localhost-bound single-user app; the origin check closes the realistic browser-based attack, not network access in general
-- The spawned Claude CLI runs **fully unattended by default** (`--dangerously-skip-permissions` — bypasses all permission checks; headless mode cannot answer prompts and note-saving is the app's core feature). The CLI flags are fixed in `internal/claude/client.go` (the blast wall)
-- Conversation history lives in the same local SQLite file as the index; nothing leaves the machine
+- The assistant writes only through `wiki.SafePath`-bounded tools (`read_file`, `write_file`, `list`, `search` over the wiki root, built by `internal/agent`) — there is no "skip permissions" mode because the write path *is* the wiki, period; a prompt can never reach the filesystem outside it
+- Conversation history lives in the same local SQLite file as the index; nothing leaves the machine except the turn's prompt/history/tool results, which go to the configured model provider over its API
 - The GitHub PAT is stored plaintext in `thoth.db` (`github_auth`) — the same trust model as the `gh` CLI's own credentials file; the API never returns it and errors never echo it, and it is only ever sent to `api.github.com`
-- The API keys are stored plaintext in the `settings` table — the shared `api_key` plus the per-provider `provider_<slug>_api_key` keys — the same local-file trust model as the PAT; the native agent sends them only to the model provider's endpoint on this machine, and the API never returns them (`has_api_key` only, and `PUT` with an empty key leaves the stored key unchanged)
+- The API keys are stored plaintext in the `settings` table — the shared `api_key` plus the per-provider `provider_<slug>_api_key` keys — the same local-file trust model as the PAT; Thoth Agent sends them only to the model provider's endpoint on this machine, and the API never returns them (`has_api_key` only, and `PUT` with an empty key leaves the stored key unchanged)

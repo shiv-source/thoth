@@ -71,18 +71,10 @@ Run `make help` for the full self-documenting list.
 - Generated output (`bin/`, `web/dist/`, `internal/webui/dist/`, `docs-site/build/`, `.docusaurus/`, `node_modules/`, `*.db`) is never committed
 - No secrets anywhere — env vars or placeholders only
 
-## Debugging the persistent CLI pool
+## Debugging chat turns
 
-Chat turns run through one long-lived `claude` process per conversation (`internal/claude/persistent.go`). To verify the CLI itself serves multiple turns over stream-json stdin (first step of any hang investigation):
+Chat turns run entirely in-process: `internal/agent` builds an `agent.Agent` per turn, and the only network hop is the provider stream. There is no subprocess or pool to inspect — cancel/supersede/shutdown abort a turn by cancelling its context, and the loop is bounded by `MaxIterations` (default 25), so a model stuck requesting tools ends with an explicit error event instead of hanging. To debug a failing or hanging turn:
 
-```sh
-SID=$(uuidgen)
-{ printf '{"type":"user","message":{"role":"user","content":"reply with exactly: one"}}\n';
-  printf '\n';
-  printf '{"type":"user","message":{"role":"user","content":"reply with exactly: two"}}\n'; } |
-  claude -p --input-format stream-json --output-format stream-json --verbose \
-    --session-id "$SID" --dangerously-skip-permissions 2>&1 |
-  grep -E '"type":"(assistant|result)"' | tail -10
-```
-
-Both turns must complete from one process (two `assistant` + two `result` lines). The raw stream of every turn lands in `~/.thoth/stream-dump.json` (rotated past 10MB), filterable by `session_id`.
+- `thoth doctor` — the **provider** check probes the selected model's provider endpoint with the resolved credential and names the failure (401 bad key, 429 rate limited, timeout, 5xx).
+- `thoth serve --dev` — isolates data under `~/.thoth/dev/`; watch the structured server log, which `serve` wires to the agent via `WithLogger`, so loop diagnostics and turn errors land there with their context (`err`).
+- The doctor's hidden `--provider-base-url` flag (test-only) points the provider probe at a local or alternate endpoint for offline investigation.

@@ -8,7 +8,7 @@ All commands live in `internal/cli` (Cobra). The binary entrypoint is `cmd/thoth
 
 Starts the app on `127.0.0.1:8333` (default). Flags:
 
-- `--dev` — bind the dev port (`127.0.0.1:8334`, `config.DevPort`) and isolate all data under `~/.thoth/dev/` (its own `thoth.db`, default wiki `~/.thoth/dev/wiki/`, and stream dump), so a running instance keeps 8333 and its data; `make dev` uses this. Vite's proxy follows via the `THOTH_PORT` env var. At boot the dev server rewrites the seeded prod wiki default to the dev wiki and reports `dev: true` plus the checkout's full commit id in `/api/health`; the UI shows a warning banner with that commit.
+- `--dev` — bind the dev port (`127.0.0.1:8334`, `config.DevPort`) and isolate all data under `~/.thoth/dev/` (its own `thoth.db`, default wiki `~/.thoth/dev/wiki/`), so a running instance keeps 8333 and its data; `make dev` uses this. Vite's proxy follows via the `THOTH_PORT` env var. At boot the dev server rewrites the seeded prod wiki default to the dev wiki and reports `dev: true` plus the checkout's full commit id in `/api/health`; the UI shows a warning banner with that commit.
 
 Startup sequence:
 
@@ -16,9 +16,9 @@ Startup sequence:
 2. Scaffold the wiki if it doesn't exist
 3. Open `thoth.db` (index + store), sync the search index with the tree
 4. Start the fsnotify watcher
-5. Resolve the claude binary (config → `PATH` → warn)
-6. Pre-warm the CLI pool for the most recently active conversation (best-effort: empty DB, or a lookup/spawn failure, only logs a warning and serves — the first send on that session spawns normally). The pool is capped at 4 processes (LRU-idle eviction on overflow); idle processes are flushed ~1 min after the user leaves the chat page (socket closed or tab hidden)
-7. Serve; SIGINT/SIGTERM → graceful shutdown (cancels in-flight Claude turns, then exits)
+5. Resolve the turn's model and credential: the selected model's `llm_models` row names the provider, whose per-provider api key/base URL win over the shared key and the provider's default endpoint (`modelProvider` + `ProviderConfig`)
+6. Build the Thoth Agent host — `agent.New(model, apiKey, wiki, store, index, …)` with the provider config and folder set. It runs in-process: there is no CLI subprocess to spawn or pool to pre-warm anywhere in the chat path
+7. Serve; SIGINT/SIGTERM → graceful shutdown (cancels in-flight agent turns, then exits)
 
 ### `thoth init [path]`
 

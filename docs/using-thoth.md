@@ -16,11 +16,11 @@ The dashboard is organized into five views, reachable from the sidebar:
 
 ### Chat
 
-The chat view is the heart of Thoth. Every conversation is backed by a long-lived assistant process that reads your wiki and writes into it under the rulebook's rules.
+The chat view is the heart of Thoth. Every conversation runs against the built-in **Thoth Agent**, which reads your wiki and writes into it under the rulebook's rules.
 
 - **Ask** — type a question and get an answer grounded in your notes. The assistant searches the index and cites what it reads.
 - **Save** — say *"save this: …"* and the assistant files the note into the right folder (see [Knowledge base](knowledge-base.md)) with correct frontmatter. Watch the wiki tree refresh within about 200 ms as the note is indexed.
-- **Stop** — cancel an in-flight turn with the Stop button. The process is killed cleanly; the next send resumes the session from disk.
+- **Stop** — cancel an in-flight turn with the Stop button. The turn's request is aborted and nothing from that turn is saved.
 - **New chat** — start a fresh conversation with the New chat button. Conversations are listed and day-grouped in the sidebar; delete them there too.
 
 ### Notes
@@ -63,7 +63,7 @@ The real source of truth is the `~/.thoth/wiki` directory. You can:
 
 - Open it in any editor and write/edit notes by hand
 - Run `git` in it directly (every scaffold — whether from `thoth serve` or `thoth init` — initializes a repository)
-- Point Claude Code at it in a terminal — `cd ~/.thoth/wiki && claude` — and use the assistant without the dashboard
+- Point Claude Code at it in a terminal — `cd ~/.thoth/wiki && claude` — and use an assistant without the dashboard (Claude Code is a separate, optional tool; Thoth itself never spawns it)
 
 Because files are the source of truth, `thoth.db` (the index + conversation history) is disposable — delete it and the index rebuilds from your files. Nothing is ever lost.
 

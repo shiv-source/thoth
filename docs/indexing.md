@@ -51,7 +51,7 @@ flowchart LR
 
 | Scenario | Outcome |
 |---|---|
-| Note saved by Claude in the app | Indexed within ~200 ms |
+| Note saved by the assistant in the app | Indexed within ~200 ms |
 | Attachment (image, script, config) saved | Indexed by filename within ~200 ms (hidden from the tree) |
 | Note edited in a terminal (Claude Code, vim) | Indexed within ~200 ms |
 | Note deleted | Removed from index (file or whole directory) |

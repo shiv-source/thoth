@@ -1,12 +1,12 @@
 # Getting started
 
-Thoth is a local-first personal knowledge base. Everything you know lives as plain markdown in one wiki directory; a built-in assistant answers questions from that wiki and saves new knowledge into it, through a polished web dashboard.
+Thoth is a local-first personal knowledge base. Everything you know lives as plain markdown in one wiki directory; the built-in assistant — **Thoth Agent** — answers questions from that wiki and saves new knowledge into it, through a polished web dashboard.
 
 One binary. One directory (`~/.thoth`). No cloud, no account, no data leaving your machine.
 
 ## What you need
 
-- [Claude Code](https://claude.com/claude-code) installed and logged in (on your `PATH`) — the assistant that reads and writes your notes
+- A model provider API key (Anthropic, OpenAI, DeepSeek, …) — **Thoth Agent** calls the provider directly over its API; nothing else needs installing
 - The Thoth binary — install from source (below), or download a release
 
 ## Install Thoth
@@ -29,7 +29,7 @@ thoth doctor      # verify everything is healthy
 ```
 
 1. **`thoth serve`** — starts the dashboard at `http://127.0.0.1:8333`. On first run it **scaffolds the wiki automatically**: it creates `~/.thoth/wiki` with the standard folder layout (`inbox/`, `meetings/`, `projects/`, `links/`, `setup/`, `knowledge/`, `todos/`, `daily/`, `attachments/`) plus the `CLAUDE.md` rulebook that tells the assistant how to file and find things, and initializes a local git repository so the wiki is versioned from day one. Open the dashboard in your browser.
-2. **`thoth doctor`** — runs ten health checks (wiki, Claude binary + login, API key, model, database, index, malformed notes, API, WebSocket) and reports each. `thoth doctor --fix` repairs the safe failures. Exit code `0` means healthy.
+2. **`thoth doctor`** — runs nine health checks (wiki, provider, API key, model, database, index, malformed notes, API, WebSocket) and reports each. `thoth doctor --fix` repairs the safe failures. Exit code `0` means healthy.
 
 > **`thoth init` is optional.** `serve` scaffolds the default wiki at `~/.thoth/wiki` for you. Run `thoth init` only when you want the wiki at a custom location: `thoth init ~/notes`.
 

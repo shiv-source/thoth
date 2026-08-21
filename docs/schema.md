@@ -62,7 +62,7 @@ One row per chat shown in the UI history.
 | `id` | TEXT PK | Conversation id (v4 UUID) — also the `/chat/<id>` URL id |
 | `title` | TEXT NOT NULL | First user message, truncated (display only) |
 | `created_at` | TEXT NOT NULL | UTC RFC3339 — the list orders by it lexically DESC, with `rowid DESC` breaking same-second ties so "most recent" is deterministic |
-| `claude_session_id` | TEXT NOT NULL DEFAULT '' | Legacy Claude CLI session id. The native agent no longer spawns the CLI and nothing reads or writes the column; it is **retained for schema stability** — the decision was to leave it rather than migrate it out (see below) |
+| `claude_session_id` | TEXT NOT NULL DEFAULT '' | Legacy Claude CLI session id. Thoth Agent no longer spawns the CLI and nothing reads or writes the column; it is **retained for schema stability** — the decision was to leave it rather than migrate it out (see below) |
 
 ### `messages` (migration `0002_messages.sql`)
 
@@ -140,7 +140,7 @@ The user-editable model registry. Every startup seeds it from `internal/assets/m
 | Column | Meaning |
 |---|---|
 | `id` | `INTEGER PRIMARY KEY AUTOINCREMENT` |
-| `value` | The `--model` argument; `UNIQUE` — the `model` setting points at it |
+| `value` | The model id sent to the provider on every turn; `UNIQUE` — the `model` setting points at it |
 | `name` | Display name (e.g. `Claude Opus 4.8`) |
 | `tag` | Preset-friendly label rendered as a colored chip (e.g. `strongest`) |
 | `provider` | Grouping label for the picker (e.g. `Anthropic`) |
@@ -149,7 +149,7 @@ The user-editable model registry. Every startup seeds it from `internal/assets/m
 
 - `internal/settings` owns the `settings` table (KV access, `SyncEnabled`/`SyncState`/`SetSyncResult` conveniences, and `ProviderConfig` for the model→provider→credential resolution). Its `OpenRepo` deliberately runs no migrations and no WAL pragma — the doctor must never mutate a database it only reads.
 - `internal/github` owns `github_auth`; `internal/store` owns conversations/messages/app_metadata and `llm_models`; `internal/index` owns notes/notes_fts.
-- **`claude_session_id` decision (T12):** the column is retained, no migration. The native agent stopped writing it when it replaced the CLI; dropping it would rewrite `conversations` for a column nothing reads, and keeping it preserves the schema for any rollback tooling. The settings resolution at boot is: the selected model's `llm_models` row names the provider → `provider_<slug>_api_key`/`provider_<slug>_base_url` when set, else the shared `api_key` and the provider's default endpoint (`settings.ProviderConfig`).
+- **`claude_session_id` decision (T12):** the column is retained, no migration. Thoth Agent stopped writing it when it replaced the CLI; dropping it would rewrite `conversations` for a column nothing reads, and keeping it preserves the schema for any rollback tooling. The settings resolution at boot is: the selected model's `llm_models` row names the provider → `provider_<slug>_api_key`/`provider_<slug>_base_url` when set, else the shared `api_key` and the provider's default endpoint (`settings.ProviderConfig`).
 
 ## Upgrade note
 
