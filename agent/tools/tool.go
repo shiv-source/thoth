@@ -1,7 +1,10 @@
 // Package tools defines the Tool extension point of the native agent: a named
 // capability the model can invoke during a turn, described to the model by a
 // stable name, description and input schema, and executed by Run. It ships the
-// default file/search tools (read_file, write_file, list, search); hosts
+// common, wiki-agnostic file tools (read_file, write_file, list, edit_file,
+// append_file, rename_file, delete_file, grep, get_time) plus the search tool
+// over a host-injected SearchFunc; wiki-specific tools (write_note, todos,
+// inbox, memory, …) live in internal/agent/tools and build on this seam. Hosts
 // register their own tools on a Registry and the agent loop resolves tool_use
 // calls through it.
 package tools

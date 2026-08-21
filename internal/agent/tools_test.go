@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	agentlib "github.com/shiv-source/thoth/agent"
 	agenttools "github.com/shiv-source/thoth/agent/tools"
 	"github.com/shiv-source/thoth/internal/index"
 	"github.com/shiv-source/thoth/internal/wiki"
@@ -451,5 +452,72 @@ func TestIndexSearchTool(t *testing.T) {
 	}
 	if !strings.Contains(out, "meetings/standup.md") {
 		t.Fatalf("search output = %q, want the note path", out)
+	}
+}
+
+// stubTool is a minimal host-registered custom tool.
+type stubTool struct{}
+
+func (stubTool) Name() string { return "custom_tool" }
+func (stubTool) Description() string {
+	return "A host-registered custom tool."
+}
+func (stubTool) Schema() map[string]any { return map[string]any{"type": "object"} }
+func (stubTool) Run(ctx context.Context, args map[string]any) (string, error) {
+	return "custom result", nil
+}
+
+// TestRegistryRegistersCustomTools asserts a host can extend the catalog with
+// its own tools via RegistryOptions.CustomTools and the Client WithTools
+// option.
+func TestRegistryRegistersCustomTools(t *testing.T) {
+	reg, err := registry(RegistryOptions{
+		Wiki:        wiki.New(t.TempDir()),
+		CustomTools: []agenttools.Tool{stubTool{}},
+	})
+	if err != nil {
+		t.Fatalf("registry: %v", err)
+	}
+	if _, err := reg.Get("custom_tool"); err != nil {
+		t.Fatalf("custom tool not registered: %v", err)
+	}
+	out, err := reg.Get("custom_tool")
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := out.Run(context.Background(), map[string]any{})
+	if err != nil || got != "custom result" {
+		t.Fatalf("custom tool run = %q, %v", got, err)
+	}
+}
+
+// TestRegistryRejectsDuplicateCustomTool asserts a custom tool colliding with
+// a built-in name fails registration rather than silently overwriting it.
+func TestRegistryRejectsDuplicateCustomTool(t *testing.T) {
+	_, err := registry(RegistryOptions{
+		Wiki:        wiki.New(t.TempDir()),
+		CustomTools: []agenttools.Tool{stubTool{}, stubTool{}},
+	})
+	if err == nil {
+		t.Fatal("duplicate custom tool registration succeeded, want error")
+	}
+	if !strings.Contains(err.Error(), "already registered") {
+		t.Fatalf("duplicate error = %q", err)
+	}
+}
+
+// TestWithToolsOption asserts Client.WithTools surfaces custom tools on the
+// turn registry.
+func TestWithToolsOption(t *testing.T) {
+	prov := &fakeProvider{stream: &fakeStream{deltas: []agentlib.Delta{agentlib.StopDelta("end_turn")}}}
+	c, err := New("claude-test", "key", wiki.New(t.TempDir()), openStore(t), nil,
+		WithProvider(prov),
+		WithTools(stubTool{}),
+	)
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	if _, err := c.tools.Get("custom_tool"); err != nil {
+		t.Fatalf("custom tool missing from client registry: %v", err)
 	}
 }

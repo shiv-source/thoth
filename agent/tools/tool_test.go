@@ -5,7 +5,6 @@ import (
 	"reflect"
 	"strings"
 	"testing"
-	"time"
 )
 
 // toolStub is a minimal Tool implementation for registry tests.
@@ -95,28 +94,17 @@ func TestToolSchemas(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	now := func() time.Time { return time.Date(2026, 8, 21, 0, 0, 0, 0, time.UTC) }
 	tools := []Tool{
 		NewReadFile(fs, 0),
 		NewWriteFile(fs),
 		NewList(fs),
 		NewSearch(func(context.Context, string, int) ([]Result, error) { return nil, nil }, 0),
-		NewGetTime(now),
-		NewWriteNote(fs, now),
-		NewReadNote(fs, 0),
+		NewGetTime(nil),
 		NewEditFile(fs),
 		NewAppendFile(fs),
 		NewRenameFile(fs),
 		NewDeleteFile(fs),
-		NewListTree(fs, 0),
 		NewGrep(fs, 0),
-		NewListRecent(fs, 0),
-		NewSearchByTag(fs, 0),
-		NewGetTodos(fs, ""),
-		NewUpdateTodos(fs, ""),
-		NewGetInbox(fs, ""),
-		NewFileInbox(fs, ""),
-		NewRemember(fs, "", now),
 	}
 	for _, tl := range tools {
 		name := tl.Name()
@@ -133,11 +121,8 @@ func TestToolSchemas(t *testing.T) {
 		names[tl.Name()] = true
 	}
 	for _, want := range []string{
-		"read_file", "write_file", "list", "search",
-		"get_time", "write_note", "read_note", "edit_file", "append_file",
-		"rename_file", "delete_file", "list_tree", "grep", "list_recent",
-		"search_by_tag", "get_todos", "update_todos", "get_inbox", "file_inbox",
-		"remember",
+		"read_file", "write_file", "list", "search", "get_time", "edit_file",
+		"append_file", "rename_file", "delete_file", "grep",
 	} {
 		if !names[want] {
 			t.Fatalf("missing tool %q", want)
@@ -174,53 +159,53 @@ func TestToolNamesAreStable(t *testing.T) {
 }
 
 func TestStringArg(t *testing.T) {
-	if _, err := stringArg(map[string]any{}, "path"); err == nil {
+	if _, err := StringArg(map[string]any{}, "path"); err == nil {
 		t.Fatal("missing arg succeeded, want error")
 	}
-	if _, err := stringArg(map[string]any{"path": 42}, "path"); err == nil {
+	if _, err := StringArg(map[string]any{"path": 42}, "path"); err == nil {
 		t.Fatal("non-string arg succeeded, want error")
 	}
-	got, err := stringArg(map[string]any{"path": "x"}, "path")
+	got, err := StringArg(map[string]any{"path": "x"}, "path")
 	if err != nil || got != "x" {
-		t.Fatalf("stringArg = %q, %v", got, err)
+		t.Fatalf("StringArg = %q, %v", got, err)
 	}
-	def, err := stringArgDefault(map[string]any{}, "path", ".")
+	def, err := StringArgDefault(map[string]any{}, "path", ".")
 	if err != nil || def != "." {
-		t.Fatalf("stringArgDefault = %q, %v", def, err)
+		t.Fatalf("StringArgDefault = %q, %v", def, err)
 	}
 }
 
 func TestSliceAndIntArgs(t *testing.T) {
-	tags, err := stringSliceArg(map[string]any{"tags": []any{"a", "b"}}, "tags")
+	tags, err := StringSliceArg(map[string]any{"tags": []any{"a", "b"}}, "tags")
 	if err != nil || !reflect.DeepEqual(tags, []string{"a", "b"}) {
-		t.Fatalf("stringSliceArg []any = %v, %v", tags, err)
+		t.Fatalf("StringSliceArg []any = %v, %v", tags, err)
 	}
-	tags, err = stringSliceArg(map[string]any{"tags": []string{"a"}}, "tags")
+	tags, err = StringSliceArg(map[string]any{"tags": []string{"a"}}, "tags")
 	if err != nil || !reflect.DeepEqual(tags, []string{"a"}) {
-		t.Fatalf("stringSliceArg []string = %v, %v", tags, err)
+		t.Fatalf("StringSliceArg []string = %v, %v", tags, err)
 	}
-	if tags, err := stringSliceArg(map[string]any{}, "tags"); err != nil || tags != nil {
-		t.Fatalf("stringSliceArg missing = %v, %v", tags, err)
+	if tags, err := StringSliceArg(map[string]any{}, "tags"); err != nil || tags != nil {
+		t.Fatalf("StringSliceArg missing = %v, %v", tags, err)
 	}
-	if _, err := stringSliceArg(map[string]any{"tags": []any{1}}, "tags"); err == nil {
-		t.Fatal("stringSliceArg with non-string element succeeded")
+	if _, err := StringSliceArg(map[string]any{"tags": []any{1}}, "tags"); err == nil {
+		t.Fatal("StringSliceArg with non-string element succeeded")
 	}
-	if _, err := stringSliceArg(map[string]any{"tags": 42}, "tags"); err == nil {
-		t.Fatal("stringSliceArg with non-slice succeeded")
+	if _, err := StringSliceArg(map[string]any{"tags": 42}, "tags"); err == nil {
+		t.Fatal("StringSliceArg with non-slice succeeded")
 	}
 
-	n, err := intArg(map[string]any{"limit": 5.0}, "limit")
+	n, err := IntArg(map[string]any{"limit": 5.0}, "limit")
 	if err != nil || n != 5 {
-		t.Fatalf("intArg float = %d, %v", n, err)
+		t.Fatalf("IntArg float = %d, %v", n, err)
 	}
-	n, err = intArgDefault(map[string]any{}, "limit", 7)
+	n, err = IntArgDefault(map[string]any{}, "limit", 7)
 	if err != nil || n != 7 {
-		t.Fatalf("intArgDefault = %d, %v", n, err)
+		t.Fatalf("IntArgDefault = %d, %v", n, err)
 	}
-	if _, err := intArg(map[string]any{}, "limit"); err == nil {
-		t.Fatal("intArg missing succeeded")
+	if _, err := IntArg(map[string]any{}, "limit"); err == nil {
+		t.Fatal("IntArg missing succeeded")
 	}
-	if _, err := intArg(map[string]any{"limit": "x"}, "limit"); err == nil {
-		t.Fatal("intArg non-number succeeded")
+	if _, err := IntArg(map[string]any{"limit": "x"}, "limit"); err == nil {
+		t.Fatal("IntArg non-number succeeded")
 	}
 }

@@ -70,3 +70,42 @@ func TestParseNoteClosedAtEOF(t *testing.T) {
 		t.Fatalf("expected empty body, got %q", body)
 	}
 }
+
+func TestFormatNoteRoundTrip(t *testing.T) {
+	meta := NoteMeta{Title: "Standup sync", Date: "2026-08-21", Kind: "meeting", Tags: []string{"work", "sync"}}
+	content := FormatNote(meta, "line one\nline two\n")
+	got, body, err := ParseNote(content)
+	if err != nil {
+		t.Fatalf("ParseNote of FormatNote output: %v\n%s", err, content)
+	}
+	if !reflect.DeepEqual(got, meta) {
+		t.Fatalf("round-trip meta = %+v, want %+v", got, meta)
+	}
+	if string(body) != "line one\nline two\n" {
+		t.Fatalf("round-trip body = %q", body)
+	}
+
+	// The canonical shape: title, date, tags, type, closing ---, body.
+	want := "---\ntitle: Standup sync\ndate: 2026-08-21\ntags: [work, sync]\ntype: meeting\n---\nline one\nline two\n"
+	if string(content) != want {
+		t.Fatalf("FormatNote mismatch:\ngot  %q\nwant %q", content, want)
+	}
+}
+
+func TestFormatNoteOmitsEmptyFieldsAndGuaranteesNewline(t *testing.T) {
+	content := FormatNote(NoteMeta{Title: "Bare"}, "body")
+	want := "---\ntitle: Bare\n---\nbody\n"
+	if string(content) != want {
+		t.Fatalf("FormatNote = %q, want %q", content, want)
+	}
+
+	// Values that would break YAML unquoted round-trip through ParseNote.
+	meta := NoteMeta{Title: "A: note", Tags: []string{"tag one"}}
+	got, _, err := ParseNote(FormatNote(meta, ""))
+	if err != nil {
+		t.Fatalf("ParseNote of quoted output: %v", err)
+	}
+	if got.Title != "A: note" || !reflect.DeepEqual(got.Tags, []string{"tag one"}) {
+		t.Fatalf("round-trip = %+v", got)
+	}
+}

@@ -12,8 +12,8 @@ import (
 // broad pattern cannot flood the model context.
 const grepMaxMatches = 100
 
-// Grep is the "grep" tool: it matches a regular expression against note
-// bodies across the wiki and returns path:line matches, size-capped.
+// Grep is the "grep" tool: it matches a regular expression against file
+// contents across the tree and returns path:line matches, size-capped.
 type Grep struct {
 	fs    FS
 	limit int
@@ -33,7 +33,7 @@ func (t *Grep) Name() string { return "grep" }
 
 // Description implements Tool.
 func (t *Grep) Description() string {
-	return "Search note bodies for a regular expression pattern and return matching lines with their paths and line numbers. Path is relative to the wiki root."
+	return "Search file contents for a regular expression pattern and return matching lines with their paths and line numbers. Path is relative to the workspace root."
 }
 
 // Schema implements Tool.
@@ -47,7 +47,7 @@ func (t *Grep) Schema() map[string]any {
 			},
 			"path": map[string]any{
 				"type":        "string",
-				"description": "Optional directory to restrict the search to. Defaults to the wiki root.",
+				"description": "Optional directory to restrict the search to. Defaults to the workspace root.",
 			},
 		},
 		"required": []string{"pattern"},
@@ -59,7 +59,7 @@ func (t *Grep) Run(ctx context.Context, args map[string]any) (string, error) {
 	if err := ctx.Err(); err != nil {
 		return "", err
 	}
-	pattern, err := stringArg(args, "pattern")
+	pattern, err := StringArg(args, "pattern")
 	if err != nil {
 		return "", err
 	}
@@ -67,38 +67,40 @@ func (t *Grep) Run(ctx context.Context, args map[string]any) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("grep: invalid pattern: %w", err)
 	}
-	path, err := stringArgDefault(args, "path", ".")
+	path, err := StringArgDefault(args, "path", ".")
 	if err != nil {
 		return "", err
 	}
-	rel, err := cleanRel(path)
+	rel, err := CleanRel(path)
 	if err != nil {
 		return "", err
 	}
 	var sb strings.Builder
 	matches := 0
 	truncated := false
-	err = walkNotes(t.fs, rel, func(noteRel string, _ Note, body []byte) error {
-		if matches >= t.limit {
-			return errTreeTooLarge
+	err = WalkFiles(t.fs, rel, func(fileRel string) error {
+		data, err := t.fs.ReadFile(fileRel)
+		if err != nil {
+			return nil // unreadable files are skipped, not fatal
 		}
-		lines := strings.Split(string(body), "\n")
+		lines := strings.Split(string(data), "\n")
 		for i, line := range lines {
-			if re.MatchString(line) {
-				if matches >= t.limit {
-					truncated = true
-					return errTreeTooLarge
-				}
-				if matches > 0 {
-					sb.WriteByte('\n')
-				}
-				fmt.Fprintf(&sb, "%s:%d:%s", noteRel, i+1, line)
-				matches++
+			if !re.MatchString(line) {
+				continue
 			}
+			if matches >= t.limit {
+				truncated = true
+				return ErrTreeTooLarge
+			}
+			if matches > 0 {
+				sb.WriteByte('\n')
+			}
+			fmt.Fprintf(&sb, "%s:%d:%s", fileRel, i+1, line)
+			matches++
 		}
 		return nil
 	})
-	if errors.Is(err, errTreeTooLarge) {
+	if errors.Is(err, ErrTreeTooLarge) {
 		truncated = true
 	} else if err != nil {
 		return "", fmt.Errorf("grep: %w", err)

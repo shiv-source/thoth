@@ -47,7 +47,7 @@ func (t *GetTime) Run(ctx context.Context, args map[string]any) (string, error) 
 	if err := ctx.Err(); err != nil {
 		return "", err
 	}
-	tz, err := stringArgDefault(args, "tz", "")
+	tz, err := StringArgDefault(args, "tz", "")
 	if err != nil {
 		return "", err
 	}

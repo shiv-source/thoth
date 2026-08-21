@@ -11,13 +11,13 @@ import (
 	"strings"
 )
 
-// maxReadBytes is the default cap on read_file output: the tool returns only
-// the first maxReadBytes bytes of an oversized file, with a truncation marker.
-const maxReadBytes = 128 * 1024
+// MaxReadBytes is the default cap on read_file output: the tool returns only
+// the first MaxReadBytes bytes of an oversized file, with a truncation marker.
+const MaxReadBytes = 128 * 1024
 
-// truncationMarker reports the marker appended when read_file returns only the
+// TruncationMarker reports the marker appended when read_file returns only the
 // head of a larger file.
-func truncationMarker(maxBytes int) string {
+func TruncationMarker(maxBytes int) string {
 	return fmt.Sprintf("\n\n[output truncated: file exceeds %d bytes]", maxBytes)
 }
 
@@ -69,7 +69,7 @@ func (f *OSFS) Root() string { return f.root }
 // existing ancestor when the final segment does not exist yet — and refuses
 // any path whose real target lies outside root.
 func (f *OSFS) resolve(name string) (string, error) {
-	clean, err := cleanRel(name)
+	clean, err := CleanRel(name)
 	if err != nil {
 		return "", err
 	}
@@ -109,9 +109,9 @@ func (f *OSFS) within(resolved string) bool {
 	return rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
 }
 
-// cleanRel validates that name is a non-empty relative path with no ".."
+// CleanRel validates that name is a non-empty relative path with no ".."
 // segments.
-func cleanRel(name string) (string, error) {
+func CleanRel(name string) (string, error) {
 	if name == "" {
 		return "", errors.New("tools: path must not be empty")
 	}
@@ -259,7 +259,7 @@ type ReadFile struct {
 // falls back to the 128 KiB default cap.
 func NewReadFile(fs FS, maxBytes int) *ReadFile {
 	if maxBytes <= 0 {
-		maxBytes = maxReadBytes
+		maxBytes = MaxReadBytes
 	}
 	return &ReadFile{fs: fs, maxBytes: maxBytes}
 }
@@ -291,11 +291,11 @@ func (t *ReadFile) Run(ctx context.Context, args map[string]any) (string, error)
 	if err := ctx.Err(); err != nil {
 		return "", err
 	}
-	path, err := stringArg(args, "path")
+	path, err := StringArg(args, "path")
 	if err != nil {
 		return "", err
 	}
-	rel, err := cleanRel(path)
+	rel, err := CleanRel(path)
 	if err != nil {
 		return "", err
 	}
@@ -304,7 +304,7 @@ func (t *ReadFile) Run(ctx context.Context, args map[string]any) (string, error)
 		return "", fmt.Errorf("read_file: %w", err)
 	}
 	if len(data) > t.maxBytes {
-		return string(data[:t.maxBytes]) + truncationMarker(t.maxBytes), nil
+		return string(data[:t.maxBytes]) + TruncationMarker(t.maxBytes), nil
 	}
 	return string(data), nil
 }
@@ -350,15 +350,15 @@ func (t *WriteFile) Run(ctx context.Context, args map[string]any) (string, error
 	if err := ctx.Err(); err != nil {
 		return "", err
 	}
-	path, err := stringArg(args, "path")
+	path, err := StringArg(args, "path")
 	if err != nil {
 		return "", err
 	}
-	content, err := stringArg(args, "content")
+	content, err := StringArg(args, "content")
 	if err != nil {
 		return "", err
 	}
-	rel, err := cleanRel(path)
+	rel, err := CleanRel(path)
 	if err != nil {
 		return "", err
 	}
@@ -409,11 +409,11 @@ func (t *List) Run(ctx context.Context, args map[string]any) (string, error) {
 	if err := ctx.Err(); err != nil {
 		return "", err
 	}
-	path, err := stringArgDefault(args, "path", ".")
+	path, err := StringArgDefault(args, "path", ".")
 	if err != nil {
 		return "", err
 	}
-	rel, err := cleanRel(path)
+	rel, err := CleanRel(path)
 	if err != nil {
 		return "", err
 	}
@@ -436,9 +436,9 @@ func (t *List) Run(ctx context.Context, args map[string]any) (string, error) {
 	return strings.TrimSuffix(sb.String(), "\n"), nil
 }
 
-// stringArg returns the string value of key in args, erroring when it is
+// StringArg returns the string value of key in args, erroring when it is
 // absent or not a string.
-func stringArg(args map[string]any, key string) (string, error) {
+func StringArg(args map[string]any, key string) (string, error) {
 	v, ok := args[key]
 	if !ok {
 		return "", fmt.Errorf("tools: missing argument %q", key)
@@ -450,19 +450,19 @@ func stringArg(args map[string]any, key string) (string, error) {
 	return s, nil
 }
 
-// stringArgDefault returns the string value of key in args, or def when it is
+// StringArgDefault returns the string value of key in args, or def when it is
 // absent.
-func stringArgDefault(args map[string]any, key, def string) (string, error) {
+func StringArgDefault(args map[string]any, key, def string) (string, error) {
 	if _, ok := args[key]; !ok {
 		return def, nil
 	}
-	return stringArg(args, key)
+	return StringArg(args, key)
 }
 
-// stringSliceArg returns the value of key in args as a slice of strings,
+// StringSliceArg returns the value of key in args as a slice of strings,
 // accepting either a []string or a []any of strings (how JSON-decoded args
 // arrive). A missing key returns nil without error; a wrong type errors.
-func stringSliceArg(args map[string]any, key string) ([]string, error) {
+func StringSliceArg(args map[string]any, key string) ([]string, error) {
 	v, ok := args[key]
 	if !ok {
 		return nil, nil
@@ -485,9 +485,9 @@ func stringSliceArg(args map[string]any, key string) ([]string, error) {
 	}
 }
 
-// intArg returns the integer value of key in args. JSON-decoded numbers arrive
+// IntArg returns the integer value of key in args. JSON-decoded numbers arrive
 // as float64; a missing key or non-numeric value errors.
-func intArg(args map[string]any, key string) (int, error) {
+func IntArg(args map[string]any, key string) (int, error) {
 	v, ok := args[key]
 	if !ok {
 		return 0, fmt.Errorf("tools: missing argument %q", key)
@@ -502,10 +502,58 @@ func intArg(args map[string]any, key string) (int, error) {
 	}
 }
 
-// intArgDefault returns the integer value of key in args, or def when absent.
-func intArgDefault(args map[string]any, key string, def int) (int, error) {
+// IntArgDefault returns the integer value of key in args, or def when absent.
+func IntArgDefault(args map[string]any, key string, def int) (int, error) {
 	if _, ok := args[key]; !ok {
 		return def, nil
 	}
-	return intArg(args, key)
+	return IntArg(args, key)
+}
+
+// maxWalkFiles caps the number of entries WalkFiles visits, so a pathological
+// directory tree cannot exhaust memory.
+const maxWalkFiles = 5000
+
+// ErrTreeTooLarge is returned by WalkFiles when the entry cap is hit, so a
+// size-capped tool can emit a truncation marker.
+var ErrTreeTooLarge = fmt.Errorf("tools: tree too large")
+
+// WalkFiles walks the tree rooted at rel (relative to the FS root) and calls
+// fn for every file it finds, sorted by name, skipping hidden entries (any
+// path segment starting with a dot). It stops with ErrTreeTooLarge once the
+// entry cap is exceeded.
+func WalkFiles(fs FS, rel string, fn func(rel string) error) error {
+	count := 0
+	return walkFilesBounded(fs, rel, fn, &count)
+}
+
+func walkFilesBounded(fs FS, rel string, fn func(rel string) error, count *int) error {
+	if *count >= maxWalkFiles {
+		return ErrTreeTooLarge
+	}
+	entries, err := fs.ReadDir(rel)
+	if err != nil {
+		return err
+	}
+	sort.Slice(entries, func(i, j int) bool { return entries[i].Name() < entries[j].Name() })
+	for _, e := range entries {
+		if strings.HasPrefix(e.Name(), ".") {
+			continue
+		}
+		child := filepath.Join(rel, e.Name())
+		if e.IsDir() {
+			if err := walkFilesBounded(fs, child, fn, count); err != nil {
+				return err
+			}
+			continue
+		}
+		if err := fn(child); err != nil {
+			return err
+		}
+		*count++
+		if *count >= maxWalkFiles {
+			return ErrTreeTooLarge
+		}
+	}
+	return nil
 }

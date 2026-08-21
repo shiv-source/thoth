@@ -9,6 +9,7 @@ import (
 	"time"
 
 	agenttools "github.com/shiv-source/thoth/agent/tools"
+	wikitoos "github.com/shiv-source/thoth/internal/agent/tools" // wiki-specific tools
 	"github.com/shiv-source/thoth/internal/index"
 	"github.com/shiv-source/thoth/internal/wiki"
 )
@@ -132,8 +133,10 @@ func indexSearch(ix *index.Index) agenttools.SearchFunc {
 }
 
 // RegistryOptions tunes the tool registry a host builds. Wiki is required;
-// Index adds the FTS search tool when non-nil. The path-configurable tools
-// (todos/inbox/memory) use the scaffolded wiki defaults unless overridden.
+// Index adds the FTS search tool when non-nil. The path-configurable wiki
+// tools (todos/inbox/memory) use the scaffolded wiki defaults unless
+// overridden. CustomTools are registered after the built-in catalog, so a host
+// can extend the agent with its own tools.
 type RegistryOptions struct {
 	Wiki  *wiki.Wiki
 	Index *index.Index
@@ -143,13 +146,18 @@ type RegistryOptions struct {
 	TodosPath  string
 	InboxDir   string
 	MemoryPath string
+	// CustomTools are registered after the built-in catalog. A host registers
+	// its own tools here to extend the agent.
+	CustomTools []agenttools.Tool
 }
 
-// registry builds the wiki-bounded tool registry: the file/note/edit/search
-// tools over a wikiFS bound to the live wiki root (so a settings wiki-path
-// change moves the tools with the rulebook), plus search over the FTS index
-// when one is supplied. It is registered once and read-only afterwards, so
-// concurrent Start calls may share it.
+// registry builds the wiki-bounded tool registry: the common file/note/search
+// tools from agent/tools plus the wiki-specific note tools from
+// internal/agent/tools, all over a wikiFS bound to the live wiki root (so a
+// settings wiki-path change moves the tools with the rulebook), plus search
+// over the FTS index when one is supplied. CustomTools are appended last so a
+// host can extend the catalog. It is registered once and read-only afterwards,
+// so concurrent Start calls may share it.
 func registry(opts RegistryOptions) (*agenttools.Registry, error) {
 	if opts.Wiki == nil {
 		return nil, errors.New("agent: registry requires a wiki")
@@ -158,25 +166,27 @@ func registry(opts RegistryOptions) (*agenttools.Registry, error) {
 	reg := agenttools.NewRegistry()
 	now := time.Now
 	for _, t := range []agenttools.Tool{
+		// Common tools (agent/tools).
 		agenttools.NewReadFile(fsys, 0),
 		agenttools.NewWriteFile(fsys),
 		agenttools.NewList(fsys),
 		agenttools.NewGetTime(now),
-		agenttools.NewWriteNote(fsys, now),
-		agenttools.NewReadNote(fsys, 0),
 		agenttools.NewEditFile(fsys),
 		agenttools.NewAppendFile(fsys),
 		agenttools.NewRenameFile(fsys),
 		agenttools.NewDeleteFile(fsys),
-		agenttools.NewListTree(fsys, 0),
 		agenttools.NewGrep(fsys, 0),
-		agenttools.NewListRecent(fsys, 0),
-		agenttools.NewSearchByTag(fsys, 0),
-		agenttools.NewGetTodos(fsys, opts.TodosPath),
-		agenttools.NewUpdateTodos(fsys, opts.TodosPath),
-		agenttools.NewGetInbox(fsys, opts.InboxDir),
-		agenttools.NewFileInbox(fsys, opts.InboxDir),
-		agenttools.NewRemember(fsys, opts.MemoryPath, now),
+		// Wiki-specific tools (internal/agent/tools).
+		wikitoos.NewWriteNote(fsys, now),
+		wikitoos.NewReadNote(fsys, 0),
+		wikitoos.NewListTree(fsys, 0, 0),
+		wikitoos.NewListRecent(fsys, 0),
+		wikitoos.NewSearchByTag(fsys, 0),
+		wikitoos.NewGetTodos(fsys, opts.TodosPath),
+		wikitoos.NewUpdateTodos(fsys, opts.TodosPath),
+		wikitoos.NewGetInbox(fsys, opts.InboxDir),
+		wikitoos.NewFileInbox(fsys, opts.InboxDir),
+		wikitoos.NewRemember(fsys, opts.MemoryPath, now),
 	} {
 		if err := reg.Register(t); err != nil {
 			return nil, err
@@ -184,6 +194,11 @@ func registry(opts RegistryOptions) (*agenttools.Registry, error) {
 	}
 	if opts.Index != nil {
 		if err := reg.Register(agenttools.NewSearch(indexSearch(opts.Index), 0)); err != nil {
+			return nil, err
+		}
+	}
+	for _, t := range opts.CustomTools {
+		if err := reg.Register(t); err != nil {
 			return nil, err
 		}
 	}

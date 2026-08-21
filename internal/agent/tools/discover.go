@@ -3,10 +3,12 @@ package tools
 import (
 	"context"
 	"fmt"
-	"path/filepath"
 	"sort"
 	"strings"
 	"time"
+
+	agenttools "github.com/shiv-source/thoth/agent/tools"
+	"github.com/shiv-source/thoth/internal/wiki"
 )
 
 // recentDefaultLimit is the default result cap when NewListRecent is given a
@@ -20,28 +22,28 @@ const tagDefaultLimit = 20
 // notes, newest first, with each note's title. Modification time comes from
 // the FS seam's Stat, so hosts control what "modified" means.
 type ListRecent struct {
-	fs    FS
+	fs    agenttools.FS
 	limit int
 }
 
 // NewListRecent returns the list_recent tool backed by fs. A non-positive
 // limit falls back to the default of 10.
-func NewListRecent(fs FS, limit int) *ListRecent {
+func NewListRecent(fs agenttools.FS, limit int) *ListRecent {
 	if limit <= 0 {
 		limit = recentDefaultLimit
 	}
 	return &ListRecent{fs: fs, limit: limit}
 }
 
-// Name implements Tool.
+// Name implements agenttools.Tool.
 func (t *ListRecent) Name() string { return "list_recent" }
 
-// Description implements Tool.
+// Description implements agenttools.Tool.
 func (t *ListRecent) Description() string {
 	return "List the most recently modified notes, newest first, with their titles."
 }
 
-// Schema implements Tool.
+// Schema implements agenttools.Tool.
 func (t *ListRecent) Schema() map[string]any {
 	return map[string]any{
 		"type": "object",
@@ -54,12 +56,12 @@ func (t *ListRecent) Schema() map[string]any {
 	}
 }
 
-// Run implements Tool.
+// Run implements agenttools.Tool.
 func (t *ListRecent) Run(ctx context.Context, args map[string]any) (string, error) {
 	if err := ctx.Err(); err != nil {
 		return "", err
 	}
-	limit, err := intArgDefault(args, "limit", t.limit)
+	limit, err := agenttools.IntArgDefault(args, "limit", t.limit)
 	if err != nil {
 		return "", err
 	}
@@ -69,12 +71,12 @@ func (t *ListRecent) Run(ctx context.Context, args map[string]any) (string, erro
 		title string
 	}
 	var entries []entry
-	err = walkNotes(t.fs, ".", func(rel string, note Note, _ []byte) error {
+	err = walkNotes(t.fs, ".", func(rel string, meta wiki.NoteMeta, _ []byte) error {
 		fi, err := t.fs.Stat(rel)
 		if err != nil {
 			return nil // unreadable notes are skipped, not fatal
 		}
-		entries = append(entries, entry{rel: rel, mod: fi.ModTime(), title: note.Title})
+		entries = append(entries, entry{rel: rel, mod: fi.ModTime(), title: meta.Title})
 		return nil
 	})
 	if err != nil {
@@ -100,28 +102,28 @@ func (t *ListRecent) Run(ctx context.Context, args map[string]any) (string, erro
 // SearchByTag is the "search_by_tag" tool: it returns notes whose frontmatter
 // tags include the given tag, sorted by path.
 type SearchByTag struct {
-	fs    FS
+	fs    agenttools.FS
 	limit int
 }
 
 // NewSearchByTag returns the search_by_tag tool backed by fs. A non-positive
 // limit falls back to the default of 20.
-func NewSearchByTag(fs FS, limit int) *SearchByTag {
+func NewSearchByTag(fs agenttools.FS, limit int) *SearchByTag {
 	if limit <= 0 {
 		limit = tagDefaultLimit
 	}
 	return &SearchByTag{fs: fs, limit: limit}
 }
 
-// Name implements Tool.
+// Name implements agenttools.Tool.
 func (t *SearchByTag) Name() string { return "search_by_tag" }
 
-// Description implements Tool.
+// Description implements agenttools.Tool.
 func (t *SearchByTag) Description() string {
 	return "Return the paths of notes whose frontmatter tags include the given tag."
 }
 
-// Schema implements Tool.
+// Schema implements agenttools.Tool.
 func (t *SearchByTag) Schema() map[string]any {
 	return map[string]any{
 		"type": "object",
@@ -139,24 +141,24 @@ func (t *SearchByTag) Schema() map[string]any {
 	}
 }
 
-// Run implements Tool.
+// Run implements agenttools.Tool.
 func (t *SearchByTag) Run(ctx context.Context, args map[string]any) (string, error) {
 	if err := ctx.Err(); err != nil {
 		return "", err
 	}
-	tag, err := stringArg(args, "tag")
+	tag, err := agenttools.StringArg(args, "tag")
 	if err != nil {
 		return "", err
 	}
-	limit, err := intArgDefault(args, "limit", t.limit)
+	limit, err := agenttools.IntArgDefault(args, "limit", t.limit)
 	if err != nil {
 		return "", err
 	}
 	var paths []string
-	err = walkNotes(t.fs, ".", func(rel string, note Note, _ []byte) error {
-		for _, t := range note.Tags {
+	err = walkNotes(t.fs, ".", func(rel string, meta wiki.NoteMeta, _ []byte) error {
+		for _, t := range meta.Tags {
 			if t == tag {
-				paths = append(paths, filepath.ToSlash(rel))
+				paths = append(paths, rel)
 				return nil
 			}
 		}

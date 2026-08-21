@@ -25,6 +25,11 @@ func noteType(folder string) string {
 	return strings.TrimSuffix(folder, "s")
 }
 
+// NoteType returns the frontmatter `type:` value for a single folder name,
+// mirroring the mechanical rule every folder follows. It is the default type
+// for notes written into that folder.
+func NoteType(folder string) string { return noteType(folder) }
+
 // NoteTypesFor returns the frontmatter `type:` values for the given folders,
 // derived from the folder names (see noteType). The attachments dir is not a
 // note type. Order follows the folder order.

@@ -54,22 +54,22 @@ func (t *EditFile) Run(ctx context.Context, args map[string]any) (string, error)
 	if err := ctx.Err(); err != nil {
 		return "", err
 	}
-	path, err := stringArg(args, "path")
+	path, err := StringArg(args, "path")
 	if err != nil {
 		return "", err
 	}
-	oldText, err := stringArg(args, "old_text")
+	oldText, err := StringArg(args, "old_text")
 	if err != nil {
 		return "", err
 	}
-	newText, err := stringArg(args, "new_text")
+	newText, err := StringArg(args, "new_text")
 	if err != nil {
 		return "", err
 	}
 	if oldText == "" {
 		return "", errors.New("edit_file: old_text must not be empty")
 	}
-	rel, err := cleanRel(path)
+	rel, err := CleanRel(path)
 	if err != nil {
 		return "", err
 	}
@@ -133,15 +133,15 @@ func (t *AppendFile) Run(ctx context.Context, args map[string]any) (string, erro
 	if err := ctx.Err(); err != nil {
 		return "", err
 	}
-	path, err := stringArg(args, "path")
+	path, err := StringArg(args, "path")
 	if err != nil {
 		return "", err
 	}
-	content, err := stringArg(args, "content")
+	content, err := StringArg(args, "content")
 	if err != nil {
 		return "", err
 	}
-	rel, err := cleanRel(path)
+	rel, err := CleanRel(path)
 	if err != nil {
 		return "", err
 	}
@@ -207,19 +207,19 @@ func (t *RenameFile) Run(ctx context.Context, args map[string]any) (string, erro
 	if err := ctx.Err(); err != nil {
 		return "", err
 	}
-	path, err := stringArg(args, "path")
+	path, err := StringArg(args, "path")
 	if err != nil {
 		return "", err
 	}
-	newPath, err := stringArg(args, "new_path")
+	newPath, err := StringArg(args, "new_path")
 	if err != nil {
 		return "", err
 	}
-	rel, err := cleanRel(path)
+	rel, err := CleanRel(path)
 	if err != nil {
 		return "", err
 	}
-	newRel, err := cleanRel(newPath)
+	newRel, err := CleanRel(newPath)
 	if err != nil {
 		return "", err
 	}
@@ -269,11 +269,11 @@ func (t *DeleteFile) Run(ctx context.Context, args map[string]any) (string, erro
 	if err := ctx.Err(); err != nil {
 		return "", err
 	}
-	path, err := stringArg(args, "path")
+	path, err := StringArg(args, "path")
 	if err != nil {
 		return "", err
 	}
-	rel, err := cleanRel(path)
+	rel, err := CleanRel(path)
 	if err != nil {
 		return "", err
 	}

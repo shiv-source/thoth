@@ -2,10 +2,38 @@ package tools
 
 import (
 	"context"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
+
+	agenttools "github.com/shiv-source/thoth/agent/tools"
+	"github.com/shiv-source/thoth/internal/wiki"
 )
+
+// newTestFS returns an OSFS bound to a fresh temp directory.
+func newTestFS(t *testing.T) *agenttools.OSFS {
+	t.Helper()
+	fs, err := agenttools.NewOSFS(t.TempDir())
+	if err != nil {
+		t.Fatalf("NewOSFS: %v", err)
+	}
+	return fs
+}
+
+// writeNote writes a note with parent directories, using the wiki's FormatNote
+// so tests exercise the real note contract.
+func writeNote(t *testing.T, fs agenttools.FS, rel string, meta wiki.NoteMeta, body string) {
+	t.Helper()
+	if dir := filepath.Dir(rel); dir != "." {
+		if err := fs.MkdirAll(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := fs.WriteFile(rel, wiki.FormatNote(meta, body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
 
 func TestWriteNoteTool(t *testing.T) {
 	fs := newTestFS(t)
@@ -16,7 +44,7 @@ func TestWriteNoteTool(t *testing.T) {
 		name    string
 		args    map[string]any
 		wantOut string
-		check   func(t *testing.T, content string)
+		check   func(t *testing.T, meta wiki.NoteMeta, body string)
 	}{
 		{
 			name: "scaffolds frontmatter with folder type",
@@ -27,10 +55,15 @@ func TestWriteNoteTool(t *testing.T) {
 				"tags":  []any{"work", "sync"},
 			},
 			wantOut: "wrote note meetings/2026-08-21-standup.md",
-			check: func(t *testing.T, content string) {
-				want := "---\ntitle: Standup\ndate: 2026-08-21\ntype: meeting\ntags: [work, sync]\n---\nShipped the catalog.\n"
-				if content != want {
-					t.Fatalf("content:\ngot  %q\nwant %q", content, want)
+			check: func(t *testing.T, meta wiki.NoteMeta, body string) {
+				if meta.Title != "Standup" || meta.Date != "2026-08-21" || meta.Kind != "meeting" {
+					t.Fatalf("meta = %+v", meta)
+				}
+				if strings.Join(meta.Tags, ",") != "work,sync" {
+					t.Fatalf("tags = %v", meta.Tags)
+				}
+				if body != "Shipped the catalog.\n" {
+					t.Fatalf("body = %q", body)
 				}
 			},
 		},
@@ -43,10 +76,9 @@ func TestWriteNoteTool(t *testing.T) {
 				"type":  "knowledge",
 			},
 			wantOut: "wrote note knowledge/ai.md",
-			check: func(t *testing.T, content string) {
-				want := "---\ntitle: AI\ndate: 2026-08-21\ntype: knowledge\n---\nbody\n"
-				if content != want {
-					t.Fatalf("content:\ngot  %q\nwant %q", content, want)
+			check: func(t *testing.T, meta wiki.NoteMeta, body string) {
+				if meta.Kind != "knowledge" || len(meta.Tags) != 0 {
+					t.Fatalf("meta = %+v", meta)
 				}
 			},
 		},
@@ -65,7 +97,11 @@ func TestWriteNoteTool(t *testing.T) {
 			if err != nil {
 				t.Fatalf("read back: %v", err)
 			}
-			tc.check(t, string(data))
+			meta, body, err := wiki.ParseNote(data)
+			if err != nil {
+				t.Fatalf("note does not parse in the wiki: %v\n%s", err, data)
+			}
+			tc.check(t, meta, string(body))
 		})
 	}
 }
@@ -82,10 +118,10 @@ func TestWriteNoteToolRejectsInvalidInput(t *testing.T) {
 		t.Fatal("blank title succeeded")
 	}
 	if _, err := tl.Run(ctx, map[string]any{"path": "note.txt", "title": "T", "body": "b"}); err == nil {
-		t.Fatal("extension-less path succeeded")
+		t.Fatal("non-markdown path succeeded")
 	}
 	if _, err := tl.Run(ctx, map[string]any{"path": "note", "title": "T", "body": "b"}); err == nil {
-		t.Fatal("no-extension path succeeded")
+		t.Fatal("extension-less path succeeded")
 	}
 	if _, err := tl.Run(ctx, map[string]any{"path": "../escape.md", "title": "T", "body": "b"}); err == nil {
 		t.Fatal("escaping path succeeded")
@@ -103,14 +139,9 @@ func TestWriteNoteToolRejectsInvalidInput(t *testing.T) {
 
 func TestReadNoteTool(t *testing.T) {
 	fs := newTestFS(t)
-	if err := fs.MkdirAll("meetings", 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := fs.WriteFile("meetings/standup.md", []byte(
-		"---\ntitle: Standup\ndate: 2026-08-21\ntype: meeting\ntags: [work]\n---\nTalked about the catalog.",
-	), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	writeNote(t, fs, "meetings/standup.md", wiki.NoteMeta{
+		Title: "Standup", Date: "2026-08-21", Kind: "meeting", Tags: []string{"work"},
+	}, "Talked about the catalog.")
 	tl := NewReadNote(fs, 0)
 	out, err := tl.Run(context.Background(), map[string]any{"path": "meetings/standup.md"})
 	if err != nil {
@@ -143,16 +174,14 @@ func TestReadNoteToolErrors(t *testing.T) {
 func TestReadNoteCapsOutput(t *testing.T) {
 	fs := newTestFS(t)
 	body := strings.Repeat("x", 500)
-	if err := fs.WriteFile("big.md", []byte("---\ntitle: Big\n---\n"+body), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	writeNote(t, fs, "big.md", wiki.NoteMeta{Title: "Big"}, body)
 	tl := NewReadNote(fs, 128)
 	out, err := tl.Run(context.Background(), map[string]any{"path": "big.md"})
 	if err != nil {
 		t.Fatalf("read_note: %v", err)
 	}
-	if len(out) != 128+len(truncationMarker(128)) {
-		t.Fatalf("out length = %d, want %d", len(out), 128+len(truncationMarker(128)))
+	if len(out) != 128+len(agenttools.TruncationMarker(128)) {
+		t.Fatalf("out length = %d, want %d", len(out), 128+len(agenttools.TruncationMarker(128)))
 	}
 	if !strings.Contains(out, "[output truncated: file exceeds 128 bytes]") {
 		t.Fatalf("truncation marker missing: %q", out)

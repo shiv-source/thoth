@@ -5,36 +5,9 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/shiv-source/thoth/internal/wiki"
 )
-
-func TestGetTimeTool(t *testing.T) {
-	fixed := time.Date(2026, 8, 21, 15, 4, 5, 0, time.UTC)
-	tl := NewGetTime(func() time.Time { return fixed })
-
-	out, err := tl.Run(context.Background(), map[string]any{})
-	if err != nil {
-		t.Fatalf("get_time: %v", err)
-	}
-	if !strings.Contains(out, "UTC: 2026-08-21T15:04:05Z") {
-		t.Fatalf("UTC time missing: %q", out)
-	}
-	if !strings.Contains(out, "local: ") {
-		t.Fatalf("local time missing: %q", out)
-	}
-
-	// Named time zone renders in that zone.
-	out, err = tl.Run(context.Background(), map[string]any{"tz": "America/New_York"})
-	if err != nil {
-		t.Fatalf("get_time with tz: %v", err)
-	}
-	if !strings.Contains(out, "America/New_York: 2026-08-21T11:04:05") {
-		t.Fatalf("tz time missing: %q", out)
-	}
-
-	if _, err := tl.Run(context.Background(), map[string]any{"tz": "Not/AZone"}); err == nil {
-		t.Fatal("unknown time zone succeeded")
-	}
-}
 
 func TestGetTodosTool(t *testing.T) {
 	fs := newTestFS(t)
@@ -91,7 +64,6 @@ func TestGetInboxTool(t *testing.T) {
 		t.Fatalf("inbox = %q", out)
 	}
 
-	// A missing inbox is a message, not an error.
 	empty := NewGetInbox(newTestFS(t), "")
 	out, err = empty.Run(context.Background(), map[string]any{})
 	if err != nil {
@@ -149,23 +121,21 @@ func TestRememberTool(t *testing.T) {
 		t.Fatalf("out = %q", out)
 	}
 
-	// The created memory note parses as a wiki note.
 	data, err := fs.ReadFile("knowledge/memory.md")
 	if err != nil {
 		t.Fatalf("memory note missing: %v", err)
 	}
-	note, body, err := ParseNote(data)
+	meta, body, err := wiki.ParseNote(data)
 	if err != nil {
 		t.Fatalf("memory note does not parse: %v\n%s", err, data)
 	}
-	if note.Title != "Memory" || note.Date != "2026-08-21" {
-		t.Fatalf("memory note = %+v", note)
+	if meta.Title != "Memory" || meta.Date != "2026-08-21" {
+		t.Fatalf("memory note = %+v", meta)
 	}
 	if !strings.Contains(string(body), "- 2026-08-21T09:00:00Z the wiki is fast") {
 		t.Fatalf("fact line missing: %q", body)
 	}
 
-	// Appending preserves the frontmatter and adds another line.
 	if _, err := tl.Run(context.Background(), map[string]any{"fact": "and kind"}); err != nil {
 		t.Fatalf("remember again: %v", err)
 	}
@@ -173,7 +143,7 @@ func TestRememberTool(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, body, err = ParseNote(data)
+	_, body, err = wiki.ParseNote(data)
 	if err != nil {
 		t.Fatalf("re-parse: %v", err)
 	}
@@ -197,8 +167,5 @@ func TestOpsToolsCtxCancelled(t *testing.T) {
 	}
 	if _, err := NewRemember(fs, "", nil).Run(ctx, map[string]any{"fact": "x"}); err == nil {
 		t.Fatal("remember on cancelled ctx succeeded")
-	}
-	if _, err := NewGetTime(nil).Run(ctx, map[string]any{}); err == nil {
-		t.Fatal("get_time on cancelled ctx succeeded")
 	}
 }

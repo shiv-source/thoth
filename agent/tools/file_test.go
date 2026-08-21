@@ -19,6 +19,17 @@ func newTestFS(t *testing.T) *OSFS {
 	return fs
 }
 
+// writeNested writes content at rel, creating parent directories as needed
+// (FS.WriteFile requires its parent to exist, mirroring atomic writes).
+func writeNested(fs FS, rel string, content []byte) error {
+	if dir := filepath.Dir(rel); dir != "." {
+		if err := fs.MkdirAll(dir, 0o755); err != nil {
+			return err
+		}
+	}
+	return fs.WriteFile(rel, content, 0o644)
+}
+
 func TestNewOSFSValidation(t *testing.T) {
 	if _, err := NewOSFS(""); err == nil {
 		t.Fatal("empty root accepted")
@@ -337,7 +348,7 @@ func TestReadFileTool(t *testing.T) {
 	}
 
 	def := NewReadFile(fs, 0)
-	huge := strings.Repeat("x", maxReadBytes+1)
+	huge := strings.Repeat("x", MaxReadBytes+1)
 	if err := fs.WriteFile("huge.txt", []byte(huge), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -345,8 +356,8 @@ func TestReadFileTool(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read huge default: %v", err)
 	}
-	if len(got) != maxReadBytes+len(truncationMarker(maxReadBytes)) {
-		t.Fatalf("default-cap read length = %d, want %d", len(got), maxReadBytes+len(truncationMarker(maxReadBytes)))
+	if len(got) != MaxReadBytes+len(TruncationMarker(MaxReadBytes)) {
+		t.Fatalf("default-cap read length = %d, want %d", len(got), MaxReadBytes+len(TruncationMarker(MaxReadBytes)))
 	}
 	if !strings.Contains(got, "[output truncated: file exceeds 131072 bytes]") {
 		t.Fatal("default truncation marker missing")
