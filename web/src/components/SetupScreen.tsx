@@ -14,10 +14,10 @@ function problemsFromHealth(health: Health | null): Problem[] {
         problems.push({ title: 'The Thoth server is unreachable.', fix: null })
         return problems
     }
-    if (!health.claude.found) {
+    if (!health.backend.api_key_configured) {
         problems.push({
-            title: 'Claude Code is not installed or not on your PATH.',
-            fix: 'npm i -g @anthropic-ai/claude-code && claude login'
+            title: 'No provider API key is configured.',
+            fix: 'Add your API key in Settings, then run thoth doctor to verify.'
         })
     }
     if (!health.wiki.exists) {

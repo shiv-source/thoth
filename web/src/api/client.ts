@@ -86,7 +86,12 @@ export type Message = z.infer<typeof Message>
 
 export const Health = z.object({
     status: z.string(),
-    claude: z.object({ found: z.boolean(), path: z.string() }),
+    backend: z.object({
+        name: z.string(),
+        api_key_configured: z.boolean(),
+        model: z.string(),
+        provider: z.string()
+    }),
     wiki: z.object({ path: z.string(), exists: z.boolean() }),
     version: z.string(),
     dev: z.boolean(),

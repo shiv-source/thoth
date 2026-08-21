@@ -470,10 +470,10 @@ function ModelsTab() {
             >
                 <Form form={form} layout="vertical" className="mt-4">
                     <Form.Item label="Value" name="value" rules={[{ required: true, message: 'Value is required' }]}>
-                        <Input placeholder="claude-sonnet-5" />
+                        <Input placeholder="my-model" />
                     </Form.Item>
                     <Form.Item label="Name" name="name" rules={[{ required: true, message: 'Name is required' }]}>
-                        <Input placeholder="Claude Sonnet 5" />
+                        <Input placeholder="My Model" />
                     </Form.Item>
                     <Form.Item label="Tag" name="tag" extra="Pick a preset or type your own.">
                         <Select virtual={false} mode="tags" options={tagOptions} placeholder="balanced" />
