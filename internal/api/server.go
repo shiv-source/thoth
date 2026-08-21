@@ -3,11 +3,9 @@ package api
 import (
 	"context"
 	"log/slog"
-	"time"
 
 	"github.com/go-warehouse/events"
 	"github.com/labstack/echo/v4"
-	"github.com/shiv-source/thoth/internal/claude"
 	"github.com/shiv-source/thoth/internal/github"
 	"github.com/shiv-source/thoth/internal/index"
 	"github.com/shiv-source/thoth/internal/settings"
@@ -19,7 +17,7 @@ import (
 type Deps struct {
 	Log             *slog.Logger
 	Store           *store.Store
-	Claude          claude.Client
+	Claude          Client
 	GitHub          *github.Service
 	Settings        *settings.Repo
 	DataDir         string // thoth dir (~/.thoth) — the doctor handler probes it
@@ -32,14 +30,6 @@ type Deps struct {
 	Index           *index.Index
 	OnSettingsSaved func(wikiPath string) error
 	Ctx             context.Context // cancelled on shutdown; reaps in-flight turns
-	// RelaxTimeout, when positive, flushes idle pooled CLI processes
-	// (OnChatAway) this long after the last chat client disconnects or hides
-	// its tab, so they do not idle for their full 10-minute timer. Zero
-	// disables the relaxation flush.
-	RelaxTimeout time.Duration
-	// OnChatAway runs when RelaxTimeout elapses with no active chat client.
-	// serve wires it to the pool's Flush.
-	OnChatAway func()
 	// Events is the in-process event bus. When set, wiki change batches are
 	// forwarded to connected clients as wiki_changed frames; nil disables
 	// the push (tests without a bus).
@@ -92,7 +82,7 @@ func newServer(d Deps) (*echo.Echo, *Hub) {
 	e.DELETE("/api/github/auth", func(c echo.Context) error { return disconnectGitHub(c, d) })
 	e.GET("/api/github/repos", func(c echo.Context) error { return listGitHubRepos(c, d) })
 
-	hub := NewHub(d.Claude, d.Store, d.Log, d.ctx(), d.RelaxTimeout, d.OnChatAway)
+	hub := NewHub(d.Claude, d.Store, d.Log, d.ctx())
 	if d.Events != nil {
 		// Forward wiki change batches to every connected client, so the UI
 		// refetches the tree only when files actually changed.

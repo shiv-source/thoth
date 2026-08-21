@@ -6,13 +6,12 @@ import (
 	"testing"
 
 	agentlib "github.com/shiv-source/thoth/agent"
-	"github.com/shiv-source/thoth/internal/claude"
 )
 
 // collect is an EventWriter that records every event of a turn.
-type collect struct{ events []claude.Event }
+type collect struct{ events []agentlib.Event }
 
-func (c *collect) Write(ev claude.Event) error { c.events = append(c.events, ev); return nil }
+func (c *collect) Write(ev agentlib.Event) error { c.events = append(c.events, ev); return nil }
 
 func TestNewRejectsMissingModel(t *testing.T) {
 	if _, err := New("", "key", newWiki(t, "rb"), openStore(t), nil); err == nil {
@@ -63,17 +62,17 @@ func TestClientStartRunsTurnAgainstFakeProvider(t *testing.T) {
 		t.Fatalf("Start: %v", err)
 	}
 
-	// Deltas flow out as claude.Event, then EventDone.
+	// Deltas flow out as agent events, then EventDone.
 	if len(got.events) != 3 {
 		t.Fatalf("got %d events, want 3: %+v", len(got.events), got.events)
 	}
-	if e := got.events[0]; e.Type != claude.EventDelta || e.Text != "Hello" {
+	if e := got.events[0]; e.Type != agentlib.EventDelta || e.Text != "Hello" {
 		t.Fatalf("event 0 = %+v, want assistant_delta Hello", e)
 	}
-	if e := got.events[1]; e.Type != claude.EventThinking || e.Text != "hmm" {
+	if e := got.events[1]; e.Type != agentlib.EventThinking || e.Text != "hmm" {
 		t.Fatalf("event 1 = %+v, want thinking hmm", e)
 	}
-	if e := got.events[2]; e.Type != claude.EventDone {
+	if e := got.events[2]; e.Type != agentlib.EventDone {
 		t.Fatalf("event 2 = %+v, want turn_done", e)
 	}
 
@@ -194,7 +193,7 @@ func TestClientStartSurfacesProviderError(t *testing.T) {
 	if !errors.Is(err, wantErr) {
 		t.Fatalf("Start error = %v, want %v", err, wantErr)
 	}
-	if len(got.events) != 1 || got.events[0].Type != claude.EventError {
+	if len(got.events) != 1 || got.events[0].Type != agentlib.EventError {
 		t.Fatalf("events = %+v, want a single error event", got.events)
 	}
 }
