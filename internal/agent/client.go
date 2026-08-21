@@ -126,7 +126,7 @@ func New(model, apiKey string, w *wiki.Wiki, st *store.Store, ix *index.Index, o
 	if logger == nil {
 		logger = slog.Default()
 	}
-	reg, err := registry(w, ix)
+	reg, err := registry(RegistryOptions{Wiki: w, Index: ix})
 	if err != nil {
 		return nil, fmt.Errorf("agent: build tools: %w", err)
 	}

@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 )
 
 // toolStub is a minimal Tool implementation for registry tests.
@@ -94,11 +95,28 @@ func TestToolSchemas(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	now := func() time.Time { return time.Date(2026, 8, 21, 0, 0, 0, 0, time.UTC) }
 	tools := []Tool{
 		NewReadFile(fs, 0),
 		NewWriteFile(fs),
 		NewList(fs),
 		NewSearch(func(context.Context, string, int) ([]Result, error) { return nil, nil }, 0),
+		NewGetTime(now),
+		NewWriteNote(fs, now),
+		NewReadNote(fs, 0),
+		NewEditFile(fs),
+		NewAppendFile(fs),
+		NewRenameFile(fs),
+		NewDeleteFile(fs),
+		NewListTree(fs, 0),
+		NewGrep(fs, 0),
+		NewListRecent(fs, 0),
+		NewSearchByTag(fs, 0),
+		NewGetTodos(fs, ""),
+		NewUpdateTodos(fs, ""),
+		NewGetInbox(fs, ""),
+		NewFileInbox(fs, ""),
+		NewRemember(fs, "", now),
 	}
 	for _, tl := range tools {
 		name := tl.Name()
@@ -109,9 +127,20 @@ func TestToolSchemas(t *testing.T) {
 		if schema["type"] != "object" {
 			t.Fatalf("%s schema type = %v, want object", name, schema["type"])
 		}
-		props, ok := schema["properties"].(map[string]any)
-		if !ok || len(props) == 0 {
-			t.Fatalf("%s schema has no properties: %v", name, schema)
+	}
+	names := map[string]bool{}
+	for _, tl := range tools {
+		names[tl.Name()] = true
+	}
+	for _, want := range []string{
+		"read_file", "write_file", "list", "search",
+		"get_time", "write_note", "read_note", "edit_file", "append_file",
+		"rename_file", "delete_file", "list_tree", "grep", "list_recent",
+		"search_by_tag", "get_todos", "update_todos", "get_inbox", "file_inbox",
+		"remember",
+	} {
+		if !names[want] {
+			t.Fatalf("missing tool %q", want)
 		}
 	}
 	if _, ok := tools[0].Schema()["required"].([]string); !ok {
@@ -158,5 +187,40 @@ func TestStringArg(t *testing.T) {
 	def, err := stringArgDefault(map[string]any{}, "path", ".")
 	if err != nil || def != "." {
 		t.Fatalf("stringArgDefault = %q, %v", def, err)
+	}
+}
+
+func TestSliceAndIntArgs(t *testing.T) {
+	tags, err := stringSliceArg(map[string]any{"tags": []any{"a", "b"}}, "tags")
+	if err != nil || !reflect.DeepEqual(tags, []string{"a", "b"}) {
+		t.Fatalf("stringSliceArg []any = %v, %v", tags, err)
+	}
+	tags, err = stringSliceArg(map[string]any{"tags": []string{"a"}}, "tags")
+	if err != nil || !reflect.DeepEqual(tags, []string{"a"}) {
+		t.Fatalf("stringSliceArg []string = %v, %v", tags, err)
+	}
+	if tags, err := stringSliceArg(map[string]any{}, "tags"); err != nil || tags != nil {
+		t.Fatalf("stringSliceArg missing = %v, %v", tags, err)
+	}
+	if _, err := stringSliceArg(map[string]any{"tags": []any{1}}, "tags"); err == nil {
+		t.Fatal("stringSliceArg with non-string element succeeded")
+	}
+	if _, err := stringSliceArg(map[string]any{"tags": 42}, "tags"); err == nil {
+		t.Fatal("stringSliceArg with non-slice succeeded")
+	}
+
+	n, err := intArg(map[string]any{"limit": 5.0}, "limit")
+	if err != nil || n != 5 {
+		t.Fatalf("intArg float = %d, %v", n, err)
+	}
+	n, err = intArgDefault(map[string]any{}, "limit", 7)
+	if err != nil || n != 7 {
+		t.Fatalf("intArgDefault = %d, %v", n, err)
+	}
+	if _, err := intArg(map[string]any{}, "limit"); err == nil {
+		t.Fatal("intArg missing succeeded")
+	}
+	if _, err := intArg(map[string]any{"limit": "x"}, "limit"); err == nil {
+		t.Fatal("intArg non-number succeeded")
 	}
 }

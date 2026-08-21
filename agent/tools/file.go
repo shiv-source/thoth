@@ -30,6 +30,9 @@ type FS interface {
 	WriteFile(name string, data []byte, perm fs.FileMode) error
 	MkdirAll(path string, perm fs.FileMode) error
 	ReadDir(name string) ([]fs.DirEntry, error)
+	Stat(name string) (fs.FileInfo, error)
+	Remove(name string) error
+	Rename(oldPath, newPath string) error
 }
 
 // OSFS is the default FS. Every operation resolves its relative name against
@@ -199,6 +202,50 @@ func (f *OSFS) ReadDir(name string) ([]fs.DirEntry, error) {
 		return nil, fmt.Errorf("tools: list %q: %w", name, err)
 	}
 	return entries, nil
+}
+
+// Stat implements FS.
+func (f *OSFS) Stat(name string) (fs.FileInfo, error) {
+	full, err := f.resolve(name)
+	if err != nil {
+		return nil, err
+	}
+	fi, err := os.Stat(full)
+	if err != nil {
+		return nil, fmt.Errorf("tools: stat %q: %w", name, err)
+	}
+	return fi, nil
+}
+
+// Remove implements FS. Removing a symlink removes the link itself, never
+// the target, because resolve bounds the link name rather than following it
+// for deletion.
+func (f *OSFS) Remove(name string) error {
+	full, err := f.resolve(name)
+	if err != nil {
+		return err
+	}
+	if err := os.Remove(full); err != nil {
+		return fmt.Errorf("tools: remove %q: %w", name, err)
+	}
+	return nil
+}
+
+// Rename implements FS. Both names resolve within the root, so a move can
+// never leave the root or cross into it from outside.
+func (f *OSFS) Rename(oldPath, newPath string) error {
+	oldFull, err := f.resolve(oldPath)
+	if err != nil {
+		return err
+	}
+	newFull, err := f.resolve(newPath)
+	if err != nil {
+		return err
+	}
+	if err := os.Rename(oldFull, newFull); err != nil {
+		return fmt.Errorf("tools: rename %q: %w", oldPath, err)
+	}
+	return nil
 }
 
 // ReadFile is the "read_file" tool: it returns a file's contents as text,
@@ -410,4 +457,55 @@ func stringArgDefault(args map[string]any, key, def string) (string, error) {
 		return def, nil
 	}
 	return stringArg(args, key)
+}
+
+// stringSliceArg returns the value of key in args as a slice of strings,
+// accepting either a []string or a []any of strings (how JSON-decoded args
+// arrive). A missing key returns nil without error; a wrong type errors.
+func stringSliceArg(args map[string]any, key string) ([]string, error) {
+	v, ok := args[key]
+	if !ok {
+		return nil, nil
+	}
+	switch t := v.(type) {
+	case []string:
+		return t, nil
+	case []any:
+		out := make([]string, 0, len(t))
+		for _, item := range t {
+			s, ok := item.(string)
+			if !ok {
+				return nil, fmt.Errorf("tools: argument %q must be an array of strings", key)
+			}
+			out = append(out, s)
+		}
+		return out, nil
+	default:
+		return nil, fmt.Errorf("tools: argument %q must be an array of strings", key)
+	}
+}
+
+// intArg returns the integer value of key in args. JSON-decoded numbers arrive
+// as float64; a missing key or non-numeric value errors.
+func intArg(args map[string]any, key string) (int, error) {
+	v, ok := args[key]
+	if !ok {
+		return 0, fmt.Errorf("tools: missing argument %q", key)
+	}
+	switch t := v.(type) {
+	case float64:
+		return int(t), nil
+	case int:
+		return t, nil
+	default:
+		return 0, fmt.Errorf("tools: argument %q must be a number", key)
+	}
+}
+
+// intArgDefault returns the integer value of key in args, or def when absent.
+func intArgDefault(args map[string]any, key string, def int) (int, error) {
+	if _, ok := args[key]; !ok {
+		return def, nil
+	}
+	return intArg(args, key)
 }
