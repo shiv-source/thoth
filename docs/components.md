@@ -6,8 +6,8 @@ The Go backend is organized as small packages with one purpose each, communicati
 |---|---|---|
 | `cmd/thoth` | Thin `main` — calls the CLI and exits | `main` |
 | `internal/cli` | Cobra commands: serve, init, version, doctor | `Execute()` |
-| `internal/claude` | **The blast wall** — the only package that knows CLI flags, stream parsing, and process kill mechanics | `Client`, `CLIClient`, `PersistentClient`, `Event`, `ParseLine`, `FakeClient` |
-| `internal/agent` | The native agent host — the only Thoth-aware code that talks to the reusable `agent` library; the drop-in chat `Client` seam on `agent.Agent` | `Client`, `New`, `SystemPrompt`, `History` |
+| `agent` | The reusable native-agent library (repo-root module): provider-agnostic tool-use loop, the `Provider` wire seam, the tool registry, normalized events/model — the engine behind **Thoth Agent** | `Agent`, `New`, `Options`, `Event`, `Provider`, `Registry` |
+| `internal/agent` | The Thoth host on the `agent` library — the only Thoth-aware code that talks to it; the drop-in chat `Client` seam the Hub depends on | `Client`, `New`, `SystemPrompt`, `History` |
 | `internal/wiki` | The file contract: scaffolding, parsing, path safety, tree | `Scaffold`, `ParseNote`, `SafePath`, `Wiki`, `Rulebook` |
 | `internal/index` | SQLite + FTS5 + watcher | `Index`, `Sync`, `Watch`, `Search` |
 | `internal/assets` | Static data files served by the API (embedded) | `models.json` → `ModelOptions` (the llm_models seed) |
@@ -19,45 +19,36 @@ The Go backend is organized as small packages with one purpose each, communicati
 | `internal/settings` | The settings KV table (thoth.db) — the single source for user-facing settings | `Repo`, `OpenRepo` |
 | `internal/webui` | Embedded frontend | `Register` |
 
-## internal/claude — the blast wall
+## agent/ — the reusable native agent library
 
-Everything version-sensitive about the Claude Code CLI lives in exactly two files:
+The repo-root `agent` module is the provider-agnostic core of Thoth's native agent, organized so hosts and concrete providers import only what they need:
 
-- `client.go` — the flag lists (per-turn `-p --output-format stream-json --verbose --session-id …` and persistent-mode `-p --input-format stream-json … --autocompact auto`; plus `--dangerously-skip-permissions` by default, or `--permission-mode <mode>` when configured, plus optional `--model`), spawn, stream scanning, cancel; stderr is captured and appended to exit errors. A configured `APIKey` is injected into every spawn as `ANTHROPIC_API_KEY` (appended last so it overrides any parent value); no key configured means the process inherits the server's environment untouched
-- `persistent.go` — `PersistentClient`, a pool of long-lived CLI processes keyed by session id: lazily spawned, capped at 4 (`MaxProcs`; the least-recently-used idle process is evicted to make room, busy processes are never killed), one dispatcher goroutine per process turns stdout lines into events for the in-flight turn and ends it at the CLI's `result` line; cancel kills the process and the next turn respawns; idle processes evict after 10 min; `Flush` on wiki-path change or when the user leaves the chat page, `Close` on shutdown. `Warm` eagerly spawns one session's process (same `getOrSpawn`/`spawnLocked` path a turn uses, no prompt) and arms the same idle timer — serve calls it at boot for the most recently active conversation, so resuming it skips the CLI boot
-- `events.go` — tolerant parsing of `stream-json` lines into typed events: `assistant_delta`, `thinking` (thinking-only assistant blocks — the UI shows "Thinking…" with the block text), `tool_activity`, `turn_done`, `error`; the raw stream is also appended to `~/.thoth/stream-dump.json` for debugging (rotated past 10MB)
+- **Root package (`agent.go`)** — `Agent`, the tool-use loop, plus re-exports of the public API. `New(Options)` fails when `Provider` or `Model` is missing. `Options` carries `Provider`, `Model`, `System`, `History` (prior messages of a conversation, capped to `HistoryCap` turns), `Tools` (the `*tools.Registry` the loop resolves `tool_use` calls through), `MaxIterations` (bounds provider turns; default 25 — a loop whose model keeps requesting tools past the cap terminates with an explicit error event instead of hanging), `MaxOutputTokens`, and `Logger`. An `Agent` is single-turn and not safe for concurrent `Start` calls — hosts build a fresh one per turn
+- `events` — the normalized turn events a host forwards to its UI: `assistant_delta`, `tool_activity`, `thinking`, `turn_done`, `error`. The type names and fields are stable public API — the WS protocol and the frontend depend on them
+- `model` — the normalized message/block/delta data model and the streaming `Builder` that accumulates deltas into the message the loop acts on
+- `provider` — the wire-layer seam every model provider implements: `Provider.Stream(ctx, Request) (Stream, error)`. The loop knows nothing about a vendor's wire format — it sends one normalized `Request` (system, messages, tools, max tokens) and consumes normalized deltas from the returned `Stream`; `Accumulate` consumes a stream to a completed `Response` and always closes it. Concrete providers live as subpackages: `agent/provider/anthropic` and `agent/provider/openai` (OpenAI-compatible), both reading SSE through `agent/transport`
+- `tools` — the `Tool` extension point (stable `Name`/`Description`/`Schema`, executed by `Run`), the `Registry` (register once at startup, then read), and the default root-bounded file/search tools: `read_file`, `write_file`, `list` over an `FS` seam, plus `search` over a host-injected `SearchFunc`. `OSFS` binds every relative path to a root and rejects escapes; hosts inject their own `FS` to add further constraints
 
-```go
-type Client interface {
-    Start(ctx context.Context, sessionID, prompt string, w EventWriter) error
-}
-```
-
-Cancelling `ctx` kills the CLI's process group (unix) or direct child (windows) — `proc_unix.go` / `proc_windows.go` are build-tagged for that; for a pooled process the kill evicts it and the next turn respawns (there is no per-turn interrupt in the plain CLI). A CLI upgrade can only ever break this package; everything else is stable.
-
-### PersistentClient lifecycle
+### The tool-use loop
 
 ```mermaid
 flowchart TB
-    S[turn arrives for session S] --> G{process for S alive?}
-    G -->|yes| P[stream-json over stdin]
-    G -->|no| SP[getOrSpawn: spawn claude -p with --session-id S]
-    SP --> P
-    P -->|stdout lines| EV[dispatcher goroutine → typed events]
-    EV -->|result| DONE[turn ends]
-    DONE --> IDLE[process sits idle]
-    IDLE -->|10 min idle| EVICT[evict LRU idle process]
-    IDLE -->|pool > 4 processes| EVICT
-    IDLE -->|cancel / Flush / Close| KILL[kill process group]
-    KILL --> NEXT[next turn respawns, resumes session from disk]
-    IDLE -.->|busy process never killed| P
+    START[Start turn] --> REQ[provider request: system + history + prompt + tools]
+    REQ -->|streams deltas| EV[normalized events to the host]
+    EV --> TOOL{model requests a tool?}
+    TOOL -->|no| DONE[turn ends]
+    TOOL -->|yes| RUN[Registry resolves name → runnable Tool]
+    RUN --> RESULT[feed tool_result back]
+    RESULT --> REQ
 ```
 
-`FakeClient` replays scripted events and records calls — every consumer's tests use it, so no test ever touches the real CLI.
+`FakeClient` in `internal/agent` replays scripted events and records calls — every chat consumer's tests use it, so no test ever touches a real provider.
 
-## internal/agent — the native agent host
+The library replaced the spawned Claude Code CLI (epic #121): `internal/claude` — the flag lists, stream parsing, `persistent.go`'s process pool, and the build-tagged `proc_unix.go`/`proc_windows.go` kill mechanics — was deleted wholesale, so a CLI upgrade can no longer break the chat path.
 
-The only Thoth-aware code that talks to the reusable `agent` library (imported as `agentlib`). `Client` implements the chat seam the Hub depends on — the same `Start(ctx, sessionID, prompt, w, opts…)` signature as `claude.Client` — by driving `agent.Agent` instead of the CLI; `sessionID` is the conversation id for history lookup.
+## internal/agent — the Thoth Agent host
+
+The only Thoth-aware code that talks to the reusable `agent` library (imported as `agentlib`). `Client` implements the chat seam the Hub depends on — `Start(ctx, sessionID, prompt, w)` — by driving `agent.Agent` instead of a CLI subprocess; `sessionID` is the conversation id for history lookup.
 
 - `New(model, apiKey, wiki, store, index, opts…)` wires everything: the provider is picked from the model's provider name (`WithProviderConfig(name, baseURL)` — "Anthropic" → Anthropic, every other name → OpenAI-compatible pointed at its base URL; an empty name falls back to the model id prefixes `claude-*`/`gpt-*`; `WithProvider` overrides for tests), and the tools are built from the wiki.
 - `Start` builds a fresh `agent.Agent` per turn: the system prompt is re-read from `wiki/CLAUDE.md` (the user-editable rulebook) so edits apply without restart, and the loop is single-turn while the Hub serves many conversations at once.
@@ -65,7 +56,7 @@ The only Thoth-aware code that talks to the reusable `agent` library (imported a
 - `system.go` — `SystemPrompt(w, folders)` reads the rulebook per call, falling back to `RulebookFor(folders)` when absent.
 - `history.go` — `History(store)` maps `store.Messages` (roles user/assistant) to agent messages; the trailing user message (the in-flight prompt the loop appends) is dropped, and the loop caps the rest (`HistoryCap`).
 
-Not yet wired into `serve` — the switch-over (T9) replaces `internal/claude` in the Hub and deletes this package's CLI twin.
+Wired into `serve` at boot — the Hub's `Client` is this host, so the whole chat path is in-process.
 
 ## internal/wiki — the file contract
 
@@ -88,17 +79,17 @@ Full mechanics: [Indexing & search](indexing.md).
 
 ## internal/api — the server
 
-`Deps` carries every dependency; `New(d Deps) *echo.Echo` wires all routes. `Hub` owns the WebSocket lifecycle: one active turn per conversation, supersede-on-send, cancel, and a 500-message replay buffer for reconnects. It also keeps a client registry and `Broadcast`s server-push frames (non-blocking; slow clients are skipped). Each client tracks its tab's visibility (`presence` frames): when no client is active — all disconnected or hidden — the hub runs `OnChatAway` after `RelaxTimeout` (serve wires it to the pool's `Flush`, so idle CLI processes die ~1 min after the user leaves the chat page). When `Deps.Events` carries the event bus (`go-warehouse/events`, built in `internal/cli/serve.go`), `newServer` subscribes and forwards every `wiki.Changed` batch to all clients as a `wiki_changed` frame. Protocol details: [API](api.md).
+`Deps` carries every dependency; `New(d Deps) *echo.Echo` wires all routes. `Hub` owns the WebSocket lifecycle: one active turn per conversation, supersede-on-send, cancel, and a 500-message replay buffer for reconnects. It also keeps a client registry and `Broadcast`s server-push frames (non-blocking; slow clients are skipped). Clients still send `presence` frames for their tab's visibility, but Thoth Agent keeps no idle processes to flush, so they are accepted for protocol compatibility and ignored server-side. When `Deps.Events` carries the event bus (`go-warehouse/events`, built in `internal/cli/serve.go`), `newServer` subscribes and forwards every `wiki.Changed` batch to all clients as a `wiki_changed` frame. Protocol details: [API](api.md).
 
 ## internal/store
 
-Conversations, messages, and the llm_models registry in the same `thoth.db` (separate `*sql.DB`, WAL makes sharing safe). The whole schema lives in embedded `.sql` migrations in `migrations/`, applied in filename order and gated on `PRAGMA user_version`; a single-row `app_metadata` table (enforced by `CHECK (id = 1)`) holds install facts (`installation_id`, `created_at`, seeded by `EnsureMetadata` on boot) and git sync state (`last_synced_at`, `sync_error`, written by `SetSyncResult`). IDs are valid RFC 4122 v4 UUIDs (`google/uuid`) because the Claude CLI requires UUIDs for `--session-id`. Timestamps are stored UTC so ordering is chronological.
+Conversations, messages, and the llm_models registry in the same `thoth.db` (separate `*sql.DB`, WAL makes sharing safe). The whole schema lives in embedded `.sql` migrations in `migrations/`, applied in filename order and gated on `PRAGMA user_version`; a single-row `app_metadata` table (enforced by `CHECK (id = 1)`) holds install facts (`installation_id`, `created_at`, seeded by `EnsureMetadata` on boot) and git sync state (`last_synced_at`, `sync_error`, written by `SetSyncResult`). IDs are valid RFC 4122 v4 UUIDs (`google/uuid`); the conversation id is the chat history key passed to the agent as `sessionID`. Timestamps are stored UTC so ordering is chronological.
 
 `models.go` owns the `llm_models` CRUD (`ListModels`, `Model`, `CreateModel`, `UpdateModel`, `DeleteModel`); duplicate `value`s surface as the `ErrModelExists` sentinel (typed SQLite constraint code, not string matching), missing ids as `ErrModelNotFound`. Seeding is not a store method — `ensureModels` in `internal/cli` seeds from `assets.ModelOptions()` whenever the table is empty, so every startup self-heals an empty registry.
 
 ## internal/cli
 
-`Execute()` builds the root Cobra command. `serve` is a thin orchestration function whose helpers (`thothDir`, `settleWikiPath`, `ensureWiki`, `openIndex`, `resolveClaudeBin`, `prewarmPool`, `ensureModels`, `onSettingsSaved`, `serveUntilShutdown`) keep each step readable. Details: [CLI](cli.md).
+`Execute()` builds the root Cobra command. `serve` is a thin orchestration function whose helpers (`thothDir`, `settleWikiPath`, `ensureWiki`, `openIndex`, `defaultModel`, `modelProvider`, `ensureModels`, `onSettingsSaved`, `serveUntilShutdown`) keep each step readable. Details: [CLI](cli.md).
 
 ## internal/doctor
 

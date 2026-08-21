@@ -1,6 +1,6 @@
 # Thoth
 
-Thoth is a **local-first personal knowledge base**. You keep everything you know as plain markdown in one wiki directory; a built-in assistant answers questions from that wiki and saves new knowledge into it, through a polished web dashboard.
+Thoth is a **local-first personal knowledge base**. You keep everything you know as plain markdown in one wiki directory; the built-in assistant — **Thoth Agent** — answers questions from that wiki and saves new knowledge into it, through a polished web dashboard.
 
 One binary. One directory (`~/.thoth`). No cloud, no account, no data leaving your machine.
 
@@ -24,7 +24,7 @@ flowchart LR
 
 ## Getting started
 
-1. Install [Claude Code](https://claude.com/claude-code) and log in
+1. Add a model provider API key in Settings (Anthropic, OpenAI, DeepSeek, …) — **Thoth Agent** calls the provider directly, nothing else needs installing
 2. `thoth serve` — starts on http://127.0.0.1:8333 and scaffolds the default wiki at `~/.thoth/wiki` for you
 3. `thoth doctor` — verify your setup anytime
 
@@ -36,8 +36,10 @@ Follow the full walkthrough in [Getting started](getting-started.md), or jump in
 
 | Page | What it covers |
 |---|---|
+| [What's new](whats-new.md) | Recent changes, newest first |
 | [Getting started](getting-started.md) | Install, first run, first conversation |
 | [Using Thoth](using-thoth.md) | Dashboard tour, chat, search, settings, GitHub sync, best practices |
+| [Migrating to Thoth Agent](thoth-agent.md) | Why the built-in assistant replaced the Claude Code CLI, and what changed |
 | [Architecture](architecture.md) | System design, the two layers, data contract, diagrams |
 | [Knowledge base](knowledge-base.md) | The wiki directory: layout, conventions, the rulebook |
 | [Schema](schema.md) | Every thoth.db table, column, and settings key |

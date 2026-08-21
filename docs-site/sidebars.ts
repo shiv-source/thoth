@@ -9,7 +9,7 @@ const sidebars: SidebarsConfig = {
       type: 'category',
       label: 'Getting started',
       collapsed: false,
-      items: ['index', 'getting-started'],
+      items: ['whats-new', 'index', 'getting-started'],
     },
     {
       type: 'category',
@@ -20,7 +20,7 @@ const sidebars: SidebarsConfig = {
     {
       type: 'category',
       label: 'Core concepts',
-      items: ['architecture', 'knowledge-base'],
+      items: ['thoth-agent', 'architecture', 'knowledge-base'],
     },
     {
       type: 'category',
