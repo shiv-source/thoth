@@ -118,7 +118,7 @@ function renderSettings() {
 // hardcoded string).
 const devHealth = {
     status: 'ok',
-    claude: { found: true, path: '/usr/local/bin/claude' },
+    backend: { name: 'thoth-agent', api_key_configured: true, model: 'claude-sonnet-5', provider: 'Anthropic' },
     wiki: { path: '/tmp/wiki', exists: true },
     version: 'dev',
     dev: true,
@@ -265,8 +265,12 @@ describe('SettingsView', () => {
             'GET /api/github/auth': getEmptyGitHub,
             'GET /api/doctor': () => ({
                 checks: [
-                    { name: 'wiki', ok: true, message: '/tmp/wiki exists' },
-                    { name: 'claude', ok: false, message: 'claude CLI not found on PATH' }
+                    { name: 'wiki', ok: true, message: '/tmp/wiki exists with the 8 scaffold folders and CLAUDE.md' },
+                    {
+                        name: 'provider',
+                        ok: false,
+                        message: 'Anthropic rejected the API key (401) — set a valid one in Settings → General'
+                    }
                 ]
             })
         })
@@ -274,7 +278,9 @@ describe('SettingsView', () => {
         renderSettings()
         await userEvent.click(await screen.findByRole('tab', { name: 'Doctor' }))
         expect(await screen.findByText('wiki')).toBeInTheDocument()
-        expect(screen.getByText('claude CLI not found on PATH')).toBeInTheDocument()
+        expect(
+            screen.getByText('Anthropic rejected the API key (401) — set a valid one in Settings → General')
+        ).toBeInTheDocument()
     })
 
     it('stores the git remote URL and pushes', async () => {

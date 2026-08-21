@@ -44,7 +44,7 @@ export default function App() {
                             <div className="flex flex-1 items-center justify-center" role="status" aria-label="Loading">
                                 <Spin size="large" />
                             </div>
-                        ) : health?.claude.found ? (
+                        ) : health?.backend.api_key_configured ? (
                             <Suspense
                                 fallback={
                                     <div

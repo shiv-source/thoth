@@ -9,7 +9,7 @@ vi.mock('axios', () => axiosModuleMock(mocks))
 
 const healthy: Health = {
     status: 'ok',
-    claude: { found: true, path: '/usr/local/bin/claude' },
+    backend: { name: 'thoth-agent', api_key_configured: true, model: 'claude-sonnet-5', provider: 'Anthropic' },
     wiki: { path: '~/.thoth/wiki', exists: true },
     version: '1.2.3',
     dev: false,

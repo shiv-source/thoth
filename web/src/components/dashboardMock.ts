@@ -26,7 +26,7 @@ export const mockRecent = [
     'knowledge/angular-cli-reference.md'
 ]
 
-export const mockTags = ['go', 'react', 'typescript', 'claude', 'renovate', 'github-actions', 'angular']
+export const mockTags = ['go', 'react', 'typescript', 'agent', 'renovate', 'github-actions', 'angular']
 
 // Notes created per day for the last 7 days (oldest first). The chart
 // computes the day labels from the current date, so the bars stay anchored

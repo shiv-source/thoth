@@ -57,12 +57,12 @@ function HealthFooter() {
     let status: 'processing' | 'success' | 'error' = 'processing'
     let label = 'Checking…'
     if (!loading) {
-        if (health && health.claude.found && health.wiki.exists) {
+        if (health && health.backend.api_key_configured && health.wiki.exists) {
             status = 'success'
             label = 'All systems go'
-        } else if (health && !health.claude.found) {
+        } else if (health && !health.backend.api_key_configured) {
             status = 'error'
-            label = 'Claude CLI missing'
+            label = 'API key not configured'
         } else if (health && !health.wiki.exists) {
             status = 'error'
             label = 'Wiki missing'
