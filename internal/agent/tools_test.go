@@ -506,6 +506,34 @@ func TestRegistryRejectsDuplicateCustomTool(t *testing.T) {
 	}
 }
 
+// TestGitToolsRegisteredWhenConfigured asserts the git tools are registered
+// only when Git options carry a RepoPath, so a host that does not wire git
+// does not expose them to the model.
+func TestGitToolsRegisteredWhenConfigured(t *testing.T) {
+	dir := t.TempDir()
+	reg, err := registry(RegistryOptions{
+		Wiki: wiki.New(dir),
+		Git:  agenttools.GitOptions{RepoPath: func() string { return dir }},
+	})
+	if err != nil {
+		t.Fatalf("registry: %v", err)
+	}
+	for _, name := range []string{"git_init", "git_status", "git_log", "git_diff", "git_commit", "git_push"} {
+		if _, err := reg.Get(name); err != nil {
+			t.Fatalf("missing git tool %q: %v", name, err)
+		}
+	}
+	reg, err = registry(RegistryOptions{Wiki: wiki.New(dir)})
+	if err != nil {
+		t.Fatalf("registry: %v", err)
+	}
+	for _, name := range []string{"git_init", "git_status", "git_log", "git_diff", "git_commit", "git_push"} {
+		if _, err := reg.Get(name); err == nil {
+			t.Fatalf("git tool %q should not be registered without RepoPath", name)
+		}
+	}
+}
+
 // TestWithToolsOption asserts Client.WithTools surfaces custom tools on the
 // turn registry.
 func TestWithToolsOption(t *testing.T) {

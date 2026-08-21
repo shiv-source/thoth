@@ -7,7 +7,8 @@ The Go backend is organized as small packages with one purpose each, communicati
 | `cmd/thoth` | Thin `main` — calls the CLI and exits | `main` |
 | `internal/cli` | Cobra commands: serve, init, version, doctor | `Execute()` |
 | `agent` | The reusable native-agent library (repo-root module): provider-agnostic tool-use loop, the `Provider` wire seam, the tool registry, normalized events/model — the engine behind **Thoth Agent** | `Agent`, `New`, `Options`, `Event`, `Provider`, `Registry` |
-| `agent/tools` | The common, wiki-agnostic tool library: the `Tool`/`Registry` extension points, the `FS`/`OSFS` seam, shared arg/path/truncation helpers, and the generic file/search/get_time tools | `Tool`, `Registry`, `FS`, `OSFS`, `WalkFiles`, `ReadFile`, `WriteFile`, `List`, `Grep`, `Search` |
+| `agent/git` | The pure-Go git backend the agent's git tools run on — a go-git wrapper (no shell, no cgo) that stays wiki-agnostic and dependency-free of `internal/*` | `Init`, `Open`, `Repo`, `Identity`, `Auth` |
+| `agent/tools` | The common, wiki-agnostic tool library: the `Tool`/`Registry` extension points, the `FS`/`OSFS` seam, shared arg/path/truncation helpers, and the generic file/search/get_time/git tools | `Tool`, `Registry`, `FS`, `OSFS`, `WalkFiles`, `ReadFile`, `WriteFile`, `List`, `Grep`, `Search`, `GitOptions` |
 | `internal/agent` | The Thoth host on the `agent` library — the only Thoth-aware code that talks to it; the drop-in chat `Client` seam the Hub depends on | `Client`, `New`, `SystemPrompt`, `History`, `RegistryOptions` |
 | `internal/agent/tools` | The wiki-specific agent tools: note authoring, todos, inbox, memory, tags, tree, recents — built on the `agent/tools` FS seam and the `internal/wiki` note contract | `WriteNote`, `ReadNote`, `ListTree`, `GetTodos`, `Remember` |
 | `internal/wiki` | The file contract: scaffolding, parsing, path safety, tree | `Scaffold`, `ParseNote`, `SafePath`, `Wiki`, `Rulebook` |
@@ -30,6 +31,8 @@ The repo-root `agent` module is the provider-agnostic core of Thoth's native age
 - `model` — the normalized message/block/delta data model and the streaming `Builder` that accumulates deltas into the message the loop acts on
 - `provider` — the wire-layer seam every model provider implements: `Provider.Stream(ctx, Request) (Stream, error)`. The loop knows nothing about a vendor's wire format — it sends one normalized `Request` (system, messages, tools, max tokens) and consumes normalized deltas from the returned `Stream`; `Accumulate` consumes a stream to a completed `Response` and always closes it. Concrete providers live as subpackages: `agent/provider/anthropic` and `agent/provider/openai` (OpenAI-compatible), both reading SSE through `agent/transport`
 - `tools` — the reusable `Tool` extension point (stable `Name`/`Description`/`Schema`, executed by `Run`), the `Registry` (register once at startup, then read), and the **common** root-bounded file tools over an `FS` seam: `read_file`, `write_file`, `list`, `edit_file`, `append_file`, `rename_file`, `delete_file`, `grep`, `get_time`, plus `search` over a host-injected `SearchFunc`. `OSFS` binds every relative path to a root and rejects escapes; hosts inject their own `FS` to add further constraints. Wiki-specific tools (note authoring, todos, inbox, memory) live in `internal/agent/tools` — this library stays wiki-agnostic
+- `git` — the pure-Go wrapper over go-git the git tools run on: `Init(path)` (idempotent — opens first, initializes a `main` repo only when absent), `Open`, `Status` (git-status-short), `Log(n)`, `Diff` (working-tree unified diff), `CommitAll(msg, identity)`, `Push(auth)` (origin, over `file://` or https), and `Head`. Identity and auth are always parameters — hosts inject the committer and a lazy auth, so a token is never stored or logged
+- `tools/git.go` — the git tools on top of that backend, configured by injected funcs (`GitOptions{RepoPath, Guard, Auth, Identity}`): `git_init` (idempotent local init), `git_status`, `git_log`, `git_diff` (read-only; clean "not a git repository" message when the workspace is unversioned), `git_commit` and `git_push` (guarded by the host's `Guard` — commit/push only after sync is enabled; both auto-init when absent). `RepoPath` is evaluated per call so the tools follow a live root; `Auth` and `Identity` are lazy — the push token is held only for the call
 
 ### The tool-use loop
 
@@ -54,7 +57,7 @@ The only Thoth-aware code that talks to the reusable `agent` library (imported a
 
 - `New(model, apiKey, wiki, store, index, opts…)` wires everything: the provider is picked from the model's provider name (`WithProviderConfig(name, baseURL)` — "Anthropic" → Anthropic, every other name → OpenAI-compatible pointed at its base URL; an empty name falls back to the model id prefixes `claude-*`/`gpt-*`; `WithProvider` overrides for tests), and the tools are built from the wiki.
 - `Start` builds a fresh `agent.Agent` per turn: the system prompt is re-read from `wiki/CLAUDE.md` (the user-editable rulebook) so edits apply without restart, and the loop is single-turn while the Hub serves many conversations at once.
-- `tools.go` — `wikiFS` implements the agent `tools.FS` seam (read/write/mkdir/list/stat/remove/rename), resolving every path through `wiki.SafePath` so nothing can escape the wiki; `search` runs over the FTS `index.Index`; `registry(RegistryOptions{Wiki, Index, TodosPath, InboxDir, MemoryPath, CustomTools})` registers the common `agent/tools` catalog plus the wiki-specific tools below, all over the live wiki root. `CustomTools` lets a host extend the catalog with its own tools.
+- `tools.go` — `wikiFS` implements the agent `tools.FS` seam (read/write/mkdir/list/stat/remove/rename), resolving every path through `wiki.SafePath` so nothing can escape the wiki; `search` runs over the FTS `index.Index`; `registry(RegistryOptions{Wiki, Index, TodosPath, InboxDir, MemoryPath, Git, CustomTools})` registers the common `agent/tools` catalog plus the wiki-specific tools below, all over the live wiki root. `Git` wires the git tools to the wiki when it carries a `RepoPath`; `CustomTools` lets a host extend the catalog with its own tools.
 - `tools/` — the Thoth-wiki-specific tools: `write_note`, `read_note`, `list_tree`, `list_recent`, `search_by_tag`, `get_todos`, `update_todos`, `get_inbox`, `file_inbox`, `remember`. They share the note contract with the wiki via `wiki.ParseNote`/`wiki.FormatNote` (single source) and the folder-to-type rule via `wiki.NoteType`; configurable todo/inbox/memory paths default to the scaffolded layout. `Client.WithTools(...)` registers host custom tools.
 - `system.go` — `SystemPrompt(w, folders)` reads the rulebook per call, falling back to `RulebookFor(folders)` when absent.
 - `history.go` — `History(store)` maps `store.Messages` (roles user/assistant) to agent messages; the trailing user message (the in-flight prompt the loop appends) is dropped, and the loop caps the rest (`HistoryCap`).
@@ -64,6 +67,7 @@ Wired into `serve` at boot — the Hub's `Client` is this host, so the whole cha
 ## internal/wiki — the file contract
 
 - `Scaffold(dir)` — creates the 9 folders + rulebook; never overwrites an existing `CLAUDE.md`
+- `EnsureGitRepo(root)` — pure-Go `agent/git.Init` (plus the same `.gitignore` the scaffold writes) so a pre-existing-but-unversioned wiki becomes versioned on startup; a no-op when already a repository
 - `Rulebook()` — the single source of the rulebook text (embedded template); the frontmatter `type:` list is derived from the folder set (`NoteTypesFor`), so it can never drift
 - `ParseNote(content)` — splits frontmatter, requires `title`, returns `NoteMeta` + body
 - `Validate(rel, content)` — save-protocol checks (frontmatter, `type` matches the folder, kebab-case filename, date-prefix in `meetings/`/`daily/`); advisory problems, never fatal — the index logs them and the doctor's "malformed" check surfaces parse failures by name
@@ -92,7 +96,7 @@ Conversations, messages, and the llm_models registry in the same `thoth.db` (sep
 
 ## internal/cli
 
-`Execute()` builds the root Cobra command. `serve` is a thin orchestration function whose helpers (`thothDir`, `settleWikiPath`, `ensureWiki`, `openIndex`, `defaultModel`, `modelProvider`, `ensureModels`, `onSettingsSaved`, `serveUntilShutdown`) keep each step readable. Details: [CLI](cli.md).
+`Execute()` builds the root Cobra command. `serve` is a thin orchestration function whose helpers (`thothDir`, `settleWikiPath`, `ensureWiki`, `openIndex`, `defaultModel`, `modelProvider`, `ensureModels`, `gitToolOptions`, `onSettingsSaved`, `serveUntilShutdown`) keep each step readable. `gitToolOptions` wires the agent's git tools to the live wiki root, the sync switch (the `Guard`), and the stored GitHub connection (lazy `Auth`/`Identity`); `ensureWiki` now also git-inits a pre-existing-but-unversioned wiki via `wiki.EnsureGitRepo`. Details: [CLI](cli.md).
 
 ## internal/doctor
 
@@ -108,4 +112,4 @@ Conversations, messages, and the llm_models registry in the same `thoth.db` (sep
 
 ## internal/gitutil
 
-`Init(dir)` runs `git init` unless `dir` is already a repository, with a fixed timeout and a sanitized failure message. It is the single home for the command, shared by the wiki scaffold (every scaffold version-controls the wiki from day one) and `internal/api/git.go` (the Settings → Git remote setup).
+`Init(dir)` runs `git init` unless `dir` is already a repository, with a fixed timeout and a sanitized failure message. It is the single home for the command, shared by the wiki scaffold (every scaffold version-controls the wiki from day one) and `internal/api/git.go` (the Settings → Git remote setup). The agent's git tools use `agent/git` instead — a pure-Go go-git wrapper, so the agent path needs no git binary.

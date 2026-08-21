@@ -11,6 +11,7 @@ import (
 
 	"github.com/shiv-source/thoth/internal/assets"
 	"github.com/shiv-source/thoth/internal/config"
+	"github.com/shiv-source/thoth/internal/github"
 	"github.com/shiv-source/thoth/internal/index"
 	"github.com/shiv-source/thoth/internal/settings"
 	"github.com/shiv-source/thoth/internal/store"
@@ -404,6 +405,117 @@ func TestEnsureWikiRecreatesReservedAttachments(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(root, "attachments", ".gitkeep")); err != nil {
 		t.Fatalf("reserved attachments dir must carry a .gitkeep: %v", err)
+	}
+}
+
+// TestGitToolOptions asserts the agent git tools are wired to the live wiki
+// root, the sync switch (Guard), and the stored GitHub connection (Auth and
+// Identity), all evaluated lazily so a connection change applies without
+// restart.
+func TestGitToolOptions(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "test.db")
+	st, err := store.Open(dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = st.Close() })
+	stg, err := settings.OpenRepo(dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = stg.Close() })
+	gh, err := github.OpenRepo(dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = gh.Close() })
+
+	root := t.TempDir()
+	w := wiki.New(root)
+	opts := gitToolOptions(w, stg, gh)
+
+	// RepoPath follows the live wiki root (it can move).
+	if opts.RepoPath == nil {
+		t.Fatal("RepoPath must be set")
+	}
+	if got := opts.RepoPath(); got != root {
+		t.Fatalf("RepoPath() = %q, want %q", got, root)
+	}
+
+	// Guard: disabled blocks, enabled passes.
+	if err := opts.Guard(); err == nil || !strings.Contains(err.Error(), "sync is disabled") {
+		t.Fatalf("Guard (disabled) = %v, want sync-disabled error", err)
+	}
+	if err := stg.SetSetting(settings.KeySyncEnabled, "true"); err != nil {
+		t.Fatal(err)
+	}
+	if err := opts.Guard(); err != nil {
+		t.Fatalf("Guard (enabled) = %v, want nil", err)
+	}
+
+	// Auth and identity error cleanly before a connection exists.
+	if _, err := opts.Auth(); err == nil || !strings.Contains(err.Error(), "no GitHub connection") {
+		t.Fatalf("Auth (no connection) = %v, want connection error", err)
+	}
+	if _, err := opts.Identity(); err == nil || !strings.Contains(err.Error(), "no GitHub connection") {
+		t.Fatalf("Identity (no connection) = %v, want connection error", err)
+	}
+
+	// The stored connection supplies push credentials and the identity; the
+	// display name overrides the username as the committer name.
+	if err := gh.Save(github.Auth{Token: "tok", Username: "user", Email: "u@e.com"}); err != nil {
+		t.Fatal(err)
+	}
+	a, err := opts.Auth()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if a.Token != "tok" || a.Username != "user" {
+		t.Fatalf("Auth = %+v, want stored credentials", a)
+	}
+	id, err := opts.Identity()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if id.Name != "user" || id.Email != "u@e.com" {
+		t.Fatalf("Identity = %+v, want username fallback", id)
+	}
+	if err := gh.Save(github.Auth{Token: "t2", Username: "user", DisplayName: "Real Name", Email: "u@e.com"}); err != nil {
+		t.Fatal(err)
+	}
+	id, err = opts.Identity()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if id.Name != "Real Name" || id.Email != "u@e.com" {
+		t.Fatalf("Identity = %+v, want display name", id)
+	}
+}
+
+// TestEnsureWikiGitInitsPreExistingWiki covers the EnsureGitRepo step: a
+// wiki that exists but was never versioned is git-inited on startup, so the
+// agent's git tools always have a repository to act on.
+func TestEnsureWikiGitInitsPreExistingWiki(t *testing.T) {
+	_, stg := openTestRepos(t)
+	log := slog.New(slog.NewTextHandler(io.Discard, nil))
+
+	root := t.TempDir()
+	if err := wiki.ScaffoldWithOptions(root, wiki.ScaffoldOptions{Folders: []string{"notes"}, GitInit: false}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(root, ".git")); !os.IsNotExist(err) {
+		t.Fatal("precondition: wiki must not be a git repo")
+	}
+
+	w, err := ensureWiki(root, stg, log)
+	if err != nil {
+		t.Fatalf("ensureWiki: %v", err)
+	}
+	if w.Root() != root {
+		t.Fatalf("wiki root = %q, want %q", w.Root(), root)
+	}
+	if _, err := os.Stat(filepath.Join(root, ".git")); err != nil {
+		t.Fatalf("ensureWiki must git-init a pre-existing wiki: %v", err)
 	}
 }
 
