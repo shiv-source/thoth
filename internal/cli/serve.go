@@ -8,7 +8,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"strconv"
@@ -19,6 +18,7 @@ import (
 
 	"github.com/go-warehouse/events"
 	"github.com/labstack/echo/v4"
+	agentgit "github.com/shiv-source/thoth/agent/git"
 	agenttools "github.com/shiv-source/thoth/agent/tools"
 	agent "github.com/shiv-source/thoth/internal/agent"
 	"github.com/shiv-source/thoth/internal/api"
@@ -390,17 +390,21 @@ func openIndex(dbPath, wikiPath string, log *slog.Logger) (*index.Index, error) 
 }
 
 // devCommit returns the full commit id of the checkout in dir (the server's
-// working directory under `make dev`); empty when dir is not a git repo or
-// git is unavailable, so the banner degrades to no commit.
+// working directory under `make dev`); empty when dir is not a git repo, so
+// the banner degrades to no commit.
 func devCommit(dir string) string {
 	if dir == "" {
 		dir = "."
 	}
-	out, err := exec.Command("git", "-C", dir, "rev-parse", "HEAD").Output()
+	repo, err := agentgit.Open(dir)
 	if err != nil {
 		return ""
 	}
-	return strings.TrimSpace(string(out))
+	head, err := repo.Head()
+	if err != nil {
+		return ""
+	}
+	return head
 }
 
 // defaultModel returns the model a fresh install runs on when the settings

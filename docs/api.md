@@ -26,7 +26,7 @@ The server exposes REST for everything except the live chat and server-push noti
 | `POST /api/conversations` | `{title}` | `{id,title}` |
 | `GET /api/conversations/:id` | — | `{conversation, messages:[…]}` — each message may carry an optional `usage` token breakdown `{input_tokens, output_tokens, cache_read_tokens, cache_write_tokens}` on the assistant message that ended a turn (persisted alongside the answer; absent on user messages and pre-telemetry rows) |
 | `DELETE /api/conversations/:id` | — | `{ok:true}` — removes the conversation and its messages (idempotent) |
-| `POST /api/git/setup` | `{url}` | `{ok:true}` or `{ok:false, error}` — inits a repo in the wiki dir if needed, points `origin` at `url`, commits the tree, and pushes `HEAD`; each git command has a 15 s timeout, errors are sanitized (never echo credentials/URLs) |
+| `POST /api/git/setup` | `{url}` | `{ok:true}` or `{ok:false, error}` — runs the host's git sync on the pure-Go `agent/git` backend (no git binary): inits a repo in the wiki dir if needed, points `origin` at `url`, commits the tree (a clean tree is "nothing to commit", not an error), and pushes `HEAD`. Push authenticates with the stored GitHub token (BasicAuth) and the committer identity also comes from the `github_auth` row, so a connected account is required; a missing connection or failed step returns `ok:false` with a sanitized message that never echoes credentials or URLs |
 
 **Errors:** JSON `{"error":"<msg>"}` — 400 for client errors, 404 not found, 500 always the generic `{"error":"internal error"}` (details go to the server log only).
 

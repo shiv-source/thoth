@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
@@ -252,6 +253,26 @@ func (r *Repo) CommitAll(msg string, id Identity) (bool, error) {
 		return false, fmt.Errorf("git: commit: %w", err)
 	}
 	return true, nil
+}
+
+// SetRemote points the origin remote at url, adding it when it does not exist
+// yet and replacing it when it does (set-url semantics). A second call with a
+// different URL overrides the first.
+func (r *Repo) SetRemote(url string) error {
+	if _, err := r.repo.Remote("origin"); err != nil {
+		if _, err := r.repo.CreateRemote(&config.RemoteConfig{Name: "origin", URLs: []string{url}}); err != nil {
+			return fmt.Errorf("git: add remote: %w", err)
+		}
+		return nil
+	}
+	// go-git has no set-url; replacing the remote is delete + create.
+	if err := r.repo.DeleteRemote("origin"); err != nil {
+		return fmt.Errorf("git: replace remote: %w", err)
+	}
+	if _, err := r.repo.CreateRemote(&config.RemoteConfig{Name: "origin", URLs: []string{url}}); err != nil {
+		return fmt.Errorf("git: replace remote: %w", err)
+	}
+	return nil
 }
 
 // Push pushes the current branch to the origin remote. A missing origin

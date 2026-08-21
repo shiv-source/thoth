@@ -55,7 +55,7 @@ With the **Git remote** tab you can:
 3. Turn on **auto-sync** to record the sync preference
 4. **Initialize & Push** — the server initializes the repo if needed, points `origin` at the URL, commits the current tree, and pushes the branch
 
-The wiki keeps its own local git history regardless — every scaffold runs `git init`.
+The wiki keeps its own local git history regardless — every scaffold initializes a repository (in-process, via the pure-Go `agent/git` backend — no git binary needed).
 
 ## The wiki itself
 

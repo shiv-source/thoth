@@ -4,11 +4,11 @@ import (
 	"io"
 	"log/slog"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	agentgit "github.com/shiv-source/thoth/agent/git"
 	"github.com/shiv-source/thoth/internal/assets"
 	"github.com/shiv-source/thoth/internal/config"
 	"github.com/shiv-source/thoth/internal/github"
@@ -222,22 +222,25 @@ func TestSettleWikiPath(t *testing.T) {
 func TestDevCommit(t *testing.T) {
 	t.Run("returns the full commit id inside a repo", func(t *testing.T) {
 		dir := t.TempDir()
-		run := func(args ...string) string {
-			out, err := exec.Command("git", append([]string{"-C", dir}, args...)...).CombinedOutput()
-			if err != nil {
-				t.Fatalf("git %v: %v\n%s", args, err, out)
-			}
-			return strings.TrimSpace(string(out))
+		repo, err := agentgit.Init(dir)
+		if err != nil {
+			t.Fatalf("Init: %v", err)
 		}
-		run("init", "-q", "-b", "main")
-		run("config", "user.email", "test@example.com")
-		run("config", "user.name", "test")
+		id := agentgit.Identity{Name: "test", Email: "test@example.com"}
 		if err := os.WriteFile(filepath.Join(dir, "f"), []byte("x"), 0o644); err != nil {
 			t.Fatal(err)
 		}
-		run("add", "f")
-		run("commit", "-q", "-m", "c")
-		want := run("rev-parse", "HEAD")
+		committed, err := repo.CommitAll("c", id)
+		if err != nil {
+			t.Fatalf("CommitAll: %v", err)
+		}
+		if !committed {
+			t.Fatal("CommitAll: nothing committed")
+		}
+		want, err := repo.Head()
+		if err != nil {
+			t.Fatalf("Head: %v", err)
+		}
 		got := devCommit(dir)
 		if got != want {
 			t.Fatalf("devCommit(%q) = %q, want %q", dir, got, want)

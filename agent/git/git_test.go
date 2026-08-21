@@ -281,6 +281,45 @@ func TestDiff(t *testing.T) {
 	}
 }
 
+func TestSetRemote(t *testing.T) {
+	r, _ := initTestRepo(t)
+	// No origin yet: SetRemote adds it.
+	if err := r.SetRemote("https://example.com/wiki.git"); err != nil {
+		t.Fatalf("SetRemote: %v", err)
+	}
+	got, err := remoteURL(t, r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != "https://example.com/wiki.git" {
+		t.Fatalf("remote URL = %q, want the added url", got)
+	}
+	// A second SetRemote replaces the URL (set-url semantics).
+	if err := r.SetRemote("https://example.com/other.git"); err != nil {
+		t.Fatalf("second SetRemote: %v", err)
+	}
+	got, err = remoteURL(t, r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != "https://example.com/other.git" {
+		t.Fatalf("remote URL after replace = %q, want the new url", got)
+	}
+}
+
+func remoteURL(t *testing.T, r *Repo) (string, error) {
+	t.Helper()
+	remote, err := r.repo.Remote("origin")
+	if err != nil {
+		return "", err
+	}
+	urls := remote.Config().URLs
+	if len(urls) == 0 {
+		return "", errors.New("no remote URLs configured")
+	}
+	return urls[0], nil
+}
+
 func TestPush(t *testing.T) {
 	r, dir := initTestRepo(t)
 	commitFile(t, r, dir, "a.md", "x", "first")
