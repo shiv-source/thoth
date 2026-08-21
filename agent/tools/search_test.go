@@ -95,3 +95,13 @@ func TestSearchArgValidation(t *testing.T) {
 		t.Fatal("non-string query succeeded")
 	}
 }
+
+func TestSearchCtxCancelled(t *testing.T) {
+	fn := func(context.Context, string, int) ([]Result, error) { return nil, nil }
+	tl := NewSearch(fn, 10)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := tl.Run(ctx, map[string]any{"query": "q"}); !errors.Is(err, context.Canceled) {
+		t.Fatalf("search on cancelled ctx = %v", err)
+	}
+}

@@ -143,25 +143,35 @@ func (f *OSFS) WriteFile(name string, data []byte, perm fs.FileMode) error {
 	if err != nil {
 		return err
 	}
-	tmp, err := os.CreateTemp(filepath.Dir(full), ".thoth-write-*")
-	if err != nil {
+	if err := AtomicWrite(full, data, perm); err != nil {
 		return fmt.Errorf("tools: write %q: %w", name, err)
+	}
+	return nil
+}
+
+// AtomicWrite writes data to path via a temp file in the target directory and
+// a rename, so a failed write never leaves a partial file at path. path must
+// already be resolved and bounded by the caller.
+func AtomicWrite(path string, data []byte, perm fs.FileMode) error {
+	tmp, err := os.CreateTemp(filepath.Dir(path), ".thoth-write-*")
+	if err != nil {
+		return fmt.Errorf("create temp: %w", err)
 	}
 	tmpName := tmp.Name()
 	defer func() { _ = os.Remove(tmpName) }()
 	if _, err := tmp.Write(data); err != nil {
 		defer func() { _ = tmp.Close() }()
-		return fmt.Errorf("tools: write %q: %w", name, err)
+		return fmt.Errorf("write temp: %w", err)
 	}
 	if err := tmp.Chmod(perm); err != nil {
 		defer func() { _ = tmp.Close() }()
-		return fmt.Errorf("tools: write %q: %w", name, err)
+		return fmt.Errorf("chmod temp: %w", err)
 	}
 	if err := tmp.Close(); err != nil {
-		return fmt.Errorf("tools: write %q: %w", name, err)
+		return fmt.Errorf("close temp: %w", err)
 	}
-	if err := os.Rename(tmpName, full); err != nil {
-		return fmt.Errorf("tools: write %q: %w", name, err)
+	if err := os.Rename(tmpName, path); err != nil {
+		return fmt.Errorf("rename into place: %w", err)
 	}
 	return nil
 }

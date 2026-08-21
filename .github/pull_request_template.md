@@ -33,7 +33,7 @@ Closes #<issue>
 
 - [ ] `gofmt -l` empty and `go vet ./...` clean
 - [ ] `go test -race ./...` passes
-- [ ] Coverage ≥ 80% on `internal/` + `cmd/` (`make cover`)
+- [ ] Coverage ≥ 90% on `agent/` + `internal/` + `cmd/` (`make cover`)
 - [ ] `golangci-lint run` clean
 - [ ] Frontend `pnpm exec tsc --noEmit` · `pnpm run lint` · `pnpm exec vitest run`
 - [ ] Docs updated in `docs/` if behavior changed

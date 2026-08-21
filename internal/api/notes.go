@@ -36,7 +36,7 @@ func note(c echo.Context, d Deps) error {
 	if rel == "" {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "path is required"})
 	}
-	if _, err := wiki.SafePath(d.Wiki.Root, rel); err != nil {
+	if _, err := wiki.SafePath(d.Wiki.Root(), rel); err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
 	}
 	content, err := d.Wiki.Read(rel)

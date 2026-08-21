@@ -113,7 +113,7 @@ func runServe(cmd *cobra.Command, dev bool) error {
 	if err != nil {
 		return err
 	}
-	ix, err := openIndex(dbPath, w.Root, log)
+	ix, err := openIndex(dbPath, w.Root(), log)
 	if err != nil {
 		return err
 	}
@@ -145,7 +145,7 @@ func runServe(cmd *cobra.Command, dev bool) error {
 			}
 		}()
 	}
-	startWatcher(w.Root)
+	startWatcher(w.Root())
 
 	gh, err := github.OpenRepo(dbPath)
 	if err != nil {
@@ -191,7 +191,7 @@ func runServe(cmd *cobra.Command, dev bool) error {
 	host, port := config.DefaultHost, servePort(dev)
 	// The banner owns its trailing newline — Fprint, not Fprintln, so the
 	// panel ends flush with the next prompt line.
-	fmt.Fprint(os.Stderr, startupBanner(Version(), host, port, w.Root, isTerminal(os.Stderr)))
+	fmt.Fprint(os.Stderr, startupBanner(Version(), host, port, w.Root(), isTerminal(os.Stderr)))
 	return serveUntilShutdown(e, net.JoinHostPort(host, strconv.Itoa(port)), ctx)
 }
 
@@ -396,7 +396,7 @@ func onSettingsSaved(log *slog.Logger, stg *settings.Repo, w *wiki.Wiki, ix *ind
 		if err != nil {
 			return err
 		}
-		if newPath == w.Root {
+		if newPath == w.Root() {
 			return nil // already current (e.g. a retry after a failed save)
 		}
 		log.Info("wiki path changed, syncing index", "path", newPath)
@@ -411,7 +411,7 @@ func onSettingsSaved(log *slog.Logger, stg *settings.Repo, w *wiki.Wiki, ix *ind
 			return err
 		}
 		// All fallible steps done: commit the new root atomically-ish.
-		w.Root = newPath
+		w.SetRoot(newPath)
 		startWatcher(newPath)
 		return nil
 	}

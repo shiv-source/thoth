@@ -3,6 +3,7 @@ package wiki
 import (
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 )
 
@@ -209,5 +210,45 @@ func TestVisible(t *testing.T) {
 				t.Fatalf("Visible(%q, %v) = %v, want %v", tt.rel, tt.isDir, got, tt.want)
 			}
 		})
+	}
+}
+
+// TestWikiRootConcurrentSwapAndRead exercises the settings wiki-path change
+// path: onSettingsSaved swaps the root from the settings HTTP handler
+// goroutine while every turn reads it through Read. The bare field this
+// replaces raced under `go test -race`; the guarded getter/setter must not.
+func TestWikiRootConcurrentSwapAndRead(t *testing.T) {
+	a, b := t.TempDir(), t.TempDir()
+	for _, dir := range []string{a, b} {
+		if err := os.WriteFile(filepath.Join(dir, "CLAUDE.md"), []byte("---\ntitle: rb\n---\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	w := New(a)
+	stop := make(chan struct{})
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		for {
+			select {
+			case <-stop:
+				return
+			default:
+			}
+			_, _ = w.Read("CLAUDE.md") // reads the live root; must not race the swap
+		}
+	}()
+	go func() {
+		defer wg.Done()
+		for i := 0; i < 500; i++ {
+			w.SetRoot(b)
+			w.SetRoot(a)
+		}
+		close(stop)
+	}()
+	wg.Wait()
+	if w.Root() != a {
+		t.Fatalf("root = %q, want %q", w.Root(), a)
 	}
 }

@@ -11,16 +11,18 @@ import (
 	"github.com/shiv-source/thoth/internal/wiki"
 )
 
-// wikiFS adapts a wiki directory to the tools.FS seam. Every operation
-// resolves its relative name through wiki.SafePath, so reads, writes, mkdir
-// and list can never escape the wiki root.
+// wikiFS adapts the live wiki directory to the tools.FS seam. Every operation
+// resolves its relative name through wiki.SafePath against the wiki's current
+// root, so reads, writes, mkdir and list can never escape the wiki root — even
+// through a symlink — and always agree with the root the rulebook is read
+// from, even after a settings wiki-path change.
 type wikiFS struct {
-	root string
+	wiki *wiki.Wiki
 }
 
 // ReadFile implements tools.FS.
 func (f wikiFS) ReadFile(name string) ([]byte, error) {
-	p, err := wiki.SafePath(f.root, name)
+	p, err := wiki.SafePath(f.wiki.Root(), name)
 	if err != nil {
 		return nil, err
 	}
@@ -31,13 +33,14 @@ func (f wikiFS) ReadFile(name string) ([]byte, error) {
 	return data, nil
 }
 
-// WriteFile implements tools.FS.
+// WriteFile implements tools.FS. The write is atomic — temp file plus rename
+// in the target directory — so a failed write never leaves a partial note.
 func (f wikiFS) WriteFile(name string, data []byte, perm fs.FileMode) error {
-	p, err := wiki.SafePath(f.root, name)
+	p, err := wiki.SafePath(f.wiki.Root(), name)
 	if err != nil {
 		return err
 	}
-	if err := os.WriteFile(p, data, perm); err != nil {
+	if err := agenttools.AtomicWrite(p, data, perm); err != nil {
 		return fmt.Errorf("write %s: %w", name, err)
 	}
 	return nil
@@ -45,7 +48,7 @@ func (f wikiFS) WriteFile(name string, data []byte, perm fs.FileMode) error {
 
 // MkdirAll implements tools.FS.
 func (f wikiFS) MkdirAll(path string, perm fs.FileMode) error {
-	p, err := wiki.SafePath(f.root, path)
+	p, err := wiki.SafePath(f.wiki.Root(), path)
 	if err != nil {
 		return err
 	}
@@ -57,7 +60,7 @@ func (f wikiFS) MkdirAll(path string, perm fs.FileMode) error {
 
 // ReadDir implements tools.FS.
 func (f wikiFS) ReadDir(name string) ([]fs.DirEntry, error) {
-	p, err := wiki.SafePath(f.root, name)
+	p, err := wiki.SafePath(f.wiki.Root(), name)
 	if err != nil {
 		return nil, err
 	}
@@ -85,11 +88,12 @@ func indexSearch(ix *index.Index) agenttools.SearchFunc {
 }
 
 // registry builds the wiki-bounded tool registry: read_file, write_file and
-// list over a wikiFS root, plus search over the FTS index when one is
-// supplied. It is registered once and read-only afterwards, so concurrent
-// Start calls may share it.
-func registry(root string, ix *index.Index) (*agenttools.Registry, error) {
-	fsys := wikiFS{root: root}
+// list over a wikiFS bound to the live wiki root (so a settings wiki-path
+// change moves the tools with the rulebook), plus search over the FTS index
+// when one is supplied. It is registered once and read-only afterwards, so
+// concurrent Start calls may share it.
+func registry(w *wiki.Wiki, ix *index.Index) (*agenttools.Registry, error) {
+	fsys := wikiFS{wiki: w}
 	reg := agenttools.NewRegistry()
 	for _, t := range []agenttools.Tool{
 		agenttools.NewReadFile(fsys, 0),

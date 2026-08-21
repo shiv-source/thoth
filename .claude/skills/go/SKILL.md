@@ -78,7 +78,7 @@ description: >-
 ### 7. Bump a dependency
 1. go get <pkg>@latest — go.mod is authoritative; lockfiles (go.sum) are committed
 2. Run make check (fmt, lint, race, cover, build) — CI enforces every bump
-3. The coverage floor is 80% on internal/ + cmd/ (make cover) — a bump can't lower it
+3. The coverage floor is 90% on agent/ + internal/ + cmd/ (make cover) — a bump can't lower it
 4. If a framework version changed, update the version in CLAUDE.md's Toolchain section
 
 ### 8. Add a doctor install check

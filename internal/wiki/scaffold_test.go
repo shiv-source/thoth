@@ -81,6 +81,38 @@ func TestScaffoldErrorWhenParentIsFile(t *testing.T) {
 	}
 }
 
+func TestScaffoldErrorWhenFolderIsFile(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "inbox"), []byte("file"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := ScaffoldWithOptions(dir, ScaffoldOptions{Folders: []string{"inbox"}, GitInit: false}); err == nil {
+		t.Fatal("expected error when a scaffold folder name is blocked by a file")
+	}
+}
+
+func TestEnsureReservedDirErrorWhenRootIsFile(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "file")
+	if err := os.WriteFile(root, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := EnsureReservedDir(root); err == nil {
+		t.Fatal("expected error when the wiki root is a file")
+	}
+}
+
+func TestFoldersReturnsCopy(t *testing.T) {
+	got := Folders()
+	if !slices.Equal(got, defaultFolders) {
+		t.Fatalf("Folders() = %v, want %v", got, defaultFolders)
+	}
+	// The returned slice is a copy: mutating it must not mutate the default.
+	got[0] = "mutated"
+	if Folders()[0] == "mutated" {
+		t.Fatal("Folders() must return a copy of the defaults")
+	}
+}
+
 func TestScaffoldCustomFolders(t *testing.T) {
 	dir := t.TempDir()
 	custom := []string{"journal", "recipes"}

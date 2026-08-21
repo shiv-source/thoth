@@ -9,10 +9,10 @@ import (
 // scaffolded rulebook rendered for folders. It is read per Start so rulebook
 // edits apply without restart; an absent or unreadable rulebook falls back to
 // the template rather than failing the turn.
-func SystemPrompt(w *wiki.Wiki, folders []string) (string, error) {
+func SystemPrompt(w *wiki.Wiki, folders []string) string {
 	b, err := w.Read("CLAUDE.md")
 	if err == nil {
-		return string(b), nil
+		return string(b)
 	}
-	return wiki.RulebookFor(folders), nil
+	return wiki.RulebookFor(folders)
 }

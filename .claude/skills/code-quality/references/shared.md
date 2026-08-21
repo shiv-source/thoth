@@ -13,7 +13,7 @@ Walk this file plus the domain reference(s) your change touches
 - [ ] Every behavior change ships with a test — table-driven, asserting real outcomes (CLAUDE.md § Code Rules)
 - [ ] Edge cases covered, not just the happy path (CLAUDE.md § Code Rules)
 - [ ] Tests share no mutable fixtures — each test constructs its own state (CLAUDE.md § Code Rules)
-- [ ] `go test -race ./...` green; coverage stays ≥ 80% (CLAUDE.md § Invariants)
+- [ ] `go test -race ./...` green; coverage stays ≥ 90% (CLAUDE.md § Invariants)
 
 ## Structure
 - [ ] Functions ≤ 40 lines; split at ~60 into named helpers (CLAUDE.md § Code Rules)

@@ -9,6 +9,7 @@ import (
 	"slices"
 	"sync"
 	"testing"
+	"time"
 
 	agentlib "github.com/shiv-source/thoth/agent"
 	"github.com/shiv-source/thoth/agent/provider/anthropic"
@@ -23,6 +24,18 @@ func (c *collect) Write(ev agentlib.Event) error { c.events = append(c.events, e
 func TestNewRejectsMissingModel(t *testing.T) {
 	if _, err := New("", "key", newWiki(t, "rb"), openStore(t), nil); err == nil {
 		t.Fatal("expected error for empty model")
+	}
+}
+
+func TestNewRejectsNilWiki(t *testing.T) {
+	if _, err := New("claude-test", "key", nil, openStore(t), nil); err == nil {
+		t.Fatal("expected error for nil wiki")
+	}
+}
+
+func TestNewRejectsNilStore(t *testing.T) {
+	if _, err := New("claude-test", "key", newWiki(t, "rb"), nil, nil); err == nil {
+		t.Fatal("expected error for nil store")
 	}
 }
 
@@ -299,5 +312,34 @@ func TestClientStartRequiresWriter(t *testing.T) {
 	}
 	if _, err := c.Start(context.Background(), convID, "hi", nil); err == nil {
 		t.Fatal("expected error for nil writer")
+	}
+}
+
+func TestClientStartTurnTimeout(t *testing.T) {
+	w := newWiki(t, "rb")
+	st := openStore(t)
+	convID, err := st.CreateConversation("timeout")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// A provider that stalls on the wire with no error: without a turn
+	// timeout this would hang the turn and its socket indefinitely.
+	c, err := New("claude-test", "key", w, st, nil,
+		WithProvider(blockingProvider{}),
+		WithTurnTimeout(50*time.Millisecond),
+	)
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	start := time.Now()
+	_, err = c.Start(context.Background(), convID, "hi", &collect{})
+	if err == nil {
+		t.Fatal("expected a timeout error")
+	}
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("error = %v, want context.DeadlineExceeded", err)
+	}
+	if elapsed := time.Since(start); elapsed > 2*time.Second {
+		t.Fatalf("turn took %v, want it to return promptly after the timeout", elapsed)
 	}
 }

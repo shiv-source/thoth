@@ -38,6 +38,11 @@ type SSEReader struct {
 	br *bufio.Reader
 }
 
+// maxFrameBytes caps the accumulated "data:" payload of a single SSE frame.
+// Streaming LLM deltas are small; a frame larger than this is a misbehaving
+// server, and accumulating it would be unbounded.
+const maxFrameBytes = 1 << 20
+
 // NewSSEReader returns a reader that splits r into frames.
 func NewSSEReader(r io.Reader) *SSEReader {
 	return &SSEReader{br: bufio.NewReaderSize(r, 64*1024)}
@@ -45,8 +50,8 @@ func NewSSEReader(r io.Reader) *SSEReader {
 
 // Next returns the next frame, or io.EOF when the stream ends cleanly or hits
 // the LLM streaming "[DONE]" terminator. A frame cut off by EOF (data without
-// its terminating blank line) or a data payload that is not valid JSON is an
-// error.
+// its terminating blank line), a data payload that is not valid JSON, or a
+// "data:" payload exceeding maxFrameBytes is an error.
 func (r *SSEReader) Next() (Frame, error) {
 	var name string
 	var data []byte
@@ -66,6 +71,9 @@ func (r *SSEReader) Next() (Frame, error) {
 					name = value
 					pending = true
 				case "data":
+					if len(data)+len(value)+1 > maxFrameBytes {
+						return Frame{}, fmt.Errorf("transport: sse: %q frame exceeds %d bytes", name, maxFrameBytes)
+					}
 					data = append(data, value...)
 					data = append(data, '\n')
 					pending = true

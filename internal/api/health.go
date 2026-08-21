@@ -36,7 +36,7 @@ func health(c echo.Context, d Deps) error {
 	return c.JSON(http.StatusOK, healthResponse{
 		Status:          "ok",
 		Backend:         backend(d),
-		Wiki:            wikiState{Path: d.Wiki.Root, Exists: d.Wiki.Exists()},
+		Wiki:            wikiState{Path: d.Wiki.Root(), Exists: d.Wiki.Exists()},
 		Version:         d.Version,
 		Dev:             d.Dev,
 		Commit:          d.Commit,

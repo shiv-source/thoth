@@ -37,7 +37,7 @@ Before opening a PR, run what CI enforces, locally:
 make check
 ```
 
-That is: `gofmt`/`golangci-lint` clean, `go test -race ./...`, coverage ≥ **80%** on `internal/` + `cmd/`, all five cross-compiles, and the frontend `pnpm typecheck` · `pnpm lint` · `pnpm test` · `pnpm run build`.
+That is: `gofmt`/`golangci-lint` clean, `go test -race ./...`, coverage ≥ **90%** on `agent/` + `internal/` + `cmd/`, all five cross-compiles, and the frontend `pnpm typecheck` · `pnpm lint` · `pnpm test` · `pnpm run build`.
 
 ## Code standards
 

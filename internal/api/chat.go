@@ -352,7 +352,7 @@ func (h *Hub) runTurn(convID, prompt string, write func(serverMsg)) {
 	write(serverMsg{Type: "assistant_start"})
 	var sb strings.Builder
 	usage, err := h.client.Start(ctx, convID, prompt, h.turnWriter(&sb, write, convID))
-	if h.finishTurn(convID, err, write) {
+	if h.finishTurn(convID, t, err, write) {
 		return
 	}
 	h.persistTurn(convID, sb.String(), usage)
@@ -389,11 +389,15 @@ func (h *Hub) turnWriter(sb *strings.Builder, write func(serverMsg), convID stri
 }
 
 // finishTurn reports a cancelled or failed turn and reports whether the turn
-// ended prematurely (and must not persist output).
-func (h *Hub) finishTurn(convID string, err error, write func(serverMsg)) bool {
+// ended prematurely (and must not persist output). A turn that was superseded
+// by a newer send suppresses its "cancelled" frame: the new turn is already
+// streaming and a spurious error would bleed into it mid-stream.
+func (h *Hub) finishTurn(convID string, t *turn, err error, write func(serverMsg)) bool {
 	switch {
 	case errors.Is(err, context.Canceled):
-		write(serverMsg{Type: "error", Message: "cancelled"})
+		if h.isCurrent(convID, t) {
+			write(serverMsg{Type: "error", Message: "cancelled"})
+		}
 		return true
 	case err != nil:
 		h.record(convID, serverMsg{Type: "error", Message: err.Error()})
@@ -401,6 +405,14 @@ func (h *Hub) finishTurn(convID string, err error, write func(serverMsg)) bool {
 		return true
 	}
 	return false
+}
+
+// isCurrent reports whether t is still the registered turn for convID, i.e.
+// it has not been superseded by a newer send.
+func (h *Hub) isCurrent(convID string, t *turn) bool {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return h.turns[convID] == t
 }
 
 // persistTurn stores a completed assistant answer with its token usage (no-op

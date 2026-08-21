@@ -92,7 +92,6 @@ func (r *eventRecorder) Write(e agent.Event) error {
 func mustAgent(t *testing.T, p agent.Provider, reg *tools.Registry, opts agent.Options) *agent.Agent {
 	t.Helper()
 	opts.Provider = p
-	opts.Model = "test-model"
 	opts.Tools = reg
 	a, err := agent.New(opts)
 	if err != nil {
