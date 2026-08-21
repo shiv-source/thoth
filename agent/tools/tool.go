@@ -3,11 +3,14 @@
 // stable name, description and input schema, and executed by Run. It ships the
 // common, wiki-agnostic file tools (read_file, write_file, list, edit_file,
 // append_file, rename_file, delete_file, grep, get_time), the search tool over
-// a host-injected SearchFunc, and the git tools (git_init/git_status/git_log/
+// a host-injected SearchFunc, the git tools (git_init/git_status/git_log/
 // git_diff/git_commit/git_push) over host-injected repo/guard/auth/identity
-// funcs; wiki-specific tools (write_note, todos, inbox, memory, …) live in
-// internal/agent/tools and build on this seam. Hosts register their own tools
-// on a Registry and the agent loop resolves tool_use calls through it.
+// funcs, the system_health tool over a host-injected HealthFunc, and the
+// conversation-memory tools (list_conversations/get_conversation/
+// search_conversations) over a host-injected ConversationStore; wiki-specific
+// tools (write_note, todos, inbox, memory, …) live in internal/agent/tools
+// and build on this seam. Hosts register their own tools on a Registry and the
+// agent loop resolves tool_use calls through it.
 package tools
 
 import (

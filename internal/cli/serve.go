@@ -159,12 +159,15 @@ func runServe(cmd *cobra.Command, dev bool) error {
 	// rulebook), store (history) and index (search) are all read at boot.
 	// The git tools follow the live wiki root and are guarded by the sync
 	// switch: commit/push run only after the user opted into sync, with the
-	// stored GitHub connection supplying identity and push credentials.
+	// stored GitHub connection supplying identity and push credentials. The
+	// conversation-memory tools (list/get/search_conversations) are wired to
+	// the store, and system_health to the same doctor checks the CLI runs.
 	ac, err := agent.New(model, apiKey, w, st, ix,
 		agent.WithProviderConfig(providerName, baseURL),
 		agent.WithLogger(log),
 		agent.WithFolders(scaffoldFolders(stg, log)),
 		agent.WithGitOptions(gitToolOptions(w, stg, gh)),
+		agent.WithHealthFunc(agent.DoctorHealth(dir)),
 	)
 	if err != nil {
 		return err

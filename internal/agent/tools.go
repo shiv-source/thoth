@@ -151,6 +151,15 @@ type RegistryOptions struct {
 	// and Identity are host-injected. A nil RepoPath keeps the git tools out
 	// of the registry.
 	Git agenttools.GitOptions
+	// Health adds the system_health tool, backed by the host-injected health
+	// checks (Thoth wraps doctor.Run). A nil Health keeps the tool out of the
+	// registry.
+	Health agenttools.HealthFunc
+	// Conversations adds the conversation-memory tools (list_conversations/
+	// get_conversation/search_conversations), backed by the host-injected
+	// ConversationStore (Thoth adapts internal/store). A nil Conversations
+	// keeps them out of the registry.
+	Conversations agenttools.ConversationStore
 	// CustomTools are registered after the built-in catalog. A host registers
 	// its own tools here to extend the agent.
 	CustomTools []agenttools.Tool
@@ -210,6 +219,22 @@ func registry(opts RegistryOptions) (*agenttools.Registry, error) {
 			agenttools.NewGitDiff(opts.Git),
 			agenttools.NewGitCommit(opts.Git),
 			agenttools.NewGitPush(opts.Git),
+		} {
+			if err := reg.Register(t); err != nil {
+				return nil, err
+			}
+		}
+	}
+	if opts.Health != nil {
+		if err := reg.Register(agenttools.NewSystemHealth(opts.Health)); err != nil {
+			return nil, err
+		}
+	}
+	if opts.Conversations != nil {
+		for _, t := range []agenttools.Tool{
+			agenttools.NewListConversations(opts.Conversations, 0),
+			agenttools.NewGetConversation(opts.Conversations, 0),
+			agenttools.NewSearchConversations(opts.Conversations, 0, 0),
 		} {
 			if err := reg.Register(t); err != nil {
 				return nil, err
