@@ -189,35 +189,55 @@ type providerProbe struct {
 	version string // anthropic-version header (Anthropic only)
 }
 
-// providerProbeFor maps a model id to the provider probe that serves it,
-// mirroring internal/agent's provider selection: the claude-* family is
-// Anthropic, gpt-* is OpenAI-compatible. Families without a concrete provider
-// here error, exactly as the agent would when asked to run them.
-func providerProbeFor(model string) (providerProbe, error) {
+// providerProbeFor maps a model to the provider probe that serves it,
+// mirroring internal/agent's provider selection: the model's llm_models
+// provider label wins — "Anthropic" probes Anthropic, every other name the
+// OpenAI-compatible models endpoint (DeepSeek, Qwen, GLM, … all speak the
+// OpenAI wire shape); an empty label falls back to the model id prefixes
+// (claude-* Anthropic, gpt-* OpenAI-compatible). baseURL overrides the
+// probe's default origin when non-empty (the configured per-provider base
+// url). Families without a concrete provider here error, exactly as the
+// agent would when asked to run them.
+func providerProbeFor(model, providerName, baseURL string) (providerProbe, error) {
+	var probe providerProbe
 	switch {
-	case strings.HasPrefix(model, "claude-"):
-		return providerProbe{name: "Anthropic", baseURL: "https://api.anthropic.com", path: "/v1/models", key: "x-api-key", version: "2023-06-01"}, nil
+	case providerName == "Anthropic" || (providerName == "" && strings.HasPrefix(model, "claude-")):
+		probe = providerProbe{name: "Anthropic", baseURL: "https://api.anthropic.com", path: "/v1/models", key: "x-api-key", version: "2023-06-01"}
+	case providerName != "":
+		probe = providerProbe{name: providerName, baseURL: "https://api.openai.com", path: "/v1/models", key: "Authorization", bearer: true}
 	case strings.HasPrefix(model, "gpt-"):
-		return providerProbe{name: "OpenAI", baseURL: "https://api.openai.com", path: "/v1/models", key: "Authorization", bearer: true}, nil
+		probe = providerProbe{name: "OpenAI", baseURL: "https://api.openai.com", path: "/v1/models", key: "Authorization", bearer: true}
 	default:
 		return providerProbe{}, fmt.Errorf("no provider for model %q", model)
 	}
+	if baseURL != "" {
+		probe.baseURL = baseURL
+	}
+	return probe, nil
 }
 
 // checkProvider probes the configured provider's models endpoint with the
-// stored API key and reports reachability, keeping auth failure distinct from
-// a down endpoint or provider-side error. The probe is bounded by ctx and
-// opts.HTTP (nil → http.DefaultClient); opts.BaseURL overrides the provider
-// default so tests stub the endpoint.
+// resolved API key and reports reachability, keeping auth failure distinct
+// from a down endpoint or provider-side error. The provider and its
+// credentials resolve the way serve resolves them at boot: the selected
+// model's llm_models row names the provider, whose per-provider api key and
+// base url win over the shared key and the provider default. The probe is
+// bounded by ctx and opts.HTTP (nil → http.DefaultClient); opts.BaseURL
+// overrides the resolved base url so tests stub the endpoint.
 func checkProvider(ctx context.Context, dbPath string, opts Options) Check {
-	key, model, err := backendSettings(dbPath)
+	_, model, err := backendSettings(dbPath)
 	if err != nil {
 		return Check{Name: "provider", OK: false, Message: fmt.Sprintf("cannot read the settings table: %v", err)}
 	}
 	if model == "" {
 		return Check{Name: "provider", OK: false, Message: "no model selected — cannot determine which provider to probe"}
 	}
-	probe, err := providerProbeFor(model)
+	providerName := modelProvider(dbPath, model)
+	key, baseURL, err := providerConfig(dbPath, providerName)
+	if err != nil {
+		return Check{Name: "provider", OK: false, Message: fmt.Sprintf("cannot read the settings table: %v", err)}
+	}
+	probe, err := providerProbeFor(model, providerName, baseURL)
 	if err != nil {
 		return Check{Name: "provider", OK: false, Message: err.Error()}
 	}
@@ -282,6 +302,43 @@ func backendSettings(dbPath string) (key, model string, err error) {
 	return key, model, errors.Join(keyErr, modelErr)
 }
 
+// modelProvider returns the llm_models row's provider label for a model
+// value, or "" when the model is absent (an empty value, an unreadable
+// registry, or no matching row) — the same fallback serve's boot uses.
+func modelProvider(dbPath, value string) string {
+	if value == "" || !fileExists(dbPath) {
+		return ""
+	}
+	db, err := sql.Open("sqlite", dbPath)
+	if err != nil {
+		return ""
+	}
+	defer func() { _ = db.Close() }()
+	var provider string
+	if err := db.QueryRow(`SELECT provider FROM llm_models WHERE value = ?`, value).Scan(&provider); err != nil {
+		return ""
+	}
+	return provider
+}
+
+// providerConfig resolves the per-provider api key and base url override for
+// a provider name, mirroring settings.Repo.ProviderConfig: the provider's own
+// key wins, the shared api_key is the fallback, and an empty base url means
+// the provider's default endpoint. An empty provider name (no registry row)
+// resolves to the shared key path. A missing database yields empty values and
+// no error.
+func providerConfig(dbPath, providerName string) (apiKey, baseURL string, err error) {
+	if !fileExists(dbPath) {
+		return "", "", nil
+	}
+	r, err := settings.OpenRepo(dbPath)
+	if err != nil {
+		return "", "", err
+	}
+	defer func() { _ = r.Close() }()
+	return r.ProviderConfig(providerName)
+}
+
 // unreadableSettings builds the failed api key + model checks for a settings
 // table that cannot be read.
 func unreadableSettings(err error) []Check {
@@ -300,11 +357,19 @@ func checkSettings(dbPath string) []Check {
 	if err != nil {
 		return unreadableSettings(err)
 	}
+	// The credential the agent actually uses: the selected provider's own
+	// key when set, else the shared api_key.
+	resolvedKey := key
+	if model != "" {
+		if resolvedKey, _, err = providerConfig(dbPath, modelProvider(dbPath, model)); err != nil {
+			return unreadableSettings(err)
+		}
+	}
 	checks := make([]Check, 0, 2)
-	if key != "" {
+	if resolvedKey != "" {
 		checks = append(checks, Check{Name: "api key", OK: true, Message: "API key configured"})
 	} else {
-		checks = append(checks, unset("api key", "no API key configured — set one in Settings → General (without it the agent inherits the API key from the server environment)"))
+		checks = append(checks, unset("api key", "no API key configured — set one in Settings → General (or per-provider in Provider credentials); without it the agent inherits the API key from the server environment"))
 	}
 	if model != "" {
 		if modelKnown(dbPath, model) {

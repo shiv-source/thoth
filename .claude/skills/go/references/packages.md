@@ -60,8 +60,8 @@ internal/ plus cmd/thoth — a missing package means this index is stale.
 
 ## internal/doctor
 - path: internal/doctor/
-- purpose: The seven shared install checks (CLI + Settings → Doctor tab)
-- api: Run(ctx, dir, addr, log) []Check; Check{Name, OK, Message}
+- purpose: The shared install checks (CLI + Settings → Doctor tab)
+- api: Run(ctx, Options{Dir, Addr, Log, HTTP, BaseURL}) []Check; Check{Name, OK, Message}; provider probe resolves model→provider→credential like serve (modelProvider/providerConfig/providerProbeFor)
 - canonical: docs/components.md §internal/doctor · internal/doctor/doctor.go
 
 ## internal/github
