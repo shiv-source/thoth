@@ -8,6 +8,7 @@ import { ChatSocket } from '../ws/chat'
 import { Composer } from './Composer'
 import { MessageItem } from './MessageItem'
 import { AppHeader } from './AppHeader'
+import { UsageLine } from './UsageLine'
 
 function createSocket(): ChatSocket {
     const socket = new ChatSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws`)
@@ -21,8 +22,19 @@ export function ChatPanel({ onOpenSettings }: { onOpenSettings: () => void }) {
     // The connection status lives in the store so the whole app can react to
     // it; the socket only reports changes.
     const status = useAppSelector(selectConnectionStatus)
-    const { messages, streaming, lastTool, thinking, thinkingText, conversationId, send, cancel, load, reset } =
-        useChat(socket)
+    const {
+        messages,
+        streaming,
+        lastTool,
+        thinking,
+        thinkingText,
+        conversationId,
+        lastUsage,
+        send,
+        cancel,
+        load,
+        reset
+    } = useChat(socket)
     const { message } = App.useApp()
     const endRef = useRef<HTMLDivElement>(null)
 
@@ -117,6 +129,7 @@ export function ChatPanel({ onOpenSettings }: { onOpenSettings: () => void }) {
                     {messages.map((m, i) => (
                         <MessageItem key={i} message={m} streaming={streaming && i === messages.length - 1} />
                     ))}
+                    {lastUsage !== null && <UsageLine usage={lastUsage} />}
                     <div ref={endRef} />
                 </Flex>
             </div>

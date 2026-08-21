@@ -64,7 +64,7 @@ One row per chat shown in the UI history.
 | `created_at` | TEXT NOT NULL | UTC RFC3339 — the list orders by it lexically DESC, with `rowid DESC` breaking same-second ties so "most recent" is deterministic |
 | `claude_session_id` | TEXT NOT NULL DEFAULT '' | Legacy Claude CLI session id. Thoth Agent no longer spawns the CLI and nothing reads or writes the column; it is **retained for schema stability** — the decision was to leave it rather than migrate it out (see below) |
 
-### `messages` (migration `0002_messages.sql`)
+### `messages` (migrations `0002_messages.sql` + `0010_message_usage.sql`)
 
 The chat transcript, persisted for the UI history view.
 
@@ -75,6 +75,7 @@ The chat transcript, persisted for the UI history view.
 | `role` | TEXT NOT NULL | `user` or `assistant` |
 | `content` | TEXT NOT NULL | Plain markdown text |
 | `created_at` | TEXT NOT NULL | UTC RFC3339 |
+| `usage` | TEXT NULL | The assistant turn's token breakdown as JSON: `{"input_tokens":N,"output_tokens":N,"cache_read_tokens":N,"cache_write_tokens":N}`; NULL on user messages and rows written before usage was tracked |
 
 ### `notes` (migration `0003_notes.sql`)
 

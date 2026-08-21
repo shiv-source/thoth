@@ -15,25 +15,26 @@ type Call struct {
 
 // FakeClient replays scripted events and records every call. It satisfies the
 // api Client seam so tests exercise the hub without a real provider or any
-// network.
+// network. Usage is returned from Start when non-zero.
 type FakeClient struct {
 	mu     sync.Mutex
 	Script []agentlib.Event
 	Err    error
+	Usage  agentlib.Usage
 	Calls  []Call
 }
 
-func (f *FakeClient) Start(_ context.Context, sessionID, prompt string, w agentlib.EventWriter) error {
+func (f *FakeClient) Start(_ context.Context, sessionID, prompt string, w agentlib.EventWriter) (agentlib.Usage, error) {
 	f.mu.Lock()
 	f.Calls = append(f.Calls, Call{SessionID: sessionID, Prompt: prompt})
 	f.mu.Unlock()
 	if f.Err != nil {
-		return f.Err
+		return agentlib.Usage{}, f.Err
 	}
 	for _, e := range f.Script {
 		if err := w.Write(e); err != nil {
-			return err
+			return agentlib.Usage{}, err
 		}
 	}
-	return nil
+	return f.Usage, nil
 }

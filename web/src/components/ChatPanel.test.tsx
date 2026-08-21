@@ -81,6 +81,30 @@ describe('ChatPanel', () => {
         emit({ type: 'turn_done', conversation_id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1' })
         await waitFor(() => expect(mocks.get).toHaveBeenCalledWith('/api/conversations'))
     })
+
+    it('shows token usage under the last message when turn_done carries it', () => {
+        renderPanel()
+        act(() => FakeWS.instances[0]!.open())
+        const emit = (frame: object) => act(() => FakeWS.instances[0]!.onmessage?.({ data: JSON.stringify(frame) }))
+
+        emit({ type: 'assistant_delta', text: 'the answer' })
+        emit({
+            type: 'turn_done',
+            conversation_id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1',
+            usage: { input_tokens: 10, output_tokens: 4, cache_read_tokens: 5, cache_write_tokens: 0 }
+        })
+        expect(screen.getByText('10 in · 4 out · 5 cache read')).toBeInTheDocument()
+    })
+
+    it('renders no usage line when turn_done carries none', () => {
+        renderPanel()
+        act(() => FakeWS.instances[0]!.open())
+        const emit = (frame: object) => act(() => FakeWS.instances[0]!.onmessage?.({ data: JSON.stringify(frame) }))
+
+        emit({ type: 'assistant_delta', text: 'the answer' })
+        emit({ type: 'turn_done', conversation_id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1' })
+        expect(screen.queryByLabelText('Token usage')).not.toBeInTheDocument()
+    })
 })
 
 afterAll(() => {

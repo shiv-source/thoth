@@ -126,7 +126,8 @@ func TestLoopDrivesMultiIterationToolConversation(t *testing.T) {
 	}}
 	a := mustAgent(t, p, reg, agent.Options{System: "rulebook", MaxOutputTokens: 512, MaxIterations: 5})
 	rec := &eventRecorder{}
-	if err := a.Start(context.Background(), "c1", "prompt", rec); err != nil {
+	usage, err := a.Start(context.Background(), "c1", "prompt", rec)
+	if err != nil {
 		t.Fatalf("Start: %v", err)
 	}
 
@@ -138,6 +139,9 @@ func TestLoopDrivesMultiIterationToolConversation(t *testing.T) {
 	}
 	if !reflect.DeepEqual(rec.events, wantEvents) {
 		t.Fatalf("events = %+v, want %+v", rec.events, wantEvents)
+	}
+	if usage != (agent.Usage{InputTokens: 21, OutputTokens: 3}) {
+		t.Fatalf("Start usage = %+v, want accumulated 21 in / 3 out", usage)
 	}
 
 	if len(p.calls) != 2 {
@@ -195,7 +199,7 @@ func TestLoopToolErrorPassesBackAsResult(t *testing.T) {
 	}}
 	a := mustAgent(t, p, reg, agent.Options{MaxIterations: 5})
 	rec := &eventRecorder{}
-	if err := a.Start(context.Background(), "c1", "prompt", rec); err != nil {
+	if _, err := a.Start(context.Background(), "c1", "prompt", rec); err != nil {
 		t.Fatalf("Start: %v", err)
 	}
 	got := p.calls[1].Messages[2].Content[0]
@@ -219,7 +223,7 @@ func TestLoopUnknownToolFailsExplicitly(t *testing.T) {
 	}}
 	a := mustAgent(t, p, reg, agent.Options{MaxIterations: 5})
 	rec := &eventRecorder{}
-	err := a.Start(context.Background(), "c1", "prompt", rec)
+	_, err := a.Start(context.Background(), "c1", "prompt", rec)
 	if err == nil {
 		t.Fatal("Start succeeded, want unknown-tool failure")
 	}
@@ -239,7 +243,7 @@ func TestLoopEnforcesIterationCap(t *testing.T) {
 	alwaysTool := &alwaysToolProvider{}
 	a := mustAgent(t, alwaysTool, reg, agent.Options{MaxIterations: 3})
 	rec := &eventRecorder{}
-	err := a.Start(context.Background(), "c1", "prompt", rec)
+	_, err := a.Start(context.Background(), "c1", "prompt", rec)
 	if err == nil {
 		t.Fatal("Start succeeded, want iteration-cap failure")
 	}
@@ -274,7 +278,7 @@ func TestLoopDefaultMaxIterations(t *testing.T) {
 		deltas: []agent.Delta{agent.TextDelta("hi"), agent.StopDelta("end_turn")},
 	}}}
 	a := mustAgent(t, p, nil, agent.Options{})
-	if err := a.Start(context.Background(), "c1", "prompt", &eventRecorder{}); err != nil {
+	if _, err := a.Start(context.Background(), "c1", "prompt", &eventRecorder{}); err != nil {
 		t.Fatalf("Start: %v", err)
 	}
 }
@@ -286,7 +290,7 @@ func TestLoopCancellationReturnsCtxErrAndClosesStream(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	started := make(chan error, 1)
-	go func() { started <- a.Start(ctx, "c1", "prompt", &eventRecorder{}) }()
+	go func() { _, err := a.Start(ctx, "c1", "prompt", &eventRecorder{}); started <- err }()
 	select {
 	case <-p.entered:
 	case <-time.After(2 * time.Second):
@@ -368,7 +372,7 @@ func TestLoopHistoryCappedBeforePrompt(t *testing.T) {
 			return hist, nil
 		},
 	})
-	if err := a.Start(context.Background(), "c1", "prompt", &eventRecorder{}); err != nil {
+	if _, err := a.Start(context.Background(), "c1", "prompt", &eventRecorder{}); err != nil {
 		t.Fatalf("Start: %v", err)
 	}
 	want := []agent.Message{
@@ -393,7 +397,7 @@ func TestLoopEventOrderMatchesProviderDeltas(t *testing.T) {
 	}}}
 	a := mustAgent(t, p, nil, agent.Options{MaxIterations: 5})
 	rec := &eventRecorder{}
-	err := a.Start(context.Background(), "c1", "prompt", rec)
+	_, err := a.Start(context.Background(), "c1", "prompt", rec)
 	if err == nil {
 		t.Fatal("Start succeeded, want unknown-tool failure")
 	}

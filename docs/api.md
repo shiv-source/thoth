@@ -24,7 +24,7 @@ The server exposes REST for everything except the live chat and server-push noti
 | `GET /api/github/repos` | — | `{repos:[{full_name, clone_url}]}` — the connected account's repos (fetched with the stored token; empty when not connected; 400 "github rejected the token" when revoked) |
 | `GET /api/conversations` | — | `{conversations:[{id,title,created_at}]}` |
 | `POST /api/conversations` | `{title}` | `{id,title}` |
-| `GET /api/conversations/:id` | — | `{conversation, messages:[…]}` |
+| `GET /api/conversations/:id` | — | `{conversation, messages:[…]}` — each message may carry an optional `usage` token breakdown `{input_tokens, output_tokens, cache_read_tokens, cache_write_tokens}` on the assistant message that ended a turn (persisted alongside the answer; absent on user messages and pre-telemetry rows) |
 | `DELETE /api/conversations/:id` | — | `{ok:true}` — removes the conversation and its messages (idempotent) |
 | `POST /api/git/setup` | `{url}` | `{ok:true}` or `{ok:false, error}` — inits a repo in the wiki dir if needed, points `origin` at `url`, commits the tree, and pushes `HEAD`; each git command has a 15 s timeout, errors are sanitized (never echo credentials/URLs) |
 
@@ -36,12 +36,14 @@ The server exposes REST for everything except the live chat and server-push noti
 
 ## WebSocket chat (`/ws`)
 
-One socket per browser tab. The protocol is small and typed on both sides (`internal/api/chat.go` ↔ `web/src/ws/chat.ts`). **The WS protocol did not change with Thoth Agent** — the frames, supersede/cancel semantics, and resume replay are identical to the old CLI-driven design; only what happens server-side behind the frames changed (an in-process agent turn instead of a spawned CLI process).
+One socket per browser tab. The protocol is small and typed on both sides (`internal/api/chat.go` ↔ `web/src/ws/chat.ts`). **The WS frames are unchanged from the old CLI-driven design** — the supersede/cancel semantics and resume replay are identical; only what happens server-side behind the frames changed (an in-process agent turn instead of a spawned CLI process). The one addition is an optional `usage` object on `turn_done` (token telemetry) — it is `omitempty` and ignored by older clients, so the protocol stays backward compatible.
 
 | Direction | Frames |
 |---|---|
 | client → server | `{"type":"send","text":…}` · `{"type":"cancel"}` · `{"type":"resume","conversation_id":…}` · `{"type":"open","conversation_id":…}` · `{"type":"new_chat"}` · `{"type":"presence","active":bool}` |
-| server → client | `assistant_start` · `assistant_thinking {text}` · `assistant_delta {text}` · `tool_activity {tool, detail}` · `turn_done {conversation_id}` · `wiki_changed {changes:[{op,path}]}` · `error {message}` |
+| server → client | `assistant_start` · `assistant_thinking {text}` · `assistant_delta {text}` · `tool_activity {tool, detail}` · `turn_done {conversation_id, usage?}` · `wiki_changed {changes:[{op,path}]}` · `error {message}` |
+
+`usage` (optional, `turn_done` only) — the turn's token breakdown: `{input_tokens, output_tokens, cache_read_tokens, cache_write_tokens}`. Providers that report none (or older servers) omit the field entirely.
 
 ```mermaid
 sequenceDiagram
@@ -60,7 +62,7 @@ sequenceDiagram
     NA->>W: write_file (when saving)
     NA-->>Go: turn done
     Go->>Go: persist assistant msg
-    Go->>UI: turn_done {conversation_id}
+    Go->>UI: turn_done {conversation_id, usage?}
     Note over W,Go: fsnotify reindexes + publishes to the event bus within ~200ms
     Go->>UI: "wiki_changed {changes} (broadcast — UI refetches the tree)"
     Note over UI: GET /api/wiki/tree

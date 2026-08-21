@@ -2,6 +2,7 @@ package store
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -21,6 +22,11 @@ type Message struct {
 	Role           string    `json:"role"`
 	Content        string    `json:"content"`
 	CreatedAt      time.Time `json:"created_at"`
+	// Usage is the assistant turn's token breakdown as raw JSON
+	// ({"input_tokens":N,"output_tokens":N,"cache_read_tokens":N,
+	// "cache_write_tokens":N}); nil on user messages and rows written before
+	// usage was tracked.
+	Usage json.RawMessage `json:"usage,omitempty"`
 }
 
 type Store struct {
@@ -112,10 +118,17 @@ func (s *Store) DeleteConversation(convID string) error {
 	return nil
 }
 
-func (s *Store) AddMessage(convID, role, content string) error {
+// AddMessage inserts a message. The optional usage is a raw JSON token
+// breakdown carried by the turn's assistant message (see Message.Usage); it is
+// stored as NULL when absent.
+func (s *Store) AddMessage(convID, role, content string, usage ...string) error {
+	var usageVal any
+	if len(usage) > 0 && usage[0] != "" {
+		usageVal = usage[0]
+	}
 	_, err := s.db.Exec(
-		`INSERT INTO messages(conversation_id, role, content, created_at) VALUES (?, ?, ?, ?)`,
-		convID, role, content, time.Now().UTC().Format(time.RFC3339))
+		`INSERT INTO messages(conversation_id, role, content, usage, created_at) VALUES (?, ?, ?, ?, ?)`,
+		convID, role, content, usageVal, time.Now().UTC().Format(time.RFC3339))
 	if err != nil {
 		return fmt.Errorf("add message: %w", err)
 	}
@@ -149,7 +162,7 @@ func (s *Store) ListConversations() ([]Conversation, error) {
 // Messages returns the messages of a conversation in insertion order.
 func (s *Store) Messages(convID string) ([]Message, error) {
 	rows, err := s.db.Query(
-		`SELECT id, conversation_id, role, content, created_at FROM messages WHERE conversation_id = ? ORDER BY id ASC`,
+		`SELECT id, conversation_id, role, content, created_at, usage FROM messages WHERE conversation_id = ? ORDER BY id ASC`,
 		convID)
 	if err != nil {
 		return nil, fmt.Errorf("list messages: %w", err)
@@ -159,11 +172,15 @@ func (s *Store) Messages(convID string) ([]Message, error) {
 	for rows.Next() {
 		var m Message
 		var created string
-		if err := rows.Scan(&m.ID, &m.ConversationID, &m.Role, &m.Content, &created); err != nil {
+		var usage sql.NullString
+		if err := rows.Scan(&m.ID, &m.ConversationID, &m.Role, &m.Content, &created, &usage); err != nil {
 			return nil, fmt.Errorf("scan message: %w", err)
 		}
 		if t, err := time.Parse(time.RFC3339, created); err == nil {
 			m.CreatedAt = t
+		}
+		if usage.Valid && usage.String != "" {
+			m.Usage = json.RawMessage(usage.String)
 		}
 		out = append(out, m)
 	}

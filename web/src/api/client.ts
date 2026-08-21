@@ -83,12 +83,21 @@ export type GitHubRepo = z.infer<typeof GitHubRepo>
 const Conversation = z.object({ id: z.string(), title: z.string(), created_at: z.string() })
 export type Conversation = z.infer<typeof Conversation>
 
+const TokenUsage = z.object({
+    input_tokens: z.number(),
+    output_tokens: z.number(),
+    cache_read_tokens: z.number(),
+    cache_write_tokens: z.number()
+})
+export type TokenUsage = z.infer<typeof TokenUsage>
+
 const Message = z.object({
     id: z.number(),
     conversation_id: z.string(),
     role: z.enum(['user', 'assistant']),
     content: z.string(),
-    created_at: z.string()
+    created_at: z.string(),
+    usage: TokenUsage.optional()
 })
 export type Message = z.infer<typeof Message>
 

@@ -81,7 +81,7 @@ Deliberate exceptions (documented in `references/patterns.md`): per-keystroke dr
 
 ## WebSocket client
 
-`ChatSocket` sends `send`/`cancel`/`resume`/`open` (`open` pins the server-side conversation without replay and never becomes the reconnect-resume id), forwards `assistant_*`/`tool_activity`/`turn_done`/`error` frames, and reconnects exactly once after 1 s — sending `resume` from `onopen` so the turn re-syncs. It also sends a `presence` frame (`ChatPanel` wires it to the Page Visibility API): a hidden tab reports `active:false`. The frame is kept for protocol compatibility — Thoth Agent keeps no idle processes to flush, so the server ignores it — and the last reported presence is re-sent from `onopen`.
+`ChatSocket` sends `send`/`cancel`/`resume`/`open` (`open` pins the server-side conversation without replay and never becomes the reconnect-resume id), forwards `assistant_*`/`tool_activity`/`turn_done`/`error` frames (the optional `usage` breakdown on `turn_done`, and on persisted messages loaded from history, feeds the token-usage footer under the last message), and reconnects exactly once after 1 s — sending `resume` from `onopen` so the turn re-syncs. It also sends a `presence` frame (`ChatPanel` wires it to the Page Visibility API): a hidden tab reports `active:false`. The frame is kept for protocol compatibility — Thoth Agent keeps no idle processes to flush, so the server ignores it — and the last reported presence is re-sent from `onopen`.
 
 ## Design system
 

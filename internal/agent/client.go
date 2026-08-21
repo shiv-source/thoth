@@ -180,17 +180,18 @@ func openaiClient(model, apiKey, baseURL string) agentlib.Provider {
 	return openai.New(apiKey, opts...)
 }
 
-// Start runs one turn for conversation sessionID, streaming events to w. It
-// builds a fresh agent.Agent per turn: the system prompt is re-read from the
-// rulebook so edits apply without restart, and the loop is single-turn, while
-// the Hub serves many conversations at once.
-func (c *Client) Start(ctx context.Context, sessionID, prompt string, w agentlib.EventWriter) error {
+// Start runs one turn for conversation sessionID, streaming events to w and
+// returning the turn's accumulated token usage. It builds a fresh agent.Agent
+// per turn: the system prompt is re-read from the rulebook so edits apply
+// without restart, and the loop is single-turn, while the Hub serves many
+// conversations at once.
+func (c *Client) Start(ctx context.Context, sessionID, prompt string, w agentlib.EventWriter) (agentlib.Usage, error) {
 	if w == nil {
-		return errors.New("agent: EventWriter is required")
+		return agentlib.Usage{}, errors.New("agent: EventWriter is required")
 	}
 	system, err := SystemPrompt(c.wiki, c.folders)
 	if err != nil {
-		return err
+		return agentlib.Usage{}, err
 	}
 	ag, err := agentlib.New(agentlib.Options{
 		Provider:        c.provider,
@@ -204,7 +205,7 @@ func (c *Client) Start(ctx context.Context, sessionID, prompt string, w agentlib
 		Logger:          c.logger,
 	})
 	if err != nil {
-		return err
+		return agentlib.Usage{}, err
 	}
 	return ag.Start(ctx, sessionID, prompt, w)
 }
