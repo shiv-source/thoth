@@ -469,6 +469,78 @@ func TestServeErrorWhenWikiScaffoldFails(t *testing.T) {
 	}
 }
 
+// TestModelProvider resolves the llm_models provider label for a model value.
+func TestModelProvider(t *testing.T) {
+	st, _ := openTestRepos(t)
+	if err := ensureModels(st); err != nil {
+		t.Fatalf("ensureModels: %v", err)
+	}
+	tests := []struct{ value, want string }{
+		{"deepseek-v4-flash", "DeepSeek"},
+		{"claude-opus-4-8", "Anthropic"},
+		{"", ""},
+		{"unknown-model", ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.value, func(t *testing.T) {
+			got, err := modelProvider(st, tt.value)
+			if err != nil {
+				t.Fatalf("modelProvider(%q): %v", tt.value, err)
+			}
+			if got != tt.want {
+				t.Fatalf("modelProvider(%q) = %q, want %q", tt.value, got, tt.want)
+			}
+		})
+	}
+}
+
+// TestServeProviderConfigResolution covers the boot chain model → provider →
+// config: the model's registry row names the provider, the per-provider
+// settings resolve from it (own key/base URL win; the shared api_key is the
+// fallback).
+func TestServeProviderConfigResolution(t *testing.T) {
+	st, stg := openTestRepos(t)
+	if err := ensureModels(st); err != nil {
+		t.Fatalf("ensureModels: %v", err)
+	}
+
+	// A model with a configured provider: per-provider key + base URL win.
+	if err := stg.SetSetting(settings.ProviderAPIKeyKey("DeepSeek"), "ds-key"); err != nil {
+		t.Fatal(err)
+	}
+	if err := stg.SetSetting(settings.ProviderBaseURLKey("DeepSeek"), "https://api.deepseek.com"); err != nil {
+		t.Fatal(err)
+	}
+	provider, err := modelProvider(st, "deepseek-v4-flash")
+	if err != nil {
+		t.Fatal(err)
+	}
+	apiKey, baseURL, err := stg.ProviderConfig(provider)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if provider != "DeepSeek" || apiKey != "ds-key" || baseURL != "https://api.deepseek.com" {
+		t.Fatalf("configured: provider=%q key=%q base=%q", provider, apiKey, baseURL)
+	}
+
+	// A provider without per-provider config falls back to the shared key
+	// and the default endpoint (empty base URL).
+	if err := stg.SetSetting(settings.KeyAPIKey, "shared-key"); err != nil {
+		t.Fatal(err)
+	}
+	provider, err = modelProvider(st, "claude-opus-4-8")
+	if err != nil {
+		t.Fatal(err)
+	}
+	apiKey, baseURL, err = stg.ProviderConfig(provider)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if provider != "Anthropic" || apiKey != "shared-key" || baseURL != "" {
+		t.Fatalf("fallback: provider=%q key=%q base=%q", provider, apiKey, baseURL)
+	}
+}
+
 // TestDefaultModel picks the first seeded claude model for a fresh install
 // whose settings model key is unset.
 func TestDefaultModel(t *testing.T) {

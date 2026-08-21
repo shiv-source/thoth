@@ -96,10 +96,16 @@ func runServe(cmd *cobra.Command, dev bool) error {
 	if model == "" {
 		model = defaultModel(st)
 	}
-	// The api key setting becomes the provider's auth token; empty inherits
-	// the server's own environment. Read at boot like the model — a change
-	// applies on next start.
-	apiKey, _, err := stg.Setting(settings.KeyAPIKey)
+	// The selected model's llm_models row names its provider; the matching
+	// per-provider config (its own api key + base URL override) resolves from
+	// that name, falling back to the shared api_key and the provider's
+	// default endpoint. Read at boot like the model — a change applies on
+	// next start.
+	providerName, err := modelProvider(st, model)
+	if err != nil {
+		return err
+	}
+	apiKey, baseURL, err := stg.ProviderConfig(providerName)
 	if err != nil {
 		return err
 	}
@@ -148,9 +154,10 @@ func runServe(cmd *cobra.Command, dev bool) error {
 	defer func() { _ = gh.Close() }()
 
 	// The native agent host drives every turn — no CLI subprocess exists
-	// anywhere in the chat path. Model, api key, wiki (tools + rulebook),
-	// store (history) and index (search) are all read at boot.
+	// anywhere in the chat path. Model, provider config, wiki (tools +
+	// rulebook), store (history) and index (search) are all read at boot.
 	ac, err := agent.New(model, apiKey, w, st, ix,
+		agent.WithProviderConfig(providerName, baseURL),
 		agent.WithLogger(log),
 		agent.WithFolders(scaffoldFolders(stg, log)),
 	)
@@ -356,6 +363,26 @@ func defaultModel(st *store.Store) string {
 		}
 	}
 	return ""
+}
+
+// modelProvider returns the llm_models row's provider label for a model
+// value, or "" when the value is empty or not in the registry. An empty
+// result leaves the shared api_key as the credential and lets agent.New fall
+// back to its model-id routing, preserving the pre-registry behavior.
+func modelProvider(st *store.Store, value string) (string, error) {
+	if value == "" {
+		return "", nil
+	}
+	models, err := st.ListModels()
+	if err != nil {
+		return "", err
+	}
+	for _, m := range models {
+		if m.Value == value {
+			return m.Provider, nil
+		}
+	}
+	return "", nil
 }
 
 // onSettingsSaved rebuilds the index and switches the live wiki root when

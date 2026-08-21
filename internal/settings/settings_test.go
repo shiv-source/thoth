@@ -44,6 +44,90 @@ func TestOpenSeedsDefaults(t *testing.T) {
 	}
 }
 
+func TestProviderSlugAndKeys(t *testing.T) {
+	tests := []struct {
+		name       string
+		provider   string
+		apiKeyKey  string
+		baseURLKey string
+	}{
+		{"plain name", "DeepSeek", "provider_deepseek_api_key", "provider_deepseek_base_url"},
+		{"dotted name", "Z.AI", "provider_zai_api_key", "provider_zai_base_url"},
+		{"mixed case", "xAI", "provider_xai_api_key", "provider_xai_base_url"},
+		{"spaced name", "Anthropic", "provider_anthropic_api_key", "provider_anthropic_base_url"},
+		{"empty name", "", "provider__api_key", "provider__base_url"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := ProviderAPIKeyKey(tt.provider); got != tt.apiKeyKey {
+				t.Fatalf("ProviderAPIKeyKey(%q) = %q, want %q", tt.provider, got, tt.apiKeyKey)
+			}
+			if got := ProviderBaseURLKey(tt.provider); got != tt.baseURLKey {
+				t.Fatalf("ProviderBaseURLKey(%q) = %q, want %q", tt.provider, got, tt.baseURLKey)
+			}
+		})
+	}
+}
+
+func TestProviderConfigResolution(t *testing.T) {
+	t.Run("per-provider values win", func(t *testing.T) {
+		r := openTestRepo(t)
+		if err := r.SetSetting(KeyAPIKey, "shared-key"); err != nil {
+			t.Fatal(err)
+		}
+		if err := r.SetSetting(ProviderAPIKeyKey("DeepSeek"), "deepseek-key"); err != nil {
+			t.Fatal(err)
+		}
+		if err := r.SetSetting(ProviderBaseURLKey("DeepSeek"), "https://api.deepseek.com"); err != nil {
+			t.Fatal(err)
+		}
+		apiKey, baseURL, err := r.ProviderConfig("DeepSeek")
+		if err != nil || apiKey != "deepseek-key" || baseURL != "https://api.deepseek.com" {
+			t.Fatalf("ProviderConfig(DeepSeek) = %q/%q/%v", apiKey, baseURL, err)
+		}
+	})
+
+	t.Run("absent per-provider config falls back to the shared api key", func(t *testing.T) {
+		r := openTestRepo(t)
+		if err := r.SetSetting(KeyAPIKey, "shared-key"); err != nil {
+			t.Fatal(err)
+		}
+		apiKey, baseURL, err := r.ProviderConfig("Anthropic")
+		if err != nil || apiKey != "shared-key" || baseURL != "" {
+			t.Fatalf("ProviderConfig(Anthropic) = %q/%q/%v", apiKey, baseURL, err)
+		}
+	})
+
+	t.Run("empty provider name takes the shared key path", func(t *testing.T) {
+		r := openTestRepo(t)
+		if err := r.SetSetting(KeyAPIKey, "shared-key"); err != nil {
+			t.Fatal(err)
+		}
+		if err := r.SetSetting(ProviderAPIKeyKey("Anthropic"), "anthropic-key"); err != nil {
+			t.Fatal(err)
+		}
+		apiKey, baseURL, err := r.ProviderConfig("")
+		if err != nil || apiKey != "shared-key" || baseURL != "" {
+			t.Fatalf("ProviderConfig(\"\") = %q/%q/%v", apiKey, baseURL, err)
+		}
+	})
+
+	t.Run("empty per-provider key falls back too", func(t *testing.T) {
+		r := openTestRepo(t)
+		if err := r.SetSetting(KeyAPIKey, "shared-key"); err != nil {
+			t.Fatal(err)
+		}
+		// A stored empty per-provider key behaves like an absent one.
+		if err := r.SetSetting(ProviderAPIKeyKey("DeepSeek"), ""); err != nil {
+			t.Fatal(err)
+		}
+		apiKey, _, err := r.ProviderConfig("DeepSeek")
+		if err != nil || apiKey != "shared-key" {
+			t.Fatalf("ProviderConfig(DeepSeek) apiKey = %q/%v, want shared-key", apiKey, err)
+		}
+	})
+}
+
 func TestModelSettingRoundTrip(t *testing.T) {
 	r := openTestRepo(t)
 	if _, found, err := r.Setting(KeyModel); err != nil || found {

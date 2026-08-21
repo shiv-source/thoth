@@ -73,7 +73,7 @@ internal/ plus cmd/thoth — a missing package means this index is stale.
 ## internal/settings
 - path: internal/settings/
 - purpose: The settings KV table — single source for user-facing settings
-- api: Repo, OpenRepo(path); SyncEnabled/SyncState/SetSyncResult conveniences
+- api: Repo, OpenRepo(path); SyncEnabled/SyncState/SetSyncResult conveniences; ProviderConfig(provider) + ProviderAPIKeyKey/ProviderBaseURLKey (per-provider key/base_url resolution)
 - canonical: docs/components.md §internal/settings · internal/settings/settings.go
 
 ## internal/webui

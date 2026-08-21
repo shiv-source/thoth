@@ -25,6 +25,8 @@ type Option func(*options)
 
 type options struct {
 	provider        agentlib.Provider
+	providerName    string
+	baseURL         string
 	logger          *slog.Logger
 	folders         []string
 	historyCap      int
@@ -35,6 +37,15 @@ type options struct {
 // WithProvider overrides the provider New would choose from the model id
 // (tests, custom providers).
 func WithProvider(p agentlib.Provider) Option { return func(o *options) { o.provider = p } }
+
+// WithProviderConfig names the model's provider (its llm_models row's
+// provider label) and an optional base URL override. New routes the model to
+// the matching wire provider and applies the base URL; empty providerName
+// keeps the legacy model-id prefix routing, and an empty baseURL keeps the
+// provider's default endpoint.
+func WithProviderConfig(providerName, baseURL string) Option {
+	return func(o *options) { o.providerName = providerName; o.baseURL = baseURL }
+}
 
 // WithLogger sets the logger the agent loop diagnostics go to.
 func WithLogger(l *slog.Logger) Option { return func(o *options) { o.logger = l } }
@@ -73,9 +84,11 @@ type Client struct {
 
 // New wires a Client from the model id and API key plus the wiki (tools and
 // rulebook), store (history) and index (search) dependencies. The provider is
-// chosen from the model id — claude-* models use the Anthropic provider,
-// gpt-* models the OpenAI-compatible provider — unless WithProvider overrides
-// it. Unknown model ids error; broader provider configuration lands with T12.
+// chosen from the model's provider name (WithProviderConfig): "Anthropic"
+// uses the Anthropic provider, every other name the OpenAI-compatible
+// provider pointed at its configured base URL; without one, the model id
+// prefixes claude-*/gpt-* select the provider. WithProvider overrides it all.
+// Unknown providers error.
 func New(model, apiKey string, w *wiki.Wiki, st *store.Store, ix *index.Index, opts ...Option) (*Client, error) {
 	if model == "" {
 		return nil, errors.New("agent: model is required")
@@ -93,7 +106,7 @@ func New(model, apiKey string, w *wiki.Wiki, st *store.Store, ix *index.Index, o
 	prov := o.provider
 	if prov == nil {
 		var err error
-		prov, err = providerFor(model, apiKey)
+		prov, err = providerFor(model, apiKey, o.providerName, o.baseURL)
 		if err != nil {
 			return nil, err
 		}
@@ -120,18 +133,51 @@ func New(model, apiKey string, w *wiki.Wiki, st *store.Store, ix *index.Index, o
 	}, nil
 }
 
-// providerFor maps a model id to the provider client that serves it: the
-// claude-* family is Anthropic, gpt-* is OpenAI-compatible. Model families
-// without a concrete provider here error until provider settings land (T12).
-func providerFor(model, apiKey string) (agentlib.Provider, error) {
-	switch {
-	case strings.HasPrefix(model, "claude-"):
-		return anthropic.New(apiKey, anthropic.WithModel(model)), nil
-	case strings.HasPrefix(model, "gpt-"):
-		return openai.New(apiKey, openai.WithModel(model)), nil
-	default:
-		return nil, fmt.Errorf("agent: no provider for model %q", model)
+// providerFor maps a model to the provider client that serves it. The model's
+// provider name (from WithProviderConfig) wins: "Anthropic" selects the
+// Anthropic provider, every other name the OpenAI-compatible provider — the
+// DeepSeek, Qwen, GLM, Grok and friends all speak the OpenAI wire shape and
+// point at their own base URL. An empty providerName falls back to the model
+// id prefixes (claude-* Anthropic, gpt-* OpenAI-compatible) for models
+// outside the registry. A non-empty baseURL overrides the provider's default
+// endpoint.
+func providerFor(model, apiKey, providerName, baseURL string) (agentlib.Provider, error) {
+	if providerName == "" {
+		switch {
+		case strings.HasPrefix(model, "claude-"):
+			return anthropicClient(model, apiKey, baseURL), nil
+		case strings.HasPrefix(model, "gpt-"):
+			return openaiClient(model, apiKey, baseURL), nil
+		default:
+			return nil, fmt.Errorf("agent: no provider for model %q", model)
+		}
 	}
+	switch providerName {
+	case "Anthropic":
+		return anthropicClient(model, apiKey, baseURL), nil
+	default:
+		return openaiClient(model, apiKey, baseURL), nil
+	}
+}
+
+// anthropicClient builds an Anthropic provider for the model, applying the
+// base URL override only when non-empty (an empty one keeps the default).
+func anthropicClient(model, apiKey, baseURL string) agentlib.Provider {
+	opts := []anthropic.Option{anthropic.WithModel(model)}
+	if baseURL != "" {
+		opts = append(opts, anthropic.WithBaseURL(baseURL))
+	}
+	return anthropic.New(apiKey, opts...)
+}
+
+// openaiClient builds an OpenAI-compatible provider for the model, applying
+// the base URL override only when non-empty (an empty one keeps the default).
+func openaiClient(model, apiKey, baseURL string) agentlib.Provider {
+	opts := []openai.Option{openai.WithModel(model)}
+	if baseURL != "" {
+		opts = append(opts, openai.WithBaseURL(baseURL))
+	}
+	return openai.New(apiKey, opts...)
 }
 
 // Start runs one turn for conversation sessionID, streaming events to w. It

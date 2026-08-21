@@ -80,7 +80,8 @@ func (s *Store) CreateConversation(title string) (string, error) {
 	// created_at is stored as RFC3339 text and compared lexically by
 	// ORDER BY, so it must be UTC: local offsets would misorder rows
 	// written under different offsets. The legacy claude_session_id column
-	// is left untouched (its fate is a T12 migration decision).
+	// is retained but unused — the T12 decision kept it (no migration) to
+	// avoid rewriting the conversations table for a column nothing reads.
 	_, err = s.db.Exec(
 		`INSERT INTO conversations(id, title, created_at) VALUES (?, ?, ?)`,
 		id, title, time.Now().UTC().Format(time.RFC3339))

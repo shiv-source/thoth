@@ -11,7 +11,9 @@ import (
 )
 
 // Key constants for the settings table — one place for the wire keys.
-// GitHub/sync keys carry the github_ prefix.
+// GitHub/sync keys carry the github_ prefix; per-provider keys are built
+// from the provider slug via ProviderAPIKeyKey/ProviderBaseURLKey (flat
+// keys, not a JSON blob — the point of the key/value shape).
 const (
 	KeyWikiPath     = "wiki_path"
 	KeyWikiFolders  = "wiki_folders"
@@ -22,6 +24,32 @@ const (
 	KeyLastSyncedAt = "github_last_synced_at"
 	KeySyncError    = "github_sync_error"
 )
+
+// providerSlug reduces a provider name to the slug used in its settings
+// keys: lowercased with non-alphanumeric characters removed ("Z.AI" → "zai",
+// "xAI" → "xai", "Anthropic" → "anthropic").
+func providerSlug(provider string) string {
+	var b strings.Builder
+	for _, r := range strings.ToLower(provider) {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}
+
+// ProviderAPIKeyKey returns the settings key holding a provider's own API
+// key, e.g. provider_deepseek_api_key for the "DeepSeek" provider label.
+func ProviderAPIKeyKey(provider string) string {
+	return "provider_" + providerSlug(provider) + "_api_key"
+}
+
+// ProviderBaseURLKey returns the settings key holding a provider's API base
+// URL override, e.g. provider_deepseek_base_url for "DeepSeek". Empty means
+// the provider's default endpoint.
+func ProviderBaseURLKey(provider string) string {
+	return "provider_" + providerSlug(provider) + "_base_url"
+}
 
 // DefaultWikiPath is the fallback wiki location; the value is mirrored by
 // the 0007_settings.sql seed so the row always exists in practice.
@@ -70,6 +98,32 @@ func (r *Repo) SetSetting(key, value string) error {
 		return fmt.Errorf("set setting %s: %w", key, err)
 	}
 	return nil
+}
+
+// ProviderConfig resolves the credentials for a provider name (the
+// llm_models row's provider label): its per-provider API key and base URL
+// override when set, falling back to the shared api_key and an empty base
+// URL (the provider's default endpoint). An empty provider name always takes
+// the shared key path.
+func (r *Repo) ProviderConfig(provider string) (apiKey, baseURL string, err error) {
+	if provider == "" {
+		apiKey, _, err = r.Setting(KeyAPIKey)
+		return apiKey, "", err
+	}
+	apiKey, _, err = r.Setting(ProviderAPIKeyKey(provider))
+	if err != nil {
+		return "", "", err
+	}
+	if apiKey == "" {
+		if apiKey, _, err = r.Setting(KeyAPIKey); err != nil {
+			return "", "", err
+		}
+	}
+	baseURL, _, err = r.Setting(ProviderBaseURLKey(provider))
+	if err != nil {
+		return "", "", err
+	}
+	return apiKey, baseURL, nil
 }
 
 // Folders returns the configured scaffold folder names, split on commas and

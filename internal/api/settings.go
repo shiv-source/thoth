@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -8,18 +9,30 @@ import (
 	"github.com/shiv-source/thoth/internal/settings"
 )
 
+// providerDTO is the per-provider credential state in the settings DTO,
+// keyed by the provider's llm_models label (e.g. "DeepSeek"). Like the
+// shared api_key, the api key is write-only: GET reports only whether one is
+// stored, and PUT treats an empty value as "leave unchanged". base_url is
+// never secret and round-trips; empty means the provider's default endpoint.
+type providerDTO struct {
+	HasAPIKey bool   `json:"has_api_key"`
+	APIKey    string `json:"api_key"`
+	BaseURL   string `json:"base_url"`
+}
+
 // settingsDTO is the wire shape of GET/PUT /api/settings. Every field lives
 // in the settings table in thoth.db. The api key is write-only: GET reports
 // only whether one is stored (has_api_key), and PUT treats an empty api_key
 // as "leave unchanged" — the secret is never echoed back to the UI.
 type settingsDTO struct {
-	WikiPath    string   `json:"wiki_path"`
-	WikiFolders []string `json:"wiki_folders"`
-	Model       string   `json:"model"`
-	HasAPIKey   bool     `json:"has_api_key"`
-	APIKey      string   `json:"api_key"`
-	RepoURL     string   `json:"repo_url"`
-	SyncEnabled bool     `json:"sync_enabled"`
+	WikiPath    string                 `json:"wiki_path"`
+	WikiFolders []string               `json:"wiki_folders"`
+	Model       string                 `json:"model"`
+	HasAPIKey   bool                   `json:"has_api_key"`
+	APIKey      string                 `json:"api_key"`
+	Providers   map[string]providerDTO `json:"providers"`
+	RepoURL     string                 `json:"repo_url"`
+	SyncEnabled bool                   `json:"sync_enabled"`
 }
 
 func getSettings(c echo.Context, d Deps) error {
@@ -42,6 +55,10 @@ func getSettings(c echo.Context, d Deps) error {
 	if err != nil {
 		return internalError(c, d, "read api_key", err)
 	}
+	providers, err := readProviderConfigs(d)
+	if err != nil {
+		return internalError(c, d, "read provider configs", err)
+	}
 	repoURL, _, err := d.Settings.Setting(settings.KeyRepoURL)
 	if err != nil {
 		return internalError(c, d, "read repo_url", err)
@@ -52,8 +69,38 @@ func getSettings(c echo.Context, d Deps) error {
 	}
 	return c.JSON(http.StatusOK, settingsDTO{
 		WikiPath: wikiPath, WikiFolders: wikiFolders, Model: model, HasAPIKey: apiKey != "",
-		RepoURL: repoURL, SyncEnabled: syncEnabled,
+		Providers: providers, RepoURL: repoURL, SyncEnabled: syncEnabled,
 	})
+}
+
+// readProviderConfigs returns the per-provider credential state for every
+// provider present in the llm_models registry, keyed by the provider's exact
+// label (the picker group name, so the UI can join on it). Empty map when the
+// registry has no rows.
+func readProviderConfigs(d Deps) (map[string]providerDTO, error) {
+	models, err := d.Store.ListModels()
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[string]providerDTO)
+	for _, m := range models {
+		if m.Provider == "" {
+			continue
+		}
+		if _, seen := out[m.Provider]; seen {
+			continue
+		}
+		apiKey, _, err := d.Settings.Setting(settings.ProviderAPIKeyKey(m.Provider))
+		if err != nil {
+			return nil, fmt.Errorf("read provider api key: %w", err)
+		}
+		baseURL, _, err := d.Settings.Setting(settings.ProviderBaseURLKey(m.Provider))
+		if err != nil {
+			return nil, fmt.Errorf("read provider base url: %w", err)
+		}
+		out[m.Provider] = providerDTO{HasAPIKey: apiKey != "", BaseURL: baseURL}
+	}
+	return out, nil
 }
 
 func putSettings(c echo.Context, d Deps) error {
@@ -85,6 +132,19 @@ func putSettings(c echo.Context, d Deps) error {
 	if next.APIKey != "" {
 		if err := d.Settings.SetSetting(settings.KeyAPIKey, next.APIKey); err != nil {
 			return internalError(c, d, "set api_key", err)
+		}
+	}
+	for name, pc := range next.Providers {
+		// base_url round-trips (an empty value clears back to the default
+		// endpoint); the per-provider api key is write-only like the shared
+		// one, so an empty value leaves the stored key untouched.
+		if err := d.Settings.SetSetting(settings.ProviderBaseURLKey(name), pc.BaseURL); err != nil {
+			return internalError(c, d, "set provider base url", err)
+		}
+		if pc.APIKey != "" {
+			if err := d.Settings.SetSetting(settings.ProviderAPIKeyKey(name), pc.APIKey); err != nil {
+				return internalError(c, d, "set provider api key", err)
+			}
 		}
 	}
 	if err := d.Settings.SetSetting(settings.KeyRepoURL, next.RepoURL); err != nil {
