@@ -33,8 +33,15 @@ Frontend: `pnpm <cmd>` from the repo root (workspace proxies) or `cd web && pnpm
 
 ```
 thoth/
+├── agent/                 # reusable native agent library (epic #121); imports nothing from internal/*
+│   └── tools/             # COMMON, wiki-agnostic tools + FS seam (read/write/list/edit/append/
+│                          #   rename/delete/grep/get_time/search); new tools here unless wiki-specific
 ├── cmd/thoth/            # thin binary entrypoint (main.go)
 ├── internal/
+│   ├── agent/             # Thoth host on the agent library: Client, wikiFS, registry()
+│   │   └── tools/         # WIKI-SPECIFIC tools (write_note/read_note/list_tree/list_recent/
+│   │                      #   search_by_tag/todos/inbox/memory/remember); the wiki's note contract
+│   │                      #   lives in internal/wiki (ParseNote/FormatNote), never forked
 │   ├── api/              # Echo: WS chat (/ws) + REST; Deps carries all wiring
 │   ├── assets/           # embedded models.json (Settings model picker)
 │   ├── claude/           # BLAST WALL — ALL CLI flags live only in client.go
@@ -128,6 +135,7 @@ Apply the standard principles — modular, composable, boring code that's easy t
 - **context.Context first** — first parameter, never stored in structs; goroutines and long-lived loops select on `ctx.Done()`.
 - **Logging** — structured `slog` with lowercase keys; warn paths always carry `path` and `err`.
 - **Security** — security-sensitive changes consult `docs/security.md` (the threat model); wiki filesystem access routes through `SafePath`.
+- **Agent tool placement** — a new tool's home is decided by what it knows: tools that operate on any filesystem with no wiki knowledge go in `agent/tools` (common, wiki-agnostic; work through the `FS` seam); tools that understand the wiki — its frontmatter/note contract, `type:` rule, or scaffolded layout (todos, inbox, memory) — go in `internal/agent/tools` and import the wiki contract from `internal/wiki` (`ParseNote`/`FormatNote`), never forking it. Everything else (shared arg/path/truncation helpers, the `FS` seam) lives in `agent/tools` and is imported, not duplicated. A host registers its own tools via `RegistryOptions.CustomTools` / `Client.WithTools(...)`.
 - **No magic values** — numbers and strings with meaning get named constants; no unexplained literals in logic.
 - **Go doc comments** — exported symbols carry doc comments (Go idiom; no linter enforces it here, so the rule must).
 - **Match surrounding style** when editing; don't reformat code you're not changing.

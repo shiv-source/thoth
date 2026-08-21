@@ -66,7 +66,7 @@ func (t *Search) Run(ctx context.Context, args map[string]any) (string, error) {
 	if err := ctx.Err(); err != nil {
 		return "", err
 	}
-	query, err := stringArg(args, "query")
+	query, err := StringArg(args, "query")
 	if err != nil {
 		return "", err
 	}

@@ -15,7 +15,7 @@ Thoth Agent is the built-in assistant: the thing that answers questions from you
 | **Cancellation** | Kill the process group (build-tagged `proc_unix.go`/`proc_windows.go`); the next turn respawns | Cancel the turn's context — the provider stream aborts, nothing lingers |
 | **System prompt** | Read at process spawn | Re-read from `wiki/CLAUDE.md` on every turn, so rulebook edits apply without restart |
 | **Setup** | Requires the `claude` binary installed, logged in, and on `PATH` | Only a model provider API key in Settings |
-| **Write access** | The CLI ran with `--dangerously-skip-permissions` (fully unattended headless) | `read_file`/`write_file`/`list`/`search` tools bounded to the wiki by `SafePath` |
+| **Write access** | The CLI ran with `--dangerously-skip-permissions` (fully unattended headless) | A full FS-backed tool catalog bounded to the wiki by `SafePath`: common file tools (`read_file`/`write_file`/`list`/`list_tree`/`grep`, `edit_file`/`append_file`/`rename_file`/`delete_file`, `get_time`, and `search` over the FTS index) plus wiki tools (`write_note`/`read_note`, `list_recent`/`search_by_tag`, `get_todos`/`update_todos`/`get_inbox`/`file_inbox`/`remember`). Common tools live in `agent/tools`; wiki-specific ones in `internal/agent/tools`, and hosts can register custom tools |
 
 The pieces that made the CLI approach work were deleted wholesale: the flag lists, the stream-json parsing, the `persistent.go` process pool, and the process-kill mechanics.
 

@@ -2,20 +2,23 @@ package agent
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
+	"time"
 
 	agenttools "github.com/shiv-source/thoth/agent/tools"
+	wikitoos "github.com/shiv-source/thoth/internal/agent/tools" // wiki-specific tools
 	"github.com/shiv-source/thoth/internal/index"
 	"github.com/shiv-source/thoth/internal/wiki"
 )
 
 // wikiFS adapts the live wiki directory to the tools.FS seam. Every operation
 // resolves its relative name through wiki.SafePath against the wiki's current
-// root, so reads, writes, mkdir and list can never escape the wiki root — even
-// through a symlink — and always agree with the root the rulebook is read
-// from, even after a settings wiki-path change.
+// root, so reads, writes, mkdir, list, stat, remove and rename can never
+// escape the wiki root — even through a symlink — and always agree with the
+// root the rulebook is read from, even after a settings wiki-path change.
 type wikiFS struct {
 	wiki *wiki.Wiki
 }
@@ -71,6 +74,48 @@ func (f wikiFS) ReadDir(name string) ([]fs.DirEntry, error) {
 	return entries, nil
 }
 
+// Stat implements tools.FS.
+func (f wikiFS) Stat(name string) (fs.FileInfo, error) {
+	p, err := wiki.SafePath(f.wiki.Root(), name)
+	if err != nil {
+		return nil, err
+	}
+	fi, err := os.Stat(p)
+	if err != nil {
+		return nil, fmt.Errorf("stat %s: %w", name, err)
+	}
+	return fi, nil
+}
+
+// Remove implements tools.FS.
+func (f wikiFS) Remove(name string) error {
+	p, err := wiki.SafePath(f.wiki.Root(), name)
+	if err != nil {
+		return err
+	}
+	if err := os.Remove(p); err != nil {
+		return fmt.Errorf("remove %s: %w", name, err)
+	}
+	return nil
+}
+
+// Rename implements tools.FS. Both names resolve through SafePath against the
+// same live root, so a move can never escape the wiki.
+func (f wikiFS) Rename(oldPath, newPath string) error {
+	op, err := wiki.SafePath(f.wiki.Root(), oldPath)
+	if err != nil {
+		return err
+	}
+	np, err := wiki.SafePath(f.wiki.Root(), newPath)
+	if err != nil {
+		return err
+	}
+	if err := os.Rename(op, np); err != nil {
+		return fmt.Errorf("rename %s: %w", oldPath, err)
+	}
+	return nil
+}
+
 // indexSearch adapts the FTS5 index to the search tool's SearchFunc. Note
 // paths are already wiki-relative, matching the tool's result contract.
 func indexSearch(ix *index.Index) agenttools.SearchFunc {
@@ -87,25 +132,73 @@ func indexSearch(ix *index.Index) agenttools.SearchFunc {
 	}
 }
 
-// registry builds the wiki-bounded tool registry: read_file, write_file and
-// list over a wikiFS bound to the live wiki root (so a settings wiki-path
-// change moves the tools with the rulebook), plus search over the FTS index
-// when one is supplied. It is registered once and read-only afterwards, so
-// concurrent Start calls may share it.
-func registry(w *wiki.Wiki, ix *index.Index) (*agenttools.Registry, error) {
-	fsys := wikiFS{wiki: w}
+// RegistryOptions tunes the tool registry a host builds. Wiki is required;
+// Index adds the FTS search tool when non-nil. The path-configurable wiki
+// tools (todos/inbox/memory) use the scaffolded wiki defaults unless
+// overridden. CustomTools are registered after the built-in catalog, so a host
+// can extend the agent with its own tools.
+type RegistryOptions struct {
+	Wiki  *wiki.Wiki
+	Index *index.Index
+	// TodosPath overrides the get_todos/update_todos path (default
+	// todos/TODO.md); InboxDir overrides get_inbox/file_inbox (default inbox);
+	// MemoryPath overrides remember (default knowledge/memory.md).
+	TodosPath  string
+	InboxDir   string
+	MemoryPath string
+	// CustomTools are registered after the built-in catalog. A host registers
+	// its own tools here to extend the agent.
+	CustomTools []agenttools.Tool
+}
+
+// registry builds the wiki-bounded tool registry: the common file/note/search
+// tools from agent/tools plus the wiki-specific note tools from
+// internal/agent/tools, all over a wikiFS bound to the live wiki root (so a
+// settings wiki-path change moves the tools with the rulebook), plus search
+// over the FTS index when one is supplied. CustomTools are appended last so a
+// host can extend the catalog. It is registered once and read-only afterwards,
+// so concurrent Start calls may share it.
+func registry(opts RegistryOptions) (*agenttools.Registry, error) {
+	if opts.Wiki == nil {
+		return nil, errors.New("agent: registry requires a wiki")
+	}
+	fsys := wikiFS{wiki: opts.Wiki}
 	reg := agenttools.NewRegistry()
+	now := time.Now
 	for _, t := range []agenttools.Tool{
+		// Common tools (agent/tools).
 		agenttools.NewReadFile(fsys, 0),
 		agenttools.NewWriteFile(fsys),
 		agenttools.NewList(fsys),
+		agenttools.NewGetTime(now),
+		agenttools.NewEditFile(fsys),
+		agenttools.NewAppendFile(fsys),
+		agenttools.NewRenameFile(fsys),
+		agenttools.NewDeleteFile(fsys),
+		agenttools.NewGrep(fsys, 0),
+		// Wiki-specific tools (internal/agent/tools).
+		wikitoos.NewWriteNote(fsys, now),
+		wikitoos.NewReadNote(fsys, 0),
+		wikitoos.NewListTree(fsys, 0, 0),
+		wikitoos.NewListRecent(fsys, 0),
+		wikitoos.NewSearchByTag(fsys, 0),
+		wikitoos.NewGetTodos(fsys, opts.TodosPath),
+		wikitoos.NewUpdateTodos(fsys, opts.TodosPath),
+		wikitoos.NewGetInbox(fsys, opts.InboxDir),
+		wikitoos.NewFileInbox(fsys, opts.InboxDir),
+		wikitoos.NewRemember(fsys, opts.MemoryPath, now),
 	} {
 		if err := reg.Register(t); err != nil {
 			return nil, err
 		}
 	}
-	if ix != nil {
-		if err := reg.Register(agenttools.NewSearch(indexSearch(ix), 0)); err != nil {
+	if opts.Index != nil {
+		if err := reg.Register(agenttools.NewSearch(indexSearch(opts.Index), 0)); err != nil {
+			return nil, err
+		}
+	}
+	for _, t := range opts.CustomTools {
+		if err := reg.Register(t); err != nil {
 			return nil, err
 		}
 	}

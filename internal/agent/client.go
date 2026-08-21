@@ -39,6 +39,7 @@ type options struct {
 	maxIterations   int
 	maxOutputTokens int
 	turnTimeout     time.Duration
+	customTools     []agenttools.Tool
 }
 
 // WithProvider overrides the provider New would choose from the model id
@@ -75,6 +76,13 @@ func WithMaxOutputTokens(n int) Option { return func(o *options) { o.maxOutputTo
 // WithTurnTimeout bounds each turn, cancelling the provider stream and tool
 // loop when it fires. Zero selects the default of 10 minutes.
 func WithTurnTimeout(d time.Duration) Option { return func(o *options) { o.turnTimeout = d } }
+
+// WithTools registers custom tools on top of the built-in catalog. They are
+// appended after the wiki and search tools, so a host can extend the agent
+// with its own capabilities.
+func WithTools(tools ...agenttools.Tool) Option {
+	return func(o *options) { o.customTools = append(o.customTools, tools...) }
+}
 
 // Client is the Thoth host layer on the reusable agent library: the chat
 // seam the api Hub depends on (Start with an EventWriter), driving
@@ -126,7 +134,7 @@ func New(model, apiKey string, w *wiki.Wiki, st *store.Store, ix *index.Index, o
 	if logger == nil {
 		logger = slog.Default()
 	}
-	reg, err := registry(w, ix)
+	reg, err := registry(RegistryOptions{Wiki: w, Index: ix, CustomTools: o.customTools})
 	if err != nil {
 		return nil, fmt.Errorf("agent: build tools: %w", err)
 	}

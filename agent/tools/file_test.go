@@ -19,6 +19,17 @@ func newTestFS(t *testing.T) *OSFS {
 	return fs
 }
 
+// writeNested writes content at rel, creating parent directories as needed
+// (FS.WriteFile requires its parent to exist, mirroring atomic writes).
+func writeNested(fs FS, rel string, content []byte) error {
+	if dir := filepath.Dir(rel); dir != "." {
+		if err := fs.MkdirAll(dir, 0o755); err != nil {
+			return err
+		}
+	}
+	return fs.WriteFile(rel, content, 0o644)
+}
+
 func TestNewOSFSValidation(t *testing.T) {
 	if _, err := NewOSFS(""); err == nil {
 		t.Fatal("empty root accepted")
@@ -164,6 +175,82 @@ func TestOSFSWriteReadList(t *testing.T) {
 	}
 }
 
+func TestOSFSStatRemoveRename(t *testing.T) {
+	root := t.TempDir()
+	fs, err := NewOSFS(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := fs.WriteFile("a.txt", []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	fi, err := fs.Stat("a.txt")
+	if err != nil {
+		t.Fatalf("Stat: %v", err)
+	}
+	if fi.Name() != "a.txt" || fi.IsDir() {
+		t.Fatalf("Stat = %+v", fi)
+	}
+	if _, err := fs.Stat("../outside"); err == nil {
+		t.Fatal("Stat of an escaping path succeeded")
+	}
+
+	if err := fs.MkdirAll("dir", 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := fs.Rename("a.txt", "dir/b.txt"); err != nil {
+		t.Fatalf("Rename: %v", err)
+	}
+	if _, err := fs.Stat("dir/b.txt"); err != nil {
+		t.Fatalf("renamed file missing: %v", err)
+	}
+	if err := fs.Rename("a.txt", "x"); err == nil {
+		t.Fatal("Rename of a missing source succeeded")
+	}
+	if err := fs.Rename("../out", "x"); err == nil {
+		t.Fatal("Rename of an escaping source succeeded")
+	}
+	if err := fs.Rename("dir/b.txt", "../out"); err == nil {
+		t.Fatal("Rename to an escaping destination succeeded")
+	}
+
+	if err := fs.Remove("dir/b.txt"); err != nil {
+		t.Fatalf("Remove: %v", err)
+	}
+	if _, err := fs.Stat("dir/b.txt"); err == nil {
+		t.Fatal("removed file still exists")
+	}
+	if err := fs.Remove("missing.txt"); err == nil {
+		t.Fatal("Remove of a missing file succeeded")
+	}
+	if err := fs.Remove("../outside"); err == nil {
+		t.Fatal("Remove of an escaping path succeeded")
+	}
+}
+
+func TestOSFSSymlinkRemoveLeavesTarget(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "real.txt"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(filepath.Join(root, "real.txt"), filepath.Join(root, "link")); err != nil {
+		t.Fatal(err)
+	}
+	fs, err := NewOSFS(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// A symlink inside the root resolves inside the root, so removing the link
+	// (not following it) leaves the target intact.
+	if err := fs.Remove("link"); err != nil {
+		t.Fatalf("Remove link: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(root, "real.txt")); err != nil {
+		t.Fatalf("symlink target removed: %v", err)
+	}
+}
+
 func TestWriteFileToolCreatesParentsAndPersists(t *testing.T) {
 	fs := newTestFS(t)
 	tl := NewWriteFile(fs)
@@ -261,7 +348,7 @@ func TestReadFileTool(t *testing.T) {
 	}
 
 	def := NewReadFile(fs, 0)
-	huge := strings.Repeat("x", maxReadBytes+1)
+	huge := strings.Repeat("x", MaxReadBytes+1)
 	if err := fs.WriteFile("huge.txt", []byte(huge), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -269,8 +356,8 @@ func TestReadFileTool(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read huge default: %v", err)
 	}
-	if len(got) != maxReadBytes+len(truncationMarker(maxReadBytes)) {
-		t.Fatalf("default-cap read length = %d, want %d", len(got), maxReadBytes+len(truncationMarker(maxReadBytes)))
+	if len(got) != MaxReadBytes+len(TruncationMarker(MaxReadBytes)) {
+		t.Fatalf("default-cap read length = %d, want %d", len(got), MaxReadBytes+len(TruncationMarker(MaxReadBytes)))
 	}
 	if !strings.Contains(got, "[output truncated: file exceeds 131072 bytes]") {
 		t.Fatal("default truncation marker missing")
