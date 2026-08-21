@@ -40,6 +40,7 @@ type options struct {
 	maxOutputTokens int
 	turnTimeout     time.Duration
 	gitOptions      agenttools.GitOptions
+	healthFunc      agenttools.HealthFunc
 	customTools     []agenttools.Tool
 }
 
@@ -92,6 +93,13 @@ func WithGitOptions(opts agenttools.GitOptions) Option {
 	return func(o *options) { o.gitOptions = opts }
 }
 
+// WithHealthFunc wires the system_health tool to the host's health checks
+// (Thoth injects DoctorHealth). The tool is registered only when fn is
+// non-nil.
+func WithHealthFunc(fn agenttools.HealthFunc) Option {
+	return func(o *options) { o.healthFunc = fn }
+}
+
 // Client is the Thoth host layer on the reusable agent library: the chat
 // seam the api Hub depends on (Start with an EventWriter), driving
 // agent.Agent instead of the CLI. sessionID is treated as the conversation
@@ -142,7 +150,14 @@ func New(model, apiKey string, w *wiki.Wiki, st *store.Store, ix *index.Index, o
 	if logger == nil {
 		logger = slog.Default()
 	}
-	reg, err := registry(RegistryOptions{Wiki: w, Index: ix, Git: o.gitOptions, CustomTools: o.customTools})
+	reg, err := registry(RegistryOptions{
+		Wiki:          w,
+		Index:         ix,
+		Git:           o.gitOptions,
+		Health:        o.healthFunc,
+		Conversations: conversationStore{st: st},
+		CustomTools:   o.customTools,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("agent: build tools: %w", err)
 	}
