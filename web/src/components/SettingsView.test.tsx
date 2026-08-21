@@ -64,6 +64,7 @@ const settings = {
     wiki_folders: [] as string[],
     model: '',
     has_api_key: false,
+    providers: {} as Record<string, { api_key?: string; has_api_key: boolean; base_url: string }>,
     repo_url: '',
     sync_enabled: false
 }
@@ -240,6 +241,81 @@ describe('SettingsView', () => {
         renderSettings()
         expect(await screen.findByText('Not set')).toBeInTheDocument()
         expect(await screen.findByText(/inherits ANTHROPIC_API_KEY/i)).toBeInTheDocument()
+    })
+
+    it('renders and saves per-provider credentials', async () => {
+        stubAPI({
+            'GET /api/settings': () => ({
+                ...settings,
+                providers: { DeepSeek: { api_key: '', has_api_key: true, base_url: 'https://api.deepseek.com' } }
+            }),
+            'GET /api/github/auth': getEmptyGitHub,
+            'GET /api/models': () => ({
+                groups: [
+                    {
+                        provider: 'DeepSeek',
+                        models: [
+                            {
+                                id: 1,
+                                value: 'deepseek-v4-flash',
+                                name: 'V4 Flash',
+                                tag: 'fastest',
+                                provider: 'DeepSeek'
+                            }
+                        ]
+                    }
+                ]
+            }),
+            'PUT /api/settings': () => ({ ...settings })
+        })
+
+        renderSettings()
+        // The per-provider block renders with the saved base URL.
+        expect(await screen.findByText('Provider credentials')).toBeInTheDocument()
+        expect(await screen.findByText('DeepSeek')).toBeInTheDocument()
+        const baseURL = await screen.findByLabelText('Base URL')
+        expect(baseURL).toHaveValue('https://api.deepseek.com')
+        await userEvent.clear(baseURL)
+        await userEvent.type(baseURL, 'https://api.deepseek.com/v1')
+        // The per-provider key input is the '•••••••• (saved)' one (the
+        // shared key is unset, so its placeholder is sk-ant-…).
+        await userEvent.type(await screen.findByPlaceholderText('•••••••• (saved)'), 'ds-new-key')
+        await userEvent.click(screen.getByRole('button', { name: /Save/ }))
+        await waitFor(() => expect(screen.getByText(/Saved ✓/)).toBeInTheDocument())
+
+        const body = JSON.stringify(lastBody('put', '/api/settings'))
+        expect(body).toContain('https://api.deepseek.com/v1')
+        expect(body).toContain('ds-new-key')
+    })
+
+    it('saves a provider base URL without touching an existing key', async () => {
+        stubAPI({
+            'GET /api/settings': () => ({
+                ...settings,
+                providers: { OpenAI: { api_key: '', has_api_key: true, base_url: '' } }
+            }),
+            'GET /api/github/auth': getEmptyGitHub,
+            'GET /api/models': () => ({
+                groups: [
+                    {
+                        provider: 'OpenAI',
+                        models: [{ id: 2, value: 'gpt-5.6-mini', name: 'Mini', tag: 'fast', provider: 'OpenAI' }]
+                    }
+                ]
+            }),
+            'PUT /api/settings': () => ({ ...settings })
+        })
+
+        renderSettings()
+        const baseURL = await screen.findByLabelText('Base URL')
+        await userEvent.type(baseURL, 'https://api.openai.com/v1')
+        await userEvent.click(screen.getByRole('button', { name: /Save/ }))
+        await waitFor(() => expect(screen.getByText(/Saved ✓/)).toBeInTheDocument())
+
+        // The per-provider api key stays empty in the PUT body (write-only
+        // leave-unchanged semantics are the server's), the base URL goes.
+        const put = lastBody('put', '/api/settings') as { providers?: Record<string, unknown> }
+        expect(put.providers?.['OpenAI']).toMatchObject({ base_url: 'https://api.openai.com/v1' })
     })
 
     it('shows the save error when the server rejects', async () => {

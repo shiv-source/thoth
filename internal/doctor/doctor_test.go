@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -280,6 +281,94 @@ func TestRunProviderUnknownModelFamily(t *testing.T) {
 	c := byName(t, runProviderChecks(t, dir, http.StatusOK), "provider")
 	if c.OK || !strings.Contains(c.Message, "no provider for model") {
 		t.Fatalf("provider: %s", c.Message)
+	}
+}
+
+func TestRunProviderRoutesByRegistryProvider(t *testing.T) {
+	// A DeepSeek model with its own key + base url resolves to the
+	// OpenAI-compatible probe, and the per-provider key rides the probe — the
+	// same model→provider→config chain serve resolves at boot.
+	dir := healthyThothDir(t)
+	dbPath := filepath.Join(dir, "thoth.db")
+	st, err := store.Open(dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := st.CreateModel("deepseek-v4-flash", "V4 Flash", "fastest", "DeepSeek"); err != nil {
+		t.Fatal(err)
+	}
+	r, err := settings.OpenRepo(dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := r.SetSetting(settings.KeyModel, "deepseek-v4-flash"); err != nil {
+		t.Fatal(err)
+	}
+	if err := r.SetSetting(settings.ProviderAPIKeyKey("DeepSeek"), "ds-secret"); err != nil {
+		t.Fatal(err)
+	}
+	if err := r.SetSetting(settings.ProviderBaseURLKey("DeepSeek"), "https://api.deepseek.com"); err != nil {
+		t.Fatal(err)
+	}
+	_ = r.Close()
+	_ = st.Close()
+
+	var mu sync.Mutex
+	var gotKey, gotPath string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		mu.Lock()
+		gotKey = req.Header.Get("Authorization")
+		gotPath = req.URL.Path
+		mu.Unlock()
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(srv.Close)
+
+	c := byName(t, Run(context.Background(), Options{Dir: dir, Log: testLog(), HTTP: srv.Client(), BaseURL: srv.URL}), "provider")
+	if !c.OK || !strings.Contains(c.Message, "reachable") {
+		t.Fatalf("provider: %s", c.Message)
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if gotKey != "Bearer ds-secret" {
+		t.Fatalf("probe Authorization = %q, want Bearer ds-secret", gotKey)
+	}
+	if gotPath != "/v1/models" {
+		t.Fatalf("probe path = %q, want /v1/models", gotPath)
+	}
+}
+
+func TestRunApiKeyCheckResolvesPerProviderKey(t *testing.T) {
+	// The shared api_key is empty; only the selected provider's own key is
+	// set — the check must pass with the credential the agent will use.
+	dir := healthyThothDir(t)
+	dbPath := filepath.Join(dir, "thoth.db")
+	st, err := store.Open(dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := st.CreateModel("deepseek-v4-flash", "V4 Flash", "fastest", "DeepSeek"); err != nil {
+		t.Fatal(err)
+	}
+	r, err := settings.OpenRepo(dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := r.SetSetting(settings.KeyAPIKey, ""); err != nil {
+		t.Fatal(err)
+	}
+	if err := r.SetSetting(settings.KeyModel, "deepseek-v4-flash"); err != nil {
+		t.Fatal(err)
+	}
+	if err := r.SetSetting(settings.ProviderAPIKeyKey("DeepSeek"), "ds-secret"); err != nil {
+		t.Fatal(err)
+	}
+	_ = r.Close()
+	_ = st.Close()
+
+	checks := runChecks(t, dir, freeAddr(t))
+	if c := byName(t, checks, "api key"); !c.OK {
+		t.Fatalf("api key: %s", c.Message)
 	}
 }
 

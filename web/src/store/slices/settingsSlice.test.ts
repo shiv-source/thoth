@@ -22,6 +22,7 @@ const saved: Settings = {
     wiki_folders: [],
     model: 'claude-sonnet-5',
     has_api_key: false,
+    providers: {},
     repo_url: 'git@github.com:me/wiki.git',
     sync_enabled: true
 }

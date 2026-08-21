@@ -176,6 +176,72 @@ func TestSettingsAPIKeyNeverEchoed(t *testing.T) {
 	}
 }
 
+func TestSettingsProvidersRoundTrip(t *testing.T) {
+	d := testDeps(t)
+	if _, err := d.Store.CreateModel("deepseek-v4-flash", "V4 Flash", "fastest", "DeepSeek"); err != nil {
+		t.Fatal(err)
+	}
+	e := New(d)
+
+	// Seeded: the provider appears with no key and no base url.
+	got := getSettingsReq(t, e)
+	ds, ok := got.Providers["DeepSeek"]
+	if !ok || ds.HasAPIKey || ds.BaseURL != "" {
+		t.Fatalf("seeded DeepSeek config = %+v (present=%v)", ds, ok)
+	}
+
+	// PUT writes the per-provider key + base url; GET reports has_api_key
+	// but never the key itself.
+	rec := putSettingsReq(t, e, `{"wiki_path":"/tmp/wiki","repo_url":"","sync_enabled":false,
+		"providers":{"DeepSeek":{"api_key":"ds-secret","base_url":"https://api.deepseek.com"}}}`)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("PUT status %d: %s", rec.Code, rec.Body.String())
+	}
+	if v, _, err := d.Settings.Setting(settings.ProviderAPIKeyKey("DeepSeek")); err != nil || v != "ds-secret" {
+		t.Fatalf("stored provider api key = %q/%v", v, err)
+	}
+	if v, _, err := d.Settings.Setting(settings.ProviderBaseURLKey("DeepSeek")); err != nil || v != "https://api.deepseek.com" {
+		t.Fatalf("stored provider base url = %q/%v", v, err)
+	}
+	got = getSettingsReq(t, e)
+	ds, ok = got.Providers["DeepSeek"]
+	if !ok || !ds.HasAPIKey || ds.BaseURL != "https://api.deepseek.com" || ds.APIKey != "" {
+		t.Fatalf("after PUT DeepSeek config = %+v (present=%v)", ds, ok)
+	}
+
+	// An empty api key leaves the stored key; an empty base url clears back
+	// to the default endpoint.
+	rec = putSettingsReq(t, e, `{"wiki_path":"/tmp/wiki","repo_url":"","sync_enabled":false,
+		"providers":{"DeepSeek":{"api_key":"","base_url":""}}}`)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("clear PUT status %d: %s", rec.Code, rec.Body.String())
+	}
+	if v, _, err := d.Settings.Setting(settings.ProviderAPIKeyKey("DeepSeek")); err != nil || v != "ds-secret" {
+		t.Fatalf("provider api key changed on empty PUT: %q/%v", v, err)
+	}
+	if v, _, err := d.Settings.Setting(settings.ProviderBaseURLKey("DeepSeek")); err != nil || v != "" {
+		t.Fatalf("provider base url not cleared: %q/%v", v, err)
+	}
+}
+
+func TestSettingsProviderKeyNeverEchoed(t *testing.T) {
+	d := testDeps(t)
+	if _, err := d.Store.CreateModel("gpt-5.6-mini", "Mini", "fast", "OpenAI"); err != nil {
+		t.Fatal(err)
+	}
+	e := New(d)
+	if rec := putSettingsReq(t, e, `{"wiki_path":"/tmp/wiki","repo_url":"","sync_enabled":false,
+		"providers":{"OpenAI":{"api_key":"sk-openai-secret","base_url":""}}}`); rec.Code != http.StatusOK {
+		t.Fatalf("PUT status %d: %s", rec.Code, rec.Body.String())
+	}
+	req := httptest.NewRequest(http.MethodGet, "/api/settings", nil)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	if strings.Contains(rec.Body.String(), "sk-openai-secret") {
+		t.Fatalf("GET /api/settings echoed the provider api key: %s", rec.Body.String())
+	}
+}
+
 func TestSettingsRepoURLWithoutAuthStored(t *testing.T) {
 	// The old "connect GitHub first" gate is gone: the KV table accepts the
 	// URL regardless of a github_auth row.

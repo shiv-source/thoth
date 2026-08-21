@@ -59,8 +59,8 @@ flowchart TB
 
 The only Thoth-aware code that talks to the reusable `agent` library (imported as `agentlib`). `Client` implements the chat seam the Hub depends on — the same `Start(ctx, sessionID, prompt, w, opts…)` signature as `claude.Client` — by driving `agent.Agent` instead of the CLI; `sessionID` is the conversation id for history lookup.
 
-- `New(model, apiKey, wiki, store, index, opts…)` wires everything: the provider is picked from the model id (`claude-*` → Anthropic, `gpt-*` → OpenAI-compatible; `WithProvider` overrides for tests), and the tools are built from the wiki.
-- `Start` builds a fresh `agent.Agent` per turn: the system prompt is re-read from `wiki/CLAUDE.md` (the user-editable rulebook) so edits apply without restart, and the loop is single-turn while the Hub serves many conversations at once. `opts` are accepted for signature parity and ignored — the native agent has no CLI session to fork.
+- `New(model, apiKey, wiki, store, index, opts…)` wires everything: the provider is picked from the model's provider name (`WithProviderConfig(name, baseURL)` — "Anthropic" → Anthropic, every other name → OpenAI-compatible pointed at its base URL; an empty name falls back to the model id prefixes `claude-*`/`gpt-*`; `WithProvider` overrides for tests), and the tools are built from the wiki.
+- `Start` builds a fresh `agent.Agent` per turn: the system prompt is re-read from `wiki/CLAUDE.md` (the user-editable rulebook) so edits apply without restart, and the loop is single-turn while the Hub serves many conversations at once.
 - `tools.go` — `wikiFS` implements the agent `tools.FS` seam, resolving every path through `wiki.SafePath` (reads/writes/lists can never escape the wiki); `search` runs over the FTS `index.Index`.
 - `system.go` — `SystemPrompt(w, folders)` reads the rulebook per call, falling back to `RulebookFor(folders)` when absent.
 - `history.go` — `History(store)` maps `store.Messages` (roles user/assistant) to agent messages; the trailing user message (the in-flight prompt the loop appends) is dropped, and the loop caps the rest (`HistoryCap`).
@@ -102,7 +102,7 @@ Conversations, messages, and the llm_models registry in the same `thoth.db` (sep
 
 ## internal/doctor
 
-`Run(ctx, Options{Dir, Addr, Log, HTTP, BaseURL})` runs the nine install checks (wiki, provider, api key, model, database, index, malformed, api, websocket) and returns `[]Check`, each carrying `Name`/`OK`/`Message`. The provider check probes the selected model's provider models endpoint with the stored API key (HTTP client + base URL injectable for tests). The dashboard's Settings → Doctor tab runs the same suite via `GET /api/doctor` (details: [CLI](cli.md)).
+`Run(ctx, Options{Dir, Addr, Log, HTTP, BaseURL})` runs the nine install checks (wiki, provider, api key, model, database, index, malformed, api, websocket) and returns `[]Check`, each carrying `Name`/`OK`/`Message`. The provider check probes the selected model's provider models endpoint with the resolved credential — the model's `llm_models` row names the provider, whose per-provider api key/base URL win over the shared key and provider default, the same resolution `serve` uses at boot (`modelProvider`/`providerConfig`/`providerProbeFor`). The HTTP client and base URL are injectable for tests. The dashboard's Settings → Doctor tab runs the same suite via `GET /api/doctor` (details: [CLI](cli.md)).
 
 ## internal/github
 
@@ -110,7 +110,7 @@ Conversations, messages, and the llm_models registry in the same `thoth.db` (sep
 
 ## internal/settings
 
-`Repo` (`OpenRepo(path)`) owns the `settings` KV table — `wiki_path`, `wiki_folders`, `github_sync_*` keys — with sync-state conveniences. It deliberately runs no migrations and no WAL pragma: the doctor must never mutate a database it only reads. Details: [Schema](schema.md).
+`Repo` (`OpenRepo(path)`) owns the `settings` KV table — `wiki_path`, `wiki_folders`, `github_sync_*` keys and the per-provider `provider_<slug>_api_key`/`provider_<slug>_base_url` keys (helpers `ProviderAPIKeyKey`/`ProviderBaseURLKey`) — with sync-state conveniences and `ProviderConfig(provider)`, the model→provider→credential resolution `serve` uses at boot. It deliberately runs no migrations and no WAL pragma: the doctor must never mutate a database it only reads. Details: [Schema](schema.md).
 
 ## internal/gitutil
 

@@ -26,12 +26,20 @@ const TreeNodeSchema: z.ZodType<TreeNodeShape> = z.lazy(() =>
 )
 export type TreeNode = z.infer<typeof TreeNodeSchema>
 
+export const ProviderConfig = z.object({
+    api_key: z.string().optional(),
+    has_api_key: z.boolean(),
+    base_url: z.string()
+})
+export type ProviderConfig = z.infer<typeof ProviderConfig>
+
 export const Settings = z.object({
     wiki_path: z.string(),
     wiki_folders: z.array(z.string()),
     model: z.string(),
     has_api_key: z.boolean(),
     api_key: z.string().optional(),
+    providers: z.record(z.string(), ProviderConfig),
     repo_url: z.string(),
     sync_enabled: z.boolean()
 })
