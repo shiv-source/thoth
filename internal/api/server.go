@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"log/slog"
+	"net/http"
 
 	"github.com/go-warehouse/events"
 	"github.com/labstack/echo/v4"
@@ -20,12 +21,14 @@ type Deps struct {
 	Claude          Client
 	GitHub          *github.Service
 	Settings        *settings.Repo
-	DataDir         string // thoth dir (~/.thoth) — the doctor handler probes it
-	DoctorAddr      string // host:port for the doctor's api/websocket probes ("" → 127.0.0.1:8333); tests point it at a free port
-	Version         string // build version, shown in /api/health and the UI footer
-	Dev             bool   // serve --dev — exposed via /api/health so the UI can show the dev banner
-	Commit          string // full git commit id the server runs from (dev only), shown in the dev banner
-	DefaultWikiPath string // the mode's wiki default in tilde form (~/.thoth/wiki, or ~/.thoth/dev/wiki in dev) — the settings hint reads it
+	DataDir         string       // thoth dir (~/.thoth) — the doctor handler probes it
+	DoctorAddr      string       // host:port for the doctor's api/websocket probes ("" → 127.0.0.1:8333); tests point it at a free port
+	DoctorHTTP      *http.Client // HTTP client for the doctor's provider probe (nil → http.DefaultClient); tests stub the endpoint
+	DoctorBaseURL   string       // provider base URL the doctor's provider probe targets ("" → the provider default); tests point it at a stub
+	Version         string       // build version, shown in /api/health and the UI footer
+	Dev             bool         // serve --dev — exposed via /api/health so the UI can show the dev banner
+	Commit          string       // full git commit id the server runs from (dev only), shown in the dev banner
+	DefaultWikiPath string       // the mode's wiki default in tilde form (~/.thoth/wiki, or ~/.thoth/dev/wiki in dev) — the settings hint reads it
 	Wiki            *wiki.Wiki
 	Index           *index.Index
 	OnSettingsSaved func(wikiPath string) error

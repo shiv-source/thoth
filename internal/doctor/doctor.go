@@ -10,12 +10,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"log/slog"
 	"net"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -30,8 +30,8 @@ import (
 )
 
 const (
-	claudeCheckTimeout = 5 * time.Second
-	apiCheckTimeout    = 2 * time.Second
+	providerCheckTimeout = 5 * time.Second
+	apiCheckTimeout      = 2 * time.Second
 )
 
 // Check is one named health check: what was probed and the human-readable
@@ -42,27 +42,40 @@ type Check struct {
 	Message string `json:"message"`
 }
 
-// Run probes the installation under dir ("" means ~/.thoth) and returns every
-// check, in order: wiki, claude, claude login, api key, model, database,
-// index, malformed, api, websocket. Every check runs even when an earlier one
-// fails. addr is the host:port the api/websocket checks probe ("" →
-// 127.0.0.1:8333); tests inject a free port. ctx bounds the claude probes;
-// log is reserved for future diagnostics.
-func Run(ctx context.Context, dir string, addr string, log *slog.Logger) []Check {
-	thDir := dir
-	if thDir == "" {
+// Options configure Run.
+type Options struct {
+	Dir  string       // thoth dir to check ("" → ~/.thoth)
+	Addr string       // host:port the api/websocket checks probe ("" → 127.0.0.1:8333)
+	Log  *slog.Logger // diagnostics (reserved for future checks)
+	HTTP *http.Client // HTTP client for the provider probe (nil → http.DefaultClient); tests stub the endpoint
+	// BaseURL overrides the provider base URL the provider probe targets
+	// ("" → the provider's public endpoint); tests point it at a stub so the
+	// probe never touches the live network.
+	BaseURL string
+}
+
+// Run probes the installation and returns every check, in order: wiki,
+// provider, api key, model, database, index, malformed, api, websocket. Every
+// check runs even when an earlier one fails. opts.Dir ("" → ~/.thoth) is the
+// install to check; opts.Addr is the host:port the api/websocket checks probe
+// ("" → 127.0.0.1:8333; tests inject a free port). ctx bounds the provider
+// probe; opts.HTTP and opts.BaseURL stub its endpoint in tests.
+func Run(ctx context.Context, opts Options) []Check {
+	dir := opts.Dir
+	if dir == "" {
 		home, err := os.UserHomeDir()
 		if err != nil {
 			return []Check{{Name: "home", OK: false, Message: fmt.Sprintf("cannot resolve home directory: %v", err)}}
 		}
-		thDir = filepath.Join(home, ".thoth")
+		dir = filepath.Join(home, ".thoth")
 	}
+	addr := opts.Addr
 	if addr == "" {
 		addr = defaultAddr()
 	}
-	dbPath := filepath.Join(thDir, "thoth.db")
+	dbPath := filepath.Join(dir, "thoth.db")
 
-	results := make([]Check, 0, 10)
+	results := make([]Check, 0, 9)
 
 	// 1. wiki — the path lives in the settings table; a missing database
 	// falls back to the default (the doctor must not create the DB itself).
@@ -73,8 +86,9 @@ func Run(ctx context.Context, dir string, addr string, log *slog.Logger) []Check
 	}
 	results = append(results, checkWiki(expanded, wikiFolders(dbPath)))
 
-	// 2. claude CLI
-	results = append(results, checkClaude(ctx)...)
+	// 2. provider — native backend connectivity, probed against the provider
+	// the selected model maps to.
+	results = append(results, checkProvider(ctx, dbPath, opts))
 
 	// 3. setup state — api key and model, from the settings table.
 	results = append(results, checkSettings(dbPath)...)
@@ -162,37 +176,110 @@ func checkWiki(root string, folders []string) Check {
 	return Check{Name: "wiki", OK: true, Message: fmt.Sprintf("%s exists with the %d scaffold folders and CLAUDE.md", root, len(folders))}
 }
 
-// checkClaude resolves "claude" on PATH, reports its version, and probes the
-// login state. The login result is only reported when the binary was found.
-func checkClaude(ctx context.Context) []Check {
-	bin, notFound := resolveClaudeBin()
-	if notFound != "" {
-		return []Check{{Name: "claude", OK: false, Message: notFound}}
-	}
-	cctx, cancel := context.WithTimeout(ctx, claudeCheckTimeout)
-	defer cancel()
-	ver, err := exec.CommandContext(cctx, bin, "--version").Output()
-	if err != nil {
-		return []Check{{Name: "claude", OK: false, Message: fmt.Sprintf("%s --version failed: %v — is the CLI installed correctly?", bin, err)}}
-	}
-	results := []Check{{Name: "claude", OK: true, Message: fmt.Sprintf("%s (version %s)", bin, strings.TrimSpace(string(ver)))}}
-	cctx, cancel = context.WithTimeout(ctx, claudeCheckTimeout)
-	defer cancel()
-	if err := exec.CommandContext(cctx, bin, "auth", "status").Run(); err != nil {
-		results = append(results, Check{Name: "claude login", OK: false, Message: "login status unknown (claude auth status did not exit 0)"})
-	} else {
-		results = append(results, Check{Name: "claude login", OK: true, Message: "login confirmed (claude auth status exited 0)"})
-	}
-	return results
+// providerProbe is the models-style request the connectivity check makes
+// against one provider family: the cheapest authenticated probe the provider
+// offers (it consumes no tokens), whose response status distinguishes the
+// failure modes the native agent actually hits.
+type providerProbe struct {
+	name    string // display name, e.g. "Anthropic"
+	baseURL string // provider origin; the models request path is appended
+	path    string // e.g. /v1/models
+	key     string // request header the API key rides in
+	bearer  bool   // true → Authorization: Bearer, false → a bare header
+	version string // anthropic-version header (Anthropic only)
 }
 
-// resolveClaudeBin returns the claude binary to probe: "claude" from PATH.
-// The second return value is a failure message, or "" when resolved.
-func resolveClaudeBin() (string, string) {
-	if p, err := exec.LookPath("claude"); err == nil {
-		return p, ""
+// providerProbeFor maps a model id to the provider probe that serves it,
+// mirroring internal/agent's provider selection: the claude-* family is
+// Anthropic, gpt-* is OpenAI-compatible. Families without a concrete provider
+// here error, exactly as the agent would when asked to run them.
+func providerProbeFor(model string) (providerProbe, error) {
+	switch {
+	case strings.HasPrefix(model, "claude-"):
+		return providerProbe{name: "Anthropic", baseURL: "https://api.anthropic.com", path: "/v1/models", key: "x-api-key", version: "2023-06-01"}, nil
+	case strings.HasPrefix(model, "gpt-"):
+		return providerProbe{name: "OpenAI", baseURL: "https://api.openai.com", path: "/v1/models", key: "Authorization", bearer: true}, nil
+	default:
+		return providerProbe{}, fmt.Errorf("no provider for model %q", model)
 	}
-	return "", "claude CLI not found on PATH — install it"
+}
+
+// checkProvider probes the configured provider's models endpoint with the
+// stored API key and reports reachability, keeping auth failure distinct from
+// a down endpoint or provider-side error. The probe is bounded by ctx and
+// opts.HTTP (nil → http.DefaultClient); opts.BaseURL overrides the provider
+// default so tests stub the endpoint.
+func checkProvider(ctx context.Context, dbPath string, opts Options) Check {
+	key, model, err := backendSettings(dbPath)
+	if err != nil {
+		return Check{Name: "provider", OK: false, Message: fmt.Sprintf("cannot read the settings table: %v", err)}
+	}
+	if model == "" {
+		return Check{Name: "provider", OK: false, Message: "no model selected — cannot determine which provider to probe"}
+	}
+	probe, err := providerProbeFor(model)
+	if err != nil {
+		return Check{Name: "provider", OK: false, Message: err.Error()}
+	}
+	if opts.BaseURL != "" {
+		probe.baseURL = opts.BaseURL
+	}
+	pctx, cancel := context.WithTimeout(ctx, providerCheckTimeout)
+	defer cancel()
+	req, err := http.NewRequestWithContext(pctx, http.MethodGet, strings.TrimRight(probe.baseURL, "/")+probe.path, nil)
+	if err != nil {
+		return Check{Name: "provider", OK: false, Message: fmt.Sprintf("cannot build provider probe: %v", err)}
+	}
+	if probe.bearer {
+		req.Header.Set("authorization", "Bearer "+key)
+	} else {
+		req.Header.Set(probe.key, key)
+	}
+	if probe.version != "" {
+		req.Header.Set("anthropic-version", probe.version)
+	}
+	client := opts.HTTP
+	if client == nil {
+		client = http.DefaultClient
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		if pctx.Err() != nil {
+			return Check{Name: "provider", OK: false, Message: fmt.Sprintf("%s probe timed out", probe.name)}
+		}
+		return Check{Name: "provider", OK: false, Message: fmt.Sprintf("%s endpoint unreachable: %v", probe.name, err)}
+	}
+	defer func() { _ = resp.Body.Close() }()
+	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 4096))
+	switch {
+	case resp.StatusCode == http.StatusOK:
+		return Check{Name: "provider", OK: true, Message: fmt.Sprintf("%s reachable at %s", probe.name, probe.baseURL)}
+	case resp.StatusCode == http.StatusUnauthorized:
+		return Check{Name: "provider", OK: false, Message: fmt.Sprintf("%s rejected the API key (401) — set a valid one in Settings → General", probe.name)}
+	case resp.StatusCode == http.StatusTooManyRequests:
+		return Check{Name: "provider", OK: false, Message: fmt.Sprintf("%s rate limited (429) — retry later", probe.name)}
+	case resp.StatusCode >= 500:
+		return Check{Name: "provider", OK: false, Message: fmt.Sprintf("%s returned a server error (%s)", probe.name, resp.Status)}
+	default:
+		return Check{Name: "provider", OK: false, Message: fmt.Sprintf("%s returned %s", probe.name, resp.Status)}
+	}
+}
+
+// backendSettings reads the api key and model from the settings table; a
+// missing database yields empty values and no error, so callers fall through
+// to their unset-state messages.
+func backendSettings(dbPath string) (key, model string, err error) {
+	if !fileExists(dbPath) {
+		return "", "", nil
+	}
+	r, err := settings.OpenRepo(dbPath)
+	if err != nil {
+		return "", "", err
+	}
+	defer func() { _ = r.Close() }()
+	key, _, keyErr := r.Setting(settings.KeyAPIKey)
+	model, _, modelErr := r.Setting(settings.KeyModel)
+	return key, model, errors.Join(keyErr, modelErr)
 }
 
 // unreadableSettings builds the failed api key + model checks for a settings
@@ -204,38 +291,49 @@ func unreadableSettings(err error) []Check {
 
 // checkSettings reports the user-facing setup state: whether the API key and
 // the selected model are configured. Both are optional (an unset key
-// inherits the server environment and an unset model keeps the CLI default),
-// so an unset value is a failed check whose message explains the fallback.
+// inherits the server environment and an unset model keeps the default), so
+// an unset value is a failed check whose message explains the fallback. A
+// model whose value is not in the llm_models registry is reported as unknown.
 func checkSettings(dbPath string) []Check {
 	unset := func(name, message string) Check { return Check{Name: name, OK: false, Message: message} }
-	if !fileExists(dbPath) {
-		return []Check{
-			unset("api key", "no API key configured — set one in Settings → General (without it the CLI inherits ANTHROPIC_API_KEY from the server environment)"),
-			unset("model", "no model selected — the CLI default is used; pick one in Settings → General"),
-		}
-	}
-	r, err := settings.OpenRepo(dbPath)
+	key, model, err := backendSettings(dbPath)
 	if err != nil {
-		return unreadableSettings(err)
-	}
-	defer func() { _ = r.Close() }()
-	key, _, keyErr := r.Setting(settings.KeyAPIKey)
-	model, _, modelErr := r.Setting(settings.KeyModel)
-	if err := errors.Join(keyErr, modelErr); err != nil {
 		return unreadableSettings(err)
 	}
 	checks := make([]Check, 0, 2)
 	if key != "" {
 		checks = append(checks, Check{Name: "api key", OK: true, Message: "API key configured"})
 	} else {
-		checks = append(checks, unset("api key", "no API key configured — set one in Settings → General (without it the CLI inherits ANTHROPIC_API_KEY from the server environment)"))
+		checks = append(checks, unset("api key", "no API key configured — set one in Settings → General (without it the agent inherits the API key from the server environment)"))
 	}
 	if model != "" {
-		checks = append(checks, Check{Name: "model", OK: true, Message: fmt.Sprintf("model %q selected", model)})
+		if modelKnown(dbPath, model) {
+			checks = append(checks, Check{Name: "model", OK: true, Message: fmt.Sprintf("model %q selected", model)})
+		} else {
+			checks = append(checks, Check{Name: "model", OK: false, Message: fmt.Sprintf("unknown model %q — it is not in the model registry; pick one in Settings → LLM Models", model)})
+		}
 	} else {
-		checks = append(checks, unset("model", "no model selected — the CLI default is used; pick one in Settings → General"))
+		checks = append(checks, unset("model", "no model selected — the default model is used; pick one in Settings → General"))
 	}
 	return checks
+}
+
+// modelKnown reports whether value exists in the llm_models registry. An
+// unreadable registry (or an absent table) counts as unknown.
+func modelKnown(dbPath, value string) bool {
+	if value == "" || !fileExists(dbPath) {
+		return false
+	}
+	db, err := sql.Open("sqlite", dbPath)
+	if err != nil {
+		return false
+	}
+	defer func() { _ = db.Close() }()
+	var n int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM llm_models WHERE value = ?`, value).Scan(&n); err != nil {
+		return false
+	}
+	return n > 0
 }
 
 // checkDatabase verifies that thoth.db exists, opens in WAL mode, and has the
@@ -395,19 +493,12 @@ func checkAPI(addr string) (Check, bool) {
 	defer func() { _ = resp.Body.Close() }()
 	var h struct {
 		Status string `json:"status"`
-		Claude struct {
-			Found bool   `json:"found"`
-			Path  string `json:"path"`
-		} `json:"claude"`
-		Wiki struct {
+		Wiki   struct {
 			Exists bool `json:"exists"`
 		} `json:"wiki"`
 	}
 	if resp.StatusCode != http.StatusOK || json.NewDecoder(resp.Body).Decode(&h) != nil || h.Status != "ok" {
 		return Check{Name: "api", OK: false, Message: fmt.Sprintf("port %s is occupied by a non-thoth process", addr)}, false
-	}
-	if !h.Claude.Found {
-		return Check{Name: "api", OK: false, Message: fmt.Sprintf("api healthy at %s but the claude CLI was not found", addr)}, true
 	}
 	if !h.Wiki.Exists {
 		return Check{Name: "api", OK: false, Message: fmt.Sprintf("api healthy at %s but the wiki path does not exist", addr)}, true
@@ -454,5 +545,3 @@ func isDir(p string) bool {
 	fi, err := os.Stat(p)
 	return err == nil && fi.IsDir()
 }
-
-// (removed with config.toml: the claude binary always comes from PATH)

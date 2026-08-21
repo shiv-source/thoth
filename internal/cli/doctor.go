@@ -24,33 +24,37 @@ var errUnhealthy = errors.New("doctor: one or more checks failed")
 // --fix, the repairs. The paths the repair pass needs are captured here
 // because the shared checks resolve them internally.
 type doctorRunner struct {
-	log          *slog.Logger
-	fixes        []string
-	dbPath       string
-	wikiPath     string
-	wikiResolved bool
-	wikiFolders  []string
+	log             *slog.Logger
+	fixes           []string
+	dbPath          string
+	wikiPath        string
+	wikiResolved    bool
+	wikiFolders     []string
+	providerBaseURL string
 }
 
 func newDoctorCmd() *cobra.Command {
 	var dir string
 	var fix bool
+	var providerBaseURL string
 	cmd := &cobra.Command{
 		Use:          "doctor",
 		Short:        "Check the health of the Thoth installation",
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runDoctor(dir, fix)
+			return runDoctor(dir, fix, providerBaseURL)
 		},
 	}
 	cmd.Flags().BoolVar(&fix, "fix", false, "repair what can be fixed automatically")
 	cmd.Flags().StringVar(&dir, "dir", "", "thoth directory to check (default ~/.thoth)")
+	cmd.Flags().StringVar(&providerBaseURL, "provider-base-url", "", "provider base URL the provider check probes (default: the provider's public endpoint)")
 	_ = cmd.Flags().MarkHidden("dir")
+	_ = cmd.Flags().MarkHidden("provider-base-url")
 	return cmd
 }
 
-func runDoctor(dir string, fix bool) error {
-	d := &doctorRunner{log: slog.New(slog.NewTextHandler(os.Stderr, nil))}
+func runDoctor(dir string, fix bool, providerBaseURL string) error {
+	d := &doctorRunner{log: slog.New(slog.NewTextHandler(os.Stderr, nil)), providerBaseURL: providerBaseURL}
 	checks := d.checks(dir, fix)
 	for _, f := range d.fixes {
 		_, _ = fmt.Fprintf(os.Stdout, "fixed: %s\n", f)
@@ -108,7 +112,7 @@ func (d *doctorRunner) runChecks(dir string) []doctor.Check {
 	} else {
 		d.wikiPath = expanded
 	}
-	return doctor.Run(context.Background(), dir, "", d.log)
+	return doctor.Run(context.Background(), doctor.Options{Dir: dir, Log: d.log, BaseURL: d.providerBaseURL})
 }
 
 // resolveThothDir returns dir, or ~/.thoth when dir is empty. It mirrors the
@@ -125,8 +129,8 @@ func resolveThothDir(dir string) (string, error) {
 }
 
 // repair fixes what --fix is allowed to touch: a missing wiki and an
-// out-of-sync index. It never touches the claude login. It returns whether
-// any fix was applied.
+// out-of-sync index. It never touches provider connectivity or api keys. It
+// returns whether any fix was applied.
 func (d *doctorRunner) repair(results []doctor.Check) bool {
 	fixed := false
 	if d.wikiResolved && failed(results, "wiki") {

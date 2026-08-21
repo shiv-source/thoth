@@ -18,17 +18,12 @@ import (
 )
 
 // healthyThothDir builds a fully healthy installation in a temp dir: a wiki
-// with one note, a synced index, a settings row pointing at the wiki, and a
-// fake claude on PATH. Returns the dir; d.DataDir must point at it.
+// with one note, a synced index, a settings row pointing at the wiki, the
+// selected model seeded into the registry, and a configured api key. Returns
+// the dir; d.DataDir must point at it.
 func healthyThothDir(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()
-	claude := filepath.Join(t.TempDir(), "claude")
-	script := "#!/bin/sh\ncase \"$1\" in\n  --version) echo \"9.9.9\"; exit 0 ;;\n  auth) exit 0 ;;\n  *) exit 1 ;;\nesac\n"
-	if err := os.WriteFile(claude, []byte(script), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	t.Setenv("PATH", filepath.Dir(claude))
 
 	wikiRoot := filepath.Join(dir, "wiki")
 	if err := wiki.Scaffold(wikiRoot); err != nil {
@@ -56,6 +51,13 @@ func healthyThothDir(t *testing.T) string {
 	if err := ix.Close(); err != nil {
 		t.Fatal(err)
 	}
+	st, err = store.Open(dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := st.CreateModel("claude-sonnet-5", "Claude Sonnet 5", "balanced", "Anthropic"); err != nil {
+		t.Fatal(err)
+	}
 	stg, err := settings.OpenRepo(dbPath)
 	if err != nil {
 		t.Fatal(err)
@@ -79,6 +81,15 @@ func healthyThothDir(t *testing.T) string {
 func TestDoctorEndpointHealthy(t *testing.T) {
 	d := testDeps(t)
 	d.DataDir = healthyThothDir(t)
+
+	// Point the provider probe at a stub that answers 200, so the check never
+	// touches the live network.
+	pv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer pv.Close()
+	d.DoctorHTTP = pv.Client()
+	d.DoctorBaseURL = pv.URL
 
 	// Point the api/websocket probes at a port this test controls: CI runners
 	// occasionally have something squatting on 127.0.0.1:8333, which flips
@@ -114,7 +125,7 @@ func TestDoctorEndpointHealthy(t *testing.T) {
 	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
 		t.Fatal(err)
 	}
-	want := []string{"wiki", "claude", "claude login", "api key", "model", "database", "index", "malformed", "api", "websocket"}
+	want := []string{"wiki", "provider", "api key", "model", "database", "index", "malformed", "api", "websocket"}
 	if len(body.Checks) != len(want) {
 		t.Fatalf("got %d checks, want %d: %+v", len(body.Checks), len(want), body.Checks)
 	}
