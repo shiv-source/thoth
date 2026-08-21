@@ -2,11 +2,11 @@ package cli
 
 import (
 	"database/sql"
-	"fmt"
 	"io"
 	"log/slog"
 	"net"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -20,33 +20,12 @@ import (
 	"github.com/shiv-source/thoth/internal/wiki"
 )
 
-// writeFakeClaude writes an executable fake claude script into a fresh temp
-// dir and returns its path. --version always prints 9.9.9 and exits 0; auth
-// status exits with authStatusExit (0 for "logged in", 1 for unknown).
-func writeFakeClaude(t *testing.T, authStatusExit int) string {
-	t.Helper()
-	script := fmt.Sprintf(`#!/bin/sh
-case "$1" in
-  --version) echo "9.9.9"; exit 0 ;;
-  auth) exit %d ;;
-  *) exit 1 ;;
-esac
-`, authStatusExit)
-	p := filepath.Join(t.TempDir(), "claude")
-	if err := os.WriteFile(p, []byte(script), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	return p
-}
-
 // healthyEnv builds a fully healthy installation in a temp thoth dir: a wiki
-// with one valid note, a synced index, a config with a free port, and a fake
-// claude on PATH. Returns the thoth dir.
-func healthyEnv(t *testing.T, authStatusExit int) string {
+// with one valid note, a synced index, the selected model seeded into the
+// registry, and a configured api key. Returns the thoth dir.
+func healthyEnv(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()
-	claude := writeFakeClaude(t, authStatusExit)
-	t.Setenv("PATH", filepath.Dir(claude))
 
 	wikiRoot := filepath.Join(dir, "wiki")
 	if err := wiki.Scaffold(wikiRoot); err != nil {
@@ -76,6 +55,17 @@ func healthyEnv(t *testing.T, authStatusExit int) string {
 		t.Fatal(err)
 	}
 
+	st, err = store.Open(dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := st.CreateModel("claude-sonnet-5", "Claude Sonnet 5", "balanced", "Anthropic"); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.Close(); err != nil {
+		t.Fatal(err)
+	}
+
 	stg, err := settings.OpenRepo(dbPath)
 	if err != nil {
 		t.Fatal(err)
@@ -98,12 +88,19 @@ func healthyEnv(t *testing.T, authStatusExit int) string {
 
 func executeDoctor(t *testing.T, dir string, fix bool) (string, error) {
 	t.Helper()
+	// Point the provider check at a stub answering 200, so the CLI never
+	// probes the live network in tests.
+	pv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer pv.Close()
 	root := newRootCmd()
 	args := []string{"doctor"}
 	if fix {
 		args = append(args, "--fix")
 	}
 	args = append(args, "--dir", dir)
+	args = append(args, "--provider-base-url", pv.URL)
 	var err error
 	out := captureStdout(t, func() {
 		root.SetArgs(args)
@@ -125,7 +122,7 @@ func serveThothOnFixedPort(t *testing.T) {
 	srv := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/api/health":
-			_, _ = w.Write([]byte(`{"status":"ok","claude":{"found":true,"path":"/fake/claude"},"wiki":{"path":"/fake/wiki","exists":true}}`))
+			_, _ = w.Write([]byte(`{"status":"ok","wiki":{"path":"/fake/wiki","exists":true}}`))
 		case "/ws":
 			conn, err := upgrader.Upgrade(w, r, nil)
 			if err != nil {
@@ -141,7 +138,7 @@ func serveThothOnFixedPort(t *testing.T) {
 }
 
 func TestDoctorHealthy(t *testing.T) {
-	dir := healthyEnv(t, 0)
+	dir := healthyEnv(t)
 	// The api/websocket checks probe the fixed port; serve a stub Thoth on it
 	// so the healthy run is deterministic (skips if 8333 is busy).
 	serveThothOnFixedPort(t)
@@ -152,19 +149,13 @@ func TestDoctorHealthy(t *testing.T) {
 	if strings.Contains(out, "✗") {
 		t.Fatalf("unexpected failing checks:\n%s", out)
 	}
-	for _, want := range []string{"wiki:", "claude:", "claude login:", "api key:", "model:", "database:", "index:", "api:", "websocket:"} {
+	for _, want := range []string{"wiki:", "provider:", "api key:", "model:", "database:", "index:", "api:", "websocket:"} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("output missing %q:\n%s", want, out)
 		}
 	}
-	if !strings.Contains(out, "9.9.9") {
-		t.Fatalf("claude version not reported:\n%s", out)
-	}
 	if !strings.Contains(out, "in sync: 1 notes") {
 		t.Fatalf("index sync count not reported:\n%s", out)
-	}
-	if !strings.Contains(out, "login confirmed") {
-		t.Fatalf("login check not reported:\n%s", out)
 	}
 }
 
@@ -173,11 +164,12 @@ func TestDoctorMissingWikiAndFix(t *testing.T) {
 	// check — serve a stub Thoth there (skips if 8333 is busy).
 	serveThothOnFixedPort(t)
 	dir := t.TempDir()
-	claude := writeFakeClaude(t, 0)
-	t.Setenv("PATH", filepath.Dir(claude))
 	wikiRoot := filepath.Join(dir, "wiki")
 	st, err := store.Open(filepath.Join(dir, "thoth.db"))
 	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := st.CreateModel("claude-sonnet-5", "Claude Sonnet 5", "balanced", "Anthropic"); err != nil {
 		t.Fatal(err)
 	}
 	if err := st.Close(); err != nil {
@@ -237,7 +229,7 @@ func TestDoctorFixesOutOfSyncIndex(t *testing.T) {
 	// The post-fix run asserts a fully green suite incl. the fixed-port api
 	// check — serve a stub Thoth there (skips if 8333 is busy).
 	serveThothOnFixedPort(t)
-	dir := healthyEnv(t, 0)
+	dir := healthyEnv(t)
 	// Add a second note the index does not know about.
 	if err := os.WriteFile(filepath.Join(dir, "wiki", "inbox", "later.md"),
 		[]byte("---\ntitle: Later\n---\n\nLater body\n"), 0o644); err != nil {
@@ -264,35 +256,30 @@ func TestDoctorFixesOutOfSyncIndex(t *testing.T) {
 	}
 }
 
-func TestDoctorDetectsMissingClaude(t *testing.T) {
-	dir := healthyEnv(t, 0)
-	// Break the PATH so claude cannot be found.
-	t.Setenv("PATH", t.TempDir())
-	out, err := executeDoctor(t, dir, false)
+func TestDoctorReportsProviderAuthFailure(t *testing.T) {
+	// A provider endpoint that rejects the API key surfaces as a failing
+	// provider check with the status called out.
+	dir := healthyEnv(t)
+	root := newRootCmd()
+	pv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusUnauthorized)
+	}))
+	defer pv.Close()
+	var err error
+	out := captureStdout(t, func() {
+		root.SetArgs([]string{"doctor", "--dir", dir, "--provider-base-url", pv.URL})
+		err = root.Execute()
+	})
 	if err == nil {
-		t.Fatalf("expected doctor to fail without claude:\n%s", out)
+		t.Fatalf("expected doctor to fail on a provider auth failure:\n%s", out)
 	}
-	if !strings.Contains(out, "✗ claude") {
-		t.Fatalf("expected failing claude check:\n%s", out)
-	}
-	if strings.Contains(out, "claude login") {
-		t.Fatalf("login check must be skipped when claude is missing:\n%s", out)
-	}
-}
-
-func TestDoctorReportsUnknownLogin(t *testing.T) {
-	dir := healthyEnv(t, 1) // auth status exits 1
-	out, err := executeDoctor(t, dir, false)
-	if err == nil {
-		t.Fatalf("expected doctor to fail on unknown login:\n%s", out)
-	}
-	if !strings.Contains(out, "✗ claude login") || !strings.Contains(out, "login status unknown") {
-		t.Fatalf("expected unknown login report:\n%s", out)
+	if !strings.Contains(out, "✗ provider") || !strings.Contains(out, "401") {
+		t.Fatalf("expected failing provider check:\n%s", out)
 	}
 }
 
 func TestDoctorDetectsBusyPort(t *testing.T) {
-	dir := healthyEnv(t, 0)
+	dir := healthyEnv(t)
 	// The api check probes the fixed 127.0.0.1:8333 address; skip when a real
 	// server occupies it.
 	ln, err := net.Listen("tcp", "127.0.0.1:8333")
@@ -314,8 +301,6 @@ func TestDoctorFixesMissingDefaultWiki(t *testing.T) {
 	dir := t.TempDir()
 	home := t.TempDir()
 	t.Setenv("HOME", home)
-	claude := writeFakeClaude(t, 0)
-	t.Setenv("PATH", filepath.Dir(claude))
 
 	out, err := executeDoctor(t, dir, true)
 	// The default port (8333) may or may not be free on this machine, so the
@@ -334,8 +319,6 @@ func TestDoctorFixesMissingDefaultWiki(t *testing.T) {
 
 func TestDoctorDetectsMissingIndexTables(t *testing.T) {
 	dir := t.TempDir()
-	claude := writeFakeClaude(t, 0)
-	t.Setenv("PATH", filepath.Dir(claude))
 	wikiRoot := filepath.Join(dir, "wiki")
 	if err := wiki.Scaffold(wikiRoot); err != nil {
 		t.Fatal(err)
@@ -381,8 +364,6 @@ func TestDoctorDetectsMissingIndexTables(t *testing.T) {
 
 func TestDoctorDetectsNonWALDatabase(t *testing.T) {
 	dir := t.TempDir()
-	claude := writeFakeClaude(t, 0)
-	t.Setenv("PATH", filepath.Dir(claude))
 	wikiRoot := filepath.Join(dir, "wiki")
 	if err := wiki.Scaffold(wikiRoot); err != nil {
 		t.Fatal(err)

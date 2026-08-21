@@ -102,7 +102,7 @@ Conversations, messages, and the llm_models registry in the same `thoth.db` (sep
 
 ## internal/doctor
 
-`Run(ctx, dir, addr, log)` runs the ten install checks (wiki, claude, claude login, api key, model, database, index, malformed, api, websocket) and returns `[]Check`, each carrying `Name`/`OK`/`Message`. The dashboard's Settings → Doctor tab runs the same suite via `GET /api/doctor` (details: [CLI](cli.md)).
+`Run(ctx, Options{Dir, Addr, Log, HTTP, BaseURL})` runs the nine install checks (wiki, provider, api key, model, database, index, malformed, api, websocket) and returns `[]Check`, each carrying `Name`/`OK`/`Message`. The provider check probes the selected model's provider models endpoint with the stored API key (HTTP client + base URL injectable for tests). The dashboard's Settings → Doctor tab runs the same suite via `GET /api/doctor` (details: [CLI](cli.md)).
 
 ## internal/github
 

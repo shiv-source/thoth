@@ -37,16 +37,15 @@ Prints `thoth <version>` (`dev` in development builds).
 
 ### `thoth doctor`
 
-Runs ten health checks and reports each. The checks live in the shared `internal/doctor` package — the dashboard's Settings → Doctor tab runs the same suite over `GET /api/doctor`:
+Runs nine health checks and reports each. The checks live in the shared `internal/doctor` package — the dashboard's Settings → Doctor tab runs the same suite over `GET /api/doctor`:
 
 | Check | What it verifies |
 |---|---|
 
 | wiki | wiki exists with all 9 folders + `CLAUDE.md` |
-| claude | binary found; `claude --version` works |
-| claude login | `claude auth status` exits 0 (reported when the binary was found) |
-| api key | an API key is stored in the settings table (unset = inherit the server's `ANTHROPIC_API_KEY`) |
-| model | a model is selected in the settings table (unset = the CLI's own default) |
+| provider | the configured provider answers its models endpoint (200 = reachable; 401 = bad/absent API key, 429 = rate limited, 5xx = provider error, timeout = unreachable) |
+| api key | an API key is stored in the settings table (unset = the agent inherits the key from the server environment) |
+| model | a model is selected and exists in the `llm_models` registry (unset = the default model; a value not in the registry = "unknown model") |
 | database | db opens in WAL with `notes` + `notes_fts` tables |
 | index | indexed count matches the number of valid notes on disk |
 | malformed | no markdown notes the index silently skips (unparseable frontmatter) |
@@ -57,8 +56,9 @@ Flags:
 
 | Flag | Purpose |
 |---|---|
-| `--fix` | Repair the safe failures: missing config (writes defaults), missing wiki (scaffolds), out-of-sync index (syncs). Never touches your Claude login. |
+| `--fix` | Repair the safe failures: missing wiki (scaffolds), out-of-sync index (syncs). Never touches provider connectivity or API keys. |
 | `--dir` | (hidden, test-only) Override `~/.thoth` |
+| `--provider-base-url` | (hidden, test-only) Provider base URL the provider check probes instead of the provider's public endpoint |
 
 **Exit codes:** `0` when all checks pass, `1` when any fails. Script-friendly:
 

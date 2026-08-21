@@ -9,8 +9,8 @@ import (
 	"github.com/shiv-source/thoth/internal/doctor"
 )
 
-// doctorTimeout bounds the whole check suite; the claude probes inside already
-// carry their own 5s timeouts, so this is a backstop for a wedged exec.
+// doctorTimeout bounds the whole check suite; the provider probe inside
+// carries its own timeout, so this is a backstop for a wedged request.
 const doctorTimeout = 15 * time.Second
 
 // doctorHandler runs the shared installation checks against the thoth dir the
@@ -20,6 +20,12 @@ func doctorHandler(c echo.Context, d Deps) error {
 	defer cancel()
 	// The api check probes the configured address — in-flight that is this
 	// very server, so it self-checks the health payload and websocket.
-	checks := doctor.Run(ctx, d.DataDir, d.DoctorAddr, d.Log)
+	checks := doctor.Run(ctx, doctor.Options{
+		Dir:     d.DataDir,
+		Addr:    d.DoctorAddr,
+		Log:     d.Log,
+		HTTP:    d.DoctorHTTP,
+		BaseURL: d.DoctorBaseURL,
+	})
 	return c.JSON(http.StatusOK, map[string]any{"checks": checks})
 }

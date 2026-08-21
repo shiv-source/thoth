@@ -74,6 +74,64 @@ func TestHealth(t *testing.T) {
 	}
 }
 
+// backendBody is the /api/health backend shape under test.
+type backendBody struct {
+	Name             string `json:"name"`
+	APIKeyConfigured bool   `json:"api_key_configured"`
+	Model            string `json:"model"`
+	Provider         string `json:"provider"`
+}
+
+func TestHealthBackendUnconfigured(t *testing.T) {
+	// A fresh database: no claude field anywhere, and the backend reports the
+	// native agent with nothing configured.
+	e := New(testDeps(t))
+	req := httptest.NewRequest(http.MethodGet, "/api/health", nil)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(rec.Body.Bytes(), &raw); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := raw["claude"]; ok {
+		t.Fatalf("health must not expose a claude field: %s", rec.Body.String())
+	}
+	var b backendBody
+	if err := json.Unmarshal(raw["backend"], &b); err != nil {
+		t.Fatal(err)
+	}
+	if b.Name != "thoth-agent" || b.APIKeyConfigured || b.Model != "" || b.Provider != "" {
+		t.Fatalf("backend = %+v", b)
+	}
+}
+
+func TestHealthBackendConfigured(t *testing.T) {
+	deps := testDeps(t)
+	if _, err := deps.Store.CreateModel("claude-sonnet-5", "Claude Sonnet 5", "balanced", "Anthropic"); err != nil {
+		t.Fatal(err)
+	}
+	if err := deps.Settings.SetSetting(settings.KeyAPIKey, "sk-test"); err != nil {
+		t.Fatal(err)
+	}
+	if err := deps.Settings.SetSetting(settings.KeyModel, "claude-sonnet-5"); err != nil {
+		t.Fatal(err)
+	}
+	e := New(deps)
+	req := httptest.NewRequest(http.MethodGet, "/api/health", nil)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	var b backendBody
+	if err := json.Unmarshal(rec.Body.Bytes(), &struct {
+		Backend *backendBody `json:"backend"`
+	}{Backend: &b}); err != nil {
+		t.Fatal(err)
+	}
+	if b.Name != "thoth-agent" || !b.APIKeyConfigured || b.Model != "claude-sonnet-5" || b.Provider != "Anthropic" {
+		t.Fatalf("backend = %+v", b)
+	}
+}
+
 func TestHealthDev(t *testing.T) {
 	tests := []struct {
 		name string
