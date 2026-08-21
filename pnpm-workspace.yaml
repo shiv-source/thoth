@@ -5,3 +5,7 @@ packages:
 allowBuilds:
   '@swc/core': true
   core-js: true
+# Force patched versions for transitive dev dependencies (docs-site toolchain).
+overrides:
+  serialize-javascript: 7.1.0
+  uuid: 11.1.1
