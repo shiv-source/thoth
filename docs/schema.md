@@ -85,7 +85,7 @@ The search index's source rows. The wiki markdown files are the source of truth 
 |---|---|---|
 | `path` | TEXT PK | Wiki-relative file path |
 | `title` | TEXT NOT NULL | From frontmatter (required by the rulebook); the filename for attachments |
-| `kind` | TEXT NOT NULL DEFAULT 'note' | `note`, `meeting`, `todo`, `file` (attachment), … |
+| `kind` | TEXT NOT NULL DEFAULT 'note' | `note`, `meeting`, `todo`, `file` (attachment), …; from the frontmatter `type:` key (`kind:` is an accepted alias) |
 | `tags` | TEXT NOT NULL DEFAULT '' | Comma-joined frontmatter tags |
 | `body` | TEXT NOT NULL | Note text below the frontmatter; empty for attachments |
 | `updated_at` | TEXT NOT NULL | UTC RFC3339Nano (sub-second), from file mtime |

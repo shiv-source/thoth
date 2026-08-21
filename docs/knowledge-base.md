@@ -37,11 +37,13 @@ type: <inbox|meeting|project|link|setup|knowledge|todo|daily>
 
 The rulebook ships as a template at `internal/wiki/templates/CLAUDE.md` and is scaffolded by `thoth init`; the template and the in-repo validation are the same source (`Rulebook()`, see [Components](components.md)). The rulebook's folder map is generated from the configured folder set, so it always matches the layout, and the frontmatter `type:` list is derived from the same folders (singular form: `meetings/` → `meeting`, custom `recipes/` → `recipe`), so the two can never drift. An existing `CLAUDE.md` is never overwritten — edit it freely to adapt the organization to how you think. `type: note` is a legacy value tolerated for old notes; new notes use the type of their folder.
 
+`type:` is the one canonical key for the note type; `kind:` is accepted as an alias (a note written with `kind:` parses the same way, and the index stores it in the `kind` column). The parser tolerates a UTF-8 BOM and CRLF line endings, closes frontmatter on a line that is exactly `---` (or `...`), and validates fields loudly instead of silently dropping a note: `date` must be `YYYY-MM-DD`, `type` a single word, and `tags` a list of non-empty strings.
+
 Every scaffold also initializes a local git repository (via the pure-Go `agent/git` backend — no git binary needed) with a `.gitignore` covering `.DS_Store` and `*.db`, so the wiki is versioned from day one; the Settings → Git remote tab adds the remote and pushes.
 
 ## Notes in the index
 
-Notes are indexed only when their frontmatter parses and has a `title` (`internal/wiki/note.go`). Malformed files are skipped and logged, never fatal — see [Indexing & search](indexing.md).
+Notes are indexed only when their frontmatter parses and has a `title` (`internal/wiki/note.go`). Parsing also rejects a bad `date`, `type`, or `tags` shape — such notes are skipped and logged, never fatal — see [Indexing & search](indexing.md).
 
 Save-protocol violations (missing frontmatter, a `type:` that doesn't match the note's folder, non-kebab-case filenames, missing date prefixes in `meetings/`/`daily/`) are validated on the read path by `wiki.Validate` (`internal/wiki/validate.go`): hard frontmatter failures are logged by the index and surfaced by `thoth doctor`'s "malformed" check, while advisory warnings (missing/mismatched `type`, filename shape) are logged when a note is added or changed so the author gets feedback. None of it is fatal — a warning-only note still indexes and stays searchable.
 
