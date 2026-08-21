@@ -16,11 +16,12 @@ import (
 	"github.com/shiv-source/thoth/internal/wiki"
 )
 
-// Client starts one turn for a conversation and streams normalized events.
-// The native agent host (internal/agent) implements it; defining the seam at
-// the consumer keeps the api layer free of a concrete chat implementation.
+// Client starts one turn for a conversation and streams normalized events,
+// returning the turn's token usage. The native agent host (internal/agent)
+// implements it; defining the seam at the consumer keeps the api layer free of
+// a concrete chat implementation.
 type Client interface {
-	Start(ctx context.Context, sessionID, prompt string, w agentlib.EventWriter) error
+	Start(ctx context.Context, sessionID, prompt string, w agentlib.EventWriter) (agentlib.Usage, error)
 }
 
 // clientMsg / serverMsg are the wire protocol (see Task 13 interfaces).
@@ -32,13 +33,23 @@ type clientMsg struct {
 }
 
 type serverMsg struct {
-	Type           string        `json:"type"`
-	Text           string        `json:"text,omitempty"`
-	Tool           string        `json:"tool,omitempty"`
-	Detail         string        `json:"detail,omitempty"`
-	Message        string        `json:"message,omitempty"`
-	ConversationID string        `json:"conversation_id,omitempty"`
-	Changes        []wiki.Change `json:"changes,omitempty"`
+	Type           string          `json:"type"`
+	Text           string          `json:"text,omitempty"`
+	Tool           string          `json:"tool,omitempty"`
+	Detail         string          `json:"detail,omitempty"`
+	Message        string          `json:"message,omitempty"`
+	ConversationID string          `json:"conversation_id,omitempty"`
+	Changes        []wiki.Change   `json:"changes,omitempty"`
+	Usage          *agentlib.Usage `json:"usage,omitempty"` // turn_done only; nil when the provider reported none
+}
+
+// usagePtr returns u as a pointer when any counter is non-zero, so a turn
+// whose provider reported no usage carries no usage field on the frame.
+func usagePtr(u agentlib.Usage) *agentlib.Usage {
+	if u == (agentlib.Usage{}) {
+		return nil
+	}
+	return &u
 }
 
 var upgrader = websocket.Upgrader{
@@ -339,12 +350,12 @@ func (h *Hub) runTurn(convID, prompt string, write func(serverMsg)) {
 
 	write(serverMsg{Type: "assistant_start"})
 	var sb strings.Builder
-	err := h.client.Start(ctx, convID, prompt, h.turnWriter(&sb, write, convID))
+	usage, err := h.client.Start(ctx, convID, prompt, h.turnWriter(&sb, write, convID))
 	if h.finishTurn(convID, err, write) {
 		return
 	}
 	h.persistTurn(convID, sb.String())
-	m := serverMsg{Type: "turn_done", ConversationID: convID}
+	m := serverMsg{Type: "turn_done", ConversationID: convID, Usage: usagePtr(usage)}
 	// Record before writing: once the client has seen this frame it may
 	// already be resuming, and the replay must include everything sent.
 	h.record(convID, m)

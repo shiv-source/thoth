@@ -122,19 +122,26 @@ func TestClientStartRunsTurnAgainstFakeProvider(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	prov := &fakeProvider{stream: &fakeStream{deltas: []agentlib.Delta{
-		agentlib.TextDelta("Hello"),
-		agentlib.ThinkingDelta("hmm"),
-		agentlib.StopDelta("end_turn"),
-	}}}
+	prov := &fakeProvider{stream: &fakeStream{
+		deltas: []agentlib.Delta{
+			agentlib.TextDelta("Hello"),
+			agentlib.ThinkingDelta("hmm"),
+			agentlib.StopDelta("end_turn"),
+		},
+		usage: agentlib.Usage{InputTokens: 12, OutputTokens: 3, CacheReadTokens: 5},
+	}}
 	c, err := New("claude-test", "key", w, st, openIndex(t), WithProvider(prov))
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}
 
 	var got collect
-	if err := c.Start(context.Background(), convID, "second question", &got); err != nil {
+	usage, err := c.Start(context.Background(), convID, "second question", &got)
+	if err != nil {
 		t.Fatalf("Start: %v", err)
+	}
+	if usage != (agentlib.Usage{InputTokens: 12, OutputTokens: 3, CacheReadTokens: 5}) {
+		t.Fatalf("Start usage = %+v, want the provider's usage", usage)
 	}
 
 	// Deltas flow out as agent events, then EventDone.
@@ -204,7 +211,7 @@ func TestClientStartCapsHistory(t *testing.T) {
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}
-	if err := c.Start(context.Background(), convID, "current", &collect{}); err != nil {
+	if _, err := c.Start(context.Background(), convID, "current", &collect{}); err != nil {
 		t.Fatalf("Start: %v", err)
 	}
 
@@ -232,7 +239,7 @@ func TestClientStartReadsSystemPerTurn(t *testing.T) {
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}
-	if err := c.Start(context.Background(), convID, "hi", &collect{}); err != nil {
+	if _, err := c.Start(context.Background(), convID, "hi", &collect{}); err != nil {
 		t.Fatal(err)
 	}
 	if prov.req.System != "rulebook v1" {
@@ -242,7 +249,7 @@ func TestClientStartReadsSystemPerTurn(t *testing.T) {
 	if err := writeRulebook(t, w, "rulebook v2"); err != nil {
 		t.Fatal(err)
 	}
-	if err := c.Start(context.Background(), convID, "hi again", &collect{}); err != nil {
+	if _, err := c.Start(context.Background(), convID, "hi again", &collect{}); err != nil {
 		t.Fatal(err)
 	}
 	if prov.req.System != "rulebook v2" {
@@ -264,7 +271,7 @@ func TestClientStartSurfacesProviderError(t *testing.T) {
 		t.Fatalf("New: %v", err)
 	}
 	var got collect
-	err = c.Start(context.Background(), convID, "hi", &got)
+	_, err = c.Start(context.Background(), convID, "hi", &got)
 	if !errors.Is(err, wantErr) {
 		t.Fatalf("Start error = %v, want %v", err, wantErr)
 	}
@@ -290,7 +297,7 @@ func TestClientStartRequiresWriter(t *testing.T) {
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}
-	if err := c.Start(context.Background(), convID, "hi", nil); err == nil {
+	if _, err := c.Start(context.Background(), convID, "hi", nil); err == nil {
 		t.Fatal("expected error for nil writer")
 	}
 }

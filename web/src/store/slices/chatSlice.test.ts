@@ -9,6 +9,7 @@ import {
     resetChat,
     selectConversationId,
     selectLastTool,
+    selectLastUsage,
     selectMessages,
     selectStreaming,
     selectThinking,
@@ -32,6 +33,7 @@ describe('chatSlice', () => {
         expect(selectLastTool(store.getState())).toBeNull()
         expect(selectThinking(store.getState())).toBe(false)
         expect(selectThinkingText(store.getState())).toBe('')
+        expect(selectLastUsage(store.getState())).toBeNull()
     })
 
     it('pushes the user message and starts streaming on send', () => {
@@ -80,20 +82,42 @@ describe('chatSlice', () => {
     it('tracks the running tool and clears it on turn_done', () => {
         store.dispatch(toolActivity('meetings/standup.md'))
         expect(selectLastTool(store.getState())).toBe('meetings/standup.md')
-        store.dispatch(turnDone(null))
+        store.dispatch(turnDone({ conversationId: null }))
         expect(selectLastTool(store.getState())).toBeNull()
     })
 
     it('records the conversation id from turn_done', () => {
-        store.dispatch(turnDone('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1'))
+        store.dispatch(turnDone({ conversationId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1' }))
         expect(selectConversationId(store.getState())).toBe('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1')
         expect(selectStreaming(store.getState())).toBe(false)
     })
 
     it('keeps the conversation id when turn_done has none', () => {
-        store.dispatch(turnDone('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1'))
-        store.dispatch(turnDone(null))
+        store.dispatch(turnDone({ conversationId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1' }))
+        store.dispatch(turnDone({ conversationId: null }))
         expect(selectConversationId(store.getState())).toBe('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1')
+    })
+
+    it('records token usage from turn_done and clears it on a new send', () => {
+        store.dispatch(
+            turnDone({
+                conversationId: null,
+                usage: { input_tokens: 10, output_tokens: 4, cache_read_tokens: 5, cache_write_tokens: 3 }
+            })
+        )
+        expect(selectLastUsage(store.getState())).toEqual({
+            input_tokens: 10,
+            output_tokens: 4,
+            cache_read_tokens: 5,
+            cache_write_tokens: 3
+        })
+        store.dispatch(userMessage('next question'))
+        expect(selectLastUsage(store.getState())).toBeNull()
+    })
+
+    it('stays null when turn_done carries no usage', () => {
+        store.dispatch(turnDone({ conversationId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1' }))
+        expect(selectLastUsage(store.getState())).toBeNull()
     })
 
     it('surfaces error frames as a visible assistant message', () => {
@@ -153,7 +177,7 @@ describe('chatSlice', () => {
 
     it('resets everything for a new chat', () => {
         store.dispatch(userMessage('hi'))
-        store.dispatch(turnDone('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1'))
+        store.dispatch(turnDone({ conversationId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1' }))
         store.dispatch(assistantDelta('bye'))
         store.dispatch(resetChat())
         expect(selectMessages(store.getState())).toEqual([])

@@ -167,9 +167,9 @@ func TestChatResumeReplays(t *testing.T) {
 // instantly and never exposes an in-flight turn).
 type hangClient struct{}
 
-func (hangClient) Start(ctx context.Context, _, _ string, _ agentlib.EventWriter) error {
+func (hangClient) Start(ctx context.Context, _, _ string, _ agentlib.EventWriter) (agentlib.Usage, error) {
 	<-ctx.Done()
-	return ctx.Err()
+	return agentlib.Usage{}, ctx.Err()
 }
 
 func TestChatUnknownMessageType(t *testing.T) {
@@ -374,6 +374,66 @@ func TestChatTurnDoneCarriesConversationID(t *testing.T) {
 	}
 }
 
+func TestChatTurnDoneCarriesUsage(t *testing.T) {
+	d := testDeps(t)
+	d.Claude = &FakeClient{
+		Script: []agentlib.Event{{Type: agentlib.EventDone}},
+		Usage:  agentlib.Usage{InputTokens: 10, OutputTokens: 4, CacheReadTokens: 5, CacheWriteTokens: 3},
+	}
+	e := New(d)
+
+	conn, _, err := websocket.DefaultDialer.Dial(wsURL(t, e), nil)
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	defer func() { _ = conn.Close() }()
+
+	if err := conn.WriteJSON(map[string]string{"type": "send", "text": "hello"}); err != nil {
+		t.Fatal(err)
+	}
+	for {
+		m := readMsg(t, conn)
+		if m["type"] != "turn_done" {
+			continue
+		}
+		u, ok := m["usage"].(map[string]any)
+		if !ok {
+			t.Fatalf("turn_done missing usage: %+v", m)
+		}
+		if u["input_tokens"] != float64(10) || u["output_tokens"] != float64(4) ||
+			u["cache_read_tokens"] != float64(5) || u["cache_write_tokens"] != float64(3) {
+			t.Fatalf("usage = %v, want input 10 / output 4 / cache read 5 / cache write 3", u)
+		}
+		return
+	}
+}
+
+func TestChatTurnDoneOmitsEmptyUsage(t *testing.T) {
+	d := testDeps(t)
+	d.Claude = &FakeClient{Script: []agentlib.Event{{Type: agentlib.EventDone}}}
+	e := New(d)
+
+	conn, _, err := websocket.DefaultDialer.Dial(wsURL(t, e), nil)
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	defer func() { _ = conn.Close() }()
+
+	if err := conn.WriteJSON(map[string]string{"type": "send", "text": "hello"}); err != nil {
+		t.Fatal(err)
+	}
+	for {
+		m := readMsg(t, conn)
+		if m["type"] != "turn_done" {
+			continue
+		}
+		if _, ok := m["usage"]; ok {
+			t.Fatalf("turn_done must omit usage when the provider reported none: %+v", m)
+		}
+		return
+	}
+}
+
 func TestChatOpenPinsConnectionForNextSend(t *testing.T) {
 	d := testDeps(t)
 	d.Claude = &FakeClient{Script: []agentlib.Event{{Type: agentlib.EventDone}}}
@@ -499,9 +559,9 @@ func TestChatResumePinsConnectionForNextSend(t *testing.T) {
 // returns its error, exercising the hub's shutdown wiring.
 type ctxAwareFake struct{}
 
-func (ctxAwareFake) Start(ctx context.Context, _, _ string, _ agentlib.EventWriter) error {
+func (ctxAwareFake) Start(ctx context.Context, _, _ string, _ agentlib.EventWriter) (agentlib.Usage, error) {
 	<-ctx.Done()
-	return ctx.Err()
+	return agentlib.Usage{}, ctx.Err()
 }
 
 func TestChatHubCancellationEndsTurns(t *testing.T) {

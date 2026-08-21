@@ -33,12 +33,13 @@ type Request struct {
 }
 
 // Usage holds the token counters a provider reports for a turn. Counters a
-// provider does not report are zero.
+// provider does not report are zero. The json tags give the host wire layer a
+// stable frame shape (usage on turn_done).
 type Usage struct {
-	InputTokens      int
-	OutputTokens     int
-	CacheReadTokens  int // prompt-cache hits; 0 when the provider has no cache
-	CacheWriteTokens int
+	InputTokens      int `json:"input_tokens"`
+	OutputTokens     int `json:"output_tokens"`
+	CacheReadTokens  int `json:"cache_read_tokens"`  // prompt-cache hits; 0 when the provider has no cache
+	CacheWriteTokens int `json:"cache_write_tokens"` // prompt-cache writes
 }
 
 // Response is a completed turn: the accumulated assistant message plus the

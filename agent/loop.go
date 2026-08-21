@@ -20,21 +20,22 @@ const stopToolUse = "tool_use"
 // requests tools, Start executes them through the registry, appends the
 // tool_use and tool_result messages, and repeats until the model ends the turn
 // or the iteration cap is hit. Cancelling ctx aborts the in-flight provider
-// stream and returns ctx.Err(). Start emits EventDone before returning nil.
-func (a *Agent) Start(ctx context.Context, convID, prompt string, w EventWriter) error {
+// stream and returns ctx.Err(). Start emits EventDone before returning nil,
+// and returns the token usage accumulated across the loop's provider turns.
+func (a *Agent) Start(ctx context.Context, convID, prompt string, w EventWriter) (Usage, error) {
 	if w == nil {
-		return errors.New("agent: EventWriter is required")
+		return Usage{}, errors.New("agent: EventWriter is required")
 	}
 	messages, err := a.conversation(ctx, convID, prompt)
 	if err != nil {
 		if ctxErr := ctx.Err(); ctxErr != nil {
-			return ctxErr
+			return Usage{}, ctxErr
 		}
-		return a.fail(w, err)
+		return Usage{}, a.fail(w, err)
 	}
 	for iter := 1; ; iter++ {
 		if iter > a.maxIterations {
-			return a.fail(w, fmt.Errorf("agent: tool loop exceeded %d iterations", a.maxIterations))
+			return Usage{}, a.fail(w, fmt.Errorf("agent: tool loop exceeded %d iterations", a.maxIterations))
 		}
 		s, err := a.provider.Stream(ctx, provider.Request{
 			System:    a.system,
@@ -44,22 +45,22 @@ func (a *Agent) Start(ctx context.Context, convID, prompt string, w EventWriter)
 		})
 		if err != nil {
 			if ctxErr := ctx.Err(); ctxErr != nil {
-				return ctxErr
+				return Usage{}, ctxErr
 			}
-			return a.fail(w, fmt.Errorf("agent: start turn: %w", err))
+			return Usage{}, a.fail(w, fmt.Errorf("agent: start turn: %w", err))
 		}
 		msg, stop, _, err := a.consumeTurn(s, w)
 		if err != nil {
 			if ctxErr := ctx.Err(); ctxErr != nil {
-				return ctxErr
+				return Usage{}, ctxErr
 			}
-			return a.fail(w, err)
+			return Usage{}, a.fail(w, err)
 		}
 		if stop != stopToolUse {
 			if err := w.Write(Event{Type: EventDone}); err != nil {
-				return a.fail(w, err)
+				return Usage{}, a.fail(w, err)
 			}
-			return nil
+			return a.Usage(), nil
 		}
 		messages = append(messages, msg)
 		for _, use := range msg.Content {
@@ -70,9 +71,9 @@ func (a *Agent) Start(ctx context.Context, convID, prompt string, w EventWriter)
 			result, err := a.runTool(ctx, convID, use)
 			if err != nil {
 				if ctxErr := ctx.Err(); ctxErr != nil {
-					return ctxErr
+					return Usage{}, ctxErr
 				}
-				return a.fail(w, err)
+				return Usage{}, a.fail(w, err)
 			}
 			messages = append(messages, Message{Role: RoleTool, Content: []Block{result}})
 		}

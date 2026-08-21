@@ -69,6 +69,29 @@ describe('useChat', () => {
         expect(result.current.conversationId).toBe('conv-9')
     })
 
+    it('surfaces token usage from turn_done', () => {
+        const socket = freshSocket()
+        const { result } = renderChatHook(socket)
+
+        const ws = FakeWS.instances[0]!
+        act(() =>
+            ws?.onmessage?.({
+                data: JSON.stringify({
+                    type: 'turn_done',
+                    conversation_id: 'conv-9',
+                    usage: { input_tokens: 8, output_tokens: 2, cache_read_tokens: 0, cache_write_tokens: 0 }
+                })
+            })
+        )
+
+        expect(result.current.lastUsage).toEqual({
+            input_tokens: 8,
+            output_tokens: 2,
+            cache_read_tokens: 0,
+            cache_write_tokens: 0
+        })
+    })
+
     it('renders error frames as a visible assistant message', () => {
         const socket = freshSocket()
         const { result } = renderChatHook(socket)

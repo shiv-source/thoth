@@ -9,6 +9,7 @@ import {
     resetChat,
     selectConversationId,
     selectLastTool,
+    selectLastUsage,
     selectMessages,
     selectStreaming,
     selectThinking,
@@ -35,6 +36,7 @@ export function useChat(socket: ChatSocket | null) {
     const lastTool = useAppSelector(selectLastTool)
     const thinking = useAppSelector(selectThinking)
     const thinkingText = useAppSelector(selectThinkingText)
+    const lastUsage = useAppSelector(selectLastUsage)
 
     const send = useCallback(
         (text: string) => {
@@ -67,7 +69,7 @@ export function useChat(socket: ChatSocket | null) {
                 case 'turn_done':
                     // The server sends the conversation id on every finished turn; keep
                     // it so a reconnect can resume this conversation.
-                    dispatch(turnDone(m.conversation_id ?? null))
+                    dispatch(turnDone({ conversationId: m.conversation_id ?? null, usage: m.usage }))
                     break
                 case 'wiki_changed':
                     // The watcher saw wiki files change: the tree is stale,
@@ -105,7 +107,19 @@ export function useChat(socket: ChatSocket | null) {
         if (socket) socket.onMessage(handle)
     }, [socket, handle])
 
-    return { messages, streaming, conversationId, lastTool, thinking, thinkingText, send, cancel, load, reset }
+    return {
+        messages,
+        streaming,
+        conversationId,
+        lastTool,
+        thinking,
+        thinkingText,
+        lastUsage,
+        send,
+        cancel,
+        load,
+        reset
+    }
 }
 
 /** Pick the label for the tool status line: a path from the input JSON when
