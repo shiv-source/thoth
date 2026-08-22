@@ -11,7 +11,7 @@ const result = { path: 'a.md', title: 'A note', kind: 'note', snippet: 'marked <
 describe('searchSlice', () => {
     it('stores the results of the latest query', async () => {
         stubAPI(mocks, {
-            '/api/search?q=thoth': () => ({ results: [result] })
+            '/api/v1/search?q=thoth': () => ({ results: [result] })
         })
         const store = makeStore()
         await store.dispatch(searchNotes('thoth'))

@@ -21,7 +21,7 @@ function renderPanel() {
 
 describe('ChatPage', () => {
     beforeEach(() => {
-        stubAPI(mocks, { 'GET /api/conversations': () => ({ conversations: [] }) })
+        stubAPI(mocks, { 'GET /api/v1/conversations': () => ({ conversations: [] }) })
     })
     afterEach(() => {
         FakeWS.instances = []
@@ -79,7 +79,7 @@ describe('ChatPage', () => {
         const emit = (frame: object) => act(() => FakeWS.instances[0]!.onmessage?.({ data: JSON.stringify(frame) }))
 
         emit({ type: 'turn_done', conversation_id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1' })
-        await waitFor(() => expect(mocks.get).toHaveBeenCalledWith('/api/conversations'))
+        await waitFor(() => expect(mocks.get).toHaveBeenCalledWith('/api/v1/conversations'))
     })
 
     it('shows token usage under the last message when turn_done carries it', () => {

@@ -9,7 +9,7 @@ vi.mock('axios', () => axiosModuleMock(mocks))
 describe('doctorSlice', () => {
     it('runs the checks and stores them', async () => {
         stubAPI(mocks, {
-            '/api/doctor': () => ({
+            '/api/v1/doctor': () => ({
                 checks: [
                     { name: 'claude', ok: true, message: 'found' },
                     { name: 'wiki', ok: false, message: 'missing' }

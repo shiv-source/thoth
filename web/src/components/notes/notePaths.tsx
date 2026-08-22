@@ -23,5 +23,5 @@ export function isImagePath(path: string): boolean {
 // in JSON but serves any other path as raw bytes (images inline, everything
 // else as a download), so an <img> or download link can point straight at it.
 export function noteUrl(path: string): string {
-    return `/api/notes?path=${encodeURIComponent(path)}`
+    return `/api/v1/notes?path=${encodeURIComponent(path)}`
 }

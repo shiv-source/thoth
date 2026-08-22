@@ -11,7 +11,7 @@ import { AppHeader } from '../../shared/AppHeader'
 import { UsageLine } from '../../components/chat/UsageLine'
 
 function createSocket(): ChatSocket {
-    const socket = new ChatSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws`)
+    const socket = new ChatSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws/v1`)
     socket.connect()
     return socket
 }

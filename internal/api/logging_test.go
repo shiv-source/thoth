@@ -23,7 +23,7 @@ func TestRequestLogsAPIPaths(t *testing.T) {
 	var buf bytes.Buffer
 	e := newLoggingServer(t, &buf)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/health", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/health", nil)
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
@@ -31,7 +31,7 @@ func TestRequestLogsAPIPaths(t *testing.T) {
 	}
 
 	line := buf.String()
-	for _, want := range []string{"msg=request", "method=GET", "path=/api/health", "status=200", "dur="} {
+	for _, want := range []string{"msg=request", "method=GET", "path=/api/v1/health", "status=200", "dur="} {
 		if !strings.Contains(line, want) {
 			t.Errorf("log line %q missing %q", line, want)
 		}
@@ -46,7 +46,7 @@ func TestRequestLogsFailureWithErr(t *testing.T) {
 	e := newLoggingServer(t, &buf)
 
 	// Missing q is a 400 with the handler's own error body.
-	req := httptest.NewRequest(http.MethodGet, "/api/search", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/search", nil)
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
 	if rec.Code != http.StatusBadRequest {
@@ -54,7 +54,7 @@ func TestRequestLogsFailureWithErr(t *testing.T) {
 	}
 
 	line := buf.String()
-	if !strings.Contains(line, "path=/api/search") || !strings.Contains(line, "status=400") {
+	if !strings.Contains(line, "path=/api/v1/search") || !strings.Contains(line, "status=400") {
 		t.Errorf("log line %q missing search failure fields", line)
 	}
 }

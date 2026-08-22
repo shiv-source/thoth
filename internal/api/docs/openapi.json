@@ -2,8 +2,8 @@
   "openapi": "3.0.3",
   "info": {
     "title": "Thoth API",
-    "version": "0.1.0",
-    "description": "REST + WebSocket API for the Thoth local-first knowledge base. The server binds to localhost only and requires no authentication; every endpoint assumes a trusted local caller.\n\nError responses use the envelope `{\"error\": \"<message>\"}` — 400 client error, 404 not found, 409 conflict, 500 always the generic `{\"error\": \"internal error\"}` (details go to the server log only).\n\nThe WebSocket chat protocol (`/ws`) is documented in prose in `docs/api.md` (frames and semantics); this spec describes the upgrade only."
+    "version": "1.0.0",
+    "description": "Versioned REST + WebSocket API (v1) for the Thoth local-first knowledge base. Every route lives under `/api/v1/...`; the chat WebSocket upgrades at `/ws/v1`. The server binds to localhost only and requires no authentication; every endpoint assumes a trusted local caller.\n\nError responses use the envelope `{\"error\": \"<message>\"}` — 400 client error, 404 not found, 409 conflict, 500 always the generic `{\"error\": \"internal error\"}` (details go to the server log only).\n\nThe WebSocket chat protocol (`/ws/v1`) is documented in prose in `docs/api.md` (frames and semantics); this spec describes the upgrade only."
   },
   "servers": [
     {
@@ -21,7 +21,7 @@
     { "name": "realtime", "description": "WebSocket chat channel" }
   ],
   "paths": {
-    "/api/health": {
+    "/api/v1/health": {
       "get": {
         "tags": ["health"],
         "summary": "Service health",
@@ -39,7 +39,7 @@
         }
       }
     },
-    "/api/doctor": {
+    "/api/v1/doctor": {
       "get": {
         "tags": ["doctor"],
         "summary": "Run installation checks",
@@ -66,7 +66,7 @@
         }
       }
     },
-    "/api/git/setup": {
+    "/api/v1/git/setup": {
       "post": {
         "tags": ["github"],
         "summary": "Push the wiki to a git remote",
@@ -113,7 +113,7 @@
         }
       }
     },
-    "/api/search": {
+    "/api/v1/search": {
       "get": {
         "tags": ["notes"],
         "summary": "Full-text search",
@@ -172,7 +172,7 @@
         }
       }
     },
-    "/api/notes": {
+    "/api/v1/notes": {
       "get": {
         "tags": ["notes"],
         "summary": "Read a note or attachment",
@@ -222,7 +222,7 @@
         }
       }
     },
-    "/api/wiki/tree": {
+    "/api/v1/wiki/tree": {
       "get": {
         "tags": ["notes"],
         "summary": "Full wiki tree",
@@ -257,7 +257,7 @@
         }
       }
     },
-    "/api/fs/dirs": {
+    "/api/v1/fs/dirs": {
       "get": {
         "tags": ["notes"],
         "summary": "List subdirectories",
@@ -298,7 +298,7 @@
         }
       }
     },
-    "/api/settings": {
+    "/api/v1/settings": {
       "get": {
         "tags": ["settings"],
         "summary": "Read all settings",
@@ -356,7 +356,7 @@
         }
       }
     },
-    "/api/models": {
+    "/api/v1/models": {
       "get": {
         "tags": ["settings"],
         "summary": "List models grouped by provider",
@@ -431,7 +431,7 @@
         }
       }
     },
-    "/api/models/{id}": {
+    "/api/v1/models/{id}": {
       "put": {
         "tags": ["settings"],
         "summary": "Update a model",
@@ -523,7 +523,7 @@
         }
       }
     },
-    "/api/conversations": {
+    "/api/v1/conversations": {
       "get": {
         "tags": ["conversations"],
         "summary": "List conversations",
@@ -603,7 +603,7 @@
         }
       }
     },
-    "/api/conversations/{id}": {
+    "/api/v1/conversations/{id}": {
       "get": {
         "tags": ["conversations"],
         "summary": "Get a conversation with its messages",
@@ -689,7 +689,7 @@
         }
       }
     },
-    "/api/github/auth": {
+    "/api/v1/github/auth": {
       "post": {
         "tags": ["github"],
         "summary": "Connect a GitHub account",
@@ -777,7 +777,7 @@
         }
       }
     },
-    "/api/github/repos": {
+    "/api/v1/github/repos": {
       "get": {
         "tags": ["github"],
         "summary": "Suggest sync repos",
@@ -820,7 +820,7 @@
         }
       }
     },
-    "/ws": {
+    "/ws/v1": {
       "get": {
         "tags": ["realtime"],
         "summary": "WebSocket chat channel",

@@ -56,7 +56,7 @@ func testDeps(t *testing.T) Deps {
 
 func TestHealth(t *testing.T) {
 	e := New(testDeps(t))
-	req := httptest.NewRequest(http.MethodGet, "/api/health", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/health", nil)
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
@@ -74,7 +74,7 @@ func TestHealth(t *testing.T) {
 	}
 }
 
-// backendBody is the /api/health backend shape under test.
+// backendBody is the /api/v1/health backend shape under test.
 type backendBody struct {
 	Name             string `json:"name"`
 	APIKeyConfigured bool   `json:"api_key_configured"`
@@ -86,7 +86,7 @@ func TestHealthBackendUnconfigured(t *testing.T) {
 	// A fresh database: no claude field anywhere, and the backend reports the
 	// native agent with nothing configured.
 	e := New(testDeps(t))
-	req := httptest.NewRequest(http.MethodGet, "/api/health", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/health", nil)
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
 
@@ -118,7 +118,7 @@ func TestHealthBackendConfigured(t *testing.T) {
 		t.Fatal(err)
 	}
 	e := New(deps)
-	req := httptest.NewRequest(http.MethodGet, "/api/health", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/health", nil)
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
 	var b backendBody
@@ -145,7 +145,7 @@ func TestHealthDev(t *testing.T) {
 			deps := testDeps(t)
 			deps.Dev = tt.dev
 			e := New(deps)
-			req := httptest.NewRequest(http.MethodGet, "/api/health", nil)
+			req := httptest.NewRequest(http.MethodGet, "/api/v1/health", nil)
 			rec := httptest.NewRecorder()
 			e.ServeHTTP(rec, req)
 			if rec.Code != http.StatusOK {
@@ -168,7 +168,7 @@ func TestHealthDefaultWikiPath(t *testing.T) {
 	deps := testDeps(t)
 	deps.DefaultWikiPath = "~/.thoth/dev/wiki"
 	e := New(deps)
-	req := httptest.NewRequest(http.MethodGet, "/api/health", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/health", nil)
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
@@ -189,7 +189,7 @@ func TestHealthCommit(t *testing.T) {
 	deps := testDeps(t)
 	deps.Commit = "abc1234"
 	e := New(deps)
-	req := httptest.NewRequest(http.MethodGet, "/api/health", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/health", nil)
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {

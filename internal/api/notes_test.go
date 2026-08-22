@@ -30,7 +30,7 @@ func TestSearchEndpoint(t *testing.T) {
 	}
 
 	e := New(d)
-	req := httptest.NewRequest(http.MethodGet, "/api/search?q=goroutines", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/search?q=goroutines", nil)
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
@@ -59,7 +59,7 @@ func TestNoteEndpoint(t *testing.T) {
 	}
 
 	e := New(d)
-	req := httptest.NewRequest(http.MethodGet, "/api/notes?path=meetings/s.md", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/notes?path=meetings/s.md", nil)
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
@@ -77,7 +77,7 @@ func TestNoteEndpoint(t *testing.T) {
 	}
 
 	// escaping paths are rejected
-	req = httptest.NewRequest(http.MethodGet, "/api/notes?path=../secret", nil)
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/notes?path=../secret", nil)
 	rec = httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
 	if rec.Code != http.StatusBadRequest {
@@ -104,7 +104,7 @@ func TestNoteEndpointServesAttachmentsAsRawBytes(t *testing.T) {
 	e := New(d)
 
 	// Images are served inline as raw bytes so an <img> can preview them.
-	req := httptest.NewRequest(http.MethodGet, "/api/notes?path=attachments/logo.png", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/notes?path=attachments/logo.png", nil)
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
@@ -121,7 +121,7 @@ func TestNoteEndpointServesAttachmentsAsRawBytes(t *testing.T) {
 	}
 
 	// Other attachments are downloads carrying their basename.
-	req = httptest.NewRequest(http.MethodGet, "/api/notes?path=attachments/install.sh", nil)
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/notes?path=attachments/install.sh", nil)
 	rec = httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
@@ -141,7 +141,7 @@ func TestTreeEndpoint(t *testing.T) {
 		t.Fatal(err)
 	}
 	e := New(d)
-	req := httptest.NewRequest(http.MethodGet, "/api/wiki/tree", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/wiki/tree", nil)
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
@@ -161,7 +161,7 @@ func TestTreeEndpoint(t *testing.T) {
 func TestSearchEndpointRequiresQuery(t *testing.T) {
 	d := testDeps(t)
 	e := New(d)
-	req := httptest.NewRequest(http.MethodGet, "/api/search", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/search", nil)
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
 	if rec.Code != http.StatusBadRequest {
@@ -173,14 +173,14 @@ func TestSearchEndpointDefaultsBadLimit(t *testing.T) {
 	d := testDeps(t)
 	e := New(d)
 	// A non-numeric limit falls back to the default and still searches.
-	req := httptest.NewRequest(http.MethodGet, "/api/search?q=go&limit=abc", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/search?q=go&limit=abc", nil)
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected 200 with defaulted limit, got %d: %s", rec.Code, rec.Body.String())
 	}
 	// Out-of-range limits are clamped to the default as well.
-	req = httptest.NewRequest(http.MethodGet, "/api/search?q=go&limit=9999", nil)
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/search?q=go&limit=9999", nil)
 	rec = httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
@@ -194,7 +194,7 @@ func TestSearchEndpointIndexError(t *testing.T) {
 		t.Fatal(err)
 	}
 	e := New(d)
-	req := httptest.NewRequest(http.MethodGet, "/api/search?q=go", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/search?q=go", nil)
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
 	if rec.Code != http.StatusInternalServerError {
@@ -205,7 +205,7 @@ func TestSearchEndpointIndexError(t *testing.T) {
 func TestNoteEndpointRequiresPath(t *testing.T) {
 	d := testDeps(t)
 	e := New(d)
-	req := httptest.NewRequest(http.MethodGet, "/api/notes", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/notes", nil)
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
 	if rec.Code != http.StatusBadRequest {
@@ -217,7 +217,7 @@ func TestNoteEndpointMissingNote(t *testing.T) {
 	d := testDeps(t)
 	e := New(d)
 	// The path is safe but the file does not exist: 404.
-	req := httptest.NewRequest(http.MethodGet, "/api/notes?path=meetings/nope.md", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/notes?path=meetings/nope.md", nil)
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
 	if rec.Code != http.StatusNotFound {
@@ -229,7 +229,7 @@ func TestTreeEndpointMissingRoot(t *testing.T) {
 	d := testDeps(t)
 	d.Wiki = wiki.New(filepath.Join(t.TempDir(), "missing"))
 	e := New(d)
-	req := httptest.NewRequest(http.MethodGet, "/api/wiki/tree", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/wiki/tree", nil)
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
 	if rec.Code != http.StatusInternalServerError {

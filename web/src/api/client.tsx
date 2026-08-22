@@ -144,48 +144,48 @@ function axiosErrorMessage(err: unknown): string {
 
 export const api = {
     search: (q: string, signal?: AbortSignal) =>
-        get(`/api/search?q=${encodeURIComponent(q)}`, z.object({ results: z.array(SearchResult) }), signal),
-    note: (path: string) => get(`/api/notes?path=${encodeURIComponent(path)}`, Note),
-    tree: () => get('/api/wiki/tree', z.object({ nodes: z.array(TreeNodeSchema) })),
-    settings: () => get('/api/settings', Settings),
+        get(`/api/v1/search?q=${encodeURIComponent(q)}`, z.object({ results: z.array(SearchResult) }), signal),
+    note: (path: string) => get(`/api/v1/notes?path=${encodeURIComponent(path)}`, Note),
+    tree: () => get('/api/v1/wiki/tree', z.object({ nodes: z.array(TreeNodeSchema) })),
+    settings: () => get('/api/v1/settings', Settings),
     listDirs: (path: string) =>
-        get(`/api/fs/dirs?path=${encodeURIComponent(path)}`, z.object({ dirs: z.array(z.string()) })),
-    models: () => get('/api/models', z.object({ groups: z.array(ModelGroup) })),
+        get(`/api/v1/fs/dirs?path=${encodeURIComponent(path)}`, z.object({ dirs: z.array(z.string()) })),
+    models: () => get('/api/v1/models', z.object({ groups: z.array(ModelGroup) })),
     createModel: async (input: ModelInput): Promise<LLMModel> => {
-        const res = await http.post('/api/models', input)
+        const res = await http.post('/api/v1/models', input)
         return parseBody(res, LLMModel)
     },
     updateModel: async (id: number, input: ModelInput): Promise<LLMModel> => {
-        const res = await http.put(`/api/models/${id}`, input)
+        const res = await http.put(`/api/v1/models/${id}`, input)
         return parseBody(res, LLMModel)
     },
     deleteModel: async (id: number): Promise<void> => {
-        await http.delete(`/api/models/${id}`)
+        await http.delete(`/api/v1/models/${id}`)
     },
     saveSettings: async (s: Settings): Promise<Settings> => {
-        const res = await http.put('/api/settings', s)
+        const res = await http.put('/api/v1/settings', s)
         return parseBody(res, Settings)
     },
-    health: () => get('/api/health', Health),
-    doctor: () => get('/api/doctor', z.object({ checks: z.array(DoctorCheck) })),
-    listConversations: () => get('/api/conversations', z.object({ conversations: z.array(Conversation) })),
+    health: () => get('/api/v1/health', Health),
+    doctor: () => get('/api/v1/doctor', z.object({ checks: z.array(DoctorCheck) })),
+    listConversations: () => get('/api/v1/conversations', z.object({ conversations: z.array(Conversation) })),
     deleteConversation: async (id: string): Promise<void> => {
-        await http.delete(`/api/conversations/${encodeURIComponent(id)}`)
+        await http.delete(`/api/v1/conversations/${encodeURIComponent(id)}`)
     },
     getConversation: (id: string) =>
         get(
-            `/api/conversations/${encodeURIComponent(id)}`,
+            `/api/v1/conversations/${encodeURIComponent(id)}`,
             z.object({ conversation: Conversation, messages: z.array(Message) })
         ),
     gitSetup: async (url: string): Promise<{ ok: boolean; error?: string }> => {
-        const res = await http.post('/api/git/setup', { url })
+        const res = await http.post('/api/v1/git/setup', { url })
         return parseBody(res, z.object({ ok: z.boolean(), error: z.string().optional() }))
     },
-    githubAuth: () => get('/api/github/auth', GitHubIdentity),
-    githubRepos: () => get('/api/github/repos', z.object({ repos: z.array(GitHubRepo) })),
+    githubAuth: () => get('/api/v1/github/auth', GitHubIdentity),
+    githubRepos: () => get('/api/v1/github/repos', z.object({ repos: z.array(GitHubRepo) })),
     connectGitHub: async (token: string): Promise<GitHubIdentity> => {
         try {
-            const res = await http.post('/api/github/auth', { token })
+            const res = await http.post('/api/v1/github/auth', { token })
             return parseBody(res, GitHubIdentity)
         } catch (err) {
             throw new Error(axiosErrorMessage(err), { cause: err })
@@ -193,7 +193,7 @@ export const api = {
     },
     disconnectGitHub: async (): Promise<void> => {
         try {
-            await http.delete('/api/github/auth')
+            await http.delete('/api/v1/github/auth')
         } catch (err) {
             throw new Error(axiosErrorMessage(err), { cause: err })
         }

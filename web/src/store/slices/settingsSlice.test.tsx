@@ -39,7 +39,7 @@ describe('settingsSlice', () => {
     })
 
     it('loads settings', async () => {
-        stubAPI(mocks, { 'GET /api/settings': () => saved })
+        stubAPI(mocks, { 'GET /api/v1/settings': () => saved })
         const store = makeStore()
         await store.dispatch(fetchSettings())
         expect(selectSettings(store.getState()).data).toEqual(saved)
@@ -56,12 +56,12 @@ describe('settingsSlice', () => {
     })
 
     it('saves settings and marks the in-flight state', async () => {
-        stubAPI(mocks, { 'PUT /api/settings': () => saved })
+        stubAPI(mocks, { 'PUT /api/v1/settings': () => saved })
         const store = makeStore()
         const pending = store.dispatch(saveSettings(saved))
         expect(selectSettings(store.getState()).saving).toBe(true)
         await pending
-        expect(mocks.put).toHaveBeenCalledWith('/api/settings', saved)
+        expect(mocks.put).toHaveBeenCalledWith('/api/v1/settings', saved)
         const s = selectSettings(store.getState())
         expect(s.data).toEqual(saved)
         expect(s.saving).toBe(false)
@@ -82,14 +82,14 @@ describe('settingsSlice', () => {
         await expect(store.dispatch(saveSettings(saved)).unwrap()).rejects.toThrow()
         expect(selectSettings(store.getState()).error).not.toBeNull()
 
-        stubAPI(mocks, { 'PUT /api/settings': () => saved })
+        stubAPI(mocks, { 'PUT /api/v1/settings': () => saved })
         const pending = store.dispatch(saveSettings(saved))
         expect(selectSettings(store.getState()).error).toBeNull()
         await pending
     })
 
     it('loads models through the grouped llm_models shape', async () => {
-        stubAPI(mocks, { 'GET /api/models': () => ({ groups: [{ provider: 'Vendor', models: [llmModel] }] }) })
+        stubAPI(mocks, { 'GET /api/v1/models': () => ({ groups: [{ provider: 'Vendor', models: [llmModel] }] }) })
         const store = makeStore()
         await store.dispatch(fetchModels())
         expect(selectModelGroups(store.getState())).toEqual([{ provider: 'Vendor', models: [llmModel] }])
@@ -97,13 +97,13 @@ describe('settingsSlice', () => {
     })
 
     it('createModel calls the API and leaves the list for the refetch', async () => {
-        stubAPI(mocks, { 'GET /api/models': () => ({ groups: [] }) })
+        stubAPI(mocks, { 'GET /api/v1/models': () => ({ groups: [] }) })
         const store = makeStore()
         await store.dispatch(fetchModels())
         mocks.post.mockResolvedValueOnce({ data: llmModel })
         const created = await store.dispatch(createModel({ value: 'my-model', name: 'My Model' })).unwrap()
         expect(created).toEqual(llmModel)
-        expect(mocks.post).toHaveBeenCalledWith('/api/models', { value: 'my-model', name: 'My Model' })
+        expect(mocks.post).toHaveBeenCalledWith('/api/v1/models', { value: 'my-model', name: 'My Model' })
         expect(selectModelGroups(store.getState())).toEqual([])
     })
 
@@ -112,7 +112,7 @@ describe('settingsSlice', () => {
         mocks.put.mockResolvedValueOnce({ data: renamed })
         const store = makeStore()
         await store.dispatch(updateModel({ id: 3, input: { value: 'my-model', name: 'Renamed' } }))
-        expect(mocks.put).toHaveBeenCalledWith('/api/models/3', { value: 'my-model', name: 'Renamed' })
+        expect(mocks.put).toHaveBeenCalledWith('/api/v1/models/3', { value: 'my-model', name: 'Renamed' })
     })
 
     it('deleteModel calls the API and returns the id', async () => {
@@ -120,6 +120,6 @@ describe('settingsSlice', () => {
         const store = makeStore()
         const id = await store.dispatch(deleteModel(3)).unwrap()
         expect(id).toBe(3)
-        expect(mocks.delete).toHaveBeenCalledWith('/api/models/3')
+        expect(mocks.delete).toHaveBeenCalledWith('/api/v1/models/3')
     })
 })

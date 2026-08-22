@@ -117,7 +117,7 @@ func TestRunServeBootsAndShutsDown(t *testing.T) {
 
 	deadline := time.Now().Add(15 * time.Second)
 	for {
-		resp, err := http.Get("http://127.0.0.1:8333/api/health")
+		resp, err := http.Get("http://127.0.0.1:8333/api/v1/health")
 		if err == nil {
 			_, _ = io.Copy(io.Discard, resp.Body)
 			_ = resp.Body.Close()
@@ -165,7 +165,7 @@ func TestRunServeSwitchesWikiPathLive(t *testing.T) {
 
 	deadline := time.Now().Add(15 * time.Second)
 	for {
-		resp, err := http.Get("http://127.0.0.1:8333/api/health")
+		resp, err := http.Get("http://127.0.0.1:8333/api/v1/health")
 		if err == nil {
 			_, _ = io.Copy(io.Discard, resp.Body)
 			_ = resp.Body.Close()
@@ -184,7 +184,7 @@ func TestRunServeSwitchesWikiPathLive(t *testing.T) {
 	// exercising the second startWatcher call (which cancels the first).
 	newRoot := filepath.Join(home, ".thoth", "wiki2")
 	body := `{"wiki_path":"` + newRoot + `","repo_url":"","sync_enabled":false}`
-	req, err := http.NewRequest(http.MethodPut, "http://127.0.0.1:8333/api/settings", strings.NewReader(body))
+	req, err := http.NewRequest(http.MethodPut, "http://127.0.0.1:8333/api/v1/settings", strings.NewReader(body))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -259,7 +259,7 @@ func TestRunServeDevBootsAndShutsDown(t *testing.T) {
 
 	deadline := time.Now().Add(15 * time.Second)
 	for {
-		resp, err := http.Get("http://127.0.0.1:8334/api/health")
+		resp, err := http.Get("http://127.0.0.1:8334/api/v1/health")
 		if err == nil {
 			_, _ = io.Copy(io.Discard, resp.Body)
 			_ = resp.Body.Close()

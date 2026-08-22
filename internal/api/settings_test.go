@@ -16,7 +16,7 @@ func putSettingsReq(t *testing.T, e interface {
 	ServeHTTP(http.ResponseWriter, *http.Request)
 }, body string) *httptest.ResponseRecorder {
 	t.Helper()
-	req := httptest.NewRequest(http.MethodPut, "/api/settings", strings.NewReader(body))
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/settings", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
@@ -27,7 +27,7 @@ func getSettingsReq(t *testing.T, e interface {
 	ServeHTTP(http.ResponseWriter, *http.Request)
 }) settingsDTO {
 	t.Helper()
-	req := httptest.NewRequest(http.MethodGet, "/api/settings", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/settings", nil)
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
@@ -189,11 +189,11 @@ func TestSettingsProviderKeyNeverEchoed(t *testing.T) {
 		"providers":{"OpenAI":{"api_key":"sk-openai-secret","base_url":""}}}`); rec.Code != http.StatusOK {
 		t.Fatalf("PUT status %d: %s", rec.Code, rec.Body.String())
 	}
-	req := httptest.NewRequest(http.MethodGet, "/api/settings", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/settings", nil)
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
 	if strings.Contains(rec.Body.String(), "sk-openai-secret") {
-		t.Fatalf("GET /api/settings echoed the provider api key: %s", rec.Body.String())
+		t.Fatalf("GET /api/v1/settings echoed the provider api key: %s", rec.Body.String())
 	}
 }
 
@@ -273,7 +273,7 @@ func TestConversationsEndpoints(t *testing.T) {
 	d := testDeps(t)
 	e := New(d)
 
-	req := httptest.NewRequest(http.MethodPost, "/api/conversations", bytes.NewReader([]byte(`{"title":"first"}`)))
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/conversations", bytes.NewReader([]byte(`{"title":"first"}`)))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
@@ -287,7 +287,7 @@ func TestConversationsEndpoints(t *testing.T) {
 		t.Fatalf("bad create response: %v %s", err, rec.Body.String())
 	}
 
-	req = httptest.NewRequest(http.MethodGet, "/api/conversations", nil)
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/conversations", nil)
 	rec = httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK || !bytes.Contains(rec.Body.Bytes(), []byte(created.ID)) {
@@ -303,7 +303,7 @@ func TestDeleteConversationEndpoint(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	req := httptest.NewRequest(http.MethodDelete, "/api/conversations/"+id, nil)
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/conversations/"+id, nil)
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {

@@ -9,7 +9,7 @@ vi.mock('axios', () => axiosModuleMock(mocks))
 describe('noteSlice', () => {
     it('loads a note by path', async () => {
         stubAPI(mocks, {
-            '/api/notes?path=a.md': () => ({ path: 'a.md', content: 'a body' })
+            '/api/v1/notes?path=a.md': () => ({ path: 'a.md', content: 'a body' })
         })
         const store = makeStore()
         await store.dispatch(fetchNote('a.md'))
