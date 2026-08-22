@@ -18,7 +18,13 @@ make dev       # Vite HMR + Go server together (http://127.0.0.1:8333)
 
 ## Workflow
 
-1. **Never commit to `main`.** `main` is always deployable; changes live on
+1. **Assigned an issue/feature/bug? Decide where to work first.** When asked
+   to work on a specific issue, feature, or bug, don't branch blindly —
+   confirm the target first: work in the current worktree/branch, or create a
+   new one? Reuse the branch/worktree if one already exists
+   (`./scripts/git-worktree.sh list` in the bare-clone layout, `git branch`
+   in a standard clone); otherwise create one per step 2.
+2. **Never commit to `main`.** `main` is always deployable; changes live on
    `<type>/<scope>/<slug>` branches and land via reviewed PRs. Create the
    branch per your clone layout:
    - Bare-clone layout (a container dir holding a hidden `.bare` + a `.git`
@@ -32,10 +38,10 @@ make dev       # Vite HMR + Go server together (http://127.0.0.1:8333)
      ```
    `./scripts/pr.sh` detects the bare-clone layout and syncs via `git fetch
    origin` too.
-2. **Conventional commits** — `<type>(<scope>): <summary>`; prefixes: `feat:`, `fix:`, `perf:`, `chore:`, `docs:`, `refactor:`, `test:`, `ci:` (`perf` maps to the `performance` type label).
-3. **Open a PR** using the template — conventional title, a summary that gives the full picture (bullets when it helps), files changed, and the verification checklist. The `ci-pr` quality gates run automatically; `final-gate` posts its report as a comment and must pass before merging.
-4. **Squash-merge** PRs unless the commit history is meaningful.
-5. **Every PR is reviewed.** Large or cross-package changes go through a design doc in `docs/specs/` (untracked working docs — never committed) *before* implementation.
+3. **Conventional commits** — `<type>(<scope>): <summary>`; prefixes: `feat:`, `fix:`, `perf:`, `chore:`, `docs:`, `refactor:`, `test:`, `ci:` (`perf` maps to the `performance` type label).
+4. **Open a PR** using the template — conventional title, a summary that gives the full picture (bullets when it helps), files changed, and the verification checklist. The `ci-pr` quality gates run automatically; `final-gate` posts its report as a comment and must pass before merging.
+5. **Squash-merge** PRs unless the commit history is meaningful.
+6. **Every PR is reviewed.** Large or cross-package changes go through a design doc in `docs/specs/` (untracked working docs — never committed) *before* implementation.
 
 ## Before you push
 
