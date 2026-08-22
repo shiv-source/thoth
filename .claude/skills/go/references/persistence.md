@@ -17,8 +17,8 @@ Go code issues no DDL of its own.
 ## Settings keys (0007)
 - wiki_path — seeded to ~/.thoth/wiki (mirrors settings.DefaultWikiPath)
 - model — the selected model value; absent/empty falls back to the first seeded claude model. Read at boot, applied on next start
-- api_key — the shared fallback API key; empty = inherit the server environment. Never returned by the API
-- provider_<slug>_api_key / provider_<slug>_base_url — per-provider credentials (slug = provider label lowercased, non-alphanumerics stripped); provider-specific wins, shared api_key is the fallback (settings.ProviderConfig). Keys built via settings.ProviderAPIKeyKey/ProviderBaseURLKey
+- api_key — legacy shared key, seeded by migration 0008 but unused since credentials are per-provider; never read from the environment. Never returned by the API
+- provider_<slug>_api_key / provider_<slug>_base_url — per-provider credentials (slug = provider label lowercased, non-alphanumerics stripped); the only credential for that provider (settings.ProviderConfig). Keys built via settings.ProviderAPIKeyKey/ProviderBaseURLKey
 - github_sync_repo / github_sync_enabled / github_last_synced_at / github_sync_error — the sync switch + state
 - claude_session_id (conversations) — legacy, retained unused; the T12 decision was to leave the column, no migration
 

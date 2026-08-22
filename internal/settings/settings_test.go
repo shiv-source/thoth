@@ -72,9 +72,6 @@ func TestProviderSlugAndKeys(t *testing.T) {
 func TestProviderConfigResolution(t *testing.T) {
 	t.Run("per-provider values win", func(t *testing.T) {
 		r := openTestRepo(t)
-		if err := r.SetSetting(KeyAPIKey, "shared-key"); err != nil {
-			t.Fatal(err)
-		}
 		if err := r.SetSetting(ProviderAPIKeyKey("DeepSeek"), "deepseek-key"); err != nil {
 			t.Fatal(err)
 		}
@@ -87,43 +84,22 @@ func TestProviderConfigResolution(t *testing.T) {
 		}
 	})
 
-	t.Run("absent per-provider config falls back to the shared api key", func(t *testing.T) {
+	t.Run("absent per-provider config resolves empty", func(t *testing.T) {
 		r := openTestRepo(t)
-		if err := r.SetSetting(KeyAPIKey, "shared-key"); err != nil {
-			t.Fatal(err)
-		}
 		apiKey, baseURL, err := r.ProviderConfig("Anthropic")
-		if err != nil || apiKey != "shared-key" || baseURL != "" {
+		if err != nil || apiKey != "" || baseURL != "" {
 			t.Fatalf("ProviderConfig(Anthropic) = %q/%q/%v", apiKey, baseURL, err)
 		}
 	})
 
-	t.Run("empty provider name takes the shared key path", func(t *testing.T) {
+	t.Run("empty provider name resolves empty", func(t *testing.T) {
 		r := openTestRepo(t)
-		if err := r.SetSetting(KeyAPIKey, "shared-key"); err != nil {
-			t.Fatal(err)
-		}
 		if err := r.SetSetting(ProviderAPIKeyKey("Anthropic"), "anthropic-key"); err != nil {
 			t.Fatal(err)
 		}
 		apiKey, baseURL, err := r.ProviderConfig("")
-		if err != nil || apiKey != "shared-key" || baseURL != "" {
+		if err != nil || apiKey != "" || baseURL != "" {
 			t.Fatalf("ProviderConfig(\"\") = %q/%q/%v", apiKey, baseURL, err)
-		}
-	})
-
-	t.Run("empty per-provider key falls back too", func(t *testing.T) {
-		r := openTestRepo(t)
-		if err := r.SetSetting(KeyAPIKey, "shared-key"); err != nil {
-			t.Fatal(err)
-		}
-		// A stored empty per-provider key behaves like an absent one.
-		if err := r.SetSetting(ProviderAPIKeyKey("DeepSeek"), ""); err != nil {
-			t.Fatal(err)
-		}
-		apiKey, _, err := r.ProviderConfig("DeepSeek")
-		if err != nil || apiKey != "shared-key" {
-			t.Fatalf("ProviderConfig(DeepSeek) apiKey = %q/%v, want shared-key", apiKey, err)
 		}
 	})
 }

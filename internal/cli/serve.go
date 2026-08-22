@@ -99,9 +99,8 @@ func runServe(cmd *cobra.Command, dev bool) error {
 	}
 	// The selected model's llm_models row names its provider; the matching
 	// per-provider config (its own api key + base URL override) resolves from
-	// that name, falling back to the shared api_key and the provider's
-	// default endpoint. Read at boot like the model — a change applies on
-	// next start.
+	// that name, with an empty base URL meaning the provider's default
+	// endpoint. Read at boot like the model — a change applies on next start.
 	providerName, err := modelProvider(st, model)
 	if err != nil {
 		return err
@@ -430,7 +429,7 @@ func defaultModel(st *store.Store) string {
 
 // modelProvider returns the llm_models row's provider label for a model
 // value, or "" when the value is empty or not in the registry. An empty
-// result leaves the shared api_key as the credential and lets agent.New fall
+// result leaves the agent without a per-provider key and lets agent.New fall
 // back to its model-id routing, preserving the pre-registry behavior.
 func modelProvider(st *store.Store, value string) (string, error) {
 	if value == "" {

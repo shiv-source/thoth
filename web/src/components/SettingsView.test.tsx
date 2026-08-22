@@ -63,7 +63,6 @@ const settings = {
     wiki_path: '~/.thoth/wiki',
     wiki_folders: [] as string[],
     model: '',
-    has_api_key: false,
     providers: {} as Record<string, { api_key?: string; has_api_key: boolean; base_url: string }>,
     repo_url: '',
     sync_enabled: false
@@ -128,6 +127,12 @@ const devHealth = {
 }
 
 describe('SettingsView', () => {
+    // Tab clicks ride the URL; reset it so a test never inherits the
+    // previous test's active tab.
+    afterEach(() => {
+        window.history.pushState(null, '', '/')
+    })
+
     it('loads current settings and saves edits', async () => {
         stubAPI({
             'GET /api/settings': getSettings,
@@ -204,43 +209,16 @@ describe('SettingsView', () => {
         })
 
         renderSettings()
+        // The Model select only lists the chosen provider's models, so pick
+        // the provider first.
+        await userEvent.click(await screen.findByRole('combobox', { name: 'Provider' }))
+        await userEvent.click(await screen.findByRole('option', { name: 'DeepSeek' }))
         await userEvent.click(await screen.findByRole('combobox', { name: 'Model' }))
         // The option renders name + tag as secondary text.
         await userEvent.click(await screen.findByRole('option', { name: /V4 Flash/ }))
         await userEvent.click(screen.getByRole('button', { name: /Save/ }))
         await waitFor(() => expect(screen.getByText(/Saved ✓/)).toBeInTheDocument())
         expect(lastBody('put', '/api/settings')).toMatchObject({ model: 'deepseek-v4-flash' })
-    })
-
-    it('shows the API key state and saves a typed key', async () => {
-        stubAPI({
-            'GET /api/settings': () => ({ ...settings, has_api_key: true }),
-            'GET /api/github/auth': getEmptyGitHub,
-            'GET /api/models': () => ({ groups: [] }),
-            'PUT /api/settings': () => ({ ...settings })
-        })
-
-        renderSettings()
-        // A key is already stored: the status tag says Configured and the
-        // hint says leave blank to keep it.
-        expect(await screen.findByText('Configured')).toBeInTheDocument()
-        expect(await screen.findByText(/leave blank to keep/i)).toBeInTheDocument()
-        await userEvent.type(await screen.findByLabelText(/API key/), 'sk-new-key')
-        await userEvent.click(screen.getByRole('button', { name: /Save/ }))
-        await waitFor(() => expect(screen.getByText(/Saved ✓/)).toBeInTheDocument())
-        expect(JSON.stringify(lastBody('put', '/api/settings'))).toContain('sk-new-key')
-    })
-
-    it('shows the unset hint when no API key is stored', async () => {
-        stubAPI({
-            'GET /api/settings': getSettings,
-            'GET /api/github/auth': getEmptyGitHub,
-            'GET /api/models': () => ({ groups: [] })
-        })
-
-        renderSettings()
-        expect(await screen.findByText('Not set')).toBeInTheDocument()
-        expect(await screen.findByText(/inherits ANTHROPIC_API_KEY/i)).toBeInTheDocument()
     })
 
     it('renders and saves per-provider credentials', async () => {
@@ -270,18 +248,18 @@ describe('SettingsView', () => {
         })
 
         renderSettings()
-        // The per-provider block renders with the saved base URL.
-        expect(await screen.findByText('Provider credentials')).toBeInTheDocument()
+        await userEvent.click(await screen.findByRole('tab', { name: 'Providers' }))
+        // The only provider's panel is open by default with the saved base URL.
         expect(await screen.findByText('DeepSeek')).toBeInTheDocument()
         const baseURL = await screen.findByLabelText('Base URL')
         expect(baseURL).toHaveValue('https://api.deepseek.com')
         await userEvent.clear(baseURL)
         await userEvent.type(baseURL, 'https://api.deepseek.com/v1')
         // The per-provider key input is the '•••••••• (saved)' one (the
-        // shared key is unset, so its placeholder is sk-ant-…).
+        // fallback key is unset, so its placeholder is sk-ant-…).
         await userEvent.type(await screen.findByPlaceholderText('•••••••• (saved)'), 'ds-new-key')
         await userEvent.click(screen.getByRole('button', { name: /Save/ }))
-        await waitFor(() => expect(screen.getByText(/Saved ✓/)).toBeInTheDocument())
+        expect(await screen.findByText('Settings saved')).toBeInTheDocument()
 
         const body = JSON.stringify(lastBody('put', '/api/settings'))
         expect(body).toContain('https://api.deepseek.com/v1')
@@ -307,10 +285,11 @@ describe('SettingsView', () => {
         })
 
         renderSettings()
+        await userEvent.click(await screen.findByRole('tab', { name: 'Providers' }))
         const baseURL = await screen.findByLabelText('Base URL')
         await userEvent.type(baseURL, 'https://api.openai.com/v1')
         await userEvent.click(screen.getByRole('button', { name: /Save/ }))
-        await waitFor(() => expect(screen.getByText(/Saved ✓/)).toBeInTheDocument())
+        expect(await screen.findByText('Settings saved')).toBeInTheDocument()
 
         // The per-provider api key stays empty in the PUT body (write-only
         // leave-unchanged semantics are the server's), the base URL goes.
@@ -345,7 +324,7 @@ describe('SettingsView', () => {
                     {
                         name: 'provider',
                         ok: false,
-                        message: 'Anthropic rejected the API key (401) — set a valid one in Settings → General'
+                        message: 'Anthropic rejected the API key (401) — set a valid one in Settings → Providers'
                     }
                 ]
             })
@@ -355,7 +334,7 @@ describe('SettingsView', () => {
         await userEvent.click(await screen.findByRole('tab', { name: 'Doctor' }))
         expect(await screen.findByText('wiki')).toBeInTheDocument()
         expect(
-            screen.getByText('Anthropic rejected the API key (401) — set a valid one in Settings → General')
+            screen.getByText('Anthropic rejected the API key (401) — set a valid one in Settings → Providers')
         ).toBeInTheDocument()
     })
 
@@ -443,7 +422,7 @@ describe('SettingsView', () => {
     })
 })
 
-describe('SettingsView LLM Models tab', () => {
+describe('SettingsView Providers tab', () => {
     const seeded = { id: 1, value: 'my-model', name: 'My Model', tag: 'test', provider: 'Vendor' }
 
     it('lists models and adds one', async () => {
@@ -455,23 +434,29 @@ describe('SettingsView LLM Models tab', () => {
             'GET /api/github/auth': getEmptyGitHub,
             'GET /api/models': () => ({ groups: [{ provider: 'Vendor', models: list }] }),
             'POST /api/models': () => {
-                const created = { id: 2, value: 'new-model', name: 'New Model', tag: '', provider: '' }
+                const created = { id: 2, value: 'new-model', name: 'New Model', tag: '', provider: 'Vendor' }
                 list = [...list, created]
                 return created
             }
         })
 
         renderSettings()
-        await userEvent.click(await screen.findByRole('tab', { name: 'LLM Models' }))
+        await userEvent.click(await screen.findByRole('tab', { name: 'Providers' }))
+        // The single provider's panel is open by default; its header names
+        // it and counts its models, and the table lists the model with its
+        // tag rendered as a chip.
         expect(await screen.findByText('My Model')).toBeInTheDocument()
         expect(screen.getByText('Vendor')).toBeInTheDocument()
-        // The tag renders as a chip and the card reports the registry size.
+        expect(screen.getByText('1 model')).toBeInTheDocument()
         expect(screen.getByText('test')).toBeInTheDocument()
-        expect(screen.getByText(/model across/)).toBeInTheDocument()
 
         await userEvent.click(screen.getByRole('button', { name: 'Add model' }))
         await userEvent.type(await screen.findByLabelText('Value'), 'new-model')
         await userEvent.type(screen.getByLabelText('Name'), 'New Model')
+        // Adding from a provider panel pre-fills the provider field (the
+        // placeholder scopes the query — the hidden General tab has its own
+        // "Provider" label).
+        expect(screen.getByPlaceholderText('Anthropic')).toHaveValue('Vendor')
         await userEvent.click(screen.getByRole('button', { name: 'OK' }))
 
         expect(await screen.findByText('New Model')).toBeInTheDocument()
@@ -491,7 +476,7 @@ describe('SettingsView LLM Models tab', () => {
         })
 
         renderSettings()
-        await userEvent.click(await screen.findByRole('tab', { name: 'LLM Models' }))
+        await userEvent.click(await screen.findByRole('tab', { name: 'Providers' }))
         // byText, not byRole: role-name computation hangs under jsdom for
         // buttons inside the antd Table.
         await userEvent.click(await screen.findByText('Edit'))
@@ -517,7 +502,7 @@ describe('SettingsView LLM Models tab', () => {
         })
 
         renderSettings()
-        await userEvent.click(await screen.findByRole('tab', { name: 'LLM Models' }))
+        await userEvent.click(await screen.findByRole('tab', { name: 'Providers' }))
         expect(await screen.findByText('My Model')).toBeInTheDocument()
         await userEvent.click(await screen.findByText('Delete'))
         await userEvent.click(await screen.findByText('OK'))
@@ -534,11 +519,9 @@ describe('SettingsView LLM Models tab', () => {
         })
 
         renderSettings()
-        await userEvent.click(await screen.findByRole('tab', { name: 'LLM Models' }))
+        await userEvent.click(await screen.findByRole('tab', { name: 'Providers' }))
         expect(await screen.findByText('No models yet')).toBeInTheDocument()
-        expect(screen.getByText(/models across/)).toBeInTheDocument()
-        // The empty-state CTA opens the same add modal (byText, not byRole —
-        // role-name computation hangs under jsdom inside the antd Table).
+        // The empty-state CTA opens the same add modal.
         await userEvent.click(await screen.findByText('Add your first model'))
         expect(await screen.findByLabelText('Value')).toBeInTheDocument()
     })
@@ -594,6 +577,13 @@ describe('SettingsView tab routing', () => {
         stubAPI({ 'GET /api/settings': getSettings, 'GET /api/github/auth': getEmptyGitHub })
         renderSettings()
         expect(await screen.findByRole('tab', { name: 'Doctor' })).toHaveAttribute('aria-selected', 'true')
+    })
+
+    it('restores the Providers tab from the hash', async () => {
+        window.history.pushState(null, '', '/settings/providers')
+        stubAPI({ 'GET /api/settings': getSettings, 'GET /api/github/auth': getEmptyGitHub })
+        renderSettings()
+        expect(await screen.findByRole('tab', { name: 'Providers' })).toHaveAttribute('aria-selected', 'true')
     })
 
     it('writes the clicked tab into the hash', async () => {

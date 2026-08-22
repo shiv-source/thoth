@@ -41,8 +41,8 @@ Open Settings (gear icon in the header) to configure Thoth.
 
 | Tab | What it does |
 |---|---|
-| **General** | The wiki path (change it here, with a folder browser), the model used for new conversations, the shared API key, and per-provider credentials (an API key and base URL for each provider in the model registry — a provider without its own key falls back to the shared one; all keys are stored locally, never returned by the API) |
-| **LLM Models** | The model registry: add, edit, or delete models shown in the picker. Seeded from a built-in list on first boot; afterwards the table is yours |
+| **General** | The wiki path (change it here, with a folder browser), the provider and model used for new conversations, and the scaffold folders |
+| **Providers** | One collapsible panel per provider: its credential form (an API key and base URL) plus the models registered under it (add/edit/delete). Keys are stored locally in thoth.db, never read from the environment, and never returned by the API |
 | **Doctor** | The same health checks as `thoth doctor`, in the UI — run them any time, read each row's status |
 | **Git remote** | Connect a GitHub account and push your wiki to a remote repo for sync and backup |
 

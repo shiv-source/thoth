@@ -27,7 +27,7 @@ thoth doctor    # the "provider" and "api key" checks name the problem
 ```
 
 - The **provider** check probes the selected model's provider endpoint with the resolved credential (per-provider key/base URL, else the shared key and the provider's default). 401 = bad/absent API key, 429 = rate limited, timeout = unreachable.
-- The **api key** check tells you whether a usable key is configured. Add or fix it in Settings → General (per-provider keys win over the shared key).
+- The **api key** check tells you whether a usable key is configured. Add or fix it in Settings → Providers.
 - A cancelled or superseded turn saves nothing beyond the user message — that is expected, not a bug.
 
 ## The wiki isn't being indexed
@@ -46,8 +46,8 @@ The index is derived data — it always syncs with the tree at startup and on ch
 ## The chat says the assistant is unavailable or a turn fails
 
 - Run `thoth doctor` and read the **provider** and **api key** checks (see above).
-- A wrong, expired, or missing API key fails turns — set the right key for the provider in Settings → General (or the per-provider key). The provider check names the failing endpoint.
-- The model setting must point at a model in the registry (Settings → LLM Models). A value not in the registry shows as *unknown model*.
+- A wrong, expired, or missing API key fails turns — set the right key for the provider in Settings → Providers. The provider check names the failing endpoint.
+- The model setting must point at a model in the registry (Settings → Providers). A value not in the registry shows as *unknown model*.
 
 ## Port 8333 is already in use
 
@@ -110,6 +110,6 @@ Deleting only the database is always safe. Deleting the wiki deletes your knowle
 
 **Can I change where the wiki lives?** Yes — Settings → General → wiki path (with a folder browser). The index and watcher move with it.
 
-**Can I use a different model?** Yes — Settings → General → model, or manage the full registry in Settings → LLM Models.
+**Can I use a different model?** Yes — Settings → General → model, or manage the full registry in Settings → Providers.
 
 **Do I need to keep the server running?** Only while you use the dashboard. Notes are just files; nothing needs the server to be read.

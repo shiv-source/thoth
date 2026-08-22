@@ -34,7 +34,7 @@ The CLI worked, but it made the chat path a foreign-body dependency:
 **For you (user-facing):**
 
 - **Nothing to install or log in** — the `claude` binary, its login, and `PATH` setup are gone. Configure an API key in Settings and turn.
-- **Any provider, not just Claude** — pick any model in Settings → LLM Models; each provider can carry its own API key and base URL.
+- **Any provider, not just Claude** — pick any model in Settings → Providers; each provider can carry its own API key and base URL.
 - **Faster, cleaner turns** — no per-conversation process boot, no process to warm; a turn starts immediately.
 - **A real, bounded write path** — the assistant writes only through `SafePath`-bounded tools. There is no "skip permissions" mode because the write path *is* the wiki.
 - **Rulebook edits apply instantly** — the system prompt is read fresh each turn, no restart needed.
@@ -50,7 +50,7 @@ The CLI worked, but it made the chat path a foreign-body dependency:
 
 - **First run** — `thoth serve`, then add a provider API key in Settings. `thoth doctor` verifies the provider, API key, model, and everything else.
 - **Doctor checks changed** — the old `claude` binary/login check became `provider` + `api key` checks: the provider check probes the selected model's provider endpoint with the resolved credential.
-- **Existing data is untouched** — your wiki, conversations, and settings carry over as-is. The `claude_session_id` column stays (unused); the shared `api_key` still works as the fallback credential, and per-provider keys win when set.
+- **Existing data is untouched** — your wiki, conversations, and settings carry over as-is. The `claude_session_id` column stays (unused); credentials are per-provider, each with its own key in Settings → Providers.
 - **The wiki is still yours** — Thoth Agent and a terminal (Claude Code, any editor) read and write the same tree under the same rulebook. The two-interfaces contract did not change.
 
 See [Architecture](architecture.md) for the system design, [Components](components.md) for the package layout, and [What's new](whats-new.md) for the milestone overview.

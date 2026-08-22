@@ -111,7 +111,7 @@ func TestHealthBackendConfigured(t *testing.T) {
 	if _, err := deps.Store.CreateModel("claude-sonnet-5", "Claude Sonnet 5", "balanced", "Anthropic"); err != nil {
 		t.Fatal(err)
 	}
-	if err := deps.Settings.SetSetting(settings.KeyAPIKey, "sk-test"); err != nil {
+	if err := deps.Settings.SetSetting(settings.ProviderAPIKeyKey("Anthropic"), "sk-test"); err != nil {
 		t.Fatal(err)
 	}
 	if err := deps.Settings.SetSetting(settings.KeyModel, "claude-sonnet-5"); err != nil {

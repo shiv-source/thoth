@@ -66,7 +66,7 @@ func healthyThothDir(t *testing.T) string {
 		t.Fatal(err)
 	}
 	// The api key + model setup checks pass in a healthy env.
-	if err := stg.SetSetting(settings.KeyAPIKey, "sk-healthy"); err != nil {
+	if err := stg.SetSetting(settings.ProviderAPIKeyKey("Anthropic"), "sk-healthy"); err != nil {
 		t.Fatal(err)
 	}
 	if err := stg.SetSetting(settings.KeyModel, "claude-sonnet-5"); err != nil {

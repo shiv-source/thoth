@@ -151,7 +151,7 @@ func healthyThothDir(t *testing.T) string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := r.SetSetting(settings.KeyAPIKey, "sk-healthy"); err != nil {
+	if err := r.SetSetting(settings.ProviderAPIKeyKey("Anthropic"), "sk-healthy"); err != nil {
 		t.Fatal(err)
 	}
 	if err := r.SetSetting(settings.KeyModel, "claude-sonnet-5"); err != nil {
@@ -339,8 +339,8 @@ func TestRunProviderRoutesByRegistryProvider(t *testing.T) {
 }
 
 func TestRunApiKeyCheckResolvesPerProviderKey(t *testing.T) {
-	// The shared api_key is empty; only the selected provider's own key is
-	// set — the check must pass with the credential the agent will use.
+	// Only the selected provider's own key is set — the check must pass with
+	// the credential the agent will use (there is no shared fallback).
 	dir := healthyThothDir(t)
 	dbPath := filepath.Join(dir, "thoth.db")
 	st, err := store.Open(dbPath)
@@ -352,9 +352,6 @@ func TestRunApiKeyCheckResolvesPerProviderKey(t *testing.T) {
 	}
 	r, err := settings.OpenRepo(dbPath)
 	if err != nil {
-		t.Fatal(err)
-	}
-	if err := r.SetSetting(settings.KeyAPIKey, ""); err != nil {
 		t.Fatal(err)
 	}
 	if err := r.SetSetting(settings.KeyModel, "deepseek-v4-flash"); err != nil {

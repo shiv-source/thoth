@@ -8,7 +8,6 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -221,11 +220,11 @@ func providerProbeFor(model, providerName, baseURL string) (providerProbe, error
 // from a down endpoint or provider-side error. The provider and its
 // credentials resolve the way serve resolves them at boot: the selected
 // model's llm_models row names the provider, whose per-provider api key and
-// base url win over the shared key and the provider default. The probe is
+// base url are used (empty base url → the provider default). The probe is
 // bounded by ctx and opts.HTTP (nil → http.DefaultClient); opts.BaseURL
 // overrides the resolved base url so tests stub the endpoint.
 func checkProvider(ctx context.Context, dbPath string, opts Options) Check {
-	_, model, err := backendSettings(dbPath)
+	model, err := selectedModel(dbPath)
 	if err != nil {
 		return Check{Name: "provider", OK: false, Message: fmt.Sprintf("cannot read the settings table: %v", err)}
 	}
@@ -275,7 +274,7 @@ func checkProvider(ctx context.Context, dbPath string, opts Options) Check {
 	case resp.StatusCode == http.StatusOK:
 		return Check{Name: "provider", OK: true, Message: fmt.Sprintf("%s reachable at %s", probe.name, probe.baseURL)}
 	case resp.StatusCode == http.StatusUnauthorized:
-		return Check{Name: "provider", OK: false, Message: fmt.Sprintf("%s rejected the API key (401) — set a valid one in Settings → General", probe.name)}
+		return Check{Name: "provider", OK: false, Message: fmt.Sprintf("%s rejected the API key (401) — set a valid one in Settings → Providers", probe.name)}
 	case resp.StatusCode == http.StatusTooManyRequests:
 		return Check{Name: "provider", OK: false, Message: fmt.Sprintf("%s rate limited (429) — retry later", probe.name)}
 	case resp.StatusCode >= 500:
@@ -285,21 +284,20 @@ func checkProvider(ctx context.Context, dbPath string, opts Options) Check {
 	}
 }
 
-// backendSettings reads the api key and model from the settings table; a
-// missing database yields empty values and no error, so callers fall through
-// to their unset-state messages.
-func backendSettings(dbPath string) (key, model string, err error) {
+// selectedModel reads the model from the settings table; a missing database
+// yields an empty value and no error, so callers fall through to their
+// unset-state messages.
+func selectedModel(dbPath string) (string, error) {
 	if !fileExists(dbPath) {
-		return "", "", nil
+		return "", nil
 	}
 	r, err := settings.OpenRepo(dbPath)
 	if err != nil {
-		return "", "", err
+		return "", err
 	}
 	defer func() { _ = r.Close() }()
-	key, _, keyErr := r.Setting(settings.KeyAPIKey)
-	model, _, modelErr := r.Setting(settings.KeyModel)
-	return key, model, errors.Join(keyErr, modelErr)
+	model, _, err := r.Setting(settings.KeyModel)
+	return model, err
 }
 
 // modelProvider returns the llm_models row's provider label for a model
@@ -322,11 +320,11 @@ func modelProvider(dbPath, value string) string {
 }
 
 // providerConfig resolves the per-provider api key and base url override for
-// a provider name, mirroring settings.Repo.ProviderConfig: the provider's own
-// key wins, the shared api_key is the fallback, and an empty base url means
-// the provider's default endpoint. An empty provider name (no registry row)
-// resolves to the shared key path. A missing database yields empty values and
-// no error.
+// a provider name, mirroring settings.Repo.ProviderConfig: keys live in
+// thoth.db only (no shared fallback, nothing from the environment), and an
+// empty base url means the provider's default endpoint. An empty provider
+// name (no registry row) resolves to an empty key. A missing database yields
+// empty values and no error.
 func providerConfig(dbPath, providerName string) (apiKey, baseURL string, err error) {
 	if !fileExists(dbPath) {
 		return "", "", nil
@@ -347,19 +345,19 @@ func unreadableSettings(err error) []Check {
 }
 
 // checkSettings reports the user-facing setup state: whether the API key and
-// the selected model are configured. Both are optional (an unset key
-// inherits the server environment and an unset model keeps the default), so
-// an unset value is a failed check whose message explains the fallback. A
-// model whose value is not in the llm_models registry is reported as unknown.
+// the selected model are configured. Both are optional (an unset model keeps
+// the default), so an unset value is a failed check whose message explains
+// what to do. A model whose value is not in the llm_models registry is
+// reported as unknown.
 func checkSettings(dbPath string) []Check {
 	unset := func(name, message string) Check { return Check{Name: name, OK: false, Message: message} }
-	key, model, err := backendSettings(dbPath)
+	model, err := selectedModel(dbPath)
 	if err != nil {
 		return unreadableSettings(err)
 	}
-	// The credential the agent actually uses: the selected provider's own
-	// key when set, else the shared api_key.
-	resolvedKey := key
+	// The credential the agent actually uses is the selected provider's own
+	// key — read from the DB only, no shared fallback.
+	var resolvedKey string
 	if model != "" {
 		if resolvedKey, _, err = providerConfig(dbPath, modelProvider(dbPath, model)); err != nil {
 			return unreadableSettings(err)
@@ -369,13 +367,13 @@ func checkSettings(dbPath string) []Check {
 	if resolvedKey != "" {
 		checks = append(checks, Check{Name: "api key", OK: true, Message: "API key configured"})
 	} else {
-		checks = append(checks, unset("api key", "no API key configured — set one in Settings → General (or per-provider in Provider credentials); without it the agent inherits the API key from the server environment"))
+		checks = append(checks, unset("api key", "no API key configured — set the provider's API key in Settings → Providers"))
 	}
 	if model != "" {
 		if modelKnown(dbPath, model) {
 			checks = append(checks, Check{Name: "model", OK: true, Message: fmt.Sprintf("model %q selected", model)})
 		} else {
-			checks = append(checks, Check{Name: "model", OK: false, Message: fmt.Sprintf("unknown model %q — it is not in the model registry; pick one in Settings → LLM Models", model)})
+			checks = append(checks, Check{Name: "model", OK: false, Message: fmt.Sprintf("unknown model %q — it is not in the model registry; add or pick one in Settings → Providers", model)})
 		}
 	} else {
 		checks = append(checks, unset("model", "no model selected — the default model is used; pick one in Settings → General"))

@@ -44,18 +44,20 @@ func health(c echo.Context, d Deps) error {
 	})
 }
 
-// backend reports the native backend state. The API key is write-only, so
-// only its presence is exposed; the model comes from the settings table and
-// the provider from the model's llm_models row. Unreadable settings degrade
-// to "not configured" rather than failing the health probe.
+// backend reports the native backend state. The per-provider API key is
+// write-only, so only its presence is exposed; the model comes from the
+// settings table and the provider from the model's llm_models row. A model
+// without a keyed provider (or unreadable settings) degrades to "not
+// configured" rather than failing the health probe.
 func backend(d Deps) backendState {
 	model, _, _ := d.Settings.Setting(settings.KeyModel)
-	apiKey, _, _ := d.Settings.Setting(settings.KeyAPIKey)
+	provider := providerName(d.Store, model)
+	apiKey, _, _ := d.Settings.ProviderConfig(provider)
 	return backendState{
 		Name:             "thoth-agent",
 		APIKeyConfigured: apiKey != "",
 		Model:            model,
-		Provider:         providerName(d.Store, model),
+		Provider:         provider,
 	}
 }
 

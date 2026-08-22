@@ -9,8 +9,8 @@ The big one: the assistant stopped being a spawned `claude` CLI process and beca
 **What you get:**
 
 - **No Claude Code install or login** — Thoth Agent calls model providers directly; the `claude` binary, its login, and `PATH` setup are gone. Just add an API key in Settings.
-- **Any provider** — a `Provider` seam means the model picker isn't Anthropic-only: Anthropic *and* OpenAI-compatible endpoints (DeepSeek, Qwen, GLM, Grok, …) work through Settings → LLM Models.
-- **Per-provider credentials** — each provider can have its own API key and base URL (`provider_<slug>_api_key` / `provider_<slug>_base_url`), falling back to the shared key and the provider's default endpoint. Settings → General exposes them.
+- **Any provider** — a `Provider` seam means the model picker isn't Anthropic-only: Anthropic *and* OpenAI-compatible endpoints (DeepSeek, Qwen, GLM, Grok, …) work through Settings → Providers.
+- **Per-provider credentials** — each provider has its own API key and base URL (`provider_<slug>_api_key` / `provider_<slug>_base_url`), read from thoth.db only; an empty base URL means the provider's default endpoint. Settings → Providers exposes them.
 - **Instant rulebook changes** — the system prompt is re-read from `wiki/CLAUDE.md` on every turn; edits apply without restarting anything.
 - **A bounded write path** — the assistant reads/writes the wiki only through `SafePath`-bounded tools (`read_file`, `write_file`, `list`, `search`). No `--dangerously-skip-permissions`, no subprocess at all.
 

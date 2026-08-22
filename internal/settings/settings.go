@@ -18,7 +18,6 @@ const (
 	KeyWikiPath     = "wiki_path"
 	KeyWikiFolders  = "wiki_folders"
 	KeyModel        = "model"
-	KeyAPIKey       = "api_key"
 	KeyRepoURL      = "github_sync_repo"
 	KeySyncEnabled  = "github_sync_enabled"
 	KeyLastSyncedAt = "github_last_synced_at"
@@ -102,22 +101,16 @@ func (r *Repo) SetSetting(key, value string) error {
 
 // ProviderConfig resolves the credentials for a provider name (the
 // llm_models row's provider label): its per-provider API key and base URL
-// override when set, falling back to the shared api_key and an empty base
-// URL (the provider's default endpoint). An empty provider name always takes
-// the shared key path.
+// override. Keys live in thoth.db only — there is no shared fallback and
+// nothing is read from the environment. An empty provider name (no registry
+// row) resolves to an empty key and the provider's default endpoint.
 func (r *Repo) ProviderConfig(provider string) (apiKey, baseURL string, err error) {
 	if provider == "" {
-		apiKey, _, err = r.Setting(KeyAPIKey)
-		return apiKey, "", err
+		return "", "", nil
 	}
 	apiKey, _, err = r.Setting(ProviderAPIKeyKey(provider))
 	if err != nil {
 		return "", "", err
-	}
-	if apiKey == "" {
-		if apiKey, _, err = r.Setting(KeyAPIKey); err != nil {
-			return "", "", err
-		}
 	}
 	baseURL, _, err = r.Setting(ProviderBaseURLKey(provider))
 	if err != nil {
