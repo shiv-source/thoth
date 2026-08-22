@@ -1,5 +1,23 @@
 # Frontend patterns — the cross-cutting conventions
 
+## File structure & naming
+- **One component per file** — a component is one React component (plus
+  tiny primitives it alone uses); a page is a dispatcher + one file per
+  sub-page + shared components, never a 1000-line monolith
+- **`.tsx` for JSX, `.ts` for pure logic** — any file that renders JSX is
+  `.tsx`; `.ts` only for no-JSX logic (hooks without render, helpers,
+  types, client.ts, slices)
+- **PascalCase components** (`ChatPage.tsx`), **camelCase logic** files
+  (`useSettingsForm.ts`, `settingsBody.ts`); filename matches the export
+- **Named exports only** — `export function <Name>()`, never `export default`
+- **Explicit props types**, derived from zod schemas via `z.infer` at the
+  wire; no `any`
+- **Roles by folder** — `pages/` route views, `components/` feature
+  components (grouped by owner), `shared/` cross-cutting primitives,
+  `hooks/` reusable hooks, `store/slices/` one per feature; shared logic
+  becomes a hook/helper and is imported, never pasted
+- canonical: CLAUDE.md §Code Rules · the react skill §1a
+
 ## Ant Design first
 - All UI chrome renders through antd v6 components (Layout, Menu, Button,
   Badge, Popover, Tooltip, List, Empty, Skeleton, Tabs, Form, Select,
@@ -76,5 +94,6 @@
 
 Stale if: a zod schema changes shape without a client.ts update, the WS
 frame set changes, a new test double appears in web/src/test, new
-semantic tokens land in index.css without an entry above, or the antd
-theme/icon conventions change.
+semantic tokens land in index.css without an entry above, the antd
+theme/icon conventions change, or the file-structure/naming rules stop
+matching how pages and components are laid out.

@@ -45,29 +45,19 @@
     box-shadow: var(--ant-box-shadow-tertiary);
 }
 
-/* Settings tab rail — v6 Tabs tokens (theme.ts) cover item colors but
-   not the active pill's background/weight, so it's scoped here via the
-   Tabs classNames.root hook. Hover first so the active rule wins.
-   If an antd bump ever renames .ant-tabs-tab-active, the fallback is
-   .settings-tabs .ant-tabs-tab:has(.ant-tabs-tab-btn[aria-selected='true']). */
-.settings-tabs .ant-tabs-tab:hover {
+/* Settings rail — the sub-page menu in SettingsShell. antd v6 Menu tokens
+   (theme.ts) cover item colors but not the active pill's background/weight,
+   so it's scoped here. */
+.settings-menu .ant-menu-item {
+    border-radius: 8px;
+    margin-block: 4px;
+}
+.settings-menu .ant-menu-item:hover {
     background: var(--ant-color-fill-quaternary);
 }
-.settings-tabs .ant-tabs-tab-active {
+.settings-menu .ant-menu-item-selected {
     background: var(--ant-color-primary-bg);
-    border-radius: 8px;
     font-weight: 600;
-}
-/* The settings tab rail must never scroll away — only the pane content
-   scrolls. The holder is the height-bounded flex item (the .ant-tabs root
-   fills the viewport via SettingsPage's flex chain), so it owns the scroll.
-   The default left-placement divider (the holder's border-left) renders as a
-   stray full-height line between the rail and the content — drop it and the
-   negative margin that kept it aligned. */
-.settings-tabs .ant-tabs-body-holder {
-    border-left: none;
-    margin-left: 0;
-    overflow-y: auto;
 }
 
 /* App icon size — 16px matches the pre-migration UI. antd sizes Menu

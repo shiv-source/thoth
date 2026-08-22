@@ -248,7 +248,7 @@ describe('SettingsPage', () => {
         })
 
         renderSettings()
-        await userEvent.click(await screen.findByRole('tab', { name: 'Providers' }))
+        await userEvent.click(await screen.findByRole('menuitem', { name: 'Providers' }))
         // The only provider's panel is open by default with the saved base URL.
         expect(await screen.findByText('DeepSeek')).toBeInTheDocument()
         const baseURL = await screen.findByLabelText('Base URL')
@@ -285,7 +285,7 @@ describe('SettingsPage', () => {
         })
 
         renderSettings()
-        await userEvent.click(await screen.findByRole('tab', { name: 'Providers' }))
+        await userEvent.click(await screen.findByRole('menuitem', { name: 'Providers' }))
         const baseURL = await screen.findByLabelText('Base URL')
         await userEvent.type(baseURL, 'https://api.openai.com/v1')
         await userEvent.click(screen.getByRole('button', { name: /Save/ }))
@@ -331,7 +331,7 @@ describe('SettingsPage', () => {
         })
 
         renderSettings()
-        await userEvent.click(await screen.findByRole('tab', { name: 'Doctor' }))
+        await userEvent.click(await screen.findByRole('menuitem', { name: 'Doctor' }))
         expect(await screen.findByText('wiki')).toBeInTheDocument()
         expect(
             screen.getByText('Anthropic rejected the API key (401) — set a valid one in Settings → Providers')
@@ -347,7 +347,7 @@ describe('SettingsPage', () => {
         })
 
         renderSettings()
-        await userEvent.click(await screen.findByRole('tab', { name: 'Git remote' }))
+        await userEvent.click(await screen.findByRole('menuitem', { name: 'Git remote' }))
         // The connected account's repos are offered as a dropdown the width of
         // the input; picking the private repo fills the field.
         const url = await screen.findByLabelText('Git remote URL')
@@ -372,7 +372,7 @@ describe('SettingsPage', () => {
         })
 
         renderSettings()
-        await userEvent.click(await screen.findByRole('tab', { name: 'Git remote' }))
+        await userEvent.click(await screen.findByRole('menuitem', { name: 'Git remote' }))
         await userEvent.type(await screen.findByPlaceholderText(/ghp_/), 'ghp_secret123')
         await userEvent.click(screen.getByRole('button', { name: 'Connect' }))
 
@@ -395,7 +395,7 @@ describe('SettingsPage', () => {
         mocks.post.mockRejectedValueOnce(axiosError(400, { error: 'github rejected the token' }))
 
         renderSettings()
-        await userEvent.click(await screen.findByRole('tab', { name: 'Git remote' }))
+        await userEvent.click(await screen.findByRole('menuitem', { name: 'Git remote' }))
         await userEvent.type(await screen.findByPlaceholderText(/ghp_/), 'bad-token')
         await userEvent.click(screen.getByRole('button', { name: 'Connect' }))
 
@@ -412,7 +412,7 @@ describe('SettingsPage', () => {
         })
 
         renderSettings()
-        await userEvent.click(await screen.findByRole('tab', { name: 'Git remote' }))
+        await userEvent.click(await screen.findByRole('menuitem', { name: 'Git remote' }))
         expect(await screen.findByText('Octo Cat')).toBeInTheDocument()
         await userEvent.click(screen.getByRole('button', { name: 'Disconnect' }))
 
@@ -441,7 +441,7 @@ describe('SettingsPage Providers tab', () => {
         })
 
         renderSettings()
-        await userEvent.click(await screen.findByRole('tab', { name: 'Providers' }))
+        await userEvent.click(await screen.findByRole('menuitem', { name: 'Providers' }))
         // The single provider's panel is open by default; its header names
         // it and counts its models, and the table lists the model with its
         // tag rendered as a chip.
@@ -476,7 +476,7 @@ describe('SettingsPage Providers tab', () => {
         })
 
         renderSettings()
-        await userEvent.click(await screen.findByRole('tab', { name: 'Providers' }))
+        await userEvent.click(await screen.findByRole('menuitem', { name: 'Providers' }))
         // byText, not byRole: role-name computation hangs under jsdom for
         // buttons inside the antd Table.
         await userEvent.click(await screen.findByText('Edit'))
@@ -502,7 +502,7 @@ describe('SettingsPage Providers tab', () => {
         })
 
         renderSettings()
-        await userEvent.click(await screen.findByRole('tab', { name: 'Providers' }))
+        await userEvent.click(await screen.findByRole('menuitem', { name: 'Providers' }))
         expect(await screen.findByText('My Model')).toBeInTheDocument()
         await userEvent.click(await screen.findByText('Delete'))
         await userEvent.click(await screen.findByText('OK'))
@@ -519,7 +519,7 @@ describe('SettingsPage Providers tab', () => {
         })
 
         renderSettings()
-        await userEvent.click(await screen.findByRole('tab', { name: 'Providers' }))
+        await userEvent.click(await screen.findByRole('menuitem', { name: 'Providers' }))
         expect(await screen.findByText('No models yet')).toBeInTheDocument()
         // The empty-state CTA opens the same add modal.
         await userEvent.click(await screen.findByText('Add your first model'))
@@ -537,7 +537,7 @@ describe('SettingsPage auto-sync', () => {
         })
 
         renderSettings()
-        await userEvent.click(await screen.findByRole('tab', { name: 'Git remote' }))
+        await userEvent.click(await screen.findByRole('menuitem', { name: 'Git remote' }))
         await userEvent.click(await screen.findByRole('switch'))
         await userEvent.click(screen.getByRole('button', { name: 'Save' }))
 
@@ -556,7 +556,7 @@ describe('SettingsPage public repo guard', () => {
         })
 
         renderSettings()
-        await userEvent.click(await screen.findByRole('tab', { name: 'Git remote' }))
+        await userEvent.click(await screen.findByRole('menuitem', { name: 'Git remote' }))
         const url = await screen.findByLabelText('Git remote URL')
         await userEvent.type(url, 'octo/public')
         await userEvent.click(await screen.findByRole('option', { name: /octo\/public-wiki/ }))
@@ -576,21 +576,21 @@ describe('SettingsPage tab routing', () => {
         window.history.pushState(null, '', '/settings/doctor')
         stubAPI({ 'GET /api/settings': getSettings, 'GET /api/github/auth': getEmptyGitHub })
         renderSettings()
-        expect(await screen.findByRole('tab', { name: 'Doctor' })).toHaveAttribute('aria-selected', 'true')
+        expect(await screen.findByRole('menuitem', { name: 'Doctor' })).toHaveClass('ant-menu-item-selected')
     })
 
     it('restores the Providers tab from the hash', async () => {
         window.history.pushState(null, '', '/settings/providers')
         stubAPI({ 'GET /api/settings': getSettings, 'GET /api/github/auth': getEmptyGitHub })
         renderSettings()
-        expect(await screen.findByRole('tab', { name: 'Providers' })).toHaveAttribute('aria-selected', 'true')
+        expect(await screen.findByRole('menuitem', { name: 'Providers' })).toHaveClass('ant-menu-item-selected')
     })
 
     it('writes the clicked tab into the hash', async () => {
         window.history.pushState(null, '', '/settings')
         stubAPI({ 'GET /api/settings': getSettings, 'GET /api/github/auth': getEmptyGitHub })
         renderSettings()
-        await userEvent.click(await screen.findByRole('tab', { name: 'Git remote' }))
+        await userEvent.click(await screen.findByRole('menuitem', { name: 'Git remote' }))
         expect(window.location.pathname).toBe('/settings/git')
     })
 })
@@ -604,7 +604,7 @@ describe('SettingsPage default tab route', () => {
         window.history.pushState(null, '', '/settings')
         stubAPI({ 'GET /api/settings': getSettings, 'GET /api/github/auth': getEmptyGitHub })
         renderSettings()
-        expect(await screen.findByRole('tab', { name: 'General' })).toHaveAttribute('aria-selected', 'true')
+        expect(await screen.findByRole('menuitem', { name: 'General' })).toHaveClass('ant-menu-item-selected')
         await waitFor(() => expect(window.location.pathname).toBe('/settings/general'))
     })
 })
