@@ -4,7 +4,7 @@ Thoth's assistant was born as a **Claude Code CLI process** spawned headlessly p
 
 ## What is Thoth Agent?
 
-Thoth Agent is the built-in assistant: the thing that answers questions from your wiki and files new notes into it. It is a pure library call inside the `thoth` binary — the reusable `agent/` module (the tool-use loop, the `Provider` seam, the tool registry) hosted by `internal/agent`, which wires it to the wiki, the store, and the search index. It reports itself as `thoth-agent` in `GET /api/health`.
+Thoth Agent is the built-in assistant: the thing that answers questions from your wiki and files new notes into it. It is a pure library call inside the `thoth` binary — the reusable `agent/` module (the tool-use loop, the `Provider` seam, the tool registry) hosted by `internal/agent`, which wires it to the wiki, the store, and the search index. It reports itself as `thoth-agent` in `GET /api/v1/health`.
 
 ## What changed
 

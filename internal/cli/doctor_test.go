@@ -121,9 +121,9 @@ func serveThothOnFixedPort(t *testing.T) {
 	upgrader := websocket.Upgrader{CheckOrigin: func(*http.Request) bool { return true }}
 	srv := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case "/api/health":
+		case "/api/v1/health":
 			_, _ = w.Write([]byte(`{"status":"ok","wiki":{"path":"/fake/wiki","exists":true}}`))
-		case "/ws":
+		case "/ws/v1":
 			conn, err := upgrader.Upgrade(w, r, nil)
 			if err != nil {
 				return

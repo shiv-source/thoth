@@ -20,7 +20,7 @@ type modelBody struct {
 	Provider string `json:"provider"`
 }
 
-// groupBody decodes one provider group of GET /api/models.
+// groupBody decodes one provider group of GET /api/v1/models.
 type groupBody struct {
 	Provider string      `json:"provider"`
 	Models   []modelBody `json:"models"`
@@ -58,7 +58,7 @@ func TestModelsListFromDB(t *testing.T) {
 		t.Fatal(err)
 	}
 	e := New(d)
-	rec := doModelsRequest(t, e, http.MethodGet, "/api/models", nil)
+	rec := doModelsRequest(t, e, http.MethodGet, "/api/v1/models", nil)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status %d", rec.Code)
 	}
@@ -87,7 +87,7 @@ func TestModelsGroupsSortedByProvider(t *testing.T) {
 		}
 	}
 	e := New(d)
-	groups := decodeGroups(t, doModelsRequest(t, e, http.MethodGet, "/api/models", nil))
+	groups := decodeGroups(t, doModelsRequest(t, e, http.MethodGet, "/api/v1/models", nil))
 	if len(groups) != 3 {
 		t.Fatalf("expected 3 groups, got %+v", groups)
 	}
@@ -103,7 +103,7 @@ func TestModelsGroupsSortedByProvider(t *testing.T) {
 
 func TestModelsCreate(t *testing.T) {
 	e := New(testDeps(t))
-	rec := doModelsRequest(t, e, http.MethodPost, "/api/models", map[string]string{
+	rec := doModelsRequest(t, e, http.MethodPost, "/api/v1/models", map[string]string{
 		"value": "new-model", "name": "New Model", "tag": "test", "provider": "Vendor",
 	})
 	if rec.Code != http.StatusOK {
@@ -125,7 +125,7 @@ func TestModelsCreateValidation(t *testing.T) {
 		{"value": "only-value"},
 		{"name": "only-name"},
 	} {
-		rec := doModelsRequest(t, e, http.MethodPost, "/api/models", body)
+		rec := doModelsRequest(t, e, http.MethodPost, "/api/v1/models", body)
 		if rec.Code != http.StatusBadRequest {
 			t.Fatalf("body %v: status %d, want 400", body, rec.Code)
 		}
@@ -138,7 +138,7 @@ func TestModelsCreateDuplicate(t *testing.T) {
 		t.Fatal(err)
 	}
 	e := New(d)
-	rec := doModelsRequest(t, e, http.MethodPost, "/api/models", map[string]string{
+	rec := doModelsRequest(t, e, http.MethodPost, "/api/v1/models", map[string]string{
 		"value": "dup", "name": "Second",
 	})
 	if rec.Code != http.StatusConflict {
@@ -153,13 +153,13 @@ func TestModelsUpdate(t *testing.T) {
 		t.Fatal(err)
 	}
 	e := New(d)
-	rec := doModelsRequest(t, e, http.MethodPut, "/api/models/"+strconv.FormatInt(m.ID, 10), map[string]string{
+	rec := doModelsRequest(t, e, http.MethodPut, "/api/v1/models/"+strconv.FormatInt(m.ID, 10), map[string]string{
 		"value": "new-value", "name": "New", "tag": "after", "provider": "Other",
 	})
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
 	}
-	groups := decodeGroups(t, doModelsRequest(t, e, http.MethodGet, "/api/models", nil))
+	groups := decodeGroups(t, doModelsRequest(t, e, http.MethodGet, "/api/v1/models", nil))
 	if len(groups) != 1 || len(groups[0].Models) != 1 {
 		t.Fatalf("update mismatch: %+v", groups)
 	}
@@ -171,7 +171,7 @@ func TestModelsUpdate(t *testing.T) {
 
 func TestModelsUpdateNotFound(t *testing.T) {
 	e := New(testDeps(t))
-	rec := doModelsRequest(t, e, http.MethodPut, "/api/models/404", map[string]string{
+	rec := doModelsRequest(t, e, http.MethodPut, "/api/v1/models/404", map[string]string{
 		"value": "x", "name": "X",
 	})
 	if rec.Code != http.StatusNotFound {
@@ -189,7 +189,7 @@ func TestModelsUpdateDuplicate(t *testing.T) {
 		t.Fatal(err)
 	}
 	e := New(d)
-	rec := doModelsRequest(t, e, http.MethodPut, "/api/models/"+strconv.FormatInt(m.ID, 10), map[string]string{
+	rec := doModelsRequest(t, e, http.MethodPut, "/api/v1/models/"+strconv.FormatInt(m.ID, 10), map[string]string{
 		"value": "taken", "name": "Free",
 	})
 	if rec.Code != http.StatusConflict {
@@ -207,7 +207,7 @@ func TestModelsUpdateRenamesSelectedModel(t *testing.T) {
 		t.Fatal(err)
 	}
 	e := New(d)
-	rec := doModelsRequest(t, e, http.MethodPut, "/api/models/"+strconv.FormatInt(m.ID, 10), map[string]string{
+	rec := doModelsRequest(t, e, http.MethodPut, "/api/v1/models/"+strconv.FormatInt(m.ID, 10), map[string]string{
 		"value": "new-value", "name": "New",
 	})
 	if rec.Code != http.StatusOK {
@@ -226,18 +226,18 @@ func TestModelsDelete(t *testing.T) {
 		t.Fatal(err)
 	}
 	e := New(d)
-	rec := doModelsRequest(t, e, http.MethodDelete, "/api/models/"+strconv.FormatInt(m.ID, 10), nil)
+	rec := doModelsRequest(t, e, http.MethodDelete, "/api/v1/models/"+strconv.FormatInt(m.ID, 10), nil)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
 	}
-	if groups := decodeGroups(t, doModelsRequest(t, e, http.MethodGet, "/api/models", nil)); len(groups) != 0 {
+	if groups := decodeGroups(t, doModelsRequest(t, e, http.MethodGet, "/api/v1/models", nil)); len(groups) != 0 {
 		t.Fatalf("model survived delete: %+v", groups)
 	}
 }
 
 func TestModelsDeleteNotFound(t *testing.T) {
 	e := New(testDeps(t))
-	rec := doModelsRequest(t, e, http.MethodDelete, "/api/models/404", nil)
+	rec := doModelsRequest(t, e, http.MethodDelete, "/api/v1/models/404", nil)
 	if rec.Code != http.StatusNotFound {
 		t.Fatalf("status %d, want 404", rec.Code)
 	}
@@ -253,7 +253,7 @@ func TestModelsDeleteClearsSelectedModel(t *testing.T) {
 		t.Fatal(err)
 	}
 	e := New(d)
-	rec := doModelsRequest(t, e, http.MethodDelete, "/api/models/"+strconv.FormatInt(m.ID, 10), nil)
+	rec := doModelsRequest(t, e, http.MethodDelete, "/api/v1/models/"+strconv.FormatInt(m.ID, 10), nil)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
 	}

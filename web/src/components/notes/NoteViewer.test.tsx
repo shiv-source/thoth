@@ -18,7 +18,7 @@ describe('NoteViewer', () => {
     beforeEach(() => {
         vi.clearAllMocks()
         stubAPI(mocks, {
-            'GET /api/notes?path=knowledge%2Fnote.md': () => ({ path: 'knowledge/note.md', content: '# Hello\n\nbody' })
+            'GET /api/v1/notes?path=knowledge%2Fnote.md': () => ({ path: 'knowledge/note.md', content: '# Hello\n\nbody' })
         })
     })
 
@@ -67,21 +67,21 @@ describe('NoteViewer', () => {
     it('renders an image attachment inline without fetching JSON', async () => {
         renderWithStore(<NoteViewer path="attachments/logo.png" onClose={vi.fn()} />)
         const img = await screen.findByRole('img', { name: 'attachments/logo.png' })
-        expect(img).toHaveAttribute('src', '/api/notes?path=attachments%2Flogo.png')
+        expect(img).toHaveAttribute('src', '/api/v1/notes?path=attachments%2Flogo.png')
         expect(mocks.get).not.toHaveBeenCalled()
     })
 
     it('offers a download for non-image attachments', () => {
         renderWithStore(<NoteViewer path="attachments/install.sh" onClose={vi.fn()} />)
         const download = screen.getByRole('link', { name: 'Download' })
-        expect(download).toHaveAttribute('href', '/api/notes?path=attachments%2Finstall.sh')
+        expect(download).toHaveAttribute('href', '/api/v1/notes?path=attachments%2Finstall.sh')
         expect(download).toHaveAttribute('download', 'install.sh')
         expect(mocks.get).not.toHaveBeenCalled()
     })
 
     it('previews uppercase and long markdown extensions as notes', async () => {
         stubAPI(mocks, {
-            'GET /api/notes?path=knowledge%2Fnote.MD': () => ({ path: 'knowledge/note.MD', content: '# Upper' })
+            'GET /api/v1/notes?path=knowledge%2Fnote.MD': () => ({ path: 'knowledge/note.MD', content: '# Upper' })
         })
         renderWithStore(<NoteViewer path="knowledge/note.MD" onClose={vi.fn()} />)
         expect(await screen.findByText('Upper')).toBeInTheDocument()

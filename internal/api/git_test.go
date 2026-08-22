@@ -41,7 +41,7 @@ func initBare(t *testing.T) string {
 }
 
 func gitSetupReq(e http.Handler, url string) *httptest.ResponseRecorder {
-	req := httptest.NewRequest(http.MethodPost, "/api/git/setup",
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/git/setup",
 		bytes.NewReader([]byte(`{"url":"`+url+`"}`)))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
@@ -146,7 +146,7 @@ func TestGitSetupReportsSanitizedFailure(t *testing.T) {
 func TestGitSetupRequiresURL(t *testing.T) {
 	d := testDeps(t)
 	e := New(d)
-	req := httptest.NewRequest(http.MethodPost, "/api/git/setup", bytes.NewReader([]byte(`{}`)))
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/git/setup", bytes.NewReader([]byte(`{}`)))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, req)

@@ -29,7 +29,7 @@ describe('healthSlice', () => {
     })
 
     it('loads the health payload', async () => {
-        stubAPI(mocks, { 'GET /api/health': () => healthy })
+        stubAPI(mocks, { 'GET /api/v1/health': () => healthy })
         const store = makeStore()
         await store.dispatch(fetchHealth())
         expect(selectHealth(store.getState())).toEqual(healthy)

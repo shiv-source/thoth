@@ -44,7 +44,7 @@ func TestGetSettingsStoreError(t *testing.T) {
 	if err := d.Settings.Close(); err != nil {
 		t.Fatal(err)
 	}
-	if rec := doReq(t, New(d), http.MethodGet, "/api/settings", ""); rec.Code != http.StatusInternalServerError {
+	if rec := doReq(t, New(d), http.MethodGet, "/api/v1/settings", ""); rec.Code != http.StatusInternalServerError {
 		t.Fatalf("status %d, want 500", rec.Code)
 	}
 }
@@ -54,7 +54,7 @@ func TestGetSettingsProviderReadError(t *testing.T) {
 	if err := d.Store.Close(); err != nil {
 		t.Fatal(err)
 	}
-	if rec := doReq(t, New(d), http.MethodGet, "/api/settings", ""); rec.Code != http.StatusInternalServerError {
+	if rec := doReq(t, New(d), http.MethodGet, "/api/v1/settings", ""); rec.Code != http.StatusInternalServerError {
 		t.Fatalf("status %d, want 500 (provider config read)", rec.Code)
 	}
 }
@@ -66,7 +66,7 @@ func TestModelsListStoreError(t *testing.T) {
 	if err := d.Store.Close(); err != nil {
 		t.Fatal(err)
 	}
-	if rec := doReq(t, New(d), http.MethodGet, "/api/models", ""); rec.Code != http.StatusInternalServerError {
+	if rec := doReq(t, New(d), http.MethodGet, "/api/v1/models", ""); rec.Code != http.StatusInternalServerError {
 		t.Fatalf("status %d, want 500", rec.Code)
 	}
 }
@@ -76,7 +76,7 @@ func TestModelsCreateStoreError(t *testing.T) {
 	if err := d.Store.Close(); err != nil {
 		t.Fatal(err)
 	}
-	rec := doReq(t, New(d), http.MethodPost, "/api/models", `{"value":"x","name":"X"}`)
+	rec := doReq(t, New(d), http.MethodPost, "/api/v1/models", `{"value":"x","name":"X"}`)
 	if rec.Code != http.StatusInternalServerError {
 		t.Fatalf("status %d, want 500", rec.Code)
 	}
@@ -84,14 +84,14 @@ func TestModelsCreateStoreError(t *testing.T) {
 
 func TestModelsCreateMalformedBody(t *testing.T) {
 	d := testDeps(t)
-	if rec := doReq(t, New(d), http.MethodPost, "/api/models", `{not json`); rec.Code != http.StatusBadRequest {
+	if rec := doReq(t, New(d), http.MethodPost, "/api/v1/models", `{not json`); rec.Code != http.StatusBadRequest {
 		t.Fatalf("status %d, want 400", rec.Code)
 	}
 }
 
 func TestModelsUpdateMalformedID(t *testing.T) {
 	d := testDeps(t)
-	rec := doReq(t, New(d), http.MethodPut, "/api/models/abc", `{"value":"x","name":"X"}`)
+	rec := doReq(t, New(d), http.MethodPut, "/api/v1/models/abc", `{"value":"x","name":"X"}`)
 	if rec.Code != http.StatusNotFound {
 		t.Fatalf("status %d, want 404", rec.Code)
 	}
@@ -99,7 +99,7 @@ func TestModelsUpdateMalformedID(t *testing.T) {
 
 func TestModelsUpdateMalformedBody(t *testing.T) {
 	d := testDeps(t)
-	if rec := doReq(t, New(d), http.MethodPut, "/api/models/1", `{not json`); rec.Code != http.StatusBadRequest {
+	if rec := doReq(t, New(d), http.MethodPut, "/api/v1/models/1", `{not json`); rec.Code != http.StatusBadRequest {
 		t.Fatalf("status %d, want 400", rec.Code)
 	}
 }
@@ -109,7 +109,7 @@ func TestModelsUpdateStoreError(t *testing.T) {
 	if err := d.Store.Close(); err != nil {
 		t.Fatal(err)
 	}
-	rec := doReq(t, New(d), http.MethodPut, "/api/models/1", `{"value":"x","name":"X"}`)
+	rec := doReq(t, New(d), http.MethodPut, "/api/v1/models/1", `{"value":"x","name":"X"}`)
 	if rec.Code != http.StatusInternalServerError {
 		t.Fatalf("status %d, want 500", rec.Code)
 	}
@@ -124,7 +124,7 @@ func TestModelsUpdateRenamesSelectedSettingError(t *testing.T) {
 	if err := d.Settings.Close(); err != nil {
 		t.Fatal(err)
 	}
-	rec := doReq(t, New(d), http.MethodPut, "/api/models/"+strconv.FormatInt(m.ID, 10), `{"value":"new-value","name":"New"}`)
+	rec := doReq(t, New(d), http.MethodPut, "/api/v1/models/"+strconv.FormatInt(m.ID, 10), `{"value":"new-value","name":"New"}`)
 	if rec.Code != http.StatusInternalServerError {
 		t.Fatalf("status %d, want 500 (model setting read)", rec.Code)
 	}
@@ -132,7 +132,7 @@ func TestModelsUpdateRenamesSelectedSettingError(t *testing.T) {
 
 func TestModelsDeleteMalformedID(t *testing.T) {
 	d := testDeps(t)
-	if rec := doReq(t, New(d), http.MethodDelete, "/api/models/abc", ""); rec.Code != http.StatusNotFound {
+	if rec := doReq(t, New(d), http.MethodDelete, "/api/v1/models/abc", ""); rec.Code != http.StatusNotFound {
 		t.Fatalf("status %d, want 404", rec.Code)
 	}
 }
@@ -142,7 +142,7 @@ func TestModelsDeleteStoreError(t *testing.T) {
 	if err := d.Store.Close(); err != nil {
 		t.Fatal(err)
 	}
-	if rec := doReq(t, New(d), http.MethodDelete, "/api/models/1", ""); rec.Code != http.StatusInternalServerError {
+	if rec := doReq(t, New(d), http.MethodDelete, "/api/v1/models/1", ""); rec.Code != http.StatusInternalServerError {
 		t.Fatalf("status %d, want 500", rec.Code)
 	}
 }
@@ -156,7 +156,7 @@ func TestModelsDeleteClearsSelectedSettingError(t *testing.T) {
 	if err := d.Settings.Close(); err != nil {
 		t.Fatal(err)
 	}
-	rec := doReq(t, New(d), http.MethodDelete, "/api/models/"+strconv.FormatInt(m.ID, 10), "")
+	rec := doReq(t, New(d), http.MethodDelete, "/api/v1/models/"+strconv.FormatInt(m.ID, 10), "")
 	if rec.Code != http.StatusInternalServerError {
 		t.Fatalf("status %d, want 500 (model setting read)", rec.Code)
 	}
@@ -175,7 +175,7 @@ func TestGitSetupInitFailure(t *testing.T) {
 		t.Fatal(err)
 	}
 	d.Wiki = wiki.New(root)
-	rec := doReq(t, New(d), http.MethodPost, "/api/git/setup", `{"url":"https://example.com/wiki.git"}`)
+	rec := doReq(t, New(d), http.MethodPost, "/api/v1/git/setup", `{"url":"https://example.com/wiki.git"}`)
 	var body struct {
 		OK bool `json:"ok"`
 	}
@@ -230,7 +230,7 @@ func TestGitSetRemoteReplacesURL(t *testing.T) {
 func TestConnectGitHubNotConfigured(t *testing.T) {
 	d := testDeps(t)
 	d.GitHub = nil
-	if rec := doReq(t, New(d), http.MethodPost, "/api/github/auth", `{"token":"t"}`); rec.Code != http.StatusInternalServerError {
+	if rec := doReq(t, New(d), http.MethodPost, "/api/v1/github/auth", `{"token":"t"}`); rec.Code != http.StatusInternalServerError {
 		t.Fatalf("status %d, want 500", rec.Code)
 	}
 }
@@ -245,7 +245,7 @@ func TestConnectGitHubSaveError(t *testing.T) {
 	}))
 	defer srv.Close()
 	d.GitHub.Client = github.New(http.DefaultClient).WithBaseURL(srv.URL)
-	if rec := doReq(t, New(d), http.MethodPost, "/api/github/auth", `{"token":"t"}`); rec.Code != http.StatusInternalServerError {
+	if rec := doReq(t, New(d), http.MethodPost, "/api/v1/github/auth", `{"token":"t"}`); rec.Code != http.StatusInternalServerError {
 		t.Fatalf("status %d, want 500", rec.Code)
 	}
 }
@@ -255,7 +255,7 @@ func TestGetGitHubAuthError(t *testing.T) {
 	if err := d.GitHub.Repo.Close(); err != nil {
 		t.Fatal(err)
 	}
-	if rec := doReq(t, New(d), http.MethodGet, "/api/github/auth", ""); rec.Code != http.StatusInternalServerError {
+	if rec := doReq(t, New(d), http.MethodGet, "/api/v1/github/auth", ""); rec.Code != http.StatusInternalServerError {
 		t.Fatalf("status %d, want 500", rec.Code)
 	}
 }
@@ -263,7 +263,7 @@ func TestGetGitHubAuthError(t *testing.T) {
 func TestListGitHubReposNotConfigured(t *testing.T) {
 	d := testDeps(t)
 	d.GitHub = nil
-	if rec := doReq(t, New(d), http.MethodGet, "/api/github/repos", ""); rec.Code != http.StatusInternalServerError {
+	if rec := doReq(t, New(d), http.MethodGet, "/api/v1/github/repos", ""); rec.Code != http.StatusInternalServerError {
 		t.Fatalf("status %d, want 500", rec.Code)
 	}
 }
@@ -273,7 +273,7 @@ func TestListGitHubReposGetError(t *testing.T) {
 	if err := d.GitHub.Repo.Close(); err != nil {
 		t.Fatal(err)
 	}
-	if rec := doReq(t, New(d), http.MethodGet, "/api/github/repos", ""); rec.Code != http.StatusInternalServerError {
+	if rec := doReq(t, New(d), http.MethodGet, "/api/v1/github/repos", ""); rec.Code != http.StatusInternalServerError {
 		t.Fatalf("status %d, want 500", rec.Code)
 	}
 }
@@ -284,7 +284,7 @@ func TestListGitHubReposClientNotConfigured(t *testing.T) {
 		t.Fatal(err)
 	}
 	d.GitHub.Client = nil
-	if rec := doReq(t, New(d), http.MethodGet, "/api/github/repos", ""); rec.Code != http.StatusInternalServerError {
+	if rec := doReq(t, New(d), http.MethodGet, "/api/v1/github/repos", ""); rec.Code != http.StatusInternalServerError {
 		t.Fatalf("status %d, want 500", rec.Code)
 	}
 }
@@ -299,7 +299,7 @@ func TestListGitHubReposFetchError(t *testing.T) {
 	}))
 	defer srv.Close()
 	d.GitHub.Client = github.New(http.DefaultClient).WithBaseURL(srv.URL)
-	if rec := doReq(t, New(d), http.MethodGet, "/api/github/repos", ""); rec.Code != http.StatusInternalServerError {
+	if rec := doReq(t, New(d), http.MethodGet, "/api/v1/github/repos", ""); rec.Code != http.StatusInternalServerError {
 		t.Fatalf("status %d, want 500", rec.Code)
 	}
 }
@@ -309,7 +309,7 @@ func TestDisconnectGitHubError(t *testing.T) {
 	if err := d.GitHub.Repo.Close(); err != nil {
 		t.Fatal(err)
 	}
-	if rec := doReq(t, New(d), http.MethodDelete, "/api/github/auth", ""); rec.Code != http.StatusInternalServerError {
+	if rec := doReq(t, New(d), http.MethodDelete, "/api/v1/github/auth", ""); rec.Code != http.StatusInternalServerError {
 		t.Fatalf("status %d, want 500", rec.Code)
 	}
 }
@@ -322,7 +322,7 @@ func TestNoteUnknownExtensionFallsBackToOctetStream(t *testing.T) {
 	if err := os.WriteFile(p, []byte("data"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	req := httptest.NewRequest(http.MethodGet, "/api/notes?path=asset.qzy", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/notes?path=asset.qzy", nil)
 	rec := httptest.NewRecorder()
 	New(d).ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
@@ -439,8 +439,8 @@ func TestChatTurnWriterSurfacesAgentErrorEvent(t *testing.T) {
 func TestRequestLogNilIsIdentity(t *testing.T) {
 	e := echo.New()
 	e.Use(requestLog(nil))
-	e.GET("/api/health", func(c echo.Context) error { return c.String(http.StatusOK, "ok") })
-	req := httptest.NewRequest(http.MethodGet, "/api/health", nil)
+	e.GET("/api/v1/health", func(c echo.Context) error { return c.String(http.StatusOK, "ok") })
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/health", nil)
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
@@ -453,14 +453,14 @@ func TestRequestLogLogsErrors(t *testing.T) {
 	log := slog.New(slog.NewTextHandler(&buf, nil))
 	e := echo.New()
 	e.Use(requestLog(log))
-	e.GET("/api/boom", func(c echo.Context) error { return errors.New("kaboom") })
-	req := httptest.NewRequest(http.MethodGet, "/api/boom", nil)
+	e.GET("/api/v1/boom", func(c echo.Context) error { return errors.New("kaboom") })
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/boom", nil)
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
 	if !strings.Contains(buf.String(), "kaboom") {
 		t.Fatalf("request log missing error attr: %s", buf.String())
 	}
-	if !strings.Contains(buf.String(), "path=/api/boom") {
+	if !strings.Contains(buf.String(), "path=/api/v1/boom") {
 		t.Fatalf("request log missing path attr: %s", buf.String())
 	}
 }

@@ -19,6 +19,12 @@ import (
 //go:embed all:docs
 var docsFS embed.FS
 
+// APIVersion is the URL-path version segment for the REST and WebSocket
+// surfaces. Every route lives under /api<APIVersion>/... (and /ws<APIVersion>);
+// bumping it is a deliberate breaking change, so a new version is a one-file
+// edit here plus the callers that must move with it.
+const APIVersion = "/v1"
+
 type Deps struct {
 	Log             *slog.Logger
 	Store           *store.Store
@@ -29,8 +35,8 @@ type Deps struct {
 	DoctorAddr      string       // host:port for the doctor's api/websocket probes ("" → 127.0.0.1:8333); tests point it at a free port
 	DoctorHTTP      *http.Client // HTTP client for the doctor's provider probe (nil → http.DefaultClient); tests stub the endpoint
 	DoctorBaseURL   string       // provider base URL the doctor's provider probe targets ("" → the provider default); tests point it at a stub
-	Version         string       // build version, shown in /api/health and the UI footer
-	Dev             bool         // serve --dev — exposed via /api/health so the UI can show the dev banner
+	Version         string       // build version, shown in /api/v1/health and the UI footer
+	Dev             bool         // serve --dev — exposed via /api/v1/health so the UI can show the dev banner
 	Commit          string       // full git commit id the server runs from (dev only), shown in the dev banner
 	DefaultWikiPath string       // the mode's wiki default in tilde form (~/.thoth/wiki, or ~/.thoth/dev/wiki in dev) — the settings hint reads it
 	ServeAPIDocs    bool         // serve --dev without --no-api-docs — registers the API reference routes (/api/docs, its assets, /swagger.json); absent when false
@@ -68,27 +74,27 @@ func newServer(d Deps) (*echo.Echo, *Hub) {
 	e.HidePort = true
 	e.Use(requestLog(d.Log))
 
-	e.GET("/api/health", func(c echo.Context) error { return health(c, d) })
-	e.GET("/api/doctor", func(c echo.Context) error { return doctorHandler(c, d) })
-	e.POST("/api/git/setup", func(c echo.Context) error { return gitSetup(c, d) })
-	e.GET("/api/search", func(c echo.Context) error { return search(c, d) })
-	e.GET("/api/notes", func(c echo.Context) error { return note(c, d) })
-	e.GET("/api/wiki/tree", func(c echo.Context) error { return tree(c, d) })
-	e.GET("/api/fs/dirs", func(c echo.Context) error { return listDirs(c, d) })
-	e.GET("/api/settings", func(c echo.Context) error { return getSettings(c, d) })
-	e.PUT("/api/settings", func(c echo.Context) error { return putSettings(c, d) })
-	e.GET("/api/models", func(c echo.Context) error { return models(c, d) })
-	e.POST("/api/models", func(c echo.Context) error { return createModel(c, d) })
-	e.PUT("/api/models/:id", func(c echo.Context) error { return updateModel(c, d) })
-	e.DELETE("/api/models/:id", func(c echo.Context) error { return deleteModel(c, d) })
-	e.GET("/api/conversations", func(c echo.Context) error { return listConversations(c, d) })
-	e.POST("/api/conversations", func(c echo.Context) error { return createConversation(c, d) })
-	e.GET("/api/conversations/:id", func(c echo.Context) error { return getConversation(c, d) })
-	e.DELETE("/api/conversations/:id", func(c echo.Context) error { return deleteConversation(c, d) })
-	e.POST("/api/github/auth", func(c echo.Context) error { return connectGitHub(c, d) })
-	e.GET("/api/github/auth", func(c echo.Context) error { return getGitHubAuth(c, d) })
-	e.DELETE("/api/github/auth", func(c echo.Context) error { return disconnectGitHub(c, d) })
-	e.GET("/api/github/repos", func(c echo.Context) error { return listGitHubRepos(c, d) })
+	e.GET("/api"+APIVersion+"/health", func(c echo.Context) error { return health(c, d) })
+	e.GET("/api"+APIVersion+"/doctor", func(c echo.Context) error { return doctorHandler(c, d) })
+	e.POST("/api"+APIVersion+"/git/setup", func(c echo.Context) error { return gitSetup(c, d) })
+	e.GET("/api"+APIVersion+"/search", func(c echo.Context) error { return search(c, d) })
+	e.GET("/api"+APIVersion+"/notes", func(c echo.Context) error { return note(c, d) })
+	e.GET("/api"+APIVersion+"/wiki/tree", func(c echo.Context) error { return tree(c, d) })
+	e.GET("/api"+APIVersion+"/fs/dirs", func(c echo.Context) error { return listDirs(c, d) })
+	e.GET("/api"+APIVersion+"/settings", func(c echo.Context) error { return getSettings(c, d) })
+	e.PUT("/api"+APIVersion+"/settings", func(c echo.Context) error { return putSettings(c, d) })
+	e.GET("/api"+APIVersion+"/models", func(c echo.Context) error { return models(c, d) })
+	e.POST("/api"+APIVersion+"/models", func(c echo.Context) error { return createModel(c, d) })
+	e.PUT("/api"+APIVersion+"/models/:id", func(c echo.Context) error { return updateModel(c, d) })
+	e.DELETE("/api"+APIVersion+"/models/:id", func(c echo.Context) error { return deleteModel(c, d) })
+	e.GET("/api"+APIVersion+"/conversations", func(c echo.Context) error { return listConversations(c, d) })
+	e.POST("/api"+APIVersion+"/conversations", func(c echo.Context) error { return createConversation(c, d) })
+	e.GET("/api"+APIVersion+"/conversations/:id", func(c echo.Context) error { return getConversation(c, d) })
+	e.DELETE("/api"+APIVersion+"/conversations/:id", func(c echo.Context) error { return deleteConversation(c, d) })
+	e.POST("/api"+APIVersion+"/github/auth", func(c echo.Context) error { return connectGitHub(c, d) })
+	e.GET("/api"+APIVersion+"/github/auth", func(c echo.Context) error { return getGitHubAuth(c, d) })
+	e.DELETE("/api"+APIVersion+"/github/auth", func(c echo.Context) error { return disconnectGitHub(c, d) })
+	e.GET("/api"+APIVersion+"/github/repos", func(c echo.Context) error { return listGitHubRepos(c, d) })
 
 	// The API reference page is a dev-only convenience: serve --dev exposes
 	// it (/api/docs, its assets, and /swagger.json), --dev --no-api-docs (and
@@ -113,7 +119,7 @@ func newServer(d Deps) (*echo.Echo, *Hub) {
 			d.Log.Error("subscribe wiki events", "err", err)
 		}
 	}
-	e.GET("/ws", hub.chat)
+	e.GET("/ws"+APIVersion, hub.chat)
 
 	webui.Register(e, d.Log)
 	return e, hub

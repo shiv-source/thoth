@@ -109,7 +109,7 @@ func TestDoctorEndpointHealthy(t *testing.T) {
 
 	// Nothing listens on the probed port: the api check reports "not running"
 	// (OK) and the websocket check is skipped (OK) — zero fixed-port dependency.
-	req := httptest.NewRequest(http.MethodGet, "/api/doctor", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/doctor", nil)
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {

@@ -12,7 +12,7 @@ describe('ChatSocket', () => {
     })
 
     it('sends typed frames and forwards parsed messages', () => {
-        const socket = new ChatSocket('ws://x/ws')
+        const socket = new ChatSocket('ws://x/ws/v1')
         socket.connect()
         const received: unknown[] = []
         socket.onMessage((m) => received.push(m))
@@ -29,7 +29,7 @@ describe('ChatSocket', () => {
     })
 
     it('forwards the wiki_changed push frame', () => {
-        const socket = new ChatSocket('ws://x/ws')
+        const socket = new ChatSocket('ws://x/ws/v1')
         socket.connect()
         const received: ServerMessage[] = []
         socket.onMessage((m) => received.push(m))
@@ -54,7 +54,7 @@ describe('ChatSocket', () => {
     })
 
     it('drops frames that parse as JSON but fail the schema', () => {
-        const socket = new ChatSocket('ws://x/ws')
+        const socket = new ChatSocket('ws://x/ws/v1')
         socket.connect()
         const received: unknown[] = []
         socket.onMessage((m) => received.push(m))
@@ -71,7 +71,7 @@ describe('ChatSocket', () => {
     it('reconnects once after a drop and resumes the conversation', () => {
         vi.useFakeTimers()
         try {
-            const socket = new ChatSocket('ws://x/ws')
+            const socket = new ChatSocket('ws://x/ws/v1')
             const statuses: string[] = []
             socket.onStatusChange((s) => statuses.push(s))
             socket.connect()
@@ -105,7 +105,7 @@ describe('ChatSocket', () => {
     it('does not reconnect after close()', () => {
         vi.useFakeTimers()
         try {
-            const socket = new ChatSocket('ws://x/ws')
+            const socket = new ChatSocket('ws://x/ws/v1')
             socket.connect()
             socket.close()
             FakeWS.instances[0]!.onclose!()
@@ -117,7 +117,7 @@ describe('ChatSocket', () => {
     })
 
     it('reports connected on open', () => {
-        const socket = new ChatSocket('ws://x/ws')
+        const socket = new ChatSocket('ws://x/ws/v1')
         const statuses: string[] = []
         socket.onStatusChange((s) => statuses.push(s))
         socket.connect()
@@ -126,7 +126,7 @@ describe('ChatSocket', () => {
     })
 
     it('sends the open frame for a loaded conversation', () => {
-        const socket = new ChatSocket('ws://x/ws')
+        const socket = new ChatSocket('ws://x/ws/v1')
         socket.connect()
         const ws = FakeWS.instances[0]!
         ws.open()
@@ -135,7 +135,7 @@ describe('ChatSocket', () => {
     })
 
     it('defers the open frame until the handshake completes', () => {
-        const socket = new ChatSocket('ws://x/ws')
+        const socket = new ChatSocket('ws://x/ws/v1')
         socket.connect()
         // Deep links call open() right after connect(): the socket is still
         // CONNECTING and a real WebSocket would throw on send.
@@ -148,7 +148,7 @@ describe('ChatSocket', () => {
     })
 
     it('drops a deferred open frame when the socket is closed', () => {
-        const socket = new ChatSocket('ws://x/ws')
+        const socket = new ChatSocket('ws://x/ws/v1')
         socket.connect()
         socket.open('conv-9')
         socket.close()
@@ -164,7 +164,7 @@ describe('ChatSocket newChat', () => {
     })
 
     it('sends the new_chat frame when connected', () => {
-        const socket = new ChatSocket('ws://x/ws')
+        const socket = new ChatSocket('ws://x/ws/v1')
         socket.connect()
         const ws = FakeWS.instances[0]!
         ws.open()
@@ -173,7 +173,7 @@ describe('ChatSocket newChat', () => {
     })
 
     it('defers the new_chat frame until the handshake completes', () => {
-        const socket = new ChatSocket('ws://x/ws')
+        const socket = new ChatSocket('ws://x/ws/v1')
         socket.connect()
         socket.newChat()
         const ws = FakeWS.instances[0]!
@@ -185,7 +185,7 @@ describe('ChatSocket newChat', () => {
     it('clears the resume id so a reconnect cannot resurrect the old pin', () => {
         vi.useFakeTimers()
         try {
-            const socket = new ChatSocket('ws://x/ws')
+            const socket = new ChatSocket('ws://x/ws/v1')
             socket.connect()
             FakeWS.instances[0]!.open()
             FakeWS.instances[0]!.onmessage!({ data: JSON.stringify({ type: 'turn_done', conversation_id: 'conv-1' }) })
@@ -203,7 +203,7 @@ describe('ChatSocket newChat', () => {
     })
 
     it('discards a deferred open when newChat wins', () => {
-        const socket = new ChatSocket('ws://x/ws')
+        const socket = new ChatSocket('ws://x/ws/v1')
         socket.connect()
         socket.open('conv-9') // CONNECTING: deferred
         socket.newChat() // must supersede the deferred open
@@ -219,7 +219,7 @@ describe('ChatSocket presence', () => {
     })
 
     it('sends the presence frame when connected', () => {
-        const socket = new ChatSocket('ws://x/ws')
+        const socket = new ChatSocket('ws://x/ws/v1')
         socket.connect()
         const ws = FakeWS.instances[0]!
         ws.open()
@@ -233,7 +233,7 @@ describe('ChatSocket presence', () => {
     })
 
     it('defers the presence frame until the handshake completes', () => {
-        const socket = new ChatSocket('ws://x/ws')
+        const socket = new ChatSocket('ws://x/ws/v1')
         socket.connect()
         socket.setPresence(false)
         const ws = FakeWS.instances[0]!
@@ -245,7 +245,7 @@ describe('ChatSocket presence', () => {
     it('re-sends the last presence after a reconnect', () => {
         vi.useFakeTimers()
         try {
-            const socket = new ChatSocket('ws://x/ws')
+            const socket = new ChatSocket('ws://x/ws/v1')
             socket.connect()
             FakeWS.instances[0]!.open()
             socket.setPresence(false)

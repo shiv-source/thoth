@@ -514,9 +514,9 @@ func serveThothAPI(t *testing.T, ln net.Listener, health string) {
 	upgrader := websocket.Upgrader{CheckOrigin: func(*http.Request) bool { return true }}
 	srv := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case "/api/health":
+		case "/api/v1/health":
 			_, _ = w.Write([]byte(health))
-		case "/ws":
+		case "/ws/v1":
 			conn, err := upgrader.Upgrade(w, r, nil)
 			if err != nil {
 				return
@@ -578,9 +578,9 @@ func TestRunAPIWebsocketFails(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() { _ = ln.Close() }()
-	// REST health works but the /ws upgrade does not.
+	// REST health works but the /ws/v1 upgrade does not.
 	srv := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/api/health" {
+		if r.URL.Path == "/api/v1/health" {
 			_, _ = w.Write([]byte(`{"status":"ok","wiki":{"exists":true}}`))
 			return
 		}

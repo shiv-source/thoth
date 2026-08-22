@@ -23,7 +23,7 @@ func TestListDirsEndpoint(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/api/fs/dirs?path="+root, nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/fs/dirs?path="+root, nil)
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
@@ -45,14 +45,14 @@ func TestListDirsEndpoint(t *testing.T) {
 func TestListDirsEndpointErrors(t *testing.T) {
 	e := New(testDeps(t))
 	// Missing path parameter.
-	req := httptest.NewRequest(http.MethodGet, "/api/fs/dirs", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/fs/dirs", nil)
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("missing path: status %d, want 400", rec.Code)
 	}
 	// Path that does not exist.
-	req = httptest.NewRequest(http.MethodGet, "/api/fs/dirs?path="+filepath.Join(t.TempDir(), "missing"), nil)
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/fs/dirs?path="+filepath.Join(t.TempDir(), "missing"), nil)
 	rec = httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
 	if rec.Code != http.StatusBadRequest {
@@ -63,7 +63,7 @@ func TestListDirsEndpointErrors(t *testing.T) {
 	if err := os.WriteFile(f, []byte("x"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	req = httptest.NewRequest(http.MethodGet, "/api/fs/dirs?path="+f, nil)
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/fs/dirs?path="+f, nil)
 	rec = httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
 	if rec.Code != http.StatusBadRequest {

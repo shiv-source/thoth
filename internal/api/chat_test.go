@@ -19,7 +19,7 @@ func wsURL(t *testing.T, e http.Handler) string {
 	t.Helper()
 	srv := httptest.NewServer(e)
 	t.Cleanup(srv.Close)
-	return "ws" + strings.TrimPrefix(srv.URL, "http") + "/ws"
+	return "ws" + strings.TrimPrefix(srv.URL, "http") + "/ws/v1"
 }
 
 func readMsg(t *testing.T, conn *websocket.Conn) map[string]any {
