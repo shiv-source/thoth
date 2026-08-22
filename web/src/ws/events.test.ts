@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { ClientEvent, ServerEvent } from './events'
 
-// The enum values are the wire strings of the chat protocol — they must
-// never drift from the server contract (internal/api/chat.go · docs/api.md).
+// The frame-name constants are the wire strings of the chat protocol — they
+// must never drift from the server contract (internal/api/chat.go · docs/api.md).
 // Pin them so a rename can't silently change the bytes on the wire.
 describe('ServerEvent wire names', () => {
     it('matches the frames the server can push', () => {

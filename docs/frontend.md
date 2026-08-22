@@ -9,7 +9,7 @@ web/src/
 ├── app/App.tsx          # app shell: layout, lazy page routing, health gate
 ├── api/client.ts        # typed REST client, zod-validated responses
 ├── ws/chat.ts           # ChatSocket: protocol frames, reconnect/resume
-├── ws/events.ts         # ServerEvent/ClientEvent enums — the wire frame names
+├── ws/events.ts         # ServerEvent/ClientEvent — the wire frame names
 ├── hooks/               # useChat, useSearch, useConversationRoute, useView,
 │                        #   useViewShortcuts
 ├── store/               # Redux Toolkit: 13 slices + typed hooks (below)

@@ -66,7 +66,7 @@ thoth/
 │       ├── app/           # app shell: App.tsx (layout, lazy page routing, health gate)
 │       ├── api/           # typed REST client (axios + zod)
 │       ├── ws/            # ChatSocket (protocol frames, reconnect/resume) +
-│       │                  #   events.ts (ServerEvent/ClientEvent frame-name enums)
+│       │                  #   events.ts (ServerEvent/ClientEvent frame-name constants)
 │       ├── hooks/         # useChat, useSearch, useConversationRoute, useView, useViewShortcuts
 │       ├── store/         # Redux Toolkit: makeStore + re-exports, typed hooks,
 │       │   └── slices/    #   one slice per feature (health, settings, conversations,

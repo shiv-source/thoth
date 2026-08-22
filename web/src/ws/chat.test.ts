@@ -53,6 +53,21 @@ describe('ChatSocket', () => {
         expect(received).toEqual([frame, bare])
     })
 
+    it('drops frames that parse as JSON but fail the schema', () => {
+        const socket = new ChatSocket('ws://x/ws')
+        socket.connect()
+        const received: unknown[] = []
+        socket.onMessage((m) => received.push(m))
+        const ws = FakeWS.instances[0]!
+        ws.open()
+
+        // JSON-valid but not a ServerMessage: an unknown type, and a known
+        // type missing its required field — neither may reach the handler.
+        ws.onmessage!({ data: JSON.stringify({ type: 'bogus_event' }) })
+        ws.onmessage!({ data: JSON.stringify({ type: 'assistant_delta' }) })
+        expect(received).toEqual([])
+    })
+
     it('reconnects once after a drop and resumes the conversation', () => {
         vi.useFakeTimers()
         try {
