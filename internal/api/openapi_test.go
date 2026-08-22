@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -159,5 +160,42 @@ func TestSwaggerRouteServesSpec(t *testing.T) {
 				t.Fatalf("spec body is not valid JSON: %s", io.LimitReader(rec.Body, 64))
 			}
 		})
+	}
+}
+
+// TestSwaggerViewerAssetsResolve guards against a viewer page whose asset
+// references 404 — the relative-path bug where /api/docs (no trailing slash)
+// resolved ./swagger-ui/... to /api/swagger-ui/.... Every src/href the page
+// emits must be servable by the docs routes.
+func TestSwaggerViewerAssetsResolve(t *testing.T) {
+	deps := testDeps(t)
+	deps.ServeAPIDocs = true
+	e, _ := newServer(deps)
+
+	indexReq := httptest.NewRequest(http.MethodGet, "/api/docs", nil)
+	indexRec := httptest.NewRecorder()
+	e.ServeHTTP(indexRec, indexReq)
+	if indexRec.Code != http.StatusOK {
+		t.Fatalf("viewer status %d", indexRec.Code)
+	}
+	html := indexRec.Body.String()
+	refs := append(regexp.MustCompile(`src="([^"]+)"`).FindAllStringSubmatch(html, -1),
+		regexp.MustCompile(`href="([^"]+)"`).FindAllStringSubmatch(html, -1)...)
+	checked := 0
+	for _, m := range refs {
+		u := m[1]
+		if strings.HasPrefix(u, "data:") || strings.HasPrefix(u, "#") {
+			continue
+		}
+		req := httptest.NewRequest(http.MethodGet, u, nil)
+		rec := httptest.NewRecorder()
+		e.ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Errorf("viewer asset %s -> %d, want 200", u, rec.Code)
+		}
+		checked++
+	}
+	if checked == 0 {
+		t.Fatal("viewer page references no resolvable assets")
 	}
 }
