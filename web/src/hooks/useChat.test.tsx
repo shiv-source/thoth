@@ -242,7 +242,8 @@ describe('useChat thinking state', () => {
         const socket = freshSocket()
         const { result } = renderChatHook(socket)
         const ws = FakeWS.instances[0]!
-        const emit = (type: string) => act(() => ws?.onmessage?.({ data: JSON.stringify({ type }) }))
+        const emit = (type: string, extra: Record<string, unknown> = {}) =>
+            act(() => ws?.onmessage?.({ data: JSON.stringify({ type, ...extra }) }))
 
         emit('assistant_start')
         expect(result.current.thinking).toBe(true)
@@ -253,7 +254,7 @@ describe('useChat thinking state', () => {
         expect(result.current.thinking).toBe(true)
         expect(result.current.thinkingText).toBe('checking the folder')
 
-        emit('assistant_delta')
+        emit('assistant_delta', { text: '' })
         expect(result.current.thinking).toBe(false)
     })
 
@@ -261,10 +262,11 @@ describe('useChat thinking state', () => {
         const socket = freshSocket()
         const { result } = renderChatHook(socket)
         const ws = FakeWS.instances[0]!
-        const emit = (type: string) => act(() => ws?.onmessage?.({ data: JSON.stringify({ type }) }))
+        const emit = (type: string, extra: Record<string, unknown> = {}) =>
+            act(() => ws?.onmessage?.({ data: JSON.stringify({ type, ...extra }) }))
 
         emit('assistant_start')
-        emit('tool_activity')
+        emit('tool_activity', { tool: 'Read', detail: '{}' })
         expect(result.current.thinking).toBe(false)
 
         emit('assistant_start')
@@ -272,7 +274,7 @@ describe('useChat thinking state', () => {
         expect(result.current.thinking).toBe(false)
 
         emit('assistant_start')
-        emit('error')
+        emit('error', { message: 'cancelled' })
         expect(result.current.thinking).toBe(false)
     })
 })

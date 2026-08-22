@@ -21,7 +21,9 @@ import {
 } from '../store'
 import { useAppDispatch, useAppSelector } from '../store/hooks'
 import type { ChatMessage } from '../store/slices/chatSlice'
-import { ChatSocket, type ServerMessage, type TokenUsage } from '../ws/chat'
+import { ChatSocket } from '../ws/chat'
+import type { ServerMessage, TokenUsage } from '../ws/protocol'
+import { ServerEvent } from '../ws/events'
 
 export type { ChatMessage }
 
@@ -54,29 +56,29 @@ export function useChat(socket: ChatSocket | null) {
     const handle = useCallback(
         (m: ServerMessage) => {
             switch (m.type) {
-                case 'assistant_start':
+                case ServerEvent.AssistantStart:
                     dispatch(assistantStart())
                     break
-                case 'assistant_thinking':
+                case ServerEvent.AssistantThinking:
                     dispatch(assistantThinking(m.text))
                     break
-                case 'assistant_delta':
+                case ServerEvent.AssistantDelta:
                     dispatch(assistantDelta(m.text))
                     break
-                case 'tool_activity':
+                case ServerEvent.ToolActivity:
                     dispatch(toolActivity(toolLabel(m.tool, m.detail)))
                     break
-                case 'turn_done':
+                case ServerEvent.TurnDone:
                     // The server sends the conversation id on every finished turn; keep
                     // it so a reconnect can resume this conversation.
                     dispatch(turnDone({ conversationId: m.conversation_id ?? null, usage: m.usage }))
                     break
-                case 'wiki_changed':
+                case ServerEvent.WikiChanged:
                     // The watcher saw wiki files change: the tree is stale,
                     // refetch it instead of polling on every turn.
                     void dispatch(fetchTree())
                     break
-                case 'error':
+                case ServerEvent.Error:
                     // Surface cancelled/crash feedback as a visible assistant message so
                     // the user knows the turn did not complete.
                     dispatch(chatError(m.message))

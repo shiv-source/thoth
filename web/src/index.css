@@ -60,7 +60,7 @@
 }
 /* The settings tab rail must never scroll away — only the pane content
    scrolls. The holder is the height-bounded flex item (the .ant-tabs root
-   fills the viewport via SettingsView's flex chain), so it owns the scroll.
+   fills the viewport via SettingsPage's flex chain), so it owns the scroll.
    The default left-placement divider (the holder's border-left) renders as a
    stray full-height line between the rail and the content — drop it and the
    negative margin that kept it aligned. */

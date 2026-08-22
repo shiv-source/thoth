@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { Provider } from 'react-redux'
 import { App as AntdApp, ConfigProvider } from 'antd'
 import './index.css'
-import App from './App.tsx'
+import App from './app/App.tsx'
 import { makeStore, fetchHealth, markNotificationRead, notify } from './store'
 import { antdTheme } from './theme.ts'
 

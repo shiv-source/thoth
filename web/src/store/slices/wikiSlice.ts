@@ -39,7 +39,7 @@ export const selectWikiError = (s: RootState) => s.wiki.error
 
 // collectTreeInfo walks the tree once: every dir key (for the
 // expand/collapse-all toggle) plus the recursive file count per dir (for
-// the hover tooltips). Shared by NotesView and WikiTree.
+// the hover tooltips). Shared by NotesPage and WikiTree.
 export function collectTreeInfo(nodes: TreeNode[]): { allDirs: Set<string>; fileCounts: Map<string, number> } {
     const dirs = new Set<string>()
     const counts = new Map<string, number>()

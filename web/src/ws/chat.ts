@@ -1,29 +1,5 @@
-export type ServerMessage =
-    | { type: 'assistant_start' }
-    | { type: 'assistant_thinking'; text: string }
-    | { type: 'assistant_delta'; text: string }
-    | { type: 'tool_activity'; tool: string; detail: string }
-    | { type: 'turn_done'; conversation_id?: string; usage?: TokenUsage }
-    | { type: 'wiki_changed'; changes?: WikiChange[] }
-    | { type: 'error'; message: string }
-
-// TokenUsage is the per-turn token breakdown on turn_done. It is optional:
-// a provider that reports no usage (or an older server) omits the field.
-export interface TokenUsage {
-    input_tokens: number
-    output_tokens: number
-    cache_read_tokens: number
-    cache_write_tokens: number
-}
-
-// wiki_changed is the server push for wiki filesystem changes: the watcher
-// batches one frame per debounce flush (changes may be empty on startup).
-export type WikiChangeOp = 'create' | 'write' | 'remove' | 'rename'
-
-export interface WikiChange {
-    op: WikiChangeOp
-    path: string
-}
+import { ClientEvent, ServerEvent } from './events'
+import { serverMessageSchema, type ServerMessage } from './protocol'
 
 export type ConnectionStatus = 'connected' | 'reconnecting' | 'disconnected'
 
@@ -48,8 +24,14 @@ export class ChatSocket {
         ws.onmessage = (e) => {
             // defensive: a malformed frame must not kill the UI
             try {
-                const m = JSON.parse(e.data as string) as ServerMessage
-                if (m.type === 'turn_done' && m.conversation_id) this.conversationId = m.conversation_id
+                const parsed = serverMessageSchema.safeParse(JSON.parse(e.data as string))
+                if (!parsed.success) {
+                    // Not a valid ServerMessage — drop it. The schema checks
+                    // both the frame type and every field it carries.
+                    return
+                }
+                const m = parsed.data
+                if (m.type === ServerEvent.TurnDone && m.conversation_id) this.conversationId = m.conversation_id
                 this.handler(m)
             } catch {
                 /* ignore */
@@ -66,16 +48,16 @@ export class ChatSocket {
             if (this.openPending) {
                 const id = this.openPending
                 this.openPending = null
-                this.ws?.send(JSON.stringify({ type: 'open', conversation_id: id }))
+                this.ws?.send(JSON.stringify({ type: ClientEvent.Open, conversation_id: id }))
             }
             if (this.newChatPending) {
                 this.newChatPending = false
-                this.ws?.send(JSON.stringify({ type: 'new_chat' }))
+                this.ws?.send(JSON.stringify({ type: ClientEvent.NewChat }))
             }
             // A reconnect is treated as active by the server; re-send the last
             // presence so a hidden tab stays counted as away across reconnects.
             if (this.presence !== null) {
-                this.ws?.send(JSON.stringify({ type: 'presence', active: this.presence }))
+                this.ws?.send(JSON.stringify({ type: ClientEvent.Presence, active: this.presence }))
             }
         }
         ws.onclose = () => {
@@ -103,14 +85,14 @@ export class ChatSocket {
     }
 
     send(text: string): void {
-        this.ws?.send(JSON.stringify({ type: 'send', text }))
+        this.ws?.send(JSON.stringify({ type: ClientEvent.Send, text }))
     }
     cancel(): void {
-        this.ws?.send(JSON.stringify({ type: 'cancel' }))
+        this.ws?.send(JSON.stringify({ type: ClientEvent.Cancel }))
     }
     resume(conversationId: string): void {
         this.conversationId = conversationId
-        this.ws?.send(JSON.stringify({ type: 'resume', conversation_id: conversationId }))
+        this.ws?.send(JSON.stringify({ type: ClientEvent.Resume, conversation_id: conversationId }))
     }
     // open pins the server-side conversation for the next send — unlike resume,
     // it does NOT replay anything, so it must not become the reconnect-resume
@@ -119,7 +101,7 @@ export class ChatSocket {
     // defer until onopen (deep links call open() right after connect()).
     open(conversationId: string): void {
         if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-            this.ws.send(JSON.stringify({ type: 'open', conversation_id: conversationId }))
+            this.ws.send(JSON.stringify({ type: ClientEvent.Open, conversation_id: conversationId }))
             return
         }
         this.openPending = conversationId
@@ -134,7 +116,7 @@ export class ChatSocket {
         this.resumePending = false
         this.openPending = null
         if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-            this.ws.send(JSON.stringify({ type: 'new_chat' }))
+            this.ws.send(JSON.stringify({ type: ClientEvent.NewChat }))
             return
         }
         this.newChatPending = true
@@ -147,7 +129,7 @@ export class ChatSocket {
     setPresence(active: boolean): void {
         this.presence = active
         if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-            this.ws.send(JSON.stringify({ type: 'presence', active }))
+            this.ws.send(JSON.stringify({ type: ClientEvent.Presence, active }))
         }
     }
     close(): void {
