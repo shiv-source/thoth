@@ -3,20 +3,13 @@ import { Line } from 'react-chartjs-2'
 import type { ChartData, ChartOptions, TooltipItem } from 'chart.js'
 import '../../utils/chart'
 import { useThemeColors } from './useThemeColors'
+import { chartDays } from './chartDays'
 
 // ChatActivityChart is a single-series line chart: chat messages per day for
 // the last N days (oldest first). One emerald hue, a thin line with
 // hover-only points, a hidden value axis.
 export function ChatActivityChart({ counts }: { counts: number[] }) {
-    const days = useMemo(() => {
-        const weekday = new Intl.DateTimeFormat('en-US', { weekday: 'short' })
-        const date = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' })
-        return counts.map((_, i) => {
-            const d = new Date()
-            d.setDate(d.getDate() - (counts.length - 1 - i))
-            return { weekday: weekday.format(d), date: date.format(d) }
-        })
-    }, [counts])
+    const days = useMemo(() => chartDays(counts.length), [counts.length])
 
     const colors = useThemeColors()
     const data: ChartData<'line'> = {

@@ -3,30 +3,21 @@ import { Bar } from 'react-chartjs-2'
 import type { ChartData, ChartOptions, TooltipItem } from 'chart.js'
 import '../../utils/chart'
 import { useThemeColors } from './useThemeColors'
+import { chartDays } from './chartDays'
 
 // ActivityChart is a single-series mini bar chart (Chart.js via
 // react-chartjs-2): notes created per day for the last N days (oldest
 // first). One emerald hue, thin rounded bars, a built-in tooltip, a hidden
 // value axis — the canvas carries the series description for screen readers.
 export function ActivityChart({ counts }: { counts: number[] }) {
-    // One row per bar, with the day labels computed from the current date —
-    // the counts stay anchored to "today" without the mock going stale.
-    const bars = useMemo(() => {
-        const weekday = new Intl.DateTimeFormat('en-US', { weekday: 'short' })
-        const date = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' })
-        return counts.map((count, i) => {
-            const d = new Date()
-            d.setDate(d.getDate() - (counts.length - 1 - i))
-            return { count, weekday: weekday.format(d), date: date.format(d) }
-        })
-    }, [counts])
+    const bars = useMemo(() => chartDays(counts.length), [counts.length])
 
     const colors = useThemeColors()
     const data: ChartData<'bar'> = {
         labels: bars.map((b) => b.weekday),
         datasets: [
             {
-                data: bars.map((b) => b.count),
+                data: counts,
                 backgroundColor: colors.accent,
                 hoverBackgroundColor: colors.accentHover,
                 borderRadius: 4,
@@ -56,7 +47,7 @@ export function ActivityChart({ counts }: { counts: number[] }) {
                     label: (item: TooltipItem<'bar'>) => {
                         const bar = bars[item.dataIndex]
                         if (!bar) return ''
-                        return `${bar.date} · ${bar.count} note${bar.count === 1 ? '' : 's'}`
+                        return `${bar.date} · ${item.parsed.y} note${item.parsed.y === 1 ? '' : 's'}`
                     }
                 }
             }

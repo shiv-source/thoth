@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Alert, Button, Card, Divider, Flex, Form, Select } from 'antd'
+import { Card, Divider, Flex, Form, Select } from 'antd'
 import { BookOutlined, RocketOutlined, SettingOutlined } from '@ant-design/icons'
 import { fetchModels, selectHealth, selectModelGroups, selectSettings } from '../../store'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import { WikiPathInput } from '../../shared/WikiPathInput'
 import { CardTitle } from './components/CardTitle'
+import { SaveFooter } from './components/SaveFooter'
 import { SectionHeading } from './components/SectionHeading'
 import { SettingsShell } from './SettingsShell'
 import { useSettingsForm } from './useSettingsForm'
@@ -127,17 +128,7 @@ export function SettingsGeneralPage() {
                         </Form.Item>
                     </div>
                     <Divider />
-                    <div className="flex items-center justify-between gap-3">
-                        <div className="min-w-0 pr-3">
-                            {status === 'saved' && <Alert type="success" showIcon message="Saved ✓" />}
-                            {(status === 'error' || hasError) && (
-                                <Alert type="error" showIcon message="Could not save settings." />
-                            )}
-                        </div>
-                        <Button type="primary" htmlType="submit" loading={saving}>
-                            Save
-                        </Button>
-                    </div>
+                    <SaveFooter status={status} saving={saving} hasError={hasError} />
                 </Card>
             </Form>
         </SettingsShell>

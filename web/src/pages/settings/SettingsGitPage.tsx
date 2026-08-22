@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Alert, App, Button, Card, Divider, Form, Input } from 'antd'
+import { Alert, App, Button, Card, Divider, Form } from 'antd'
 import { BranchesOutlined, GithubOutlined, SyncOutlined } from '@ant-design/icons'
 import type { GitHubRepo } from '../../api/client'
 import {
@@ -17,6 +17,7 @@ import {
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import { CardTitle } from './components/CardTitle'
 import { GitAccountSection } from './components/GitAccountSection'
+import { GitConnectSection } from './components/GitConnectSection'
 import { GitRemoteSection } from './components/GitRemoteSection'
 import { GitSyncSection } from './components/GitSyncSection'
 import { SectionHeading } from './components/SectionHeading'
@@ -102,31 +103,13 @@ export function SettingsGitPage() {
         return (
             <SettingsShell active="git">
                 <Form form={form} layout="vertical" onFinish={(values) => void save(values)}>
-                    <Card size="small" title={<CardTitle icon={GithubOutlined}>GitHub</CardTitle>}>
-                        <SectionHeading icon={GithubOutlined}>Account</SectionHeading>
-                        <Form.Item
-                            label="Personal access token"
-                            extra={
-                                <>
-                                    Connect your GitHub account to store the sync repo URL and credentials. The token
-                                    needs the <code>user:email</code> scope and is stored locally in thoth.db — it is
-                                    never sent anywhere except api.github.com.
-                                </>
-                            }
-                        >
-                            <Input.Password
-                                placeholder="ghp_…"
-                                value={token}
-                                onChange={(e) => setToken(e.target.value)}
-                            />
-                        </Form.Item>
-                        {gitError && <Alert type="error" showIcon message={gitError} className="mb-4" />}
-                        <div className="flex justify-end">
-                            <Button type="primary" loading={connecting} onClick={() => void connect()}>
-                                Connect
-                            </Button>
-                        </div>
-                    </Card>
+                    <GitConnectSection
+                        token={token}
+                        onTokenChange={setToken}
+                        connecting={connecting}
+                        error={gitError}
+                        onConnect={() => void connect()}
+                    />
                 </Form>
             </SettingsShell>
         )

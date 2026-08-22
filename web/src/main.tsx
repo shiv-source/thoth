@@ -5,7 +5,7 @@ import { App as AntdApp, ConfigProvider } from 'antd'
 import './index.css'
 import App from './app/App.tsx'
 import { makeStore, fetchHealth, markNotificationRead, notify } from './store'
-import { antdTheme } from './theme.ts'
+import { antdTheme } from './theme.tsx'
 
 const store = makeStore()
 void store.dispatch(fetchHealth())

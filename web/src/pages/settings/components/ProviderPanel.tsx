@@ -1,8 +1,9 @@
 import type { TableProps } from 'antd'
-import { Alert, Button, Divider, Empty, Flex, Form, Input, Table } from 'antd'
+import { Button, Divider, Empty, Flex, Form, Input, Table } from 'antd'
 import { ApiOutlined, LockOutlined } from '@ant-design/icons'
 import type { LLMModel } from '../../../api/client'
 import { ProviderKeyField } from './ProviderKeyField'
+import { SaveFooter } from './SaveFooter'
 import { SectionHeading } from './SectionHeading'
 
 // ProviderPanel is one Collapse body: the credential form for a named
@@ -41,17 +42,7 @@ export function ProviderPanel({
                             </Form.Item>
                             <ProviderKeyField provider={provider} />
                         </div>
-                        <div className="mt-3 flex items-center justify-between">
-                            <div className="min-w-0 pr-3">
-                                {status === 'saved' && <Alert type="success" showIcon message="Saved ✓" />}
-                                {(status === 'error' || hasError) && (
-                                    <Alert type="error" showIcon message="Could not save settings." />
-                                )}
-                            </div>
-                            <Button type="primary" htmlType="submit" loading={saving}>
-                                Save
-                            </Button>
-                        </div>
+                        <SaveFooter status={status} saving={saving} hasError={hasError} className="mt-3" />
                     </div>
                     <Divider />
                 </>

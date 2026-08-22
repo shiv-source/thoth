@@ -51,7 +51,7 @@ That is: `gofmt`/`golangci-lint` clean, `go test -race ./...`, coverage ≥ **90
 ### TypeScript
 
 - Strict mode throughout — `noUncheckedIndexedAccess`, `verbatimModuleSyntax`, zero `any`.
-- Data crossing the API boundary is validated with zod (`web/src/api/client.ts`).
+- Data crossing the API boundary is validated with zod (`web/src/api/client.tsx`).
 - Small functions (≤ 3 params); no dead code (`noUnusedLocals`).
 - State that is shared across screens or server-backed lives in the Redux store (`web/src/store/`, one slice file per feature); genuinely local UI state stays in components — when in doubt, keep it local.
 
