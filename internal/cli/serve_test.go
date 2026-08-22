@@ -692,3 +692,24 @@ func TestDefaultModelStoreErrorFallsBackToEmpty(t *testing.T) {
 		t.Fatalf("defaultModel on closed store = %q, want empty", got)
 	}
 }
+
+func TestAPIDocsEnabled(t *testing.T) {
+	tests := []struct {
+		name        string
+		dev         bool
+		noAPIDocs   bool
+		wantEnabled bool
+	}{
+		{"prod serve keeps docs off", false, false, false},
+		{"prod serve with the flag is a no-op", false, true, false},
+		{"dev serve exposes the docs", true, false, true},
+		{"dev serve opts out via --no-api-docs", true, true, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := apiDocsEnabled(tt.dev, tt.noAPIDocs); got != tt.wantEnabled {
+				t.Fatalf("apiDocsEnabled(%v, %v) = %v, want %v", tt.dev, tt.noAPIDocs, got, tt.wantEnabled)
+			}
+		})
+	}
+}

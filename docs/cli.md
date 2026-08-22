@@ -8,7 +8,8 @@ All commands live in `internal/cli` (Cobra). The binary entrypoint is `cmd/thoth
 
 Starts the app on `127.0.0.1:8333` (default). Flags:
 
-- `--dev` — bind the dev port (`127.0.0.1:8334`, `config.DevPort`) and isolate all data under `~/.thoth/dev/` (its own `thoth.db`, default wiki `~/.thoth/dev/wiki/`), so a running instance keeps 8333 and its data; `make dev` uses this. Vite's proxy follows via the `THOTH_PORT` env var. At boot the dev server rewrites the seeded prod wiki default to the dev wiki and reports `dev: true` plus the checkout's full commit id in `/api/health`; the UI shows a warning banner with that commit.
+- `--dev` — bind the dev port (`127.0.0.1:8334`, `config.DevPort`) and isolate all data under `~/.thoth/dev/` (its own `thoth.db`, default wiki `~/.thoth/dev/wiki/`), so a running instance keeps 8333 and its data; `make dev` uses this. Vite's proxy follows via the `THOTH_PORT` env var. At boot the dev server rewrites the seeded prod wiki default to the dev wiki and reports `dev: true` plus the checkout's full commit id in `/api/health`; the UI shows a warning banner with that commit. Under `--dev` the server also exposes the API reference (`/swagger.json` and an interactive page at `/api/docs`).
+- `--no-api-docs` — exclude API docs even in `--dev` mode. Docs are off by default (only `--dev` turns them on), so `serve --no-api-docs` without `--dev` is a no-op; the flag opts a dev server out of that one convenience.
 
 Startup sequence:
 

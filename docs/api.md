@@ -2,6 +2,8 @@
 
 The server exposes REST for everything except the live chat and server-push notifications (`wiki_changed`), which are WebSockets. All routes are registered in `internal/api/server.go`.
 
+> **Machine-readable reference:** the REST API is fully specified in the OpenAPI 3.x document served by a dev server at `/swagger.json` (the route only exists under `serve --dev`, excluded by `--no-api-docs`), or browse the interactive reference at `http://127.0.0.1:8334/api/docs`. The spec lives in `internal/api/docs/openapi.json` — the same file the server embeds — so it can never drift from the handlers. The table below is a prose summary; the spec is authoritative for schemas and status codes.
+
 ## REST endpoints
 
 | Method + Path | Request | Response |

@@ -113,7 +113,7 @@ func TestRunServeBootsAndShutsDown(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cmd.SetContext(ctx)
 	done := make(chan error, 1)
-	go func() { done <- runServe(cmd, false) }()
+	go func() { done <- runServe(cmd, false, false) }()
 
 	deadline := time.Now().Add(15 * time.Second)
 	for {
@@ -161,7 +161,7 @@ func TestRunServeSwitchesWikiPathLive(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cmd.SetContext(ctx)
 	done := make(chan error, 1)
-	go func() { done <- runServe(cmd, false) }()
+	go func() { done <- runServe(cmd, false, false) }()
 
 	deadline := time.Now().Add(15 * time.Second)
 	for {
@@ -237,7 +237,7 @@ func TestRunServeFailsWhenNoClaudeModel(t *testing.T) {
 	}
 	cmd := &cobra.Command{}
 	cmd.SetContext(context.Background())
-	if err := runServe(cmd, false); err == nil {
+	if err := runServe(cmd, false, false); err == nil {
 		t.Fatal("expected runServe to fail when no claude model is available")
 	}
 }
@@ -255,7 +255,7 @@ func TestRunServeDevBootsAndShutsDown(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cmd.SetContext(ctx)
 	done := make(chan error, 1)
-	go func() { done <- runServe(cmd, true) }()
+	go func() { done <- runServe(cmd, true, false) }()
 
 	deadline := time.Now().Add(15 * time.Second)
 	for {
@@ -297,7 +297,7 @@ func TestRunServeFailsWhenHomeIsFile(t *testing.T) {
 	t.Setenv("HOME", blocker)
 	cmd := &cobra.Command{}
 	cmd.SetContext(context.Background())
-	if err := runServe(cmd, false); err == nil {
+	if err := runServe(cmd, false, false); err == nil {
 		t.Fatal("expected runServe to fail when the thoth dir cannot be created")
 	}
 }
@@ -312,7 +312,7 @@ func TestRunServeFailsWhenStoreUnopenable(t *testing.T) {
 	t.Setenv("HOME", home)
 	cmd := &cobra.Command{}
 	cmd.SetContext(context.Background())
-	if err := runServe(cmd, false); err == nil {
+	if err := runServe(cmd, false, false); err == nil {
 		t.Fatal("expected runServe to fail when thoth.db is unopenable")
 	}
 }
@@ -329,7 +329,7 @@ func TestRunServeFailsWhenWikiBlocked(t *testing.T) {
 	t.Setenv("HOME", home)
 	cmd := &cobra.Command{}
 	cmd.SetContext(context.Background())
-	if err := runServe(cmd, false); err == nil {
+	if err := runServe(cmd, false, false); err == nil {
 		t.Fatal("expected runServe to fail when the wiki path is blocked by a file")
 	}
 }

@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"embed"
 	"log/slog"
 	"net/http"
 
@@ -14,6 +15,9 @@ import (
 	"github.com/shiv-source/thoth/internal/webui"
 	"github.com/shiv-source/thoth/internal/wiki"
 )
+
+//go:embed all:docs
+var docsFS embed.FS
 
 type Deps struct {
 	Log             *slog.Logger
@@ -29,6 +33,7 @@ type Deps struct {
 	Dev             bool         // serve --dev — exposed via /api/health so the UI can show the dev banner
 	Commit          string       // full git commit id the server runs from (dev only), shown in the dev banner
 	DefaultWikiPath string       // the mode's wiki default in tilde form (~/.thoth/wiki, or ~/.thoth/dev/wiki in dev) — the settings hint reads it
+	ServeAPIDocs    bool         // serve --dev without --no-api-docs — registers the API reference routes (/api/docs, its assets, /swagger.json); absent when false
 	Wiki            *wiki.Wiki
 	Index           *index.Index
 	OnSettingsSaved func(wikiPath string) error
@@ -84,6 +89,19 @@ func newServer(d Deps) (*echo.Echo, *Hub) {
 	e.GET("/api/github/auth", func(c echo.Context) error { return getGitHubAuth(c, d) })
 	e.DELETE("/api/github/auth", func(c echo.Context) error { return disconnectGitHub(c, d) })
 	e.GET("/api/github/repos", func(c echo.Context) error { return listGitHubRepos(c, d) })
+
+	// The API reference page is a dev-only convenience: serve --dev exposes
+	// it (/api/docs, its assets, and /swagger.json), --dev --no-api-docs (and
+	// any non-dev serve) leaves every route unregistered so nothing leaks in
+	// normal use.
+	if d.ServeAPIDocs {
+		sub, err := docsSub()
+		if err != nil {
+			d.Log.Error("embed api docs", "err", err)
+		} else {
+			registerAPIDocs(e, d, sub)
+		}
+	}
 
 	hub := NewHub(d.Claude, d.Store, d.Log, d.ctx())
 	if d.Events != nil {

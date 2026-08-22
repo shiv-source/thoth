@@ -1,0 +1,1056 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Thoth API",
+    "version": "0.1.0",
+    "description": "REST + WebSocket API for the Thoth local-first knowledge base. The server binds to localhost only and requires no authentication; every endpoint assumes a trusted local caller.\n\nError responses use the envelope `{\"error\": \"<message>\"}` — 400 client error, 404 not found, 409 conflict, 500 always the generic `{\"error\": \"internal error\"}` (details go to the server log only).\n\nThe WebSocket chat protocol (`/ws`) is documented in prose in `docs/api.md` (frames and semantics); this spec describes the upgrade only."
+  },
+  "servers": [
+    {
+      "url": "http://127.0.0.1:8334",
+      "description": "Local dev server — the API reference is served only under serve --dev (the docs page and /swagger.json do not exist in normal serve)"
+    }
+  ],
+  "tags": [
+    { "name": "health", "description": "Service health and setup diagnostics" },
+    { "name": "notes", "description": "Search, notes, wiki tree" },
+    { "name": "settings", "description": "Settings key/value surface and model registry" },
+    { "name": "conversations", "description": "Chat conversation history" },
+    { "name": "github", "description": "GitHub identity, git sync, and repo suggestions" },
+    { "name": "doctor", "description": "Installation health checks" },
+    { "name": "realtime", "description": "WebSocket chat channel" }
+  ],
+  "paths": {
+    "/api/health": {
+      "get": {
+        "tags": ["health"],
+        "summary": "Service health",
+        "description": "Reports the backend state (native agent, api-key presence, selected model and its provider), the wiki root, build version, dev-mode flag, the dev commit id, and the mode's default wiki path. `api_key_configured` reports only whether a key is stored — the key itself is never returned.",
+        "operationId": "getHealth",
+        "responses": {
+          "200": {
+            "description": "Service is up",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/healthResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/doctor": {
+      "get": {
+        "tags": ["doctor"],
+        "summary": "Run installation checks",
+        "description": "Runs the shared `internal/doctor` suite — the same checks as `thoth doctor` — against the thoth dir the server runs from.",
+        "operationId": "getDoctor",
+        "responses": {
+          "200": {
+            "description": "Check results",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["checks"],
+                  "properties": {
+                    "checks": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/doctorCheck" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/git/setup": {
+      "post": {
+        "tags": ["github"],
+        "summary": "Push the wiki to a git remote",
+        "description": "Runs the host's git sync on the pure-Go `agent/git` backend: initializes a repo in the wiki dir if needed, points `origin` at the url, commits the current tree, and pushes HEAD. Push credentials and committer identity come from the stored GitHub connection. Failures return `ok: false` with a sanitized message that never echoes credentials or URLs.",
+        "operationId": "gitSetup",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["url"],
+                "properties": {
+                  "url": { "type": "string", "example": "git@github.com:user/wiki.git" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Sync outcome",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["ok"],
+                  "properties": {
+                    "ok": { "type": "boolean" },
+                    "error": { "type": "string", "description": "Present only when ok is false" }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing url",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/errorEnvelope" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/search": {
+      "get": {
+        "tags": ["notes"],
+        "summary": "Full-text search",
+        "description": "Searches the wiki index. `q` is treated as a literal phrase (embedded quotes stripped, FTS5 operators matched literally). `limit` defaults to 20 and is clamped to 1–100.",
+        "operationId": "search",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "description": "Search phrase",
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Max results (default 20, clamped 1–100)",
+            "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 20 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Search results",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["results"],
+                  "properties": {
+                    "results": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/searchResult" }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "q is required",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/errorEnvelope" }
+              }
+            }
+          },
+          "500": {
+            "description": "Index failure — generic internal error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/errorEnvelope" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/notes": {
+      "get": {
+        "tags": ["notes"],
+        "summary": "Read a note or attachment",
+        "description": "Reads a wiki-relative path. Markdown paths return `{path, content}`; attachments (images, scripts, configs) are returned as raw bytes — images inline with an image/* Content-Type, everything else as a download with `Content-Disposition: attachment`. 400 when the path is missing or escapes the wiki root (SafePath); 404 when the file doesn't exist.",
+        "operationId": "getNote",
+        "parameters": [
+          {
+            "name": "path",
+            "in": "query",
+            "required": true,
+            "description": "Wiki-relative path (markdown file or attachment)",
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Markdown note content (attachments return raw bytes instead)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["path", "content"],
+                  "properties": {
+                    "path": { "type": "string", "example": "notes/hello.md" },
+                    "content": { "type": "string", "description": "Raw note markdown" }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing or unsafe path",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/errorEnvelope" }
+              }
+            }
+          },
+          "404": {
+            "description": "Note not found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/errorEnvelope" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/wiki/tree": {
+      "get": {
+        "tags": ["notes"],
+        "summary": "Full wiki tree",
+        "description": "Returns the wiki file tree. A directory that exists but cannot be read (permissions) stays in the tree with an `error` and no children, so one locked folder never fails the whole tree; only an unreadable root 500s.",
+        "operationId": "getWikiTree",
+        "responses": {
+          "200": {
+            "description": "Wiki tree",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["nodes"],
+                  "properties": {
+                    "nodes": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/wikiNode" }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unreadable wiki root — generic internal error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/errorEnvelope" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/fs/dirs": {
+      "get": {
+        "tags": ["notes"],
+        "summary": "List subdirectories",
+        "description": "Returns the immediate subdirectories of an absolute path (lexically sorted), powering the Settings directory picker. 400 when the path is missing or not a readable directory.",
+        "operationId": "listDirs",
+        "parameters": [
+          {
+            "name": "path",
+            "in": "query",
+            "required": true,
+            "description": "Absolute directory path (a leading ~ is expanded)",
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Immediate subdirectories",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["dirs"],
+                  "properties": {
+                    "dirs": { "type": "array", "items": { "type": "string" } }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing or unreadable path",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/errorEnvelope" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/settings": {
+      "get": {
+        "tags": ["settings"],
+        "summary": "Read all settings",
+        "description": "Returns the settings key/value surface. Per-provider api keys are write-only: `has_api_key` reports whether one is stored, the key itself is never returned.",
+        "operationId": "getSettings",
+        "responses": {
+          "200": {
+            "description": "Current settings",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/settings" }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": ["settings"],
+        "summary": "Update settings",
+        "description": "Upserts the settings table. An empty/omitted per-provider `api_key` leaves the stored key unchanged; `base_url` round-trips (empty clears back to the provider default). 400 when `wiki_path` is empty.",
+        "operationId": "putSettings",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/settings" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Saved settings (echoed back)",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/settings" }
+              }
+            }
+          },
+          "400": {
+            "description": "wiki_path is required",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/errorEnvelope" }
+              }
+            }
+          },
+          "500": {
+            "description": "Write failure — generic internal error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/errorEnvelope" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/models": {
+      "get": {
+        "tags": ["settings"],
+        "summary": "List models grouped by provider",
+        "description": "Returns the llm_models table grouped by provider (providers sorted A→Z, models in seed order), seeded from internal/assets/models.json on first boot and user-editable afterwards.",
+        "operationId": "listModels",
+        "responses": {
+          "200": {
+            "description": "Models grouped by provider",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["groups"],
+                  "properties": {
+                    "groups": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/modelGroup" }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Store failure — generic internal error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/errorEnvelope" }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["settings"],
+        "summary": "Create a model",
+        "description": "Adds a row to the llm_models registry. 400 when `value` or `name` is empty; 409 when the value is taken.",
+        "operationId": "createModel",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/modelInput" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The created model",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/llmModel" }
+              }
+            }
+          },
+          "400": {
+            "description": "value/name are required",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/errorEnvelope" }
+              }
+            }
+          },
+          "409": {
+            "description": "A model with this value already exists",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/errorEnvelope" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/models/{id}": {
+      "put": {
+        "tags": ["settings"],
+        "summary": "Update a model",
+        "description": "Updates the model's fields. Renaming the selected model's value moves the `model` setting to it. 400 invalid body, 404 unknown id, 409 value collision.",
+        "operationId": "updateModel",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Model row id",
+            "schema": { "type": "integer", "format": "int64" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/modelInput" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The updated model",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/llmModel" }
+              }
+            }
+          },
+          "400": {
+            "description": "value/name are required",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/errorEnvelope" }
+              }
+            }
+          },
+          "404": {
+            "description": "Model not found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/errorEnvelope" }
+              }
+            }
+          },
+          "409": {
+            "description": "A model with this value already exists",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/errorEnvelope" }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["settings"],
+        "summary": "Delete a model",
+        "description": "Deletes the model row; deleting the selected model clears the `model` setting (next boot falls back to the first seeded claude model). 404 when the model is missing.",
+        "operationId": "deleteModel",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Model row id",
+            "schema": { "type": "integer", "format": "int64" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deletion acknowledged",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ok" }
+              }
+            }
+          },
+          "404": {
+            "description": "Model not found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/errorEnvelope" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/conversations": {
+      "get": {
+        "tags": ["conversations"],
+        "summary": "List conversations",
+        "description": "Returns every conversation with its id, title, and creation time.",
+        "operationId": "listConversations",
+        "responses": {
+          "200": {
+            "description": "Conversation list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["conversations"],
+                  "properties": {
+                    "conversations": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/conversation" }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Store failure — generic internal error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/errorEnvelope" }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["conversations"],
+        "summary": "Create a conversation",
+        "description": "Creates a conversation with the given title. 400 when title is missing.",
+        "operationId": "createConversation",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["title"],
+                "properties": {
+                  "title": { "type": "string", "example": "My first conversation" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The created conversation id and title",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["id", "title"],
+                  "properties": {
+                    "id": { "type": "string" },
+                    "title": { "type": "string" }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "title is required",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/errorEnvelope" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/conversations/{id}": {
+      "get": {
+        "tags": ["conversations"],
+        "summary": "Get a conversation with its messages",
+        "description": "Returns the conversation and its full message history. Each assistant message may carry an optional `usage` token breakdown. 404 when the id is unknown.",
+        "operationId": "getConversation",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Conversation id",
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Conversation and messages",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["conversation", "messages"],
+                  "properties": {
+                    "conversation": { "$ref": "#/components/schemas/conversation" },
+                    "messages": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/message" }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Conversation not found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/errorEnvelope" }
+              }
+            }
+          },
+          "500": {
+            "description": "Store failure — generic internal error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/errorEnvelope" }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["conversations"],
+        "summary": "Delete a conversation",
+        "description": "Removes the conversation and its messages; deleting a missing conversation is a no-op (idempotent).",
+        "operationId": "deleteConversation",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Conversation id",
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deletion acknowledged",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ok" }
+              }
+            }
+          },
+          "500": {
+            "description": "Store failure — generic internal error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/errorEnvelope" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/github/auth": {
+      "post": {
+        "tags": ["github"],
+        "summary": "Connect a GitHub account",
+        "description": "Validates the token against the GitHub API and stores the connection. The token is never returned. 400 when the token is missing or rejected by GitHub.",
+        "operationId": "connectGitHub",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["token"],
+                "properties": {
+                  "token": { "type": "string", "description": "GitHub personal access token" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The connected identity (token-free)",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/githubIdentity" }
+              }
+            }
+          },
+          "400": {
+            "description": "token is required, or GitHub rejected the token",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/errorEnvelope" }
+              }
+            }
+          },
+          "500": {
+            "description": "GitHub service failure — generic internal error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/errorEnvelope" }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": ["github"],
+        "summary": "Read the connected identity",
+        "description": "Returns the stored GitHub identity (all fields empty when not connected).",
+        "operationId": "getGitHubAuth",
+        "responses": {
+          "200": {
+            "description": "Identity (empty when not connected)",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/githubIdentity" }
+              }
+            }
+          },
+          "500": {
+            "description": "Store failure — generic internal error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/errorEnvelope" }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["github"],
+        "summary": "Disconnect GitHub",
+        "description": "Clears the stored connection (idempotent).",
+        "operationId": "disconnectGitHub",
+        "responses": {
+          "200": {
+            "description": "Disconnection acknowledged",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ok" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/github/repos": {
+      "get": {
+        "tags": ["github"],
+        "summary": "Suggest sync repos",
+        "description": "Returns the connected account's repositories, fetched with the stored token (never echoed). Empty list when not connected; 400 when the token was revoked upstream.",
+        "operationId": "listGitHubRepos",
+        "responses": {
+          "200": {
+            "description": "Repository list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["repos"],
+                  "properties": {
+                    "repos": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/githubRepository" }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "GitHub rejected the token",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/errorEnvelope" }
+              }
+            }
+          },
+          "500": {
+            "description": "GitHub service failure — generic internal error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/errorEnvelope" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ws": {
+      "get": {
+        "tags": ["realtime"],
+        "summary": "WebSocket chat channel",
+        "description": "Upgrades to the Thoth chat WebSocket. The full frame protocol and semantics are documented in `docs/api.md` — frames: send/cancel/resume/open/new_chat/presence out, assistant_start/assistant_thinking/assistant_delta/tool_activity/turn_done/wiki_changed/error in. Only localhost origins are accepted on the upgrade.",
+        "operationId": "chatWebSocket",
+        "responses": {
+          "101": {
+            "description": "Switching Protocols — the socket is open"
+          },
+          "403": {
+            "description": "Non-localhost origin rejected",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/errorEnvelope" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/swagger.json": {
+      "get": {
+        "tags": ["health"],
+        "summary": "This OpenAPI document",
+        "description": "Returns the OpenAPI spec for the REST API. Served only in `--dev` mode (excluded by `--no-api-docs`); the route does not exist in normal serve, so tools must fetch it from a dev server.",
+        "operationId": "getOpenAPISpec",
+        "responses": {
+          "200": {
+            "description": "The OpenAPI document",
+            "content": {
+              "application/json": {
+                "schema": { "type": "object" }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "errorEnvelope": {
+        "type": "object",
+        "required": ["error"],
+        "properties": {
+          "error": { "type": "string", "description": "Human-readable error message" }
+        }
+      },
+      "ok": {
+        "type": "object",
+        "required": ["ok"],
+        "properties": {
+          "ok": { "type": "boolean", "example": true }
+        }
+      },
+      "healthResponse": {
+        "type": "object",
+        "required": ["status", "backend", "wiki", "version", "dev", "commit", "default_wiki_path"],
+        "properties": {
+          "status": { "type": "string", "enum": ["ok"], "example": "ok" },
+          "backend": { "$ref": "#/components/schemas/backendState" },
+          "wiki": { "$ref": "#/components/schemas/wikiState" },
+          "version": { "type": "string", "example": "v1.2.3" },
+          "dev": { "type": "boolean", "description": "true under serve --dev (the UI shows a warning banner)" },
+          "commit": { "type": "string", "description": "Full git commit id the dev server runs from; empty otherwise" },
+          "default_wiki_path": { "type": "string", "description": "The mode's wiki default in tilde form, e.g. ~/.thoth/wiki" }
+        }
+      },
+      "backendState": {
+        "type": "object",
+        "required": ["name", "api_key_configured", "model", "provider"],
+        "properties": {
+          "name": { "type": "string", "enum": ["thoth-agent"] },
+          "api_key_configured": { "type": "boolean", "description": "Whether a per-provider api key is stored — the key itself is never returned" },
+          "model": { "type": "string", "description": "Selected model value" },
+          "provider": { "type": "string", "description": "Provider label of the selected model's llm_models row" }
+        }
+      },
+      "wikiState": {
+        "type": "object",
+        "required": ["path", "exists"],
+        "properties": {
+          "path": { "type": "string" },
+          "exists": { "type": "boolean" }
+        }
+      },
+      "doctorCheck": {
+        "type": "object",
+        "required": ["name", "ok", "message"],
+        "properties": {
+          "name": { "type": "string", "example": "wiki" },
+          "ok": { "type": "boolean" },
+          "message": { "type": "string" }
+        }
+      },
+      "searchResult": {
+        "type": "object",
+        "required": ["path", "title", "kind", "snippet"],
+        "properties": {
+          "path": { "type": "string" },
+          "title": { "type": "string" },
+          "kind": { "type": "string" },
+          "snippet": { "type": "string", "description": "HTML-escaped with safe <mark> highlights" }
+        }
+      },
+      "wikiNode": {
+        "type": "object",
+        "required": ["name", "path", "is_dir", "children"],
+        "properties": {
+          "name": { "type": "string" },
+          "path": { "type": "string", "description": "Wiki-relative, slash-separated" },
+          "is_dir": { "type": "boolean" },
+          "children": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/wikiNode" }
+          },
+          "error": { "type": "string", "description": "Present when the directory exists but cannot be read (e.g. permissions); children omitted" }
+        }
+      },
+      "settings": {
+        "type": "object",
+        "required": ["wiki_path", "wiki_folders", "model", "providers", "repo_url", "sync_enabled"],
+        "properties": {
+          "wiki_path": { "type": "string", "example": "~/.thoth/wiki" },
+          "wiki_folders": { "type": "array", "items": { "type": "string" }, "description": "Configured scaffold folder set ([] when unset → defaults)" },
+          "model": { "type": "string", "description": "Selected model value" },
+          "providers": {
+            "type": "object",
+            "description": "Per-provider credential state, keyed by the provider's llm_models label",
+            "additionalProperties": { "$ref": "#/components/schemas/providerState" }
+          },
+          "repo_url": { "type": "string" },
+          "sync_enabled": { "type": "boolean" }
+        }
+      },
+      "providerState": {
+        "type": "object",
+        "required": ["has_api_key", "base_url"],
+        "properties": {
+          "has_api_key": { "type": "boolean", "description": "GET reports only whether a key is stored; the key itself is never returned" },
+          "api_key": { "type": "string", "description": "Write-only: PUT treats an empty value as leave unchanged" },
+          "base_url": { "type": "string", "description": "Provider base URL override; empty means the provider default" }
+        }
+      },
+      "modelInput": {
+        "type": "object",
+        "required": ["value", "name"],
+        "properties": {
+          "value": { "type": "string", "description": "The --model argument" },
+          "name": { "type": "string", "description": "Display name" },
+          "tag": { "type": "string", "description": "Optional display field" },
+          "provider": { "type": "string", "description": "Optional provider label" }
+        }
+      },
+      "llmModel": {
+        "type": "object",
+        "required": ["id", "value", "name", "tag", "provider"],
+        "properties": {
+          "id": { "type": "integer", "format": "int64" },
+          "value": { "type": "string" },
+          "name": { "type": "string" },
+          "tag": { "type": "string" },
+          "provider": { "type": "string" }
+        }
+      },
+      "modelGroup": {
+        "type": "object",
+        "required": ["provider", "models"],
+        "properties": {
+          "provider": { "type": "string" },
+          "models": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/llmModel" }
+          }
+        }
+      },
+      "conversation": {
+        "type": "object",
+        "required": ["id", "title", "created_at"],
+        "properties": {
+          "id": { "type": "string" },
+          "title": { "type": "string" },
+          "created_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "message": {
+        "type": "object",
+        "required": ["id", "conversation_id", "role", "content", "created_at"],
+        "properties": {
+          "id": { "type": "integer", "format": "int64" },
+          "conversation_id": { "type": "string" },
+          "role": { "type": "string", "enum": ["user", "assistant", "system"] },
+          "content": { "type": "string" },
+          "created_at": { "type": "string", "format": "date-time" },
+          "usage": {
+            "type": "object",
+            "description": "Token breakdown on the assistant message that ended a turn; absent on user messages and pre-telemetry rows",
+            "properties": {
+              "input_tokens": { "type": "integer" },
+              "output_tokens": { "type": "integer" },
+              "cache_read_tokens": { "type": "integer" },
+              "cache_write_tokens": { "type": "integer" }
+            }
+          }
+        }
+      },
+      "githubIdentity": {
+        "type": "object",
+        "required": ["username", "display_name", "email", "avatar_url", "profile_url", "scopes", "account_created_at", "account_updated_at"],
+        "properties": {
+          "username": { "type": "string" },
+          "display_name": { "type": "string" },
+          "email": { "type": "string" },
+          "avatar_url": { "type": "string" },
+          "profile_url": { "type": "string" },
+          "scopes": { "type": "string" },
+          "account_created_at": { "type": "string" },
+          "account_updated_at": { "type": "string" }
+        }
+      },
+      "githubRepository": {
+        "type": "object",
+        "required": ["full_name", "clone_url"],
+        "properties": {
+          "full_name": { "type": "string", "example": "shiv-source/thoth" },
+          "clone_url": { "type": "string", "example": "https://github.com/shiv-source/thoth.git" },
+          "private": { "type": "boolean" },
+          "description": { "type": "string" }
+        }
+      }
+    }
+  }
+}

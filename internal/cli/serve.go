@@ -34,18 +34,20 @@ import (
 
 func newServeCmd() *cobra.Command {
 	var dev bool
+	var noAPIDocs bool
 	cmd := &cobra.Command{
 		Use:   "serve",
 		Short: "Run the Thoth server",
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return runServe(cmd, dev)
+			return runServe(cmd, dev, noAPIDocs)
 		},
 	}
 	cmd.Flags().BoolVar(&dev, "dev", false, "run on the dev port (8334) with isolated data in ~/.thoth/dev — leaves 8333 free for a running instance")
+	cmd.Flags().BoolVar(&noAPIDocs, "no-api-docs", false, "exclude API docs even in --dev mode")
 	return cmd
 }
 
-func runServe(cmd *cobra.Command, dev bool) error {
+func runServe(cmd *cobra.Command, dev bool, noAPIDocs bool) error {
 	log := slog.New(slog.NewTextHandler(os.Stderr, nil))
 
 	// The event bus carries wiki change batches from the index watcher to
@@ -188,6 +190,7 @@ func runServe(cmd *cobra.Command, dev bool) error {
 		Dev:             dev,
 		Commit:          commit,
 		DefaultWikiPath: config.ToTilde(defaultWikiPath(dev, dir)),
+		ServeAPIDocs:    apiDocsEnabled(dev, noAPIDocs),
 		Wiki:            w,
 		Index:           ix,
 		OnSettingsSaved: onSettingsSaved(log, stg, w, ix, startWatcher),
@@ -209,6 +212,13 @@ func servePort(dev bool) int {
 		return config.DevPort
 	}
 	return config.DefaultPort
+}
+
+// apiDocsEnabled reports whether the /swagger.json route is served: only
+// serve --dev exposes it, and --no-api-docs opts back out of that one dev
+// convenience. serve without --dev is always off — the flag is a no-op there.
+func apiDocsEnabled(dev, noAPIDocs bool) bool {
+	return dev && !noAPIDocs
 }
 
 // thothDir returns the server's data dir: ~/.thoth, or ~/.thoth/dev when
