@@ -33,7 +33,7 @@ Frontend: `pnpm <cmd>` from the repo root (workspace proxies) or `cd web && pnpm
 
 ```
 thoth/
-├── agent/                 # reusable native agent library (epic #121); imports nothing from internal/*
+├── agent/                 # reusable native agent library; imports nothing from internal/*
 │   └── tools/             # COMMON, wiki-agnostic tools + FS seam (read/write/list/edit/append/
 │                          #   rename/delete/grep/get_time/search); new tools here unless wiki-specific
 ├── cmd/thoth/            # thin binary entrypoint (main.go)
@@ -170,7 +170,7 @@ Apply the standard principles — modular, composable, boring code that's easy t
 
 ## Repo rules
 
-- **Branch workflow** — `main` is always deployable; never commit to it directly. Changes live on `<type>/<scope>/<slug>` branches with conventional-commit messages and land via reviewed PRs that a human squash-merges — a session never merges. Any change touching the `agent/` module or otherwise related to the native Go agent (epic #121) branches off — and PRs target — its epic branch `feat/agent/native-go-agent` instead of main. The full procedure — sync-and-branch commands, commit conventions, PR template sections, label application, squash-merge specifics, and the `ci-pr`/`final-gate` expectations — is the `git-workflow` skill (`.claude/skills/git-workflow/SKILL.md`).
+- **Branch workflow** — `main` is always deployable; never commit to it directly. Changes live on `<type>/<scope>/<slug>` branches with conventional-commit messages and land via reviewed PRs that a human squash-merges — a session never merges. The full procedure — sync-and-branch commands, commit conventions, PR template sections, label application, squash-merge specifics, and the `ci-pr`/`final-gate` expectations — is the `git-workflow` skill (`.claude/skills/git-workflow/SKILL.md`).
 - **No secrets in the repo** — never commit real credentials, tokens, or keys in code, configs, tests, or docs; env vars or placeholders only.
 - **Design authority** — design docs for large or cross-package changes live (untracked) in `docs/specs/` when needed; the committed `docs/` pages are the reference for current behavior.
 - **Project docs** — committed documentation lives in `docs/` (`index.md` is the hub: architecture, API, CLI, indexing, frontend, security, development). Update the relevant page when behavior changes.
