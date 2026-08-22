@@ -34,7 +34,7 @@ The CLI worked, but it made the chat path a foreign-body dependency:
 **For you (user-facing):**
 
 - **Nothing to install or log in** — the `claude` binary, its login, and `PATH` setup are gone. Configure an API key in Settings and turn.
-- **Any provider, not just Claude** — pick any model in Settings → LLM Models; each provider can carry its own API key and base URL.
+- **Any provider, not just Claude** — pick any model in Settings → Providers; each provider can carry its own API key and base URL.
 - **Faster, cleaner turns** — no per-conversation process boot, no process to warm; a turn starts immediately.
 - **A real, bounded write path** — the assistant writes only through `SafePath`-bounded tools. There is no "skip permissions" mode because the write path *is* the wiki.
 - **Rulebook edits apply instantly** — the system prompt is read fresh each turn, no restart needed.

@@ -275,7 +275,7 @@ func checkProvider(ctx context.Context, dbPath string, opts Options) Check {
 	case resp.StatusCode == http.StatusOK:
 		return Check{Name: "provider", OK: true, Message: fmt.Sprintf("%s reachable at %s", probe.name, probe.baseURL)}
 	case resp.StatusCode == http.StatusUnauthorized:
-		return Check{Name: "provider", OK: false, Message: fmt.Sprintf("%s rejected the API key (401) — set a valid one in Settings → General", probe.name)}
+		return Check{Name: "provider", OK: false, Message: fmt.Sprintf("%s rejected the API key (401) — set a valid one in Settings → Providers", probe.name)}
 	case resp.StatusCode == http.StatusTooManyRequests:
 		return Check{Name: "provider", OK: false, Message: fmt.Sprintf("%s rate limited (429) — retry later", probe.name)}
 	case resp.StatusCode >= 500:
@@ -347,10 +347,10 @@ func unreadableSettings(err error) []Check {
 }
 
 // checkSettings reports the user-facing setup state: whether the API key and
-// the selected model are configured. Both are optional (an unset key
-// inherits the server environment and an unset model keeps the default), so
-// an unset value is a failed check whose message explains the fallback. A
-// model whose value is not in the llm_models registry is reported as unknown.
+// the selected model are configured. Both are optional (an unset model keeps
+// the default), so an unset value is a failed check whose message explains
+// what to do. A model whose value is not in the llm_models registry is
+// reported as unknown.
 func checkSettings(dbPath string) []Check {
 	unset := func(name, message string) Check { return Check{Name: name, OK: false, Message: message} }
 	key, model, err := backendSettings(dbPath)
@@ -358,7 +358,7 @@ func checkSettings(dbPath string) []Check {
 		return unreadableSettings(err)
 	}
 	// The credential the agent actually uses: the selected provider's own
-	// key when set, else the shared api_key.
+	// key when set, else the shared api_key — both read from the DB only.
 	resolvedKey := key
 	if model != "" {
 		if resolvedKey, _, err = providerConfig(dbPath, modelProvider(dbPath, model)); err != nil {
@@ -369,13 +369,13 @@ func checkSettings(dbPath string) []Check {
 	if resolvedKey != "" {
 		checks = append(checks, Check{Name: "api key", OK: true, Message: "API key configured"})
 	} else {
-		checks = append(checks, unset("api key", "no API key configured — set one in Settings → General (or per-provider in Provider credentials); without it the agent inherits the API key from the server environment"))
+		checks = append(checks, unset("api key", "no API key configured — set the fallback key or a per-provider key in Settings → Providers"))
 	}
 	if model != "" {
 		if modelKnown(dbPath, model) {
 			checks = append(checks, Check{Name: "model", OK: true, Message: fmt.Sprintf("model %q selected", model)})
 		} else {
-			checks = append(checks, Check{Name: "model", OK: false, Message: fmt.Sprintf("unknown model %q — it is not in the model registry; pick one in Settings → LLM Models", model)})
+			checks = append(checks, Check{Name: "model", OK: false, Message: fmt.Sprintf("unknown model %q — it is not in the model registry; add or pick one in Settings → Providers", model)})
 		}
 	} else {
 		checks = append(checks, unset("model", "no model selected — the default model is used; pick one in Settings → General"))

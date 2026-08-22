@@ -58,6 +58,17 @@
     border-radius: 8px;
     font-weight: 600;
 }
+/* The settings tab rail must never scroll away — only the pane content
+   scrolls. The holder is the height-bounded flex item (the .ant-tabs root
+   fills the viewport via SettingsView's flex chain), so it owns the scroll.
+   The default left-placement divider (the holder's border-left) renders as a
+   stray full-height line between the rail and the content — drop it and the
+   negative margin that kept it aligned. */
+.settings-tabs .ant-tabs-body-holder {
+    border-left: none;
+    margin-left: 0;
+    overflow-y: auto;
+}
 
 /* App icon size — 16px matches the pre-migration UI. antd sizes Menu
    icons via the Menu iconSize token (theme.ts) and icon-only Buttons via

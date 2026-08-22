@@ -7,6 +7,7 @@ import {
     Avatar,
     Button,
     Card,
+    Collapse,
     Divider,
     Empty,
     Flex,
@@ -23,7 +24,7 @@ import {
     Typography,
     theme
 } from 'antd'
-import type { TableProps } from 'antd'
+import type { FormInstance, TableProps } from 'antd'
 import {
     ApiOutlined,
     BranchesOutlined,
@@ -32,6 +33,7 @@ import {
     CloseCircleFilled,
     GithubOutlined,
     GlobalOutlined,
+    KeyOutlined,
     LockOutlined,
     MedicineBoxOutlined,
     ReloadOutlined,
@@ -70,11 +72,11 @@ import { AppHeader } from './AppHeader'
 import { WikiPathInput } from './WikiPathInput'
 import { navigateSegment, useViewRoute } from '../hooks/useView'
 
-type Tab = 'general' | 'doctor' | 'git' | 'models'
+type Tab = 'general' | 'providers' | 'git' | 'doctor'
 
 const tabs: { id: Tab; label: string; icon: typeof SettingsIcon }[] = [
     { id: 'general', label: 'General', icon: SettingsIcon },
-    { id: 'models', label: 'LLM Models', icon: ApiOutlined },
+    { id: 'providers', label: 'Providers', icon: ApiOutlined },
     { id: 'git', label: 'Git remote', icon: BranchesOutlined },
     { id: 'doctor', label: 'Doctor', icon: MedicineBoxOutlined }
 ]
@@ -139,18 +141,20 @@ export function SettingsView() {
         <div className="flex min-h-0 flex-1 flex-col">
             <AppHeader title="Settings" />
             <div className="flex min-h-0 w-full flex-1 flex-col px-6 py-4">
-                <Form form={form} layout="vertical" onFinish={(values) => void save(values)} className="min-h-0">
+                <Form
+                    form={form}
+                    layout="vertical"
+                    onFinish={(values) => void save(values)}
+                    className="flex min-h-0 flex-1 flex-col"
+                >
                     <Tabs
                         tabPlacement="start"
                         activeKey={tab}
                         // The rail is styled by the Tabs tokens in theme.ts
                         // plus the .settings-tabs pill rules in index.css.
+                        className="min-h-0 flex-1"
                         classNames={{ root: 'settings-tabs' }}
                         tabBarStyle={{ minWidth: 140 }}
-                        // The default left-placement divider (body-holder
-                        // border) renders as a stray full-height vertical
-                        // line between the tab rail and the content.
-                        styles={{ body: { borderLeft: 'none', marginLeft: 0 } }}
                         onChange={(key) => {
                             setTab(key as Tab)
                             navigateSegment('settings', key)
@@ -166,10 +170,10 @@ export function SettingsView() {
                             children:
                                 t.id === 'general' ? (
                                     <GeneralTab status={status} />
+                                ) : t.id === 'providers' ? (
+                                    <ProvidersTab status={status} />
                                 ) : t.id === 'doctor' ? (
                                     <DoctorTab />
-                                ) : t.id === 'models' ? (
-                                    <ModelsTab />
                                 ) : (
                                     <GitTab />
                                 )
@@ -207,30 +211,48 @@ function CardTitle({ icon: Icon, children }: { icon: typeof SettingsIcon; childr
 // server keeps these defaults whenever wiki_folders is unset.
 const defaultFolders = ['inbox', 'meetings', 'projects', 'links', 'setup', 'knowledge', 'todos', 'daily']
 
-// GeneralTab is the wiki path + model picker + API key in one card, with the
-// save button and the saved/error feedback under them.
+// GeneralTab is the wiki path + provider/model pickers in one card, with the
+// save button and the saved/error feedback under them. Credentials and the
+// model registry live on the Providers tab.
 function GeneralTab({ status }: { status: 'idle' | 'saved' | 'error' }) {
     const settings = useAppSelector(selectSettings)
     const groups = useAppSelector(selectModelGroups)
+    const form = Form.useFormInstance<Settings>()
     // The server reports the wiki default for the mode it runs in; the
     // fallback covers the render before the first health response lands.
     const defaultWiki = useAppSelector(selectHealth)?.default_wiki_path ?? '~/.thoth/wiki'
 
-    // The server sends models grouped by provider (A→Z); options keep name +
-    // tag + value so optionRender can show the tag as secondary text. An
-    // empty registry leaves the picker empty — there is no fallback option.
-    const modelGroups = useMemo(
-        () =>
-            groups.map((g) => ({
-                label: g.provider,
-                options: g.models.map((m) => ({ label: m.name, value: m.value, tag: m.tag }))
-            })),
+    // The model picker is a two-field cascade: the Provider select is view
+    // state (which provider's models the Model select shows), the Model
+    // select is the form field that gets saved.
+    const [provider, setProvider] = useState<string | null>(null)
+
+    // Resolve the saved model's provider once settings arrive, so an already
+    // selected model stays visible in the cascade.
+    useEffect(() => {
+        if (!settings.data || settings.data.model === '') return
+        const g = groups.find((gr) => gr.models.some((m) => m.value === settings.data!.model))
+        if (g) setProvider(g.provider)
+    }, [settings.data, groups])
+
+    // Provider options are the registry's provider labels (A→Z, as the
+    // server groups them); the current provider's models become the Model
+    // select's options, with name + tag so optionRender can show the tag.
+    const providerOptions = useMemo(
+        () => groups.filter((g) => g.provider !== '').map((g) => ({ label: g.provider, value: g.provider })),
         [groups]
     )
-    // The provider credential section lists every registry provider (the
-    // /api/settings providers map is keyed by the same names, so the form
-    // joins on them).
-    const providers = useMemo(() => groups.filter((g) => g.provider !== '').map((g) => g.provider), [groups])
+    const modelOptions = useMemo(() => {
+        const g = groups.find((gr) => gr.provider === provider)
+        return (g?.models ?? []).map((m) => ({ label: m.name, value: m.value, tag: m.tag }))
+    }, [groups, provider])
+
+    const onProviderChange = (value: string) => {
+        setProvider(value)
+        // A model from the previous provider no longer applies; clear it so
+        // the user picks one from the newly selected provider.
+        form.setFieldValue('model', undefined)
+    }
 
     return (
         <Card size="small" className="max-w-3xl" title={<CardTitle icon={SettingsIcon}>General</CardTitle>}>
@@ -242,11 +264,26 @@ function GeneralTab({ status }: { status: 'idle' | 'saved' | 'error' }) {
                 >
                     <WikiPathInput />
                 </Form.Item>
+                <Form.Item
+                    label="Provider"
+                    htmlFor="settings-provider"
+                    extra="The provider your selected model comes from."
+                >
+                    <Select
+                        id="settings-provider"
+                        virtual={false}
+                        placeholder="Select a provider"
+                        options={providerOptions}
+                        notFoundContent="No models — add a provider model in the Providers tab"
+                        value={provider ?? undefined}
+                        onChange={onProviderChange}
+                    />
+                </Form.Item>
                 <Form.Item label="Model" name="model" extra="Applied to all chats after the app restarts.">
                     <Select
                         virtual={false}
-                        options={modelGroups}
-                        notFoundContent="No models — add some in the LLM Models tab"
+                        options={modelOptions}
+                        notFoundContent="Select a provider first"
                         optionRender={(option) => (
                             <Flex align="center" gap={8}>
                                 <span className="min-w-0 flex-1 truncate">{option.label}</span>
@@ -261,79 +298,7 @@ function GeneralTab({ status }: { status: 'idle' | 'saved' | 'error' }) {
                         )}
                     />
                 </Form.Item>
-                <Form.Item
-                    label={
-                        <Flex align="center" gap={6}>
-                            API key
-                            {settings.data?.has_api_key ? <Tag color="success">Configured</Tag> : <Tag>Not set</Tag>}
-                        </Flex>
-                    }
-                    name="api_key"
-                    extra={
-                        settings.data?.has_api_key
-                            ? 'A key is saved — leave blank to keep it.'
-                            : 'Not set — the server inherits ANTHROPIC_API_KEY from its environment. Used for providers without a key of their own.'
-                    }
-                >
-                    <Input.Password
-                        placeholder={settings.data?.has_api_key ? '•••••••• (saved)' : 'sk-ant-…'}
-                        autoComplete="off"
-                    />
-                </Form.Item>
             </div>
-            {providers.length > 0 && (
-                <>
-                    <Divider />
-                    <SectionHeading icon={ApiOutlined}>Provider credentials</SectionHeading>
-                    <p className="mb-3 text-sm text-subtle">
-                        Per-provider API keys and endpoints for the models above. A provider without its own key falls
-                        back to the shared API key; an empty endpoint uses the provider's default URL.
-                    </p>
-                    <div className="grid gap-3">
-                        {providers.map((provider) => (
-                            <div key={provider} className="rounded-lg border border-line p-3">
-                                <p className="mb-2 text-sm font-medium text-heading">{provider}</p>
-                                <div className="grid gap-3 md:grid-cols-2">
-                                    <Form.Item
-                                        label="Base URL"
-                                        name={['providers', provider, 'base_url']}
-                                        extra="Empty uses the provider's default endpoint."
-                                    >
-                                        <Input placeholder="https://api.example.com" autoComplete="off" />
-                                    </Form.Item>
-                                    <Form.Item
-                                        label={
-                                            <Flex align="center" gap={6}>
-                                                API key
-                                                {settings.data?.providers?.[provider]?.has_api_key ? (
-                                                    <Tag color="success">Configured</Tag>
-                                                ) : (
-                                                    <Tag>Not set</Tag>
-                                                )}
-                                            </Flex>
-                                        }
-                                        name={['providers', provider, 'api_key']}
-                                        extra={
-                                            settings.data?.providers?.[provider]?.has_api_key
-                                                ? 'A key is saved — leave blank to keep it.'
-                                                : 'Falls back to the shared API key when blank.'
-                                        }
-                                    >
-                                        <Input.Password
-                                            placeholder={
-                                                settings.data?.providers?.[provider]?.has_api_key
-                                                    ? '•••••••• (saved)'
-                                                    : 'sk-…'
-                                            }
-                                            autoComplete="off"
-                                        />
-                                    </Form.Item>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </>
-            )}
             <Form.Item
                 label="Scaffold folders"
                 name="wiki_folders"
@@ -383,18 +348,32 @@ function tagColor(tag: string): string {
     return colors[tag] ?? 'default'
 }
 
-// ModelsTab is the llm_models CRUD surface: a table of every model plus the
-// add/edit modal and per-row delete. Every mutation refetches the registry
-// (the server re-groups and re-sorts) and settings (a rename may have moved
-// the selected-model setting, a delete may have cleared it).
-function ModelsTab() {
+// ProvidersTab is the provider management surface: a fallback API key for
+// providers without a key of their own, then one collapsible panel per
+// provider holding its credential form (base URL + API key) and the models
+// registered under it. Every model mutation refetches the registry (the
+// server re-groups and re-sorts) and settings (a rename may have moved the
+// selected-model setting, a delete may have cleared it).
+function ProvidersTab({ status }: { status: 'idle' | 'saved' | 'error' }) {
     const dispatch = useAppDispatch()
+    const settings = useAppSelector(selectSettings)
     const models = useAppSelector(selectModelList)
     const groups = useAppSelector(selectModelGroups)
     const { message } = App.useApp()
     const [open, setOpen] = useState(false)
     const [editing, setEditing] = useState<LLMModel | null>(null)
-    const [form] = Form.useForm<ModelInput>()
+    const [modelForm] = Form.useForm<ModelInput>()
+
+    // Panels are the union of registry providers (the model groups, already
+    // A→Z) and any leftover settings keys, so a provider keeps its panel even
+    // when its last model is deleted.
+    const providerNames = useMemo(() => {
+        const names = groups.map((g) => g.provider)
+        for (const p of Object.keys(settings.data?.providers ?? {})) {
+            if (!names.includes(p)) names.push(p)
+        }
+        return names
+    }, [groups, settings.data])
 
     // The tag dropdown offers every tag already in the registry (sorted);
     // mode="tags" also lets the user type a new one.
@@ -406,20 +385,21 @@ function ModelsTab() {
         [groups]
     )
 
-    const openAdd = () => {
+    const openAdd = (provider: string) => {
         setEditing(null)
-        form.resetFields()
+        modelForm.resetFields()
+        modelForm.setFieldsValue({ provider })
         setOpen(true)
     }
 
     const openEdit = (m: LLMModel) => {
         setEditing(m)
-        form.setFieldsValue(m)
+        modelForm.setFieldsValue(m)
         setOpen(true)
     }
 
     const submit = async () => {
-        const values = await form.validateFields()
+        const values = await modelForm.validateFields()
         try {
             if (editing) {
                 await dispatch(updateModel({ id: editing.id, input: values })).unwrap()
@@ -446,6 +426,8 @@ function ModelsTab() {
         }
     }
 
+    // The per-provider table is the flat registry table without the (now
+    // redundant) provider column; the panel header names the provider.
     const columns: TableProps<LLMModel>['columns'] = [
         { title: 'Name', dataIndex: 'name' },
         {
@@ -458,7 +440,6 @@ function ModelsTab() {
                     <Typography.Text type="secondary">—</Typography.Text>
                 )
         },
-        { title: 'Provider', dataIndex: 'provider' },
         {
             title: 'Value',
             dataIndex: 'value',
@@ -484,63 +465,229 @@ function ModelsTab() {
     ]
 
     return (
-        <Card
-            size="small"
-            className="max-w-4xl"
-            title={<CardTitle icon={ApiOutlined}>LLM Models</CardTitle>}
-            extra={
-                <Button type="primary" icon={<ApiOutlined aria-hidden="true" />} onClick={openAdd}>
-                    Add model
+        <Card size="small" className="max-w-4xl" title={<CardTitle icon={ApiOutlined}>Providers</CardTitle>}>
+            <FallbackKeySection hasSharedKey={settings.data?.has_api_key === true} />
+            <Divider />
+            {providerNames.length === 0 ? (
+                <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No models yet">
+                    <Button type="primary" onClick={() => openAdd('')}>
+                        Add your first model
+                    </Button>
+                </Empty>
+            ) : (
+                <Collapse
+                    defaultActiveKey={[providerNames[0]!]}
+                    items={providerNames.map((provider) => ({
+                        key: provider,
+                        label: (
+                            <ProviderHeader
+                                provider={provider}
+                                modelCount={models.filter((m) => m.provider === provider).length}
+                                hasKey={settings.data?.providers?.[provider]?.has_api_key === true}
+                                baseURL={settings.data?.providers?.[provider]?.base_url ?? ''}
+                            />
+                        ),
+                        children: (
+                            <ProviderPanel
+                                provider={provider}
+                                models={models.filter((m) => m.provider === provider)}
+                                columns={columns}
+                                onAdd={() => openAdd(provider)}
+                            />
+                        )
+                    }))}
+                />
+            )}
+            <Divider />
+            <div className="flex items-center justify-between">
+                <div className="min-w-0 pr-3">
+                    {status === 'saved' && <Alert type="success" showIcon message="Saved ✓" />}
+                    {(status === 'error' || settings.error !== null) && (
+                        <Alert type="error" showIcon message="Could not save settings." />
+                    )}
+                </div>
+                <Button type="primary" htmlType="submit" loading={settings.saving}>
+                    Save
                 </Button>
-            }
-        >
-            <Flex align="center" justify="space-between" className="mb-4">
-                <p className="text-sm text-subtle">
-                    <Typography.Text strong>{models.length}</Typography.Text> model{models.length === 1 ? '' : 's'}{' '}
-                    across <Typography.Text strong>{groups.length}</Typography.Text> provider
-                    {groups.length === 1 ? '' : 's'} · the selected model feeds the{' '}
-                    <code className="font-mono text-xs">--model</code> CLI flag.
-                </p>
-            </Flex>
-            <Table<LLMModel>
-                rowKey="id"
-                size="small"
-                columns={columns}
-                dataSource={models}
-                pagination={false}
-                locale={{
-                    emptyText: (
-                        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No models yet">
-                            <Button type="primary" onClick={openAdd}>
-                                Add your first model
-                            </Button>
-                        </Empty>
-                    )
-                }}
-            />
-            <Modal
-                title={editing ? 'Edit model' : 'Add model'}
+            </div>
+            <ModelModal
                 open={open}
+                editing={editing}
+                form={modelForm}
+                tagOptions={tagOptions}
                 onCancel={() => setOpen(false)}
                 onOk={() => void submit()}
-                destroyOnHidden
-            >
-                <Form form={form} layout="vertical" className="mt-4">
-                    <Form.Item label="Value" name="value" rules={[{ required: true, message: 'Value is required' }]}>
-                        <Input placeholder="my-model" />
-                    </Form.Item>
-                    <Form.Item label="Name" name="name" rules={[{ required: true, message: 'Name is required' }]}>
-                        <Input placeholder="My Model" />
-                    </Form.Item>
-                    <Form.Item label="Tag" name="tag" extra="Pick a preset or type your own.">
-                        <Select virtual={false} mode="tags" options={tagOptions} placeholder="balanced" />
-                    </Form.Item>
-                    <Form.Item label="Provider" name="provider">
-                        <Input placeholder="Anthropic" />
-                    </Form.Item>
-                </Form>
-            </Modal>
+            />
         </Card>
+    )
+}
+
+// FallbackKeySection is the shared API key providers without a key of their
+// own fall back to; both it and the per-provider keys are stored in thoth.db
+// and are never read from the environment.
+function FallbackKeySection({ hasSharedKey }: { hasSharedKey: boolean }) {
+    return (
+        <>
+            <SectionHeading icon={KeyOutlined}>Fallback API key</SectionHeading>
+            <p className="mb-3 text-sm text-subtle">
+                The shared key used by providers that don't have a key of their own. Providers fall back to it when no
+                per-provider key is configured.
+            </p>
+            <div className="max-w-md">
+                <Form.Item
+                    label={
+                        <Flex align="center" gap={6}>
+                            Fallback API key
+                            {hasSharedKey ? <Tag color="success">Configured</Tag> : <Tag>Not set</Tag>}
+                        </Flex>
+                    }
+                    name="api_key"
+                    extra={
+                        hasSharedKey
+                            ? 'A key is saved — leave blank to keep it.'
+                            : 'Not set — providers without a key of their own will have no key to use.'
+                    }
+                >
+                    <Input.Password placeholder={hasSharedKey ? '•••••••• (saved)' : 'sk-ant-…'} autoComplete="off" />
+                </Form.Item>
+            </div>
+        </>
+    )
+}
+
+// ProviderHeader is a Collapse panel title: the provider name plus status
+// chips (model count, key state, endpoint).
+function ProviderHeader({
+    provider,
+    modelCount,
+    hasKey,
+    baseURL
+}: {
+    provider: string
+    modelCount: number
+    hasKey: boolean
+    baseURL: string
+}) {
+    return (
+        <Flex align="center" justify="space-between" gap={8} className="pr-2">
+            <span className="font-medium text-heading">{provider === '' ? 'Unassigned' : provider}</span>
+            <Flex align="center" gap={6}>
+                <Tag>
+                    {modelCount} model{modelCount === 1 ? '' : 's'}
+                </Tag>
+                {hasKey ? <Tag color="success">key set</Tag> : <Tag>no key</Tag>}
+                {baseURL !== '' ? <Tag>custom endpoint</Tag> : <Tag>default endpoint</Tag>}
+            </Flex>
+        </Flex>
+    )
+}
+
+// ProviderKeyField is a provider's API key input; like the shared key it is
+// write-only, so an empty value leaves the stored key untouched.
+function ProviderKeyField({ provider }: { provider: string }) {
+    const settings = useAppSelector(selectSettings)
+    const hasKey = settings.data?.providers?.[provider]?.has_api_key === true
+
+    return (
+        <Form.Item
+            label={
+                <Flex align="center" gap={6}>
+                    API key
+                    {hasKey ? <Tag color="success">Configured</Tag> : <Tag>Not set</Tag>}
+                </Flex>
+            }
+            name={['providers', provider, 'api_key']}
+            extra={hasKey ? 'A key is saved — leave blank to keep it.' : 'Falls back to the shared API key when blank.'}
+        >
+            <Input.Password placeholder={hasKey ? '•••••••• (saved)' : 'sk-…'} autoComplete="off" />
+        </Form.Item>
+    )
+}
+
+// ProviderPanel is one Collapse body: the credential form for a named
+// provider (omitted for the Unassigned catch-all) plus its registered models
+// table.
+function ProviderPanel({
+    provider,
+    models,
+    columns,
+    onAdd
+}: {
+    provider: string
+    models: LLMModel[]
+    columns: TableProps<LLMModel>['columns']
+    onAdd: () => void
+}) {
+    return (
+        <div className="grid gap-4">
+            {provider !== '' && (
+                <div className="grid gap-3 md:grid-cols-2">
+                    <Form.Item
+                        label="Base URL"
+                        name={['providers', provider, 'base_url']}
+                        extra="Empty uses the provider's default endpoint."
+                    >
+                        <Input placeholder="https://api.example.com" autoComplete="off" />
+                    </Form.Item>
+                    <ProviderKeyField provider={provider} />
+                </div>
+            )}
+            <Divider />
+            <Flex align="center" justify="space-between" className="mb-3">
+                <SectionHeading icon={ApiOutlined}>Models</SectionHeading>
+                <Button size="small" icon={<ApiOutlined aria-hidden="true" />} onClick={onAdd}>
+                    Add model
+                </Button>
+            </Flex>
+            {models.length === 0 ? (
+                <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No models for this provider yet" />
+            ) : (
+                <Table<LLMModel> rowKey="id" size="small" columns={columns} dataSource={models} pagination={false} />
+            )}
+        </div>
+    )
+}
+
+// ModelModal is the shared add/edit form for an LLM model; the provider field
+// is pre-filled when the modal opens from a provider panel.
+function ModelModal({
+    open,
+    editing,
+    form,
+    tagOptions,
+    onCancel,
+    onOk
+}: {
+    open: boolean
+    editing: LLMModel | null
+    form: FormInstance<ModelInput>
+    tagOptions: { value: string }[]
+    onCancel: () => void
+    onOk: () => void
+}) {
+    return (
+        <Modal
+            title={editing ? 'Edit model' : 'Add model'}
+            open={open}
+            onCancel={onCancel}
+            onOk={() => void onOk()}
+            destroyOnHidden
+        >
+            <Form form={form} layout="vertical" className="mt-4">
+                <Form.Item label="Value" name="value" rules={[{ required: true, message: 'Value is required' }]}>
+                    <Input placeholder="my-model" />
+                </Form.Item>
+                <Form.Item label="Name" name="name" rules={[{ required: true, message: 'Name is required' }]}>
+                    <Input placeholder="My Model" />
+                </Form.Item>
+                <Form.Item label="Tag" name="tag" extra="Pick a preset or type your own.">
+                    <Select virtual={false} mode="tags" options={tagOptions} placeholder="balanced" />
+                </Form.Item>
+                <Form.Item label="Provider" name="provider">
+                    <Input placeholder="Anthropic" />
+                </Form.Item>
+            </Form>
+        </Modal>
     )
 }
 

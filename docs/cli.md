@@ -44,7 +44,7 @@ Runs nine health checks and reports each. The checks live in the shared `interna
 
 | wiki | wiki exists with all 9 folders + `CLAUDE.md` |
 | provider | the provider the selected model's `llm_models` row names answers its models endpoint, probed with the per-provider API key and base URL (falling back to the shared key and the provider default); 200 = reachable; 401 = bad/absent API key, 429 = rate limited, 5xx = provider error, timeout = unreachable |
-| api key | a usable API key is configured for the selected provider — its own key, or the shared `api_key` fallback (unset = the agent inherits the key from the server environment) |
+| api key | a usable API key is configured for the selected provider — its own key, or the shared `api_key` fallback (both read from thoth.db; unset = no key) |
 | model | a model is selected and exists in the `llm_models` registry (unset = the default model; a value not in the registry = "unknown model") |
 | database | db opens in WAL with `notes` + `notes_fts` tables |
 | index | indexed count matches the number of valid notes on disk |

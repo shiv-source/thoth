@@ -126,7 +126,7 @@ The app's user-facing settings, key/value. `config.toml` is deprecated — this 
 | `wiki_path` | `~/.thoth/wiki` | Where the wiki lives (seed mirrors `settings.DefaultWikiPath`) |
 | `wiki_folders` | — (absent) | Comma-separated scaffold folder set; absent/empty means the default 9 (`inbox, meetings, projects, links, setup, knowledge, todos, daily, attachments`). Applied when a wiki is scaffolded |
 | `model` | — (absent) | The model value selected for every turn; absent/empty falls back to the first seeded claude model. Read at boot, applied on next start |
-| `api_key` | `''` | The shared API key — the fallback credential for any provider without its own key (see the `provider_*` keys). Empty (`''`) = not configured, inherit the server's environment. Never returned by the API — GET reports `has_api_key` only |
+| `api_key` | `''` | The shared fallback API key for any provider without its own key (see the `provider_*` keys). Empty (`''`) = not configured. Read from thoth.db only — never from the environment. Never returned by the API — GET reports `has_api_key` only |
 | `provider_<slug>_api_key` | — (absent) | A provider's own API key; `slug` is the lowercased provider label with non-alphanumerics stripped (`DeepSeek` → `deepseek`, `Z.AI` → `zai`). Wins over the shared `api_key` for that provider's models. Write-only like the shared key — GET reports `has_api_key` only |
 | `provider_<slug>_base_url` | — (absent) | A provider's API base URL override (`DeepSeek` → `provider_deepseek_base_url`). Empty/absent = the provider's default endpoint. Applied on next boot |
 | `github_sync_repo` | `''` | The wiki's sync repo URL |
@@ -136,7 +136,7 @@ The app's user-facing settings, key/value. `config.toml` is deprecated — this 
 
 ### `llm_models` (migrations `0008_llm_models.sql` + `0009_llm_models_tag.sql`)
 
-The user-editable model registry. Every startup seeds it from `internal/assets/models.json` (the single source for the built-in list) when the table is empty; afterwards the table is authoritative — rows are added/edited/deleted from the Settings → LLM Models tab.
+The user-editable model registry. Every startup seeds it from `internal/assets/models.json` (the single source for the built-in list) when the table is empty; afterwards the table is authoritative — rows are added/edited/deleted from the Settings → Providers tab.
 
 | Column | Meaning |
 |---|---|
