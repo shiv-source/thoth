@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <title>Thoth API Reference</title>
+    <link rel="stylesheet" type="text/css" href="/api/docs/swagger-ui/swagger-ui.css" />
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8E%BE%3C/text%3E%3C/svg%3E" />
+  </head>
+  <body>
+    <div id="swagger-ui"></div>
+    <script src="/api/docs/swagger-ui/swagger-ui-bundle.js" charset="UTF-8"></script>
+    <script src="/api/docs/swagger-ui/swagger-ui-standalone-preset.js" charset="UTF-8"></script>
+    <script>
+      window.onload = function () {
+        window.ui = SwaggerUIBundle({
+          url: "/swagger.json",
+          dom_id: "#swagger-ui",
+          deepLinking: true,
+          presets: [SwaggerUIBundle.presets.apis, SwaggerUIStandalonePreset],
+          plugins: [SwaggerUIBundle.plugins.DownloadUrl],
+          layout: "StandaloneLayout",
+        });
+      };
+    </script>
+  </body>
+</html>
