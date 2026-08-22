@@ -2,7 +2,7 @@
 
 Scope: feature components live in `web/src/components/<feature>/`, cross-cutting
 primitives in `web/src/shared/`, route-level views in `web/src/pages/<name>/`,
-and the app shell in `web/src/app/` — App.tsx / main.tsx / theme.ts / index.css
+and the app shell in `web/src/app/` — App.tsx / main.tsx / theme.tsx / index.css
 are covered by docs/frontend.md. Each entry: path, purpose, props/api, canonical.
 Skipped: `*.test.tsx` — co-located Vitest tests, skipped by convention. All
 chrome renders through antd v6 components; icons come from @ant-design/icons
@@ -17,15 +17,27 @@ chrome renders through antd v6 components; icons come from @ant-design/icons
 
 ## AppSider
 - path: web/src/components/layout/AppSider.tsx
-- purpose: App navigation — Fraunces brand wordmark, antd Menu over the five views (routes through useView), health footer (Badge status + version from the health slice)
+- purpose: App navigation — Fraunces brand wordmark, antd Menu over the five views (routes through useView), health footer (HealthFooter)
 - props/api: `AppSider()` — no props
 - canonical: AppSider.tsx:27
 
+## HealthFooter
+- path: web/src/components/layout/HealthFooter.tsx
+- purpose: AppSider's bottom status bar — Badge status dot + one-line reason (All systems go / API key not configured / Wiki missing / Server unreachable) and the app version, both from the health slice
+- props/api: `HealthFooter()` — no props
+- canonical: HealthFooter.tsx:7
+
 ## Sidebar
 - path: web/src/components/layout/Sidebar.tsx
-- purpose: Chat history column (antd Layout.Sider) — Chats label, New chat primary button, day-grouped conversation Lists; deletes via text danger button; toasts via App.useApp().message
-- props/api: `Sidebar()` — no props; internal ChatsList()
-- canonical: Sidebar.tsx:180
+- purpose: Chat history column (antd Layout.Sider) — Chats label, New chat primary button, and the grouped conversation list (ChatsList)
+- props/api: `Sidebar()` — no props
+- canonical: Sidebar.tsx:9
+
+## ChatsList
+- path: web/src/components/layout/ChatsList.tsx
+- purpose: The day-grouped conversation history (one antd List per Today/Yesterday/Previous 7 days/Older); re-fetches on URL change, keeps the active item scrolled into view; deletes via text danger button with toast feedback
+- props/api: `ChatsList()` — no props; internal groupByDay + relativeDate helpers
+- canonical: ChatsList.tsx:14
 
 ## AppHeader
 - path: web/src/shared/AppHeader.tsx
@@ -51,6 +63,12 @@ chrome renders through antd v6 components; icons come from @ant-design/icons
 - purpose: One memoized chat message — user bubble plain text, assistant bubble Markdown + antd Tooltip + CopyButton + streaming caret
 - props/api: `MessageItem({ message: ChatMessage, streaming? })` — React.memo
 - canonical: MessageItem.tsx:10
+
+## AssistantIcon
+- path: web/src/components/chat/AssistantIcon.tsx
+- purpose: The small square accent avatar (RobotOutlined) to the left of every assistant message
+- props/api: `AssistantIcon()` — no props
+- canonical: AssistantIcon.tsx:6
 
 ## UsageLine
 - path: web/src/components/chat/UsageLine.tsx
@@ -111,15 +129,87 @@ chrome renders through antd v6 components; icons come from @ant-design/icons
 ## Settings & dashboard
 ## SettingsPage
 - path: web/src/pages/settings/SettingsPage.tsx
-- purpose: antd Tabs (left rail, tabPlacement="start"; active pill via the .settings-tabs CSS rule + theme.ts Tabs tokens) over General/Providers/Doctor/Git — each tab one Card with icon'd SectionHeading sections, Dividers, and responsive two-column section grids: General (wiki path WikiPathInput + a two-field Provider/Model cascade Select + scaffold folders tag Select, save loading, saved/error Alerts); Providers (a Collapse panel per provider — header with name + model-count/key/endpoint Tags, body with Base URL + write-only per-provider API key Inputs with Configured/Not set Tags and the provider's models Table + Add/Edit Modal pre-filling the provider + Popconfirm delete); Doctor (pass Progress summary, Run checks, CheckRow status rows); Git (PAT Input.Password connect, account Avatar row + scope Tags, AutoComplete repo picker with public-repo guard, Switch auto-sync, Initialize & Push). Async state in the settings/doctor/git slices; tab rides the URL segment
-- props/api: `SettingsPage()` — no props; internal GeneralTab/DoctorTab/GitTab + SectionHeading/CheckRow/GitAccountSection/GitRemoteSection/GitSyncSection helpers
-- canonical: SettingsPage.tsx:83
+- purpose: Segment dispatcher — maps `/settings/<section>` (defaulting to general) to one of the four route-level sub-pages (`SettingsGeneralPage`, `SettingsProvidersPage`, `SettingsGitPage`, `SettingsDoctorPage`), sharing `SettingsShell` (header + a left rail `Menu`, active item pill via the `.settings-menu` CSS rule, section rides the URL)
+- props/api: `SettingsPage()` — no props
+- canonical: SettingsPage.tsx:21
+
+## SettingsShell
+- path: web/src/pages/settings/SettingsShell.tsx
+- purpose: The shared settings layout — AppHeader, one-line description, the left rail `Menu` (one entry per `/settings/<section>`), and the section page as the scrolling content column
+- props/api: `SettingsShell({ active, children })`
+- canonical: SettingsShell.tsx:23
+
+## useSettingsForm
+- path: web/src/pages/settings/useSettingsForm.tsx
+- purpose: The shared settings sub-page machinery — one Form seeded from the store's settings (`setFieldsValue`), a `save` that merges only the page's fields through `settingsBody`, the transient saved/error status banner state, and the settings fetch on mount; each sub-page owns its own instance
+- props/api: `useSettingsForm()` → `{ form, status, saving, hasError, save }`
+- canonical: useSettingsForm.tsx:14
+
+## SaveFooter
+- path: web/src/pages/settings/components/SaveFooter.tsx
+- purpose: The settings save bar shared by SettingsGeneralPage and every ProviderPanel — the transient saved/error feedback `Alert` (from useSettingsForm's status) with the submit `Button` beside it; one convention, one place
+- props/api: `SaveFooter({ status, saving, hasError, className? })`
+- canonical: SaveFooter.tsx:6
+
+## GitConnectSection
+- path: web/src/pages/settings/components/GitConnectSection.tsx
+- purpose: The not-yet-connected Git page card — PAT `Input.Password` (local state owned by the page) + Connect button; the token is stored server-side in the github_auth row
+- props/api: `GitConnectSection({ token, onTokenChange, connecting, error, onConnect })`
+- canonical: GitConnectSection.tsx:8
 
 ## DashboardPage
 - path: web/src/pages/dashboard/DashboardPage.tsx
-- purpose: Landing — greeting, Statistic KPI tiles, quick-action Buttons, Overview cards (inbox/meetings/todos+Progress/recent notes/real recent chats/tags), Insights (four Chart.js charts, blue palette). Mock data lives in dashboardMock.ts, tagged with its issue until the index endpoints land
+- purpose: Landing — greeting header, quick-action Buttons, the StatTile KPI row, the Overview widget cards, and the Insights ChartCard rows. The page wires mock data (pages/dashboard/dashboardMock.tsx, tagged with its issue until the index endpoints land) into the widget components; each widget is its own component
 - props/api: `DashboardPage({ onOpenSettings })`
-- canonical: DashboardPage.tsx:60
+- canonical: DashboardPage.tsx:39
+
+## StatTile
+- path: web/src/components/dashboard/StatTile.tsx
+- purpose: KPI tile — antd Card + Statistic with accent prefix icon
+- props/api: `StatTile({ icon, label, value })`
+- canonical: StatTile.tsx:7
+
+## InboxCard
+- path: web/src/components/dashboard/InboxCard.tsx
+- purpose: Overview "Inbox needs attention" — waiting-capture count + inbox/ file names
+- props/api: `InboxCard({ count, files })`
+- canonical: InboxCard.tsx:6
+
+## MeetingsCard
+- path: web/src/components/dashboard/MeetingsCard.tsx
+- purpose: Overview "Today's meetings" — time chip + title/path rows, hover-reveal clock icon
+- props/api: `MeetingsCard({ meetings })` — meetings: {time, title, path}[]
+- canonical: MeetingsCard.tsx:13
+
+## TodosCard
+- path: web/src/components/dashboard/TodosCard.tsx
+- purpose: Overview "Open todos" — checklist rows + done-progress bar
+- props/api: `TodosCard({ todos })` — todos: {text, done}[]
+- canonical: TodosCard.tsx:11
+
+## RecentNotesCard
+- path: web/src/components/dashboard/RecentNotesCard.tsx
+- purpose: Overview "Recent notes" — most recently touched wiki paths
+- props/api: `RecentNotesCard({ notes })` — notes: string[]
+- canonical: RecentNotesCard.tsx:5
+
+## RecentChatsCard
+- path: web/src/components/dashboard/RecentChatsCard.tsx
+- purpose: Overview "Recent chats" — the latest conversations, each opening its /chat/<id> on click
+- props/api: `RecentChatsCard({ chats, onOpen })` — chats: Conversation[]; onOpen: (id) => void
+- canonical: RecentChatsCard.tsx:6
+
+## TagsCard
+- path: web/src/components/dashboard/TagsCard.tsx
+- purpose: Overview "Tags" — the wiki's tags as round chips jumping to the search view
+- props/api: `TagsCard({ tags, onOpen })`
+- canonical: TagsCard.tsx:6
+
+## ChartCard
+- path: web/src/components/dashboard/ChartCard.tsx
+- purpose: Insights widget shell — a titled card wrapping one chart plus its mock-data footnote, so the four Insights cards stay identical
+- props/api: `ChartCard({ title, note, children })`
+- canonical: ChartCard.tsx:6
 
 ## SetupPage
 - path: web/src/pages/setup/SetupPage.tsx
@@ -136,9 +226,15 @@ chrome renders through antd v6 components; icons come from @ant-design/icons
 
 ## NotificationToasts
 - path: web/src/shared/NotificationToasts.tsx
-- purpose: NEW notifications (not seen at mount) as transient antd Alerts top-left, auto-dismissed after 5 s; close dispatches dismiss
-- props/api: `NotificationToasts()` — internal ToastAlert({kind, title, body, onDismiss})
-- canonical: NotificationToasts.tsx:14
+- purpose: NEW notifications (not seen at mount) as transient antd Alerts top-left, each rendered by ToastAlert; close dispatches dismiss
+- props/api: `NotificationToasts()`
+- canonical: NotificationToasts.tsx:8
+
+## ToastAlert
+- path: web/src/shared/ToastAlert.tsx
+- purpose: One transient notification toast — antd Alert (NotificationIcon, title/body, closable) that auto-dismisses via onDismiss after 5 s
+- props/api: `ToastAlert({ kind, title, body?, onDismiss })`
+- canonical: ToastAlert.tsx:8
 
 ## notifications.tsx
 - path: web/src/shared/notifications.tsx
@@ -149,16 +245,22 @@ chrome renders through antd v6 components; icons come from @ant-design/icons
 ## Shared inputs
 ## WikiPathInput
 - path: web/src/shared/WikiPathInput.tsx
-- purpose: Wiki path field — FolderOpenOutlined prefix opens a directory browser Modal backed by GET /api/fs/dirs (enter a subdirectory, Up to the parent, OK fills the field); the value stays hand-editable
+- purpose: Wiki path field — FolderOpenOutlined prefix opens the DirBrowserModal; the value stays hand-editable at all times
 - props/api: `WikiPathInput({ value, onChange })`
-- canonical: WikiPathInput.tsx:10
+- canonical: WikiPathInput.tsx:7
+
+## DirBrowserModal
+- path: web/src/shared/DirBrowserModal.tsx
+- purpose: Directory picker behind WikiPathInput — Modal backed by GET /api/fs/dirs (enter a subdirectory, Up to the parent, OK reports the choice via onSelect); loads the starting directory (initial, home fallback) on open
+- props/api: `DirBrowserModal({ open, initial, onCancel, onSelect })`
+- canonical: DirBrowserModal.tsx:10
 
 ## Charts (Chart.js)
-## chart.ts
-- path: web/src/utils/chart.ts
+## chart.tsx
+- path: web/src/utils/chart.tsx
 - purpose: Side-effect module registering all Chart.js pieces (bar/line/doughnut/arc/category/linear/tooltip) exactly once
 - props/api: no exports — Chart.register(...) on import
-- canonical: chart.ts:17
+- canonical: chart.tsx:17
 
 ## ActivityChart
 - path: web/src/components/dashboard/ActivityChart.tsx
@@ -184,22 +286,22 @@ chrome renders through antd v6 components; icons come from @ant-design/icons
 - props/api: `NotesByFolderChart({ rows })` — rows: {folder, count}[]
 - canonical: NotesByFolderChart.tsx:9
 
-## useThemeColors.ts
-- path: web/src/components/dashboard/useThemeColors.ts
+## useThemeColors.tsx
+- path: web/src/components/dashboard/useThemeColors.tsx
 - purpose: Chart colors derived from the antd theme tokens via theme.useToken() (accent/hover/subtle/ink/surface); series hues read from the :root categorical palette
 - props/api: `useThemeColors(): ChartColors` + `interface ChartColors {accent, accentHover, subtle, ink, surface, series: string[]}`
-- canonical: useThemeColors.ts:4
+- canonical: useThemeColors.tsx:4
 
 ## Data
-## dashboardMock.ts
-- path: web/src/pages/dashboard/dashboardMock.ts
+## dashboardMock.tsx
+- path: web/src/pages/dashboard/dashboardMock.tsx
 - purpose: Mock data for dashboard tiles until the real index endpoints land
 - props/api: data only — mockInbox, mockMeetings, mockTodos, mockRecent, mockTags, mockActivity, mockChatActivity, mockNotesByKind, mockNotesByFolder, mockStats
-- canonical: dashboardMock.ts:7
+- canonical: dashboardMock.tsx:7
 
 ## Intentional skips
 - `*.test.tsx` — co-located Vitest tests; skipped by convention
-- `app/App.tsx` / `main.tsx` / `theme.ts` / `index.css` — app shell and global styles; see docs/frontend.md structure section
+- `app/App.tsx` / `main.tsx` / `theme.tsx` / `index.css` — app shell and global styles; see docs/frontend.md structure section
 
 Stale if: a file appears in web/src/components, web/src/shared, or
 web/src/pages without an entry or a named skip, a component's props change, or

@@ -1,12 +1,17 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
-import { Button, Empty, Input, List } from 'antd'
+import { Input } from 'antd'
 import type { InputRef } from 'antd'
-import { ClockCircleOutlined } from '@ant-design/icons'
 import { useSearch } from '../../hooks/useSearch'
 import { useViewRoute } from '../../hooks/useView'
 import { clearSearchHistory, commitSearch, selectSearchActive, selectSearchHistory, setSearchActive } from '../../store'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
+import { RecentSearches } from './RecentSearches'
+import { SearchResults } from './SearchResults'
 
+// SearchPanel is the wiki search surface: the query rides the URL (?q=) so
+// it survives a reload, the results list renders via SearchResults, and the
+// empty-query state shows RecentSearches. Keyboard navigation (arrows +
+// Enter + Escape) walks the result list through the ui slice's active index.
 export function SearchPanel({ onOpen }: { onOpen: (path: string) => void }) {
     // The query rides the URL (?q=) so it survives a reload; typing
     // replaceState's the query string (no history spam, no re-render loop).
@@ -81,68 +86,20 @@ export function SearchPanel({ onOpen }: { onOpen: (path: string) => void }) {
                 loading={loading}
                 placeholder="Search your wiki…"
             />
-            {query && (
-                <div className="mt-1.5">
-                    {loading && <p className="px-1 text-xs text-subtle">Searching…</p>}
-                    {!loading && results.length === 0 && (
-                        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No notes match." className="py-4" />
-                    )}
-                    {results.length > 0 && (
-                        <List
-                            size="small"
-                            dataSource={results}
-                            renderItem={(r, i) => (
-                                <List.Item
-                                    onClick={() => open(r.path)}
-                                    onMouseEnter={() => dispatch(setSearchActive(i))}
-                                    className={`cursor-pointer rounded-lg px-2 ${i === active ? 'bg-accent-soft' : 'hover:bg-raised'}`}
-                                >
-                                    <List.Item.Meta
-                                        title={<span className="text-sm font-medium">{r.title}</span>}
-                                        description={
-                                            <>
-                                                <div className="truncate text-xs text-subtle">{r.path}</div>
-                                                {/* Safe: the server escapes note text before building the
-                                                    snippet; only its <mark> markers survive as real tags. */}
-                                                <div
-                                                    className="mt-0.5 line-clamp-2 text-xs"
-                                                    dangerouslySetInnerHTML={{ __html: r.snippet }}
-                                                />
-                                            </>
-                                        }
-                                    />
-                                </List.Item>
-                            )}
-                        />
-                    )}
-                </div>
-            )}
-            {!query && history.length > 0 && (
-                <div className="mt-1.5">
-                    <div className="flex items-center justify-between px-1">
-                        <p className="text-xs font-medium uppercase tracking-wide text-subtle">Recent searches</p>
-                        <Button type="link" size="small" onClick={() => dispatch(clearSearchHistory())}>
-                            Clear
-                        </Button>
-                    </div>
-                    <List
-                        size="small"
-                        dataSource={history}
-                        renderItem={(h) => (
-                            <List.Item className="p-0">
-                                <Button
-                                    type="text"
-                                    block
-                                    className="flex h-auto items-center justify-start py-1.5 text-left"
-                                    icon={<ClockCircleOutlined aria-hidden="true" />}
-                                    onClick={() => onQueryChange(h)}
-                                >
-                                    <span className="truncate">{h}</span>
-                                </Button>
-                            </List.Item>
-                        )}
-                    />
-                </div>
+            {query ? (
+                <SearchResults
+                    results={results}
+                    loading={loading}
+                    active={active}
+                    onOpen={open}
+                    onHover={(i) => dispatch(setSearchActive(i))}
+                />
+            ) : (
+                <RecentSearches
+                    history={history}
+                    onPick={onQueryChange}
+                    onClear={() => dispatch(clearSearchHistory())}
+                />
             )}
         </div>
     )

@@ -1,8 +1,8 @@
-import { Badge, Button, Empty, List, Typography } from 'antd'
-import { CheckOutlined, DeleteOutlined, CloseOutlined } from '@ant-design/icons'
+import { Button, Empty, List } from 'antd'
+import { CheckOutlined, CloseOutlined } from '@ant-design/icons'
 import { dismissNotification, markAllRead, selectNotifications } from '../store'
 import { useAppDispatch, useAppSelector } from '../store/hooks'
-import { NotificationIcon } from './notifications'
+import { NotificationRow } from './NotificationRow'
 
 // NotificationPanel is the Popover content for the header bell: a header
 // row with mark-all-read/close, then the notification list. Dismissing an
@@ -40,32 +40,13 @@ export function NotificationPanel({ onClose }: { onClose: () => void }) {
                     className="max-h-80 overflow-y-auto"
                     dataSource={items}
                     renderItem={(n) => (
-                        <List.Item
-                            actions={[
-                                <Button
-                                    key="dismiss"
-                                    type="text"
-                                    size="small"
-                                    aria-label={`Dismiss: ${n.title}`}
-                                    icon={<DeleteOutlined aria-hidden="true" />}
-                                    onClick={() => dispatch(dismissNotification(n.id))}
-                                />
-                            ]}
-                        >
-                            <List.Item.Meta
-                                avatar={
-                                    <Badge dot={!n.read} offset={[-2, 4]}>
-                                        <NotificationIcon kind={n.kind} />
-                                    </Badge>
-                                }
-                                title={
-                                    <Typography.Text strong={!n.read} type={n.read ? 'secondary' : undefined}>
-                                        {n.title}
-                                    </Typography.Text>
-                                }
-                                description={n.body}
-                            />
-                        </List.Item>
+                        <NotificationRow
+                            title={n.title}
+                            body={n.body}
+                            read={n.read}
+                            kind={n.kind}
+                            onDismiss={() => dispatch(dismissNotification(n.id))}
+                        />
                     )}
                 />
             )}

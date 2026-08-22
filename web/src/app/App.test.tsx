@@ -96,6 +96,6 @@ describe('App setup gating', () => {
         // The Settings page is reachable anyway — the key must be entered
         // somewhere to unblock setup.
         await userEvent.click(await screen.findByRole('menuitem', { name: /Settings/ }))
-        expect(await screen.findByRole('tab', { name: 'General' })).toBeInTheDocument()
+        expect(await screen.findByRole('menuitem', { name: 'General' })).toHaveClass('ant-menu-item-selected')
     })
 })

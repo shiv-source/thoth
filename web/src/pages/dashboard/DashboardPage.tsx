@@ -1,16 +1,13 @@
 import { useEffect } from 'react'
-import { Button, Card, List, Progress, Statistic } from 'antd'
+import { Button } from 'antd'
 import {
-    ClockCircleOutlined,
     FileTextOutlined,
-    FolderOpenOutlined,
     InboxOutlined,
     CheckSquareOutlined,
     PlusSquareOutlined,
     EditOutlined,
     ReloadOutlined,
-    SearchOutlined,
-    TagOutlined
+    SearchOutlined
 } from '@ant-design/icons'
 import { navigate } from '../../hooks/useConversationRoute'
 import { navigateView } from '../../hooks/useView'
@@ -20,6 +17,14 @@ import { ActivityChart } from '../../components/dashboard/ActivityChart'
 import { ChatActivityChart } from '../../components/dashboard/ChatActivityChart'
 import { NotesByFolderChart } from '../../components/dashboard/NotesByFolderChart'
 import { NotesByKindChart } from '../../components/dashboard/NotesByKindChart'
+import { ChartCard } from '../../components/dashboard/ChartCard'
+import { InboxCard } from '../../components/dashboard/InboxCard'
+import { MeetingsCard } from '../../components/dashboard/MeetingsCard'
+import { RecentChatsCard } from '../../components/dashboard/RecentChatsCard'
+import { RecentNotesCard } from '../../components/dashboard/RecentNotesCard'
+import { StatTile } from '../../components/dashboard/StatTile'
+import { TagsCard } from '../../components/dashboard/TagsCard'
+import { TodosCard } from '../../components/dashboard/TodosCard'
 import {
     mockActivity,
     mockChatActivity,
@@ -47,16 +52,11 @@ function todayLabel(): string {
     return new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
 }
 
-// StatTile is a KPI tile: an antd Card with a Statistic whose prefix icon
-// carries the accent.
-function StatTile({ icon: Icon, label, value }: { icon: typeof FileTextOutlined; label: string; value: string }) {
-    return (
-        <Card size="small">
-            <Statistic title={label} value={value} prefix={<Icon aria-hidden="true" className="mr-1 text-accent" />} />
-        </Card>
-    )
-}
-
+// DashboardPage is the landing view: a greeting header, the KPI tiles, quick
+// actions, the Overview widget cards, and the Insights chart cards. Each
+// widget is its own component in components/dashboard; the page wires them to
+// the mock data (pages/dashboard/dashboardMock.ts) until the index endpoints
+// land.
 export function DashboardPage({ onOpenSettings }: { onOpenSettings: () => void }) {
     const dispatch = useAppDispatch()
     const conversations = useAppSelector(selectConversations)
@@ -66,7 +66,6 @@ export function DashboardPage({ onOpenSettings }: { onOpenSettings: () => void }
     }, [dispatch])
 
     const recentChats = (conversations.list ?? []).slice(0, 3)
-    const doneTodos = mockTodos.filter((t) => t.done).length
 
     return (
         <div className="flex min-h-0 flex-1 flex-col">
@@ -103,140 +102,30 @@ export function DashboardPage({ onOpenSettings }: { onOpenSettings: () => void }
 
                     <h2 className="text-xs font-medium uppercase tracking-wide text-subtle">Overview</h2>
                     <div className="grid gap-4 md:grid-cols-2">
-                        <Card size="small" title="Inbox needs attention">
-                            <p className="flex items-center gap-2 text-sm text-ink">
-                                <FolderOpenOutlined className="h-4 w-4 shrink-0 text-subtle" aria-hidden="true" />
-                                {mockInbox.count} capture{mockInbox.count === 1 ? '' : 's'} waiting
-                            </p>
-                            <List
-                                size="small"
-                                dataSource={mockInbox.files}
-                                renderItem={(f) => (
-                                    <List.Item className="truncate text-xs text-subtle">inbox/{f}</List.Item>
-                                )}
-                            />
-                            <p className="mt-3 text-xs text-subtle">mock data (#17)</p>
-                        </Card>
-                        <Card size="small" title="Today's meetings">
-                            <List
-                                size="small"
-                                dataSource={mockMeetings}
-                                renderItem={(m) => (
-                                    <List.Item className="group px-2 hover:bg-raised">
-                                        <span className="mr-2.5 shrink-0 rounded-md bg-raised px-1.5 py-0.5 font-mono text-xs text-subtle">
-                                            {m.time}
-                                        </span>
-                                        <span className="min-w-0 flex-1">
-                                            <span className="block truncate text-sm text-ink">{m.title}</span>
-                                            <span className="block truncate text-xs text-subtle">{m.path}</span>
-                                        </span>
-                                        <ClockCircleOutlined
-                                            className="h-4 w-4 shrink-0 text-subtle opacity-0 transition group-hover:opacity-100"
-                                            aria-hidden="true"
-                                        />
-                                    </List.Item>
-                                )}
-                            />
-                            <p className="mt-3 text-xs text-subtle">mock data — index by kind</p>
-                        </Card>
-                        <Card size="small" title="Open todos">
-                            <List
-                                size="small"
-                                dataSource={mockTodos}
-                                renderItem={(t) => (
-                                    <List.Item
-                                        className={`text-sm ${t.done ? 'text-subtle line-through' : 'text-ink'}`}
-                                    >
-                                        <span
-                                            aria-hidden="true"
-                                            className={`mr-2.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border text-[10px] ${
-                                                t.done
-                                                    ? 'border-accent bg-accent text-accent-ink'
-                                                    : 'border-line bg-app'
-                                            }`}
-                                        >
-                                            {t.done ? '✓' : ''}
-                                        </span>
-                                        {t.text}
-                                    </List.Item>
-                                )}
-                            />
-                            <div className="mt-3 flex items-center gap-2">
-                                <Progress
-                                    percent={Math.round((doneTodos / mockTodos.length) * 100)}
-                                    size="small"
-                                    className="flex-1"
-                                />
-                                <span className="shrink-0 text-xs text-subtle">
-                                    {doneTodos} of {mockTodos.length} done
-                                </span>
-                            </div>
-                            <p className="mt-3 text-xs text-subtle">mock data (#17)</p>
-                        </Card>
-                        <Card size="small" title="Recent notes">
-                            <List
-                                size="small"
-                                dataSource={mockRecent}
-                                renderItem={(p) => <List.Item className="text-sm text-ink">{p}</List.Item>}
-                            />
-                            <p className="mt-3 text-xs text-subtle">mock data — wire the index's updated_at</p>
-                        </Card>
-                        <Card size="small" title="Recent chats">
-                            {recentChats.length === 0 ? (
-                                <p className="text-sm text-subtle">No conversations yet</p>
-                            ) : (
-                                <List
-                                    size="small"
-                                    dataSource={recentChats}
-                                    renderItem={(c) => (
-                                        <List.Item
-                                            onClick={() => navigate(`/chat/${c.id}`)}
-                                            className="cursor-pointer truncate text-sm text-ink hover:bg-raised"
-                                        >
-                                            {c.title}
-                                        </List.Item>
-                                    )}
-                                />
-                            )}
-                        </Card>
-                        <Card size="small" title="Tags">
-                            <div className="flex flex-wrap gap-2">
-                                {mockTags.map((t) => (
-                                    <Button
-                                        key={t}
-                                        shape="round"
-                                        size="small"
-                                        icon={<TagOutlined aria-hidden="true" />}
-                                        onClick={() => navigateView('search')}
-                                    >
-                                        #{t}
-                                    </Button>
-                                ))}
-                            </div>
-                            <p className="mt-3 text-xs text-subtle">mock data — index tags</p>
-                        </Card>
+                        <InboxCard count={mockInbox.count} files={mockInbox.files} />
+                        <MeetingsCard meetings={mockMeetings} />
+                        <TodosCard todos={mockTodos} />
+                        <RecentNotesCard notes={mockRecent} />
+                        <RecentChatsCard chats={recentChats} onOpen={(id) => navigate(`/chat/${id}`)} />
+                        <TagsCard tags={mockTags} onOpen={() => navigateView('search')} />
                     </div>
 
                     <h2 className="text-xs font-medium uppercase tracking-wide text-subtle">Insights</h2>
                     <div className="grid gap-4 md:grid-cols-2">
-                        <Card size="small" title="Notes this week">
+                        <ChartCard title="Notes this week" note="mock data — index stats endpoint">
                             <ActivityChart counts={mockActivity} />
-                            <p className="mt-3 text-xs text-subtle">mock data — index stats endpoint</p>
-                        </Card>
+                        </ChartCard>
                         <div className="md:col-span-2">
-                            <Card size="small" title="Chat activity">
+                            <ChartCard title="Chat activity" note="mock data — messages endpoint">
                                 <ChatActivityChart counts={mockChatActivity} />
-                                <p className="mt-3 text-xs text-subtle">mock data — messages endpoint</p>
-                            </Card>
+                            </ChartCard>
                         </div>
-                        <Card size="small" title="Notes by kind">
+                        <ChartCard title="Notes by kind" note="mock data — kind counts">
                             <NotesByKindChart slices={mockNotesByKind} />
-                            <p className="mt-3 text-xs text-subtle">mock data — kind counts</p>
-                        </Card>
-                        <Card size="small" title="Notes by folder">
+                        </ChartCard>
+                        <ChartCard title="Notes by folder" note="mock data — folder counts">
                             <NotesByFolderChart rows={mockNotesByFolder} />
-                            <p className="mt-3 text-xs text-subtle">mock data — folder counts</p>
-                        </Card>
+                        </ChartCard>
                     </div>
                 </div>
             </div>

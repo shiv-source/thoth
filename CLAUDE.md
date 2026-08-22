@@ -9,7 +9,7 @@ This file governs the app repo. Note-taking behavior is governed by the wiki's o
 - Go 1.26.1 (go.mod is authoritative — read it, don't hardcode elsewhere)
 - Node 24.14.0 (nvm) · pnpm 11.7.0 — pnpm workspace at the repo root (`pnpm-workspace.yaml` registers `web/`; the single lockfile is the root `pnpm-lock.yaml`; root `.npmrc` pins save-exact)
 - Go frameworks: Echo 4.15.4 · Cobra 1.10.2 · gorilla/websocket 1.5.3 · modernc.org/sqlite 1.56.0 · fsnotify 1.10.1 · go-toml/v2 2.4.3 · yaml.v3 3.0.1
-- Frontend: React 19.2 · TypeScript 6.0 · Vite 8.2 · Tailwind 4.3 · Vitest 4.1 · zod 4.4 · react-markdown 10.1 · antd 6.6 (UI library, light-only theme in web/src/theme.ts) · @ant-design/icons (web/package.json is authoritative)
+- Frontend: React 19.2 · TypeScript 6.0 · Vite 8.2 · Tailwind 4.3 · Vitest 4.1 · zod 4.4 · react-markdown 10.1 · antd 6.6 (UI library, light-only theme in web/src/theme.tsx) · @ant-design/icons (web/package.json is authoritative)
 - Dependencies stay latest — the bump procedures are the go skill (§ 7) and the react skill (§ 7).
 
 ## Commands
@@ -66,8 +66,8 @@ thoth/
 │       ├── app/           # app shell: App.tsx (layout, lazy page routing, health gate)
 │       ├── api/           # typed REST client (axios + zod)
 │       ├── ws/            # ChatSocket (protocol frames, reconnect/resume) +
-│       │                  #   protocol.ts (zod frame schemas + inferred types) +
-│       │                  #   events.ts (ServerEvent/ClientEvent frame-name constants)
+│       │                  #   protocol.tsx (zod frame schemas + inferred types) +
+│       │                  #   events.tsx (ServerEvent/ClientEvent frame-name constants)
 │       ├── hooks/         # useChat, useSearch, useConversationRoute, useView, useViewShortcuts
 │       ├── store/         # Redux Toolkit: makeStore + re-exports, typed hooks,
 │       │   └── slices/    #   one slice per feature (health, settings, conversations,
@@ -79,7 +79,7 @@ thoth/
 │       │                  #   dashboard/ (charts + useThemeColors), notes/, search/
 │       ├── shared/        # cross-cutting primitives: AppHeader, Markdown, CodeBlock,
 │       │                  #   CopyButton, NotificationPanel/Toasts, WikiPathInput
-│       ├── utils/         # chart.ts (Chart.js registration side-effect)
+│       ├── utils/         # chart.tsx (Chart.js registration side-effect)
 │       ├── test/          # mockAxios, fakeWS, renderWithStore (fresh store + antd App), setup
 │       └── main.tsx / theme.ts / index.css
 ├── docs/                 # committed documentation (index.md hub) — the single source;
@@ -170,7 +170,7 @@ Apply the standard principles — modular, composable, boring code that's easy t
 ## Invariants (do not break)
 
 - Files are the source of truth; the index syncs with the tree (thoth.db is derived data). Notes require `---` frontmatter with `title`; the wiki never stores secrets.
-- WS is chat + server-push transport (`wiki_changed` frames); REST for everything else. Server message types in `internal/api/chat.go` must match `web/src/ws/chat.ts`.
+- WS is chat + server-push transport (`wiki_changed` frames); REST for everything else. Server message types in `internal/api/chat.go` must match `web/src/ws/chat.tsx`.
 - Go: `%w` errors, `context.Context` everywhere (cancel = the stop button), no panics in library code, no package-level mutable globals.
 - TS: `strict`, no `any` (eslint), zod at the API boundary.
 - Cross-compile: all five targets (darwin/linux × amd64/arm64, windows/amd64) must build — process-group code is build-tagged in `internal/claude`.

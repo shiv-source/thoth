@@ -1,34 +1,11 @@
 import { useEffect } from 'react'
-import { Alert, Button, Empty, Skeleton } from 'antd'
+import { Button } from 'antd'
 import { CloseOutlined, DownloadOutlined } from '@ant-design/icons'
 import { fetchNote, selectNoteContent, selectNoteError, selectNoteLoading } from '../../store'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import { CopyButton } from '../../shared/CopyButton'
-import { Markdown } from '../../shared/Markdown'
-
-// isNotePath reports whether a wiki path is a previewable Markdown note
-// (.md or .markdown, case-insensitive — matching wiki.IsMarkdownPath). The
-// tree only lists markdown, but attachments (images, scripts, …) are indexed
-// by filename and reachable by search or direct URL; those render as an image
-// preview or a download instead of raw bytes as Markdown.
-function isNotePath(path: string): boolean {
-    return /\.(?:md|markdown)$/i.test(path)
-}
-
-// isImagePath reports whether a wiki path is a previewable image attachment
-// (.png/.jpg/.jpeg/.gif/.svg/.webp, case-insensitive — matching
-// wiki.IsImagePath). Images render inline; every other attachment gets a
-// download action.
-function isImagePath(path: string): boolean {
-    return /\.(?:png|jpe?g|gif|svg|webp)$/i.test(path)
-}
-
-// noteUrl is the raw-bytes URL for an attachment: the server wraps markdown
-// in JSON but serves any other path as raw bytes (images inline, everything
-// else as a download), so an <img> or download link can point straight at it.
-function noteUrl(path: string): string {
-    return `/api/notes?path=${encodeURIComponent(path)}`
-}
+import { NoteBody } from './NoteBody'
+import { isImagePath, isNotePath, noteUrl } from './notePaths'
 
 // NoteViewer is the note reader, rendered inline in the Notes view's
 // content area — the URL /notes/<path> owns the open note. Content lives
@@ -88,17 +65,14 @@ export function NoteViewer({ path, onClose }: { path: string; onClose: () => voi
                 </div>
             </header>
             <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
-                {isNote ? (
-                    <>
-                        {loading && <Skeleton active paragraph={{ rows: 6 }} />}
-                        {error && <Alert type="error" showIcon message={error} />}
-                        {content && <Markdown>{content}</Markdown>}
-                    </>
-                ) : isImage ? (
-                    <img src={noteUrl(path)} alt={path} className="max-w-full rounded-lg border border-line" />
-                ) : (
-                    <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="This file type can't be previewed." />
-                )}
+                <NoteBody
+                    isNote={isNote}
+                    isImage={isImage}
+                    loading={loading}
+                    error={error}
+                    content={content}
+                    path={path}
+                />
             </div>
         </aside>
     )

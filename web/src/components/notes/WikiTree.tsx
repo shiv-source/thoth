@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react'
-import { Tooltip, Tree } from 'antd'
+import { Tree } from 'antd'
 import type { DataNode } from 'antd/es/tree'
-import { FileTextOutlined, FolderOpenOutlined, FolderOutlined, WarningOutlined } from '@ant-design/icons'
 import type { TreeNode } from '../../api/client'
 import {
     collectTreeInfo,
@@ -15,6 +14,8 @@ import {
 } from '../../store'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import type { ConnectionStatus } from '../../ws/chat'
+import { TreeNodeLabel } from './TreeNodeLabel'
+import { TreeSwitcherIcon } from './TreeSwitcherIcon'
 
 // WikiDataNode carries the per-directory file count alongside antd's own
 // fields so the title renderer can show the hover tooltip.
@@ -75,37 +76,18 @@ export function WikiTree({ openPath, onOpenNote }: { openPath: string | null; on
     // title. Directories also carry a hover tooltip with their recursive
     // file count.
     const renderTitle = useCallback((node: WikiDataNode) => {
-        const title = node.title as string
-        if (node.isLeaf) {
-            return (
-                <span className="inline-flex items-center gap-1.5">
-                    <FileTextOutlined aria-hidden="true" className="text-subtle" />
-                    <span>{title}</span>
-                </span>
-            )
-        }
-        // An unreadable directory keeps its folder node with a warning so
-        // the rest of the tree still renders (see internal/wiki tree()).
-        if (node.error) {
-            return (
-                <Tooltip title={node.error}>
-                    <span className="inline-flex items-center gap-1.5">
-                        <WarningOutlined aria-hidden="true" className="text-amber-500" />
-                        <span>{title}</span>
-                    </span>
-                </Tooltip>
-            )
-        }
-        const count = node.fileCount ?? 0
-        return <Tooltip title={`${count} file${count === 1 ? '' : 's'}`}>{title}</Tooltip>
+        return (
+            <TreeNodeLabel
+                title={node.title as string}
+                isLeaf={node.isLeaf ?? false}
+                error={node.error}
+                fileCount={node.fileCount}
+            />
+        )
     }, [])
 
     const renderSwitcher = useCallback((props: { expanded?: boolean }) => {
-        return props.expanded ? (
-            <FolderOpenOutlined aria-hidden="true" className="text-subtle" />
-        ) : (
-            <FolderOutlined aria-hidden="true" className="text-subtle" />
-        )
+        return <TreeSwitcherIcon expanded={props.expanded} />
     }, [])
 
     if (error) {

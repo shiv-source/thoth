@@ -9,7 +9,7 @@ description: >-
 
 ## When to use
 - Adding or changing REST endpoints, handlers, or the Echo server (internal/api)
-- Extending the WebSocket chat protocol (internal/api/chat.go — types are mirrored in web/src/ws/chat.ts)
+- Extending the WebSocket chat protocol (internal/api/chat.go — types are mirrored in web/src/ws/chat.tsx)
 - Schema work: store migrations, settings keys, index/FTS5 changes
 - Touching the Claude CLI integration (internal/claude — the blast wall)
 - Extending the wiki file contract (internal/wiki) or doctor checks (internal/doctor)
@@ -44,7 +44,7 @@ description: >-
 6. Request logging is automatic (internal/api/logging.go) — nothing to add
 
 ### 2. Extend the WS protocol
-1. CHANGE BOTH SIDES: internal/api/chat.go (server frames) AND web/src/ws/chat.ts (client types) — server message types must match (CLAUDE.md invariant)
+1. CHANGE BOTH SIDES: internal/api/chat.go (server frames) AND web/src/ws/chat.tsx (client types) — server message types must match (CLAUDE.md invariant)
 2. Read docs/api.md first — frames: send/cancel/resume/open/new_chat; semantics: supersede, cancel, resume replay (≤500-message ring), open, new_chat
 3. Update docs/api.md's WS table in the same commit as the code
 4. Test server side against Hub with a scripted client; client side with the fakeWS double
@@ -67,7 +67,7 @@ description: >-
 ### 5. Add a settings key
 1. Add the key constant + accessor in internal/settings/settings.go — the KV table needs no migration
 2. Mirror the seed pattern (settings.DefaultWikiPath-style) if the key has a default
-3. REST surface: extend GET/PUT /api/settings DTOs in internal/api (route wired in server.go) AND the zod schema in web/src/api/client.ts (both sides)
+3. REST surface: extend GET/PUT /api/settings DTOs in internal/api (route wired in server.go) AND the zod schema in web/src/api/client.tsx (both sides)
 4. Update docs/schema.md's settings table and docs/api.md in the same commit
 5. Test: settings repo test + the api settings test
 
