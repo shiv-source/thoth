@@ -32,9 +32,14 @@ description: >-
    `git switch main && git pull --ff-only && git switch -c <type>/<scope>/<slug>`
    Fast path when the branch already exists: `./scripts/pr.sh` runs this sync plus the whole PR flow (workflow 3) in one command.
    The pre-commit hook enforces this — scripts/main-guard.sh blocks commits made directly on main.
-2. `<type>` is a conventional-commit prefix: feat, fix, perf, ci, docs, refactor, test, chore — `perf` maps to the `performance` type label (CONTRIBUTING.md § Workflow)
-3. `<scope>` is the short area name (web, api, index, skills, …); `<slug>` is short kebab-case (lowercase letters, digits, hyphens) — the branch mirrors the commit message `<type>(<scope>): <summary>`, e.g. fix/web/reject-empty-titles
-4. Large or cross-package change? Write the design doc first — see workflow 5
+2. **Worktree workflow (bare-clone layout)** — when the repo is set up as a bare clone with one working directory per branch (`~/Projects/thoth-wt`: a hidden `.bare` + a `.git` gitfile at the container root), use `./scripts/git-worktree.sh` instead of switching in place:
+   - `./scripts/git-worktree.sh new <type>/<scope>/<slug>` creates the branch and its flat-hyphen worktree dir (`feat-api-x` for `feat/api/x`), basing on `origin/main` (override with `--base <ref>`), and copies `opencode.json` in
+   - `./scripts/git-worktree.sh rm <dir-or-branch> [--force]` removes the worktree and deletes its branch
+   - `./scripts/git-worktree.sh list` shows all worktrees
+   Each worktree is its own checkout, so parallel branches (or agent runs) never collide; `git fetch` in any worktree updates them all.
+3. `<type>` is a conventional-commit prefix: feat, fix, perf, ci, docs, refactor, test, chore — `perf` maps to the `performance` type label (CONTRIBUTING.md § Workflow)
+4. `<scope>` is the short area name (web, api, index, skills, …); `<slug>` is short kebab-case (lowercase letters, digits, hyphens) — the branch mirrors the commit message `<type>(<scope>): <summary>`, e.g. fix/web/reject-empty-titles
+5. Large or cross-package change? Write the design doc first — see workflow 5
 
 ### 2. Commit
 1. Conventional message: `<type>(<scope>): <summary>`, e.g. `fix: reject-empty-titles`, `feat(skills): add git-workflow` — `<scope>` is the short area name (web, api, index, skills, …); omit it only when no area fits
@@ -98,7 +103,7 @@ CLAUDE.md § Repo rules, .github/pull_request_template.md, .github/workflows/*,
 or .husky/pre-commit behavior changes; then run `graphify update .`. Stale if:
 the branch or PR commands in CONTRIBUTING.md differ from these steps, the label
 set changes, a workflow file changes gate names, order, or the report marker,
-`gh pr create --help` no longer shows the `--template` flag, scripts/pr.sh or
-scripts/graph-check.sh changes the steps they automate, or the label tables in
-references/labels.md change shape
+`gh pr create --help` no longer shows the `--template` flag, scripts/pr.sh,
+scripts/graph-check.sh, or scripts/git-worktree.sh change the steps they
+automate, or the label tables in references/labels.md change shape
 (scripts/pr.sh parses `| label |` rows under `## Types` / `## Areas`).
