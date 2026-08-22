@@ -18,5 +18,7 @@ Repo helper scripts — run manually by developers and agents, not part of CI.
   its flat-hyphen worktree (inheriting `opencode.json`), `rm` removes a
   worktree and deletes its branch, `list` shows `git worktree list`. Run it
   from anywhere inside the container.
+- `lib-worktree.sh` — shared bare-clone-layout helpers (sourced by
+  `git-worktree.sh` and `pr.sh`); nothing runs on load.
 
 Changes here carry the `tooling` area label.

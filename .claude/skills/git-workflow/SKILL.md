@@ -28,18 +28,19 @@ description: >-
 ## Workflows
 
 ### 1. Start a change (branch)
-1. Never commit to main (CLAUDE.md § Repo rules) — sync and branch first:
-   `git switch main && git pull --ff-only && git switch -c <type>/<scope>/<slug>`
-   Fast path when the branch already exists: `./scripts/pr.sh` runs this sync plus the whole PR flow (workflow 3) in one command.
-   The pre-commit hook enforces this — scripts/main-guard.sh blocks commits made directly on main.
-2. **Worktree workflow (bare-clone layout)** — when the repo is set up as a bare clone with one working directory per branch (`~/Projects/thoth-wt`: a hidden `.bare` + a `.git` gitfile at the container root), use `./scripts/git-worktree.sh` instead of switching in place:
-   - `./scripts/git-worktree.sh new <type>/<scope>/<slug>` creates the branch and its flat-hyphen worktree dir (`feat-api-x` for `feat/api/x`), basing on `origin/main` (override with `--base <ref>`), and copies `opencode.json` in
-   - `./scripts/git-worktree.sh rm <dir-or-branch> [--force]` removes the worktree and deletes its branch
-   - `./scripts/git-worktree.sh list` shows all worktrees
-   Each worktree is its own checkout, so parallel branches (or agent runs) never collide; `git fetch` in any worktree updates them all.
-3. `<type>` is a conventional-commit prefix: feat, fix, perf, ci, docs, refactor, test, chore — `perf` maps to the `performance` type label (CONTRIBUTING.md § Workflow)
-4. `<scope>` is the short area name (web, api, index, skills, …); `<slug>` is short kebab-case (lowercase letters, digits, hyphens) — the branch mirrors the commit message `<type>(<scope>): <summary>`, e.g. fix/web/reject-empty-titles
-5. Large or cross-package change? Write the design doc first — see workflow 5
+1. Never commit to main (CLAUDE.md § Repo rules) — main is always deployable; changes live on `<type>/<scope>/<slug>` branches and land via reviewed PRs. Create the branch per your clone layout:
+   - **Bare-clone layout** (this repo's container: a dir holding a hidden `.bare` clone + a `.git` gitfile, one working directory per branch) — `git switch main` is impossible (main is checked out in its sibling worktree), so use `./scripts/git-worktree.sh`:
+     - `git fetch origin` first — `./scripts/git-worktree.sh new` bases on `origin/main` and does not fetch for you
+     - `./scripts/git-worktree.sh new <type>/<scope>/<slug>` creates the branch and its flat-hyphen worktree dir (`feat-api-x` for `feat/api/x`), basing on `origin/main` (override with `--base <ref>`), and copies `opencode.json` in
+     - `./scripts/git-worktree.sh rm <dir-or-branch> [--force]` removes the worktree and deletes its branch
+     - `./scripts/git-worktree.sh list` shows all worktrees
+     Each worktree is its own checkout, so parallel branches (or agent runs) never collide; `git fetch` in any worktree updates the shared refs for all of them (working trees only change on pull/checkout inside each).
+   - **Standard clone**: `git switch main && git pull --ff-only && git switch -c <type>/<scope>/<slug>`
+   Fast path when the branch already exists: `./scripts/pr.sh` runs this sync plus the whole PR flow (workflow 3) in one command (in the bare-clone layout it syncs via `git fetch origin` — workflow 3 step 1).
+   The pre-commit hook enforces this — `./scripts/main-guard.sh` blocks commits made directly on main.
+2. `<type>` is a conventional-commit prefix: feat, fix, perf, ci, docs, refactor, test, chore — `perf` maps to the `performance` type label (CONTRIBUTING.md § Workflow)
+3. `<scope>` is the short area name (web, api, index, skills, …); `<slug>` is short kebab-case (lowercase letters, digits, hyphens) — the branch mirrors the commit message `<type>(<scope>): <summary>`, e.g. fix/web/reject-empty-titles
+4. Large or cross-package change? Write the design doc first — see workflow 5
 
 ### 2. Commit
 1. Conventional message: `<type>(<scope>): <summary>`, e.g. `fix: reject-empty-titles`, `feat(skills): add git-workflow` — `<scope>` is the short area name (web, api, index, skills, …); omit it only when no area fits
@@ -50,7 +51,7 @@ description: >-
 6. Stage only what the change needs: no secrets, no generated dirs (bin/, web/dist/, internal/webui/dist/, node_modules/, *.db)
 
 ### 3. Open a PR
-1. **Preferred — deliver with `./scripts/pr.sh`** from the feature branch: it is the single guarded command for the whole flow — syncs main, validates the branch name, derives labels from the branch (validated against references/labels.md), runs the graph staleness guard (scripts/graph-check.sh), runs `make check` (`--no-check` skips), pushes, and creates the PR with the template. `--title` overrides the derived title; repeat `--area <label>` to add areas. Run it on every PR delivery so the guarded flow runs end-to-end.
+1. **Preferred — deliver with `./scripts/pr.sh`** from the feature branch: it is the single guarded command for the whole flow — syncs main, validates the branch name, derives labels from the branch (validated against references/labels.md), runs the graph staleness guard (`./scripts/graph-check.sh`), runs `make check` (`--no-check` skips), pushes, and creates the PR with the template. `--title` overrides the derived title; repeat `--area <label>` to add areas. Run it on every PR delivery so the guarded flow runs end-to-end. In the bare-clone layout `./scripts/pr.sh` detects the container and syncs via `git fetch origin` instead of `git switch main` (workflow 1 step 1).
 2. Manual fallback — push the branch, then create the PR with the `gh` CLI (not the web UI):
    `gh pr create --title "<type>(<scope>): <summary>" --label <type> --label <area>… --template .github/pull_request_template.md`
    — one type label plus every area label the change touches (workflow 4); the web UI auto-fills the PR template, the CLI does not — pass it explicitly with `--template` (verify flags against `gh pr create --help`)
@@ -69,7 +70,7 @@ description: >-
 3. Areas (package-aligned): api, chat, cli, github, index, search, settings, store, sync, ui, webui, wiki, tooling
 4. Priorities (issues only): p-critical, p-high, p-medium, p-low
 5. Branch prefixes (8) and type labels (9) overlap but are not identical — choose labels from the label set, not the prefix list
-6. pr.sh enforces this — derived labels are validated against references/labels.md (branch scope → area label, falling back to `tooling`)
+6. `./scripts/pr.sh` enforces this — derived labels are validated against references/labels.md (branch scope → area label, falling back to `tooling`)
 7. Issues filed through `.github/ISSUE_TEMPLATE/` get their bare-minimum labels (type, priority, areas) applied automatically from the form answers — `.github/workflows/issue-labels.yml` + the reusable `.github/actions/issue-labels` action. Add-only: labels a human adds afterwards are never removed; blank issues (no form) are skipped.
 8. Full data: references/labels.md
 

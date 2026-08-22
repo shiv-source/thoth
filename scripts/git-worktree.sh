@@ -2,7 +2,7 @@
 # git-worktree.sh — worktree helper for the bare-clone layout.
 #
 # The "pro setup" keeps the git history in a hidden .bare clone and creates
-# one working directory per branch (git-worktree skill). This script wraps
+# one working directory per branch (git-workflow skill). This script wraps
 # `git worktree` so the two conventions stay consistent:
 #   - worktrees live as siblings of the container root (e.g. feat-api-x)
 #   - a branch <type>/<scope>/<slug> maps to a flat-hyphen dir <type>-<scope>-<slug>
@@ -18,29 +18,16 @@
 # opencode.json (MCP config) when one exists.
 set -euo pipefail
 
+# find_container lives in the shared lib (pr.sh uses it too).
+# shellcheck source=./lib-worktree.sh
+source "$(dirname "$0")/lib-worktree.sh"
+
 # Conventional-commit prefixes — mirrors git-workflow skill workflow 1.
 VALID_TYPES="feat fix perf ci docs refactor test chore"
 
 die() {
   echo "git-worktree: $*" >&2
   exit 1
-}
-
-# find_container walks up from the current dir to the bare-clone container
-# root: the directory that holds both the .bare clone and the .git gitfile
-# ("gitdir: ./.bare"). Prints the path or exits 1.
-find_container() {
-  local dir
-  dir="$(pwd)"
-  while [ -n "$dir" ]; do
-    if [ -d "$dir/.bare" ] && [ -f "$dir/.git" ] && grep -q '^gitdir: \./\.bare' "$dir/.git" 2>/dev/null; then
-      echo "$dir"
-      return 0
-    fi
-    [ "$dir" = "/" ] && break
-    dir="$(dirname "$dir")"
-  done
-  return 1
 }
 
 # parse_branch validates <type>/<scope>/<slug> and fills BRANCH_TYPE/SCOPE/SLUG.

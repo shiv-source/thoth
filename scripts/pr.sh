@@ -6,7 +6,9 @@
 # preflight → sync with main → branch-name check → graph staleness guard →
 # label derivation (parsed from references/labels.md) → make check → push →
 # gh pr create with the template. The steps in the skill remain
-# authoritative when run by hand.
+# authoritative when run by hand. In the bare-clone layout
+# (scripts/git-worktree.sh) sync skips `git switch main` — main is checked
+# out in its sibling worktree — and fetches origin instead.
 #
 # A session never merges — the human merges (git-workflow skill workflow 6).
 # Limitation: the branch itself is not rebased onto main, only main is
@@ -14,6 +16,10 @@
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
+
+# find_container (bare-clone layout detection) lives in the shared lib.
+# shellcheck source=./lib-worktree.sh
+source "$(dirname "$0")/lib-worktree.sh"
 
 LABELS_MD=".claude/skills/git-workflow/references/labels.md"
 
@@ -110,6 +116,15 @@ preflight() {
 }
 
 sync_main() {
+  # Bare-clone layout (scripts/git-worktree.sh): main is checked out in the
+  # sibling main worktree, so `git switch main` is impossible. `git fetch
+  # origin` updates the shared refs instead — git-worktree.sh `new` bases on
+  # origin/main, so a fetched origin/main is the worktree-layout sync.
+  if find_container >/dev/null; then
+    git fetch origin || die "git fetch origin failed — check remote state"
+    echo "pr: bare-clone layout — synced origin/main via git fetch (main stays in its sibling worktree)"
+    return
+  fi
   if ! git switch main; then
     die "switching to main failed — likely graphify-out/ changes that differ between branches: commit the refreshed graph on your branch (workflow 2 step 5) or discard hook noise with 'git checkout -- graphify-out/'"
   fi

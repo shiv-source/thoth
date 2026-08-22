@@ -18,10 +18,20 @@ make dev       # Vite HMR + Go server together (http://127.0.0.1:8333)
 
 ## Workflow
 
-1. **Never commit to `main`.** Sync and branch first:
-   ```sh
-   git switch main && git pull --ff-only && git switch -c <type>/<scope>/<slug>
-   ```
+1. **Never commit to `main`.** `main` is always deployable; changes live on
+   `<type>/<scope>/<slug>` branches and land via reviewed PRs. Create the
+   branch per your clone layout:
+   - Bare-clone layout (a container dir holding a hidden `.bare` + a `.git`
+     gitfile, worktrees as siblings)? `git switch main` is impossible —
+     `main` is checked out in its own sibling worktree — so use
+     `./scripts/git-worktree.sh`: `git fetch origin` then
+     `./scripts/git-worktree.sh new <type>/<scope>/<slug>`.
+   - Standard clone:
+     ```sh
+     git switch main && git pull --ff-only && git switch -c <type>/<scope>/<slug>
+     ```
+   `./scripts/pr.sh` detects the bare-clone layout and syncs via `git fetch
+   origin` too.
 2. **Conventional commits** — `<type>(<scope>): <summary>`; prefixes: `feat:`, `fix:`, `perf:`, `chore:`, `docs:`, `refactor:`, `test:`, `ci:` (`perf` maps to the `performance` type label).
 3. **Open a PR** using the template — conventional title, a summary that gives the full picture (bullets when it helps), files changed, and the verification checklist. The `ci-pr` quality gates run automatically; `final-gate` posts its report as a comment and must pass before merging.
 4. **Squash-merge** PRs unless the commit history is meaningful.
