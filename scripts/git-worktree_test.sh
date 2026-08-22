@@ -44,9 +44,15 @@ git config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"
 git fetch -q origin
 git remote set-head origin -a >/dev/null 2>&1 || true
 
+# opencode.json lives in the main worktree, not the container root — a new
+# worktree should inherit it (the copy_config fallback).
+git -C "$WORK/wt" worktree add -q main >/dev/null 2>&1
+echo '{"mcp":{"x":{"type":"local","command":["true"]}}}' > "$WORK/wt/main/opencode.json"
+
 check "list runs on a fresh container" "$SCRIPT" list
 check "new creates a flat-hyphen worktree" "$SCRIPT" new feat/test/demo
 [ -d "$WORK/wt/feat-test-demo" ] && pass=$((pass + 1)) && echo "ok   - worktree dir feat-test-demo exists" || { fail=$((fail + 1)); echo "FAIL - worktree dir feat-test-demo exists"; }
+check "new copies opencode.json from the main worktree" bash -c "test -f '$WORK/wt/feat-test-demo/opencode.json'"
 check "new works from inside a worktree" bash -c "cd '$WORK/wt/feat-test-demo' && '$SCRIPT' new docs/test/guide"
 check_fails "new rejects a non-conventional branch" "$SCRIPT" new BAD/x/y
 check_fails "new rejects a bad slug" "$SCRIPT" new feat/test/Weird_Name
@@ -57,6 +63,8 @@ echo dirty > "$WORK/wt/fix-test-bug/scratch.txt"
 check_fails "rm refuses a dirty worktree without --force" "$SCRIPT" rm fix-test-bug
 check "rm --force removes a dirty worktree" "$SCRIPT" rm fix-test-bug --force
 check_fails "rm rejects a nonexistent target" "$SCRIPT" rm nope
+check_fails "rm never removes the bare repo" "$SCRIPT" rm .bare
+check_fails "rm never removes the container root" "$SCRIPT" rm .
 check_fails "list fails outside the container" bash -c "cd '$WORK' && '$SCRIPT' list"
 
 echo

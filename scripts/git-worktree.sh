@@ -65,14 +65,21 @@ flat_dir() {
   echo "${BRANCH_TYPE}-${BRANCH_SCOPE}-${BRANCH_SLUG}"
 }
 
-# copy_config copies the container's opencode.json into a fresh worktree so
-# the MCP servers (playwright, antd, …) work there without a manual copy.
+# copy_config copies opencode.json (MCP config) into a fresh worktree so the
+# MCP servers (playwright, antd, …) work there without a manual copy. The
+# config is per-worktree: the container root holds none, so fall back to the
+# main worktree's copy.
 copy_config() {
-  local root="$1" dir="$2"
+  local root="$1" dir="$2" src
   if [ -f "$root/opencode.json" ]; then
-    cp "$root/opencode.json" "$dir/opencode.json"
-    echo "git-worktree: copied opencode.json into $dir"
+    src="$root/opencode.json"
+  elif [ -f "$root/main/opencode.json" ]; then
+    src="$root/main/opencode.json"
+  else
+    return 0
   fi
+  cp "$src" "$dir/opencode.json"
+  echo "git-worktree: copied opencode.json into $dir"
 }
 
 cmd_new() {
@@ -132,7 +139,16 @@ cmd_rm() {
     git -C "$root" worktree remove --force "$dir"
     git -C "$root" branch -D "$branch"
   else
-    git -C "$root" worktree remove "$dir"
+    # A freshly created worktree carries the copied opencode.json as an
+    # untracked file; that is our own bookkeeping, not a reason to refuse
+    # removal. Remove with --force only when no other dirty files exist.
+    local other_dirty
+    other_dirty="$(git -C "$dir" status --porcelain | grep -v '^?? opencode.json$' || true)"
+    if [ -z "$other_dirty" ]; then
+      git -C "$root" worktree remove --force "$dir"
+    else
+      git -C "$root" worktree remove "$dir"
+    fi
     git -C "$root" branch -d "$branch"
   fi
   echo "git-worktree: removed $dir and deleted branch $branch"
