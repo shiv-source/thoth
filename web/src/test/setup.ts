@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest'
 
-// jsdom does not implement scrollIntoView; ChatPanel scrolls to the latest message.
+// jsdom does not implement scrollIntoView; ChatPage scrolls to the latest message.
 window.HTMLElement.prototype.scrollIntoView = function () {}
 
 // Radix tooltips (Popper) observe resize; jsdom has no ResizeObserver, so

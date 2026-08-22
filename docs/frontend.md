@@ -6,18 +6,31 @@ React 19 + TypeScript (strict) + Vite + **Ant Design v6** + Tailwind CSS v4 (lay
 
 ```
 web/src/
+├── app/App.tsx          # app shell: layout, lazy page routing, health gate
 ├── api/client.ts        # typed REST client, zod-validated responses
 ├── ws/chat.ts           # ChatSocket: protocol frames, reconnect/resume
+├── ws/events.ts         # ServerEvent/ClientEvent enums — the wire frame names
 ├── hooks/               # useChat, useSearch, useConversationRoute, useView,
 │                        #   useViewShortcuts
 ├── store/               # Redux Toolkit: 13 slices + typed hooks (below)
+├── pages/               # one folder per route-level view
+│   ├── chat/            #   ChatPage
+│   ├── dashboard/       #   DashboardPage (+ its dashboardMock until endpoints land)
+│   ├── notes/           #   NotesPage
+│   ├── search/          #   SearchPage
+│   ├── settings/        #   SettingsPage
+│   └── setup/           #   SetupPage
+├── components/          # feature components, grouped by owner page
+│   ├── layout/          #   AppSider, Sidebar, DevBanner
+│   ├── chat/            #   Composer, MessageItem, UsageLine
+│   ├── dashboard/       #   charts + useThemeColors
+│   ├── notes/           #   NoteViewer, WikiTree
+│   └── search/          #   SearchPanel
+├── shared/              # cross-cutting UI primitives: AppHeader, Markdown,
+│                        #   CodeBlock, CopyButton, NotificationPanel/Toasts,
+│                        #   notifications, WikiPathInput
+├── utils/chart.ts       # Chart.js registration (side-effect import)
 ├── theme.ts             # the single antd ThemeConfig (blue primary, light-only)
-├── components/          # AppSider, AppHeader, ChatPanel, Composer,
-│                        #   MessageItem, Sidebar, NotesView, WikiTree,
-│                        #   NoteViewer, SearchPanel/View, SettingsView,
-│                        #   DashboardView, SetupScreen, NotificationPanel,
-│                        #   NotificationToasts, Markdown, CodeBlock,
-│                        #   CopyButton, charts, dashboardMock
 └── index.css            # Tailwind v4 @theme tokens bridging antd CSS vars
 ```
 
@@ -36,21 +49,21 @@ semantic tokens.
 | `AppSider` | App shell navigation: brand wordmark (Fraunces), antd `Menu` (Dashboard/Chat/Notes/Search/Settings) routed through `useView`, health footer (`Badge status` + version) reading the health slice |
 | `AppHeader` | Per-view header: title, notification bell (`Badge count` + `Popover` → NotificationPanel, visibility in the ui slice, Esc closes), optional settings button |
 | `Sidebar` | Chat view's history column (antd `Layout.Sider`): "New chat" primary button + day-grouped conversation `List`s; deletes via text button + antd Tooltip; toasts via `App.useApp().message` |
-| `ChatPanel` | Owns the socket lifecycle (created in an effect, closed on unmount); antd `Alert` banners for connection/thinking/tool status; message list + scroll; toasts via `App.useApp().message` |
+| `ChatPage` | Owns the socket lifecycle (created in an effect, closed on unmount); antd `Alert` banners for connection/thinking/tool status; message list + scroll; toasts via `App.useApp().message` |
 | `Composer` | antd `Input.TextArea autoSize` (Enter = send, Shift+Enter = newline) + primary Send / Stop buttons — sending while streaming supersedes the turn; the draft is deliberately local state |
 | `MessageItem` | Memoized row: user bubble vs assistant (react-markdown + GFM) with streaming caret; antd Tooltip + CopyButton for the copy action |
 | `Markdown` | GFM renderer with Shiki code blocks (via CodeBlock) in the shared prose wrapper (light only) |
 | `CodeBlock` | Fenced code via Shiki (`github-light`, module-level 200-entry cache) + copy button, plain `<pre>` fallback |
 | `CopyButton` | Shared copy control: antd text Button, clipboard write, check flip for 2 s, optional `message.success` toast |
-| `NotesView` | Browse-and-read surface: wiki tree left (expand/collapse-all toggle dispatches the ui slice), note reader rendered inline in the content area (the URL `/notes/<path>` owns the open note); `Empty` placeholder |
+| `NotesPage` | Browse-and-read surface: wiki tree left (expand/collapse-all toggle dispatches the ui slice), note reader rendered inline in the content area (the URL `/notes/<path>` owns the open note); `Empty` placeholder |
 | `WikiTree` | The wiki directory rendered through antd `Tree.DirectoryTree` (`virtual={false}`, `motion={false}` — small local tree, jsdom-compatible); tree data from the wiki slice, expansion from the ui slice; refetches when the WS connection (re)connects, on window focus; per-folder file-count Tooltips (an unreadable directory instead shows a warning Tooltip with its per-node error). Per-change refetches ride the `wiki_changed` frame (see useChat), so no polling lives here |
 | `NoteViewer` | Inline note reader filling the content area (Esc or ✕ closes — the open note is the URL, not an overlay): note content from the note slice (stale-path responses discarded), Skeleton loading, Alert errors, Copy raw. Markdown paths (`.md`/`.markdown`, case-insensitive, matching `wiki.IsMarkdownPath`) are fetched and rendered as Markdown; image attachments (`.png/.jpg/.jpeg/.gif/.svg/.webp`, matching `wiki.IsImagePath`) render inline from the `/api/notes` raw bytes; any other attachment (scripts, PDFs, …) keeps a "can't be previewed" state with a Download action in the header |
 | `SearchPanel` | antd `Input.Search` synced to the URL `?q=` — 300 ms debounced `useSearch` dispatches into the search slice, results in an antd `List` (server-sanitized `<mark>` snippets), keyboard nav via the ui slice, `Empty` state, recent-search history (`Button` rows + Clear) |
-| `SettingsView` | antd `Tabs` (`tabPlacement="start"` left rail; the active tab gets a primary pill via the `.settings-tabs` CSS rule + `Tabs` tokens in theme.ts; the tab rides the URL `/settings/<tab>`; the rail stays fixed while the pane content scrolls). Each tab is one Card: **General** (`WikiPathInput` with a clickable folder picker + a two-field Provider/Model cascade `Select` (the Provider select is view state, the Model select the saved form field) + scaffold folders tag `Select`, save with loading state, saved/error `Alert`s), **Providers** (a `Collapse` panel per provider whose header carries name + model-count/key/endpoint `Tag`s and whose body holds the provider's Base URL + API key credential fields plus its models `Table` with colored tag chips and an `Empty` state; Add/Edit `Modal` with a tags-mode tag `Select` pre-fills the provider from the panel it opened in, per-row `Popconfirm` delete; mutations refetch the grouped registry and settings), **Doctor** (pass `Progress` summary, Run checks button, `CheckRow` status rows), **Git remote** (`Input.Password` PAT connect, account section with `Avatar` + scope `Tag`s, `AutoComplete` repo picker with private-repo guard, `Switch` auto-sync, Initialize & Push) — all async state in the git/settings/doctor slices |
+| `SettingsPage` | antd `Tabs` (`tabPlacement="start"` left rail; the active tab gets a primary pill via the `.settings-tabs` CSS rule + `Tabs` tokens in theme.ts; the tab rides the URL `/settings/<tab>`; the rail stays fixed while the pane content scrolls). Each tab is one Card: **General** (`WikiPathInput` with a clickable folder picker + a two-field Provider/Model cascade `Select` (the Provider select is view state, the Model select the saved form field) + scaffold folders tag `Select`, save with loading state, saved/error `Alert`s), **Providers** (a `Collapse` panel per provider whose header carries name + model-count/key/endpoint `Tag`s and whose body holds the provider's Base URL + API key credential fields plus its models `Table` with colored tag chips and an `Empty` state; Add/Edit `Modal` with a tags-mode tag `Select` pre-fills the provider from the panel it opened in, per-row `Popconfirm` delete; mutations refetch the grouped registry and settings), **Doctor** (pass `Progress` summary, Run checks button, `CheckRow` status rows), **Git remote** (`Input.Password` PAT connect, account section with `Avatar` + scope `Tag`s, `AutoComplete` repo picker with private-repo guard, `Switch` auto-sync, Initialize & Push) — all async state in the git/settings/doctor slices |
 | `WikiPathInput` | The wiki path field: a `FolderOpenOutlined` prefix icon opens a directory browser `Modal` backed by `GET /api/fs/dirs` (enter a subdirectory, `Up` to the parent, OK fills the field); the value stays hand-editable at all times |
-| `DashboardView` | Landing: greeting, four `Statistic` KPI tiles, quick-action `Button`s, **Overview** cards (inbox, meetings, todos with `Progress`, recent notes, real recent chats, tag `Button`s) and **Insights** (four Chart.js charts, blue palette). Mock data lives in `dashboardMock.ts`, tagged with its issue until the index endpoints land |
+| `DashboardPage` | Landing: greeting, four `Statistic` KPI tiles, quick-action `Button`s, **Overview** cards (inbox, meetings, todos with `Progress`, recent notes, real recent chats, tag `Button`s) and **Insights** (four Chart.js charts, blue palette). Mock data lives in `pages/dashboard/dashboardMock.ts`, tagged with its issue until the index endpoints land |
 | `ActivityChart` | Single-series mini bar chart (Chart.js): notes/day, last 7 days — blue palette, canvas `role="img"` + aria-label; colors read from the CSS variables; the chart instance is destroyed on unmount |
-| `SetupScreen` | antd `Result` shown when `/api/health` reports problems: per-problem `Alert`s with exact fix commands, Re-check primary button (loading). Problems derive from the health schema — server unreachable, no provider API key (`health.backend.api_key_configured`), or missing wiki (`health.wiki.exists`); `App` shows it whenever `health.backend.api_key_configured` is false, unless the user is already on Settings |
+| `SetupPage` | antd `Result` shown when `/api/health` reports problems: per-problem `Alert`s with exact fix commands, Re-check primary button (loading). Problems derive from the health schema — server unreachable, no provider API key (`health.backend.api_key_configured`), or missing wiki (`health.wiki.exists`); `App` shows it whenever `health.backend.api_key_configured` is false, unless the user is already on Settings |
 | `NotificationPanel` | The bell `Popover` content: header with mark-all-read/close buttons, antd `List` of notifications, `Empty` state, per-item dismiss |
 | `NotificationToasts` | NEW notifications (not seen at mount) as transient antd `Alert`s top-left, auto-dismissed after 5 s, close dispatches dismiss |
 
@@ -63,11 +76,11 @@ semantic tokens.
 
 Redux Toolkit owns the server-backed, shared, and screen-spanning state. Slices live in `store/slices/` with their thunks/actions and selectors co-located; `makeStore()` wires them and `store/hooks.ts` exports the typed `useAppDispatch`/`useAppSelector`:
 
-- **health** — fetched at boot (`main.tsx`), re-checked by the setup screen; the slice holds the `{status, backend:{name, api_key_configured, model, provider}, wiki:{path, exists}, version, dev, commit, default_wiki_path}` shape — `App`/`SetupScreen` gate on `backend.api_key_configured` + `wiki.exists`, `DevBanner` reads `dev`/`commit`, `AppSider`'s footer reads `version`
+- **health** — fetched at boot (`main.tsx`), re-checked by the setup page; the slice holds the `{status, backend:{name, api_key_configured, model, provider}, wiki:{path, exists}, version, dev, commit, default_wiki_path}` shape — `App`/`SetupPage` gate on `backend.api_key_configured` + `wiki.exists`, `DevBanner` reads `dev`/`commit`, `AppSider`'s footer reads `version`
 - **settings** — loaded on mount, saved through the slice (submit button reflects `saving`); also holds the `/api/models` picker list
 - **conversations** — refetched on URL changes and when a new chat is created; deletes filter the list in the slice
 - **chat** — the live conversation (messages, streaming, thinking, lastTool, conversationId), fed by WS frames via `useChat`
-- **connection** — the WebSocket status, reported by `ChatSocket` and read by `ChatPanel` (and `WikiTree`, which seeds the tree on the reconnect edge)
+- **connection** — the WebSocket status, reported by `ChatSocket` and read by `ChatPage` (and `WikiTree`, which seeds the tree on the reconnect edge)
 - **notifications** — the capped ring of 50; panel + toasts both consume it
 - **searchHistory** — committed searches (cap 10, deduped, most-recent first); loaded from `localStorage` at store creation and written back by `persistSearchHistory` middleware on every commit/clear
 - **ui** — screen-spanning chrome: notification-panel open, notes-tree expansion, search keyboard selection
@@ -77,11 +90,11 @@ Redux Toolkit owns the server-backed, shared, and screen-spanning state. Slices 
 - **doctor** — the doctor check rows (`runDoctor`)
 - **git** — GitHub auth/repos/connect/push/disconnect (server messages surface as errors)
 
-Deliberate exceptions (documented in `references/patterns.md`): per-keystroke drafts (Composer) stay local, antd Form values are owned by rc-field-form, toasts use `App.useApp().message`, the `ChatSocket` instance is non-serializable and lives in ChatPanel, and the URL remains the routing source of truth.
+Deliberate exceptions (documented in `references/patterns.md`): per-keystroke drafts (Composer) stay local, antd Form values are owned by rc-field-form, toasts use `App.useApp().message`, the `ChatSocket` instance is non-serializable and lives in ChatPage, and the URL remains the routing source of truth.
 
 ## WebSocket client
 
-`ChatSocket` sends `send`/`cancel`/`resume`/`open` (`open` pins the server-side conversation without replay and never becomes the reconnect-resume id), forwards `assistant_*`/`tool_activity`/`turn_done`/`error` frames (the optional `usage` breakdown on `turn_done`, and on persisted messages loaded from history, feeds the token-usage footer under the last message), and reconnects exactly once after 1 s — sending `resume` from `onopen` so the turn re-syncs. It also sends a `presence` frame (`ChatPanel` wires it to the Page Visibility API): a hidden tab reports `active:false`. The frame is kept for protocol compatibility — Thoth Agent keeps no idle processes to flush, so the server ignores it — and the last reported presence is re-sent from `onopen`.
+`ChatSocket` sends `send`/`cancel`/`resume`/`open` (`open` pins the server-side conversation without replay and never becomes the reconnect-resume id), forwards `assistant_*`/`tool_activity`/`turn_done`/`error` frames (the optional `usage` breakdown on `turn_done`, and on persisted messages loaded from history, feeds the token-usage footer under the last message), and reconnects exactly once after 1 s — sending `resume` from `onopen` so the turn re-syncs. It also sends a `presence` frame (`ChatPage` wires it to the Page Visibility API): a hidden tab reports `active:false`. The frame is kept for protocol compatibility — Thoth Agent keeps no idle processes to flush, so the server ignores it — and the last reported presence is re-sent from `onopen`.
 
 ## Design system
 

@@ -63,17 +63,24 @@ thoth/
 ├── web/                  # React 19 + TS strict + Tailwind v4 (layout only) + antd 6 + pnpm (workspace member)
 │   ├── package.json      # scripts: dev/build/test/typecheck/lint/preview
 │   └── src/
-│       ├── api/          # typed REST client (axios + zod)
-│       ├── ws/           # ChatSocket: protocol frames, reconnect/resume
-│       ├── hooks/        # useChat, useSearch, useConversationRoute, useView, useViewShortcuts
-│       ├── store/        # Redux Toolkit: makeStore + re-exports, typed hooks,
-│       │   └── slices/   #   one slice per feature (health, settings, conversations,
-│       │                 #   chat, connection, notifications, searchHistory, ui,
-│       │                 #   wiki, note, search, doctor, git) with co-located tests
-│       ├── components/   # antd-based UI: AppSider, AppHeader, ChatPanel,
-│       │                 #   SettingsView, DashboardView, SetupScreen, …
-│       ├── test/         # mockAxios, fakeWS, renderWithStore (fresh store + antd App), setup
-│       └── App.tsx / main.tsx / theme.ts / index.css
+│       ├── app/           # app shell: App.tsx (layout, lazy page routing, health gate)
+│       ├── api/           # typed REST client (axios + zod)
+│       ├── ws/            # ChatSocket (protocol frames, reconnect/resume) +
+│       │                  #   events.ts (ServerEvent/ClientEvent frame-name enums)
+│       ├── hooks/         # useChat, useSearch, useConversationRoute, useView, useViewShortcuts
+│       ├── store/         # Redux Toolkit: makeStore + re-exports, typed hooks,
+│       │   └── slices/    #   one slice per feature (health, settings, conversations,
+│       │                  #   chat, connection, notifications, searchHistory, ui,
+│       │                  #   wiki, note, search, doctor, git) with co-located tests
+│       ├── pages/         # one folder per route-level view: chat/, dashboard/,
+│       │                  #   notes/, search/, settings/, setup/ — <Name>Page.tsx + test
+│       ├── components/    # feature components grouped by owner: layout/, chat/,
+│       │                  #   dashboard/ (charts + useThemeColors), notes/, search/
+│       ├── shared/        # cross-cutting primitives: AppHeader, Markdown, CodeBlock,
+│       │                  #   CopyButton, NotificationPanel/Toasts, WikiPathInput
+│       ├── utils/         # chart.ts (Chart.js registration side-effect)
+│       ├── test/          # mockAxios, fakeWS, renderWithStore (fresh store + antd App), setup
+│       └── main.tsx / theme.ts / index.css
 ├── docs/                 # committed documentation (index.md hub) — the single source;
 │   │                     #   the docs-site below renders it (docs/ == truth, never forked)
 │   ├── index.md          # documentation map + getting started

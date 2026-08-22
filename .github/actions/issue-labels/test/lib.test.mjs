@@ -79,7 +79,7 @@ A date range filter on the dashboard.
 ### Acceptance criteria
 
 - [ ] Given a date range, only notes in range render
-- [ ] Tests added in web/src/components/DashboardView.test.tsx
+- [ ] Tests added in web/src/pages/dashboard/DashboardPage.test.tsx
 
 ### Priority
 

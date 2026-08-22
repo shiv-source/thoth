@@ -39,7 +39,7 @@ useAppDispatch/useAppSelector, never the bare versions.
 
 ## connection
 - path: connectionSlice.ts
-- purpose: The WebSocket status, reported by ChatSocket and read by ChatPanel
+- purpose: The WebSocket status, reported by ChatSocket and read by ChatPage
 - canonical: connectionSlice.ts · docs/frontend.md §State
 
 ## notifications

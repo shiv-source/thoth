@@ -18,7 +18,7 @@ function message(content: string) {
     return { id: 1, conversation_id: 'x', role: 'user' as const, content, created_at: '2026-08-15T00:00:00Z' }
 }
 
-// Emulates ChatPanel: load/reset update the same state the hook receives as
+// Emulates ChatPage: load/reset update the same state the hook receives as
 // conversationId (like useChat does), so URL→state round trips are faithful.
 function renderRoute(initialId: string | null = null) {
     const open = vi.fn()

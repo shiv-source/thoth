@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ChatSocket } from './chat'
 import type { ServerMessage } from './chat'
+import { ServerEvent } from './events'
 import { FakeWS } from '../test/fakeWS'
 
 vi.stubGlobal('WebSocket', FakeWS)
@@ -36,7 +37,7 @@ describe('ChatSocket', () => {
         ws.open()
 
         const frame: ServerMessage = {
-            type: 'wiki_changed',
+            type: ServerEvent.WikiChanged,
             changes: [
                 { op: 'write', path: 'notes/a.md' },
                 { op: 'remove', path: 'old.md' }
@@ -47,7 +48,7 @@ describe('ChatSocket', () => {
 
         // The watcher's startup event carries no changes (omitempty on the
         // wire) and must parse as a bare wiki_changed frame.
-        const bare: ServerMessage = { type: 'wiki_changed' }
+        const bare: ServerMessage = { type: ServerEvent.WikiChanged }
         ws.onmessage!({ data: JSON.stringify(bare) })
         expect(received).toEqual([frame, bare])
     })
