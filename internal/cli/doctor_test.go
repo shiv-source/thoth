@@ -74,7 +74,7 @@ func healthyEnv(t *testing.T) string {
 		t.Fatal(err)
 	}
 	// The api key + model setup checks pass in a healthy env.
-	if err := stg.SetSetting(settings.KeyAPIKey, "sk-healthy"); err != nil {
+	if err := stg.SetSetting(settings.ProviderAPIKeyKey("Anthropic"), "sk-healthy"); err != nil {
 		t.Fatal(err)
 	}
 	if err := stg.SetSetting(settings.KeyModel, "claude-sonnet-5"); err != nil {
@@ -184,7 +184,7 @@ func TestDoctorMissingWikiAndFix(t *testing.T) {
 	}
 	// The api key + model setup checks pass in a healthy env; --fix repairs
 	// wiki/index only, setup is not its job.
-	if err := stg.SetSetting(settings.KeyAPIKey, "sk-healthy"); err != nil {
+	if err := stg.SetSetting(settings.ProviderAPIKeyKey("Anthropic"), "sk-healthy"); err != nil {
 		t.Fatal(err)
 	}
 	if err := stg.SetSetting(settings.KeyModel, "claude-sonnet-5"); err != nil {

@@ -126,8 +126,8 @@ The app's user-facing settings, key/value. `config.toml` is deprecated — this 
 | `wiki_path` | `~/.thoth/wiki` | Where the wiki lives (seed mirrors `settings.DefaultWikiPath`) |
 | `wiki_folders` | — (absent) | Comma-separated scaffold folder set; absent/empty means the default 9 (`inbox, meetings, projects, links, setup, knowledge, todos, daily, attachments`). Applied when a wiki is scaffolded |
 | `model` | — (absent) | The model value selected for every turn; absent/empty falls back to the first seeded claude model. Read at boot, applied on next start |
-| `api_key` | `''` | The shared fallback API key for any provider without its own key (see the `provider_*` keys). Empty (`''`) = not configured. Read from thoth.db only — never from the environment. Never returned by the API — GET reports `has_api_key` only |
-| `provider_<slug>_api_key` | — (absent) | A provider's own API key; `slug` is the lowercased provider label with non-alphanumerics stripped (`DeepSeek` → `deepseek`, `Z.AI` → `zai`). Wins over the shared `api_key` for that provider's models. Write-only like the shared key — GET reports `has_api_key` only |
+| `api_key` | `''` | Legacy shared key, seeded by migration `0008` but no longer used — credentials are per-provider (`provider_<slug>_api_key`), and nothing is read from the environment |
+| `provider_<slug>_api_key` | — (absent) | A provider's own API key; `slug` is the lowercased provider label with non-alphanumerics stripped (`DeepSeek` → `deepseek`, `Z.AI` → `zai`). The only credential for that provider's models. Write-only — GET reports `has_api_key` only |
 | `provider_<slug>_base_url` | — (absent) | A provider's API base URL override (`DeepSeek` → `provider_deepseek_base_url`). Empty/absent = the provider's default endpoint. Applied on next boot |
 | `github_sync_repo` | `''` | The wiki's sync repo URL |
 | `github_sync_enabled` | `'false'` | The auto-sync switch (`'true'`/`'false'`) |

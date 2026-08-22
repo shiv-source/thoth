@@ -33,7 +33,6 @@ import {
     CloseCircleFilled,
     GithubOutlined,
     GlobalOutlined,
-    KeyOutlined,
     LockOutlined,
     MedicineBoxOutlined,
     ReloadOutlined,
@@ -466,8 +465,6 @@ function ProvidersTab({ status }: { status: 'idle' | 'saved' | 'error' }) {
 
     return (
         <Card size="small" className="max-w-4xl" title={<CardTitle icon={ApiOutlined}>Providers</CardTitle>}>
-            <FallbackKeySection hasSharedKey={settings.data?.has_api_key === true} />
-            <Divider />
             {providerNames.length === 0 ? (
                 <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No models yet">
                     <Button type="primary" onClick={() => openAdd('')}>
@@ -519,39 +516,6 @@ function ProvidersTab({ status }: { status: 'idle' | 'saved' | 'error' }) {
                 onOk={() => void submit()}
             />
         </Card>
-    )
-}
-
-// FallbackKeySection is the shared API key providers without a key of their
-// own fall back to; both it and the per-provider keys are stored in thoth.db
-// and are never read from the environment.
-function FallbackKeySection({ hasSharedKey }: { hasSharedKey: boolean }) {
-    return (
-        <>
-            <SectionHeading icon={KeyOutlined}>Fallback API key</SectionHeading>
-            <p className="mb-3 text-sm text-subtle">
-                The shared key used by providers that don't have a key of their own. Providers fall back to it when no
-                per-provider key is configured.
-            </p>
-            <div className="max-w-md">
-                <Form.Item
-                    label={
-                        <Flex align="center" gap={6}>
-                            Fallback API key
-                            {hasSharedKey ? <Tag color="success">Configured</Tag> : <Tag>Not set</Tag>}
-                        </Flex>
-                    }
-                    name="api_key"
-                    extra={
-                        hasSharedKey
-                            ? 'A key is saved — leave blank to keep it.'
-                            : 'Not set — providers without a key of their own will have no key to use.'
-                    }
-                >
-                    <Input.Password placeholder={hasSharedKey ? '•••••••• (saved)' : 'sk-ant-…'} autoComplete="off" />
-                </Form.Item>
-            </div>
-        </>
     )
 }
 

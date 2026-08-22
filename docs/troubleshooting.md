@@ -27,7 +27,7 @@ thoth doctor    # the "provider" and "api key" checks name the problem
 ```
 
 - The **provider** check probes the selected model's provider endpoint with the resolved credential (per-provider key/base URL, else the shared key and the provider's default). 401 = bad/absent API key, 429 = rate limited, timeout = unreachable.
-- The **api key** check tells you whether a usable key is configured. Add or fix it in Settings → Providers (per-provider keys win over the fallback key).
+- The **api key** check tells you whether a usable key is configured. Add or fix it in Settings → Providers.
 - A cancelled or superseded turn saves nothing beyond the user message — that is expected, not a bug.
 
 ## The wiki isn't being indexed
@@ -46,7 +46,7 @@ The index is derived data — it always syncs with the tree at startup and on ch
 ## The chat says the assistant is unavailable or a turn fails
 
 - Run `thoth doctor` and read the **provider** and **api key** checks (see above).
-- A wrong, expired, or missing API key fails turns — set the right key for the provider in Settings → Providers (or the fallback key). The provider check names the failing endpoint.
+- A wrong, expired, or missing API key fails turns — set the right key for the provider in Settings → Providers. The provider check names the failing endpoint.
 - The model setting must point at a model in the registry (Settings → Providers). A value not in the registry shows as *unknown model*.
 
 ## Port 8333 is already in use

@@ -23,9 +23,8 @@ CREATE TABLE IF NOT EXISTS llm_models (
 -- One new settings key accompanies the table, following the 0007 pattern:
 -- the row always exists, so readers never need an absent-key fallback.
 --
--- api_key  set from the web Settings (Providers tab); the shared fallback
---          key used by providers without a key of their own. Read from
---          thoth.db only, never from the environment.
+-- api_key  legacy shared key, no longer used — credentials are per-provider
+--          (provider_<slug>_api_key) and nothing is read from the environment.
 
 INSERT OR IGNORE INTO settings(key, value) VALUES
     ('api_key', '');

@@ -131,51 +131,6 @@ func TestSettingsSetErrorCallbackStillRan(t *testing.T) {
 	}
 }
 
-func TestSettingsAPIKeyRoundTrip(t *testing.T) {
-	d := testDeps(t)
-	e := New(d)
-
-	// Seeded: no key saved yet.
-	if got := getSettingsReq(t, e); got.HasAPIKey {
-		t.Fatalf("seeded has_api_key = true, want false")
-	}
-
-	rec := putSettingsReq(t, e, `{"wiki_path":"/tmp/wiki","model":"","repo_url":"","sync_enabled":false,"api_key":"sk-secret"}`)
-	if rec.Code != http.StatusOK {
-		t.Fatalf("PUT status %d: %s", rec.Code, rec.Body.String())
-	}
-	if v, _, err := d.Settings.Setting(settings.KeyAPIKey); err != nil || v != "sk-secret" {
-		t.Fatalf("stored api_key = %q/%v", v, err)
-	}
-	if got := getSettingsReq(t, e); !got.HasAPIKey {
-		t.Fatalf("has_api_key = false after saving a key")
-	}
-
-	// An empty api_key leaves the stored key untouched (the UI omits it
-	// unless the user typed a new one).
-	rec = putSettingsReq(t, e, `{"wiki_path":"/tmp/wiki","model":"","repo_url":"","sync_enabled":false,"api_key":""}`)
-	if rec.Code != http.StatusOK {
-		t.Fatalf("PUT status %d: %s", rec.Code, rec.Body.String())
-	}
-	if v, _, err := d.Settings.Setting(settings.KeyAPIKey); err != nil || v != "sk-secret" {
-		t.Fatalf("api_key changed on empty PUT: %q/%v", v, err)
-	}
-}
-
-func TestSettingsAPIKeyNeverEchoed(t *testing.T) {
-	d := testDeps(t)
-	e := New(d)
-	if rec := putSettingsReq(t, e, `{"wiki_path":"/tmp/wiki","model":"","repo_url":"","sync_enabled":false,"api_key":"sk-echo-check"}`); rec.Code != http.StatusOK {
-		t.Fatalf("PUT status %d: %s", rec.Code, rec.Body.String())
-	}
-	req := httptest.NewRequest(http.MethodGet, "/api/settings", nil)
-	rec := httptest.NewRecorder()
-	e.ServeHTTP(rec, req)
-	if strings.Contains(rec.Body.String(), "sk-echo-check") {
-		t.Fatalf("GET /api/settings echoed the api key: %s", rec.Body.String())
-	}
-}
-
 func TestSettingsProvidersRoundTrip(t *testing.T) {
 	d := testDeps(t)
 	if _, err := d.Store.CreateModel("deepseek-v4-flash", "V4 Flash", "fastest", "DeepSeek"); err != nil {

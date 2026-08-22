@@ -37,8 +37,6 @@ export const Settings = z.object({
     wiki_path: z.string(),
     wiki_folders: z.array(z.string()),
     model: z.string(),
-    has_api_key: z.boolean(),
-    api_key: z.string().optional(),
     providers: z.record(z.string(), ProviderConfig),
     repo_url: z.string(),
     sync_enabled: z.boolean()

@@ -58,7 +58,6 @@ const settings = {
     wiki_path: '~/.thoth/wiki',
     wiki_folders: [] as string[],
     model: '',
-    has_api_key: false,
     providers: {} as Record<string, { api_key?: string; has_api_key: boolean; base_url: string }>,
     repo_url: '',
     sync_enabled: false

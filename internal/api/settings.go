@@ -10,10 +10,10 @@ import (
 )
 
 // providerDTO is the per-provider credential state in the settings DTO,
-// keyed by the provider's llm_models label (e.g. "DeepSeek"). Like the
-// shared api_key, the api key is write-only: GET reports only whether one is
-// stored, and PUT treats an empty value as "leave unchanged". base_url is
-// never secret and round-trips; empty means the provider's default endpoint.
+// keyed by the provider's llm_models label (e.g. "DeepSeek"). The api key is
+// write-only: GET reports only whether one is stored, and PUT treats an
+// empty value as "leave unchanged". base_url is never secret and
+// round-trips; empty means the provider's default endpoint.
 type providerDTO struct {
 	HasAPIKey bool   `json:"has_api_key"`
 	APIKey    string `json:"api_key"`
@@ -21,15 +21,14 @@ type providerDTO struct {
 }
 
 // settingsDTO is the wire shape of GET/PUT /api/settings. Every field lives
-// in the settings table in thoth.db. The api key is write-only: GET reports
-// only whether one is stored (has_api_key), and PUT treats an empty api_key
-// as "leave unchanged" — the secret is never echoed back to the UI.
+// in the settings table in thoth.db. Per-provider api keys are write-only:
+// GET reports only whether one is stored (has_api_key), and PUT treats an
+// empty api_key as "leave unchanged" — the secret is never echoed back to
+// the UI. There is no shared key: credentials belong to each provider.
 type settingsDTO struct {
 	WikiPath    string                 `json:"wiki_path"`
 	WikiFolders []string               `json:"wiki_folders"`
 	Model       string                 `json:"model"`
-	HasAPIKey   bool                   `json:"has_api_key"`
-	APIKey      string                 `json:"api_key"`
 	Providers   map[string]providerDTO `json:"providers"`
 	RepoURL     string                 `json:"repo_url"`
 	SyncEnabled bool                   `json:"sync_enabled"`
@@ -51,10 +50,6 @@ func getSettings(c echo.Context, d Deps) error {
 	if err != nil {
 		return internalError(c, d, "read model", err)
 	}
-	apiKey, _, err := d.Settings.Setting(settings.KeyAPIKey)
-	if err != nil {
-		return internalError(c, d, "read api_key", err)
-	}
 	providers, err := readProviderConfigs(d)
 	if err != nil {
 		return internalError(c, d, "read provider configs", err)
@@ -68,7 +63,7 @@ func getSettings(c echo.Context, d Deps) error {
 		return internalError(c, d, "read sync_enabled", err)
 	}
 	return c.JSON(http.StatusOK, settingsDTO{
-		WikiPath: wikiPath, WikiFolders: wikiFolders, Model: model, HasAPIKey: apiKey != "",
+		WikiPath: wikiPath, WikiFolders: wikiFolders, Model: model,
 		Providers: providers, RepoURL: repoURL, SyncEnabled: syncEnabled,
 	})
 }
@@ -129,15 +124,10 @@ func putSettings(c echo.Context, d Deps) error {
 	if err := d.Settings.SetSetting(settings.KeyModel, next.Model); err != nil {
 		return internalError(c, d, "set model", err)
 	}
-	if next.APIKey != "" {
-		if err := d.Settings.SetSetting(settings.KeyAPIKey, next.APIKey); err != nil {
-			return internalError(c, d, "set api_key", err)
-		}
-	}
 	for name, pc := range next.Providers {
 		// base_url round-trips (an empty value clears back to the default
-		// endpoint); the per-provider api key is write-only like the shared
-		// one, so an empty value leaves the stored key untouched.
+		// endpoint); the per-provider api key is write-only, so an empty
+		// value leaves the stored key untouched.
 		if err := d.Settings.SetSetting(settings.ProviderBaseURLKey(name), pc.BaseURL); err != nil {
 			return internalError(c, d, "set provider base url", err)
 		}

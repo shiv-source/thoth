@@ -610,9 +610,8 @@ func TestModelProvider(t *testing.T) {
 }
 
 // TestServeProviderConfigResolution covers the boot chain model → provider →
-// config: the model's registry row names the provider, the per-provider
-// settings resolve from it (own key/base URL win; the shared api_key is the
-// fallback).
+// config: the model's registry row names the provider, whose per-provider
+// settings resolve from it (own key/base URL; no shared fallback).
 func TestServeProviderConfigResolution(t *testing.T) {
 	st, stg := openTestRepos(t)
 	if err := ensureModels(st); err != nil {
@@ -638,11 +637,8 @@ func TestServeProviderConfigResolution(t *testing.T) {
 		t.Fatalf("configured: provider=%q key=%q base=%q", provider, apiKey, baseURL)
 	}
 
-	// A provider without per-provider config falls back to the shared key
-	// and the default endpoint (empty base URL).
-	if err := stg.SetSetting(settings.KeyAPIKey, "shared-key"); err != nil {
-		t.Fatal(err)
-	}
+	// A provider without per-provider config resolves to an empty key and
+	// the default endpoint (empty base URL).
 	provider, err = modelProvider(st, "claude-opus-4-8")
 	if err != nil {
 		t.Fatal(err)
@@ -651,8 +647,8 @@ func TestServeProviderConfigResolution(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if provider != "Anthropic" || apiKey != "shared-key" || baseURL != "" {
-		t.Fatalf("fallback: provider=%q key=%q base=%q", provider, apiKey, baseURL)
+	if provider != "Anthropic" || apiKey != "" || baseURL != "" {
+		t.Fatalf("unconfigured: provider=%q key=%q base=%q", provider, apiKey, baseURL)
 	}
 }
 

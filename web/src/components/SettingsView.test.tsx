@@ -63,7 +63,6 @@ const settings = {
     wiki_path: '~/.thoth/wiki',
     wiki_folders: [] as string[],
     model: '',
-    has_api_key: false,
     providers: {} as Record<string, { api_key?: string; has_api_key: boolean; base_url: string }>,
     repo_url: '',
     sync_enabled: false
@@ -220,41 +219,6 @@ describe('SettingsView', () => {
         await userEvent.click(screen.getByRole('button', { name: /Save/ }))
         await waitFor(() => expect(screen.getByText(/Saved ✓/)).toBeInTheDocument())
         expect(lastBody('put', '/api/settings')).toMatchObject({ model: 'deepseek-v4-flash' })
-    })
-
-    it('shows the fallback key state and saves a typed key', async () => {
-        stubAPI({
-            'GET /api/settings': () => ({ ...settings, has_api_key: true }),
-            'GET /api/github/auth': getEmptyGitHub,
-            'GET /api/models': () => ({ groups: [] }),
-            'PUT /api/settings': () => ({ ...settings })
-        })
-
-        renderSettings()
-        await userEvent.click(await screen.findByRole('tab', { name: 'Providers' }))
-        // A key is already stored: the status tag says Configured and the
-        // hint says leave blank to keep it.
-        expect(await screen.findByText('Configured')).toBeInTheDocument()
-        expect(await screen.findByText(/leave blank to keep/i)).toBeInTheDocument()
-        await userEvent.type(await screen.findByLabelText(/Fallback API key/), 'sk-new-key')
-        await userEvent.click(screen.getByRole('button', { name: /Save/ }))
-        expect(await screen.findByText('Settings saved')).toBeInTheDocument()
-        expect(JSON.stringify(lastBody('put', '/api/settings'))).toContain('sk-new-key')
-    })
-
-    it('shows the unset hint when no API key is stored', async () => {
-        stubAPI({
-            'GET /api/settings': getSettings,
-            'GET /api/github/auth': getEmptyGitHub,
-            'GET /api/models': () => ({ groups: [] })
-        })
-
-        renderSettings()
-        await userEvent.click(await screen.findByRole('tab', { name: 'Providers' }))
-        expect(await screen.findByText('Not set')).toBeInTheDocument()
-        expect(
-            await screen.findByText(/providers without a key of their own will have no key to use/i)
-        ).toBeInTheDocument()
     })
 
     it('renders and saves per-provider credentials', async () => {
