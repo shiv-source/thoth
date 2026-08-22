@@ -1,4 +1,4 @@
-import type { TokenUsage } from '../../ws/chat'
+import type { TokenUsage } from '../../ws/protocol'
 
 // UsageLine renders a completed turn's token breakdown as a muted footer line
 // under the final assistant message. It renders nothing when usage is absent

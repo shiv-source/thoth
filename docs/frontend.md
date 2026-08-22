@@ -9,6 +9,7 @@ web/src/
 ├── app/App.tsx          # app shell: layout, lazy page routing, health gate
 ├── api/client.ts        # typed REST client, zod-validated responses
 ├── ws/chat.ts           # ChatSocket: protocol frames, reconnect/resume
+├── ws/protocol.ts       # zod schemas + inferred ServerMessage/TokenUsage types
 ├── ws/events.ts         # ServerEvent/ClientEvent — the wire frame names
 ├── hooks/               # useChat, useSearch, useConversationRoute, useView,
 │                        #   useViewShortcuts

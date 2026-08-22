@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ChatSocket } from './chat'
-import type { ServerMessage } from './chat'
+import type { ServerMessage } from './protocol'
 import { ServerEvent } from './events'
 import { FakeWS } from '../test/fakeWS'
 

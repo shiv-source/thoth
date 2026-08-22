@@ -1,6 +1,6 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit'
 import type { RootState } from '../index'
-import type { TokenUsage } from '../../ws/chat'
+import type { TokenUsage } from '../../ws/protocol'
 
 export interface ChatMessage {
     role: 'user' | 'assistant'

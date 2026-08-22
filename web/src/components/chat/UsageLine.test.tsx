@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import type { TokenUsage } from '../../ws/chat'
+import type { TokenUsage } from '../../ws/protocol'
 import { UsageLine } from './UsageLine'
 
 describe('UsageLine', () => {

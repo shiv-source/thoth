@@ -21,7 +21,8 @@ import {
 } from '../store'
 import { useAppDispatch, useAppSelector } from '../store/hooks'
 import type { ChatMessage } from '../store/slices/chatSlice'
-import { ChatSocket, type ServerMessage, type TokenUsage } from '../ws/chat'
+import { ChatSocket } from '../ws/chat'
+import type { ServerMessage, TokenUsage } from '../ws/protocol'
 import { ServerEvent } from '../ws/events'
 
 export type { ChatMessage }
