@@ -18,7 +18,7 @@ description: >-
 ## Key files
 - CONTRIBUTING.md — the workflow page: § Workflow, § Before you push
 - .github/pull_request_template.md — the PR body shape (Summary / Related issue / Files changed / How verified / Notes)
-- .github/workflows/ — ci-pr.yml (PR gates on PRs targeting `main`; quality.yml is path-aware — its internal `changes` job diffs the PR and skips the quality gates for areas the PR didn't touch — docs-only PRs skip them all) · quality.yml (the quality gates, incl. the graph freshness check, each gated on its own `changes` job's area outputs) · final-gate.yml (single required check + PR report comment; skipped gates count as passing) · ci.yml (push to main adds 5 cross-compiles + frontend build) · pr-assignee.yml (auto-assigns PR committers; runs on every PR, never gated) · issue-labels.yml (applies the form-selected labels to new/edited issues)
+- .github/workflows/ — ci-pr.yml (PR gates on PRs targeting `main`; quality.yml is path-aware — its internal `changes` job diffs the PR and skips the quality gates for areas the PR didn't touch — docs-only PRs skip them all) · quality.yml (the quality gates, each gated on its own `changes` job's area outputs) · final-gate.yml (single required check + PR report comment; skipped gates count as passing) · ci.yml (push to main adds 5 cross-compiles + frontend build) · pr-assignee.yml (auto-assigns PR committers; runs on every PR, never gated) · issue-labels.yml (applies the form-selected labels to new/edited issues)
 - .github/actions/issue-labels/ — reusable composite action: applies the three-tier labels (type, priority, areas) from issue-form answers; JS, add-only
 - .husky/pre-commit — the commit gate: lint-staged autofixes, plus Go vet/lint/test when Go is staged
 - docs/development.md — § Gates (what make check enforces), § CI (workflow mechanics)
@@ -50,11 +50,10 @@ description: >-
 2. The pre-commit hook runs automatically: lint-staged applies eslint --fix + prettier to staged web/src files and golangci-lint --fix to staged Go files; a Go-staged commit additionally gates on `go vet ./...`, `golangci-lint run`, `go test ./...` (CONTRIBUTING.md § Before you push)
 3. Autofixes rewrite your staged files — re-run the relevant tests after a hook-triggered edit
 4. No commit-msg hook validates the message — the convention is enforced by review, so get it right on the commit
-5. Run `graphify update .` before committing when you changed code — the committed graph must match the committed tree (CLAUDE.md § graphify)
-6. Stage only what the change needs: no secrets, no generated dirs (bin/, web/dist/, internal/webui/dist/, node_modules/, *.db)
+5. Stage only what the change needs: no secrets, no generated dirs (bin/, web/dist/, internal/webui/dist/, node_modules/, *.db)
 
 ### 3. Open a PR
-1. **Preferred — deliver with `./scripts/pr.sh`** from the feature branch: it is the single guarded command for the whole flow — syncs main, validates the branch name, derives labels from the branch (validated against references/labels.md), runs the graph staleness guard (`./scripts/graph-check.sh`), runs `make check` (`--no-check` skips), pushes, and creates the PR with the template. `--title` overrides the derived title; repeat `--area <label>` to add areas. Run it on every PR delivery so the guarded flow runs end-to-end. In the bare-clone layout `./scripts/pr.sh` detects the container and syncs via `git fetch origin` instead of `git switch main` (workflow 1 step 2).
+1. **Preferred — deliver with `./scripts/pr.sh`** from the feature branch: it is the single guarded command for the whole flow — syncs main, validates the branch name, derives labels from the branch (validated against references/labels.md), runs `make check` (`--no-check` skips), pushes, and creates the PR with the template. `--title` overrides the derived title; repeat `--area <label>` to add areas. Run it on every PR delivery so the guarded flow runs end-to-end. In the bare-clone layout `./scripts/pr.sh` detects the container and syncs via `git fetch origin` instead of `git switch main` (workflow 1 step 2).
 2. Manual fallback — push the branch, then create the PR with the `gh` CLI (not the web UI):
    `gh pr create --title "<type>(<scope>): <summary>" --label <type> --label <area>… --template .github/pull_request_template.md`
    — one type label plus every area label the change touches (workflow 4); the web UI auto-fills the PR template, the CLI does not — pass it explicitly with `--template` (verify flags against `gh pr create --help`)
@@ -64,7 +63,7 @@ description: >-
    - ## Files changed — key files/packages and the role of each
    - ## How verified — check the boxes you ran: gofmt/vet clean, go test -race ./..., coverage >= 90% (make cover), golangci-lint run, frontend tsc --noEmit / lint / vitest run, docs updated
    - ## Notes — optional; design decisions, follow-ups
-4. Run `make check` before opening — it is everything CI enforces, locally — and confirm `graphify update .` has been run if code changed (workflow 2 step 5) (CONTRIBUTING.md § Before you push)
+4. Run `make check` before opening — it is everything CI enforces, locally (CONTRIBUTING.md § Before you push)
 5. ci-pr quality gates run automatically; final-gate posts its report as a PR comment and must pass before the human merges — don't hand off a red PR
 
 ### 4. Label issues and PRs
@@ -104,11 +103,11 @@ description: >-
 ## Maintenance
 Derived view — update this skill in the same commit as any of: CONTRIBUTING.md,
 CLAUDE.md § Repo rules, .github/pull_request_template.md, .github/workflows/*,
-or .husky/pre-commit behavior changes; then run `graphify update .`. Stale if:
+or .husky/pre-commit behavior changes. Stale if:
 the branch or PR commands in CONTRIBUTING.md differ from these steps, the label
 set changes, a workflow file changes gate names, order, or the report marker,
 `gh pr create --help` no longer shows the `--template` flag, scripts/pr.sh,
-scripts/graph-check.sh, scripts/git-worktree.sh, or scripts/lib-worktree.sh
+scripts/git-worktree.sh, or scripts/lib-worktree.sh
 change the steps they automate, or the label tables in references/labels.md
 change shape
 (scripts/pr.sh parses `| label |` rows under `## Types` / `## Areas`).

@@ -44,12 +44,6 @@ else
   gh api user >/dev/null 2>&1 || echo "warning: gh API access failing — run gh auth login" >&2
 fi
 
-if ! command -v graphify >/dev/null 2>&1; then
-  echo "warning: graphify not found — powers graphify-out/ queries and the hook guards" >&2
-else
-  echo "graphify: installed ($(command -v graphify))"
-fi
-
 if ! command -v air >/dev/null 2>&1; then
   echo "warning: air not found — make dev hot-reloads Go with it (go install github.com/air-verse/air@latest)" >&2
 else

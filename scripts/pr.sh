@@ -3,7 +3,7 @@
 # Run from anywhere: ./scripts/pr.sh [--no-check] [--title <title>] [--area <label>]…
 #
 # Automates git-workflow skill workflows 1/3/4 from an existing branch:
-# preflight → sync with main → branch-name check → graph staleness guard →
+# preflight → sync with main → branch-name check →
 # label derivation (parsed from references/labels.md) → make check → push →
 # gh pr create with the template. The steps in the skill remain
 # authoritative when run by hand. In the bare-clone layout
@@ -60,10 +60,8 @@ label_known() {
   printf '%s\n' $2 | grep -qxF "$1"
 }
 
-# Warn on untracked files (docs/specs/ is untracked by convention) and on
-# hook bookkeeping in graphify-out/manifest.json (seen timestamps — the
-# graphify hook bumps them on every read); die on anything else, including
-# make check's autofixes when called post-check.
+# Warn on untracked files (docs/specs/ is untracked by convention); die on
+# anything else, including make check's autofixes when called post-check.
 check_worktree() {
   local mode="$1" status untracked
 
@@ -76,19 +74,10 @@ check_worktree() {
   local dirty
   dirty="$(printf '%s\n' "$status" | grep -E '^.[MD]' | cut -c4- || true)"
   if [ -n "$dirty" ]; then
-    local graph_out rest
-    graph_out="$(printf '%s\n' "$dirty" | grep -E '^graphify-out/' || true)"
-    rest="$(printf '%s\n' "$dirty" | grep -vE '^graphify-out/' || true)"
-    if [ -n "$graph_out" ]; then
-      echo "pr: warning — modified graphify-out/ files (hook bookkeeping, not content):" >&2
-      printf '%s\n' "$graph_out" | sed 's/^/  /' >&2
+    if [ "$mode" = post-check ]; then
+      die "make check autofixed files — commit them, then re-run pr.sh: $dirty"
     fi
-    if [ -n "$rest" ]; then
-      if [ "$mode" = post-check ]; then
-        die "make check autofixed files — commit them, then re-run pr.sh: $rest"
-      fi
-      die "unstaged changes present — commit or stash them first: $rest"
-    fi
+    die "unstaged changes present — commit or stash them first: $dirty"
   fi
 
   untracked="$(printf '%s\n' "$status" | grep '^??' | cut -c4- || true)"
@@ -126,7 +115,7 @@ sync_main() {
     return
   fi
   if ! git switch main; then
-    die "switching to main failed — likely graphify-out/ changes that differ between branches: commit the refreshed graph on your branch (workflow 2 step 5) or discard hook noise with 'git checkout -- graphify-out/'"
+    die "switching to main failed — resolve or stash the differing files first"
   fi
   git pull --ff-only || die "main is not fast-forwardable — resolve manually"
   git switch - || die "could not switch back to the branch"
@@ -207,10 +196,6 @@ derive_labels() {
   echo "pr: labels: $LABELS"
 }
 
-run_graph_check() {
-  scripts/graph-check.sh
-}
-
 run_checks() {
   if [ "$NO_CHECK" = 1 ]; then
     echo "pr: skipping make check (--no-check)"
@@ -221,8 +206,7 @@ run_checks() {
 
 # Newest-first commit subjects on the branch relative to main; picks the
 # first whose type matches the branch (type+scope match wins over
-# type-only) — the oldest commit is often the graph refresh, so first-commit
-# derivation would produce the wrong title. Falls back to the branch slug.
+# type-only). Falls back to the branch slug.
 derive_title() {
   if [ -n "$TITLE_OVERRIDE" ]; then
     TITLE="$TITLE_OVERRIDE"
@@ -306,10 +290,9 @@ main() {
   echo "== 1/6 Preflight ==";   preflight
   echo "== 2/6 Sync ==";        sync_main
   echo "== 3/6 Branch ==";      parse_branch; derive_labels
-  echo "== 4/6 Graph check =="; run_graph_check
-  echo "== 5/6 make check ==";  run_checks
+  echo "== 4/6 make check ==";  run_checks
   derive_title
-  echo "== 6/6 Push + PR ==";   push_and_open
+  echo "== 5/6 Push + PR ==";   push_and_open
 }
 
 load_label_sets

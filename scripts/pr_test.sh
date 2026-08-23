@@ -65,7 +65,7 @@ chmod +x "$WORK/bin/git" "$WORK/bin/gh"
 mkdir -p "$WORK/src"
 git -C "$WORK/src" init -q
 mkdir -p "$WORK/src/scripts" "$WORK/src/.claude/skills/git-workflow/references" "$WORK/src/.github"
-cp "$ROOT/scripts/git-worktree.sh" "$ROOT/scripts/lib-worktree.sh" "$ROOT/scripts/pr.sh" "$ROOT/scripts/graph-check.sh" "$WORK/src/scripts/"
+cp "$ROOT/scripts/git-worktree.sh" "$ROOT/scripts/lib-worktree.sh" "$ROOT/scripts/pr.sh" "$WORK/src/scripts/"
 cp "$ROOT/.claude/skills/git-workflow/references/labels.md" "$WORK/src/.claude/skills/git-workflow/references/labels.md"
 cp "$ROOT/.github/pull_request_template.md" "$WORK/src/.github/pull_request_template.md"
 git -C "$WORK/src" add -A

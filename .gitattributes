@@ -1,3 +1,0 @@
-# The knowledge graph is generated output — GitHub collapses these files in
-# PR diffs and excludes them from diff/language stats.
-graphify-out/** linguist-generated=true
