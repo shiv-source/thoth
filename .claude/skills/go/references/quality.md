@@ -7,12 +7,12 @@ CI (.github/ workflows) runs: vet → race → `make cover` (the 90% gate) → l
 
 ## Coverage
 - Floor: 90% on agent/ + internal/ + cmd/ — CI-enforced (`make cover`)
-- Table-driven tests; assert real outcomes, not mocks of yourself (CLAUDE.md)
+- Table-driven tests; assert real outcomes, not mocks of yourself (code-rules skill)
 - internal/claude tests use FakeClient — no test ever touches the real CLI
 
 ## Concurrency
 - CI runs `go test -race` and it must stay green
-- Shared state behind mutex/atomic; every goroutine ends via ctx/done-channel (CLAUDE.md memory rules)
+- Shared state behind mutex/atomic; every goroutine ends via ctx/done-channel (code-rules skill memory rules)
 
 ## Lint
 - golangci-lint v2 (.golangci.yml)
@@ -28,7 +28,7 @@ CI (.github/ workflows) runs: vet → race → `make cover` (the 90% gate) → l
 
 ## Commit hygiene
 - Conventional commits on a branch; PRs land via human squash-merge; ci-pr gates every PR to main
-- Never commit to main directly (CLAUDE.md repo rules)
+- Never commit to main directly (code-rules skill repo rules)
 
 ## Style rules (source: CLAUDE.md — the single home)
 - %w error wrapping; structured slog with lowercase keys; no panics in library code

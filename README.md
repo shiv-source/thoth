@@ -70,7 +70,7 @@ make check    # everything CI enforces: fmt, lint, race, coverage (≥90%), buil
 - Backend: Go 1.26 · Echo · Cobra · SQLite (FTS5) · fsnotify — `internal/`
 - Frontend: React 19 · TypeScript (strict) · Vite · Tailwind CSS v4 — `web/`
 - Docs: Docusaurus 3 — `docs-site/` (renders `docs/`)
-- Repo rules, conventions, and invariants: [`CLAUDE.md`](CLAUDE.md)
+- Repo rules, conventions, and invariants: `code-rules` skill (`.claude/skills/code-rules/SKILL.md`) · repo map: [`CLAUDE.md`](CLAUDE.md) / [`AGENTS.md`](AGENTS.md) (identical copies)
 
 ## Security
 

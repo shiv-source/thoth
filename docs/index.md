@@ -60,7 +60,7 @@ Follow the full walkthrough in [Getting started](getting-started.md), or jump in
 | `~/.thoth/thoth.db` | SQLite: search index + conversation history (derived data) |
 | `thoth.db` `settings` table | Settings: `wiki_path`, `github_sync_*` keys |
 | `CLAUDE.md` (wiki root) | Rules the assistant follows when reading/writing your notes |
-| `CLAUDE.md` (repo root) | Rules for working on this codebase |
+| `code-rules` skill (`.claude/skills/code-rules/`) | Rules for working on this codebase · `CLAUDE.md` / `AGENTS.md` (repo root) are identical copies of the repo map |
 | `.claude/skills/` | Procedure skills: go (backend), react (frontend), git-workflow, code-quality |
 | `docs-site/` | The Docusaurus site that renders these docs |
 

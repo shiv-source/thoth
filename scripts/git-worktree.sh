@@ -85,6 +85,9 @@ cmd_new() {
   git -C "$root" worktree add -b "$branch" "$dir" "$base"
   echo "git-worktree: created $root/$dir (branch $branch, base $base)"
   copy_config "$root" "$root/$dir"
+  if command -v codegraph >/dev/null 2>&1 && [ -f "$root/main/.codegraph/codegraph.db" ]; then
+    echo "git-worktree: run 'codegraph init' inside $root/$dir to index it (CodeGraph MCP is inactive without a .codegraph/ dir)"
+  fi
 }
 
 cmd_rm() {

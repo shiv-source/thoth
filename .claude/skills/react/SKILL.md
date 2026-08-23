@@ -59,22 +59,22 @@ tokens with `@theme inline`, never `:root`), and antd 6.6 deprecates
 6. Update docs/frontend.md's component table AND references/components.md in the same commit
 
 ### 1a. File structure & naming rules
-- **One component per file** — exactly one component per `.tsx` file. A second component — however small, even a page-local footer, avatar, or toast — gets its own file, never a second component in the same file. Pure helpers/types that a component alone uses may share its file (e.g. `groupByDay`, `sectionFromSegment`); helpers used by several files live in a module. Never pile several unrelated components or long helper chains into one file; split before a file outgrows its intent (CLAUDE.md modular rule). A page like Settings is a dispatcher + one file per sub-page + shared components, never a 1000-line monolith.
+- **One component per file** — exactly one component per `.tsx` file. A second component — however small, even a page-local footer, avatar, or toast — gets its own file, never a second component in the same file. Pure helpers/types that a component alone uses may share its file (e.g. `groupByDay`, `sectionFromSegment`); helpers used by several files live in a module. Never pile several unrelated components or long helper chains into one file; split before a file outgrows its intent (code-rules skill modular rule). A page like Settings is a dispatcher + one file per sub-page + shared components, never a 1000-line monolith.
 - **`.tsx` only** — every source file under `web/src` is `.tsx`, JSX or not: components, pages, hooks, helpers, slices, client, theme, and test doubles. There are no `.ts` files in `web/src` (a pure-logic file like `chartDays` is `chartDays.tsx`).
 - **PascalCase files for components** (`ChatPage.tsx`), camelCase for logic files (`useSettingsForm.tsx`, `settingsBody.tsx`). Match the name of what the file exports.
 - **Named exports** — `export function <Name>()`, never `export default` (consistent imports, refactor-safe).
 - **Types with props** — every component declares its props inline in the signature or as a local `type Props`, explicitly typed, no `any` (TS strict + eslint). Derive shared wire types from zod schemas (`z.infer`), never hand-duplicate.
-- **Hooks** — `useX` named export in web/src/hooks/ (or co-located with its page), each `useEffect` subscription/timer with a cleanup (CLAUDE.md memory rule). Pure helpers used by several files live in a module, not inside a component.
+- **Hooks** — `useX` named export in web/src/hooks/ (or co-located with its page), each `useEffect` subscription/timer with a cleanup (code-rules skill memory rule). Pure helpers used by several files live in a module, not inside a component.
 - **Component roles** — `pages/` = route-level views, `components/` = feature components grouped by owner, `shared/` = cross-cutting primitives, `hooks/` = reusable hooks, `store/slices/` = one slice per feature. Add a component where it belongs; don't grow a page into a grab-bag.
 
 ### 1b. React code-quality rules
-- **Small functions/components** — target ≤ 40 lines; at ~60 split into named helpers (what, not how). Few props (≤ 3 ideal); 4+ → group into a typed object (CLAUDE.md).
+- **Small functions/components** — target ≤ 40 lines; at ~60 split into named helpers (what, not how). Few props (≤ 3 ideal); 4+ → group into a typed object (code-rules skill).
 - **No speculative abstraction** — KISS/YAGNI: build what's asked, prefer antd + existing patterns over a new abstraction or dependency.
 - **DRY via imports, not copy-paste** — shared logic (form save, status banners, credential fields) becomes a shared hook/component; never paste the same block into several pages (a pasted block is a divergence bug).
 - **State discipline** — component-local state stays local (`useState`/`useMemo`); only shared/screen-spanning state goes to a Redux slice; antd Form values stay in rc-field-form (seed via `setFieldsValue`); toasts via `App.useApp().message`; routing rides the URL (patterns.md §State placement).
 - **Keys & idempotence** — stable `key`s on lists (row ids, not indexes); `useMemo`/`useEffect` deps complete and minimal; no `setInterval` without `clearInterval`; every effect has a cleanup.
 - **Accessibility** — decorative icons get `aria-hidden="true"`; interactive elements carry labels (input `label`, button text); semantic roles where antd doesn't provide them.
-- **One convention, one place** — a shared rule (e.g. the settings save payload merge) lives in exactly one helper and everything imports it (CLAUDE.md DRY invariant).
+- **One convention, one place** — a shared rule (e.g. the settings save payload merge) lives in exactly one helper and everything imports it (code-rules skill DRY invariant).
 
 ### 2. Add a Redux slice
 1. Create web/src/store/slices/<name>Slice.tsx — actions, selectors, thunks co-located
@@ -85,11 +85,11 @@ tokens with `@theme inline`, never `:root`), and antd 6.6 deprecates
 
 ### 3. Add a hook
 1. New file web/src/hooks/useX.tsx, exported as a named function
-2. Every useEffect subscription/timer/socket gets a cleanup that runs on unmount (CLAUDE.md memory rule)
+2. Every useEffect subscription/timer/socket gets a cleanup that runs on unmount (code-rules skill memory rule)
 3. Co-locate the test; update references/hooks.md + docs/frontend.md in the same commit
 
 ### 4. Wire an API call
-1. Add or extend the endpoint in web/src/api/client.tsx with a zod schema — validation at the boundary, zero any (CLAUDE.md invariant)
+1. Add or extend the endpoint in web/src/api/client.tsx with a zod schema — validation at the boundary, zero any (code-rules skill invariant)
 2. Server side must match: use the `go` skill for internal/api; DTOs on both sides
 3. Test with mockAxios — assert the parsed payload, not the transport
 4. Update docs/api.md in the same commit
@@ -98,7 +98,7 @@ tokens with `@theme inline`, never `:root`), and antd 6.6 deprecates
 1. Use the doubles in web/src/test/ (mockAxios, fakeWS, renderWithStore, setup) — never hand-rolled mocks of the app itself
 2. Assert real outcomes: what renders, what's dispatched, what the user sees
 3. Run: pnpm test (Vitest) — pnpm only, never npm
-4. Every behavior change ships with a test (CLAUDE.md)
+4. Every behavior change ships with a test (code-rules skill)
 
 ### 6. Touch the WS client
 1. CHANGE BOTH SIDES: web/src/ws/chat.tsx (client types) AND internal/api/chat.go (server frames) — they must match
@@ -110,7 +110,7 @@ tokens with `@theme inline`, never `:root`), and antd 6.6 deprecates
 1. `pnpm add <pkg>@latest` from the repo root (workspace proxies) — pnpm only, never npm; never hand-edit versions in web/package.json
 2. The root pnpm-lock.yaml is committed — CI verifies the bump
 3. Run `pnpm typecheck && pnpm lint && pnpm test`, then `make web` to re-sync the embed
-4. If a framework version changed, update the version in CLAUDE.md's Toolchain section
+4. If a framework version changed, web/package.json is authoritative — the version lives there, not in CLAUDE.md
 
 ## Gotchas
 - pnpm only — never npm; the workspace lockfile (root pnpm-lock.yaml) is committed
