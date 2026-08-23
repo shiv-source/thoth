@@ -35,7 +35,7 @@ description: >-
 2. Never commit to main (code-rules skill § Repo rules) — main is always deployable; changes live on `<type>/<scope>/<slug>` branches and land via reviewed PRs. Create the branch per your clone layout:
    - **Bare-clone layout** (this repo's container: a dir holding a hidden `.bare` clone + a `.git` gitfile, one working directory per branch) — `git switch main` is impossible (main is checked out in its sibling worktree), so use `./scripts/git-worktree.sh`:
      - `git fetch origin` first — `./scripts/git-worktree.sh new` bases on `origin/main` and does not fetch for you
-     - `./scripts/git-worktree.sh new <type>/<scope>/<slug>` creates the branch and its flat-hyphen worktree dir (`feat-api-x` for `feat/api/x`), basing on `origin/main` (override with `--base <ref>`), and copies `opencode.json` in
+     - `./scripts/git-worktree.sh new <type>/<scope>/<slug>` creates the branch and its flat-hyphen worktree dir (`feat-api-x` for `feat/api/x`), basing on `origin/main` (override with `--base <ref>`), copies `opencode.json` in, and runs `codegraph init` in the new worktree (best-effort — no-op when codegraph is missing, so branching is never blocked)
      - `./scripts/git-worktree.sh rm <dir-or-branch> [--force]` removes the worktree and deletes its branch
      - `./scripts/git-worktree.sh list` shows all worktrees
      Each worktree is its own checkout, so parallel branches (or agent runs) never collide; `git fetch` in any worktree updates the shared refs for all of them (working trees only change on pull/checkout inside each).

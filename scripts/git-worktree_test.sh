@@ -7,7 +7,8 @@ set -euo pipefail
 
 SCRIPT="$(cd "$(dirname "$0")" && pwd)/git-worktree.sh"
 WORK="$(mktemp -d)"
-trap 'rm -rf "$WORK"' EXIT
+FAKEBIN="$(mktemp -d)"
+trap 'rm -rf "$WORK" "$FAKEBIN"' EXIT
 
 pass=0
 fail=0
@@ -49,6 +50,13 @@ git remote set-head origin -a >/dev/null 2>&1 || true
 git -C "$WORK/wt" worktree add -q main >/dev/null 2>&1
 echo '{"mcp":{"x":{"type":"local","command":["true"]}}}' > "$WORK/wt/main/opencode.json"
 
+# A no-op codegraph on PATH keeps every `new` below hermetic and fast: each
+# call exercises codegraph_index without a real index build. The two codegraph
+# behaviors (absent / init) are covered explicitly further down.
+printf '%s\n' '#!/usr/bin/env bash' 'exit 0' > "$FAKEBIN/codegraph"
+chmod +x "$FAKEBIN/codegraph"
+export PATH="$FAKEBIN:$PATH"
+
 check "list runs on a fresh container" "$SCRIPT" list
 check "new creates a flat-hyphen worktree" "$SCRIPT" new feat/test/demo
 [ -d "$WORK/wt/feat-test-demo" ] && pass=$((pass + 1)) && echo "ok   - worktree dir feat-test-demo exists" || { fail=$((fail + 1)); echo "FAIL - worktree dir feat-test-demo exists"; }
@@ -56,6 +64,18 @@ check "new copies opencode.json from the main worktree" bash -c "test -f '$WORK/
 check "new works from inside a worktree" bash -c "cd '$WORK/wt/feat-test-demo' && '$SCRIPT' new docs/test/guide"
 check_fails "new rejects a non-conventional branch" "$SCRIPT" new BAD/x/y
 check_fails "new rejects a bad slug" "$SCRIPT" new feat/test/Weird_Name
+
+# codegraph_index: without codegraph on PATH, `new` still succeeds and leaves
+# no .codegraph/; with a codegraph on PATH, `new` runs `codegraph init` in the
+# new worktree (a fake binary stands in for the real CLI).
+check "new without codegraph on PATH still succeeds" bash -c "PATH='/usr/bin:/bin' '$SCRIPT' new test/nocg/x"
+check "new without codegraph leaves no .codegraph" bash -c "test ! -e '$WORK/wt/test-nocg-x/.codegraph'"
+"$SCRIPT" rm test/nocg/x >/dev/null 2>&1
+printf '%s\n' '#!/usr/bin/env bash' 'if [ "$1" = init ]; then mkdir -p "$2/.codegraph"; fi' > "$FAKEBIN/codegraph"
+check "new runs codegraph init in the worktree when codegraph is on PATH" bash -c "'$SCRIPT' new feat/test/cg"
+check "new with codegraph leaves .codegraph in the worktree" bash -c "test -d '$WORK/wt/feat-test-cg/.codegraph'"
+"$SCRIPT" rm feat-test-cg >/dev/null 2>&1
+printf '%s\n' '#!/usr/bin/env bash' 'exit 0' > "$FAKEBIN/codegraph"
 check "rm by dir name" "$SCRIPT" rm feat-test-demo
 check "rm by branch name" "$SCRIPT" rm docs/test/guide
 "$SCRIPT" new fix/test/bug >/dev/null 2>&1

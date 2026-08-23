@@ -69,6 +69,24 @@ copy_config() {
   echo "git-worktree: copied opencode.json into $dir"
 }
 
+# codegraph_index runs `codegraph init` in the fresh worktree so the CodeGraph
+# MCP is active there — indexing is per-worktree (the container root and main
+# worktree are not indexed by default). Best-effort: a missing or failing
+# codegraph must never block creating the worktree.
+codegraph_index() {
+  local dir="$1"
+  if ! command -v codegraph >/dev/null 2>&1; then
+    echo "git-worktree: codegraph not on PATH — new worktree not indexed (run 'codegraph init' in $dir later)"
+    return 0
+  fi
+  echo "git-worktree: indexing $dir with codegraph init — this builds $dir/.codegraph/"
+  if codegraph init "$dir"; then
+    echo "git-worktree: indexed $dir — CodeGraph is active in this worktree"
+  else
+    echo "git-worktree: 'codegraph init' failed for $dir — worktree created but not indexed" >&2
+  fi
+}
+
 cmd_new() {
   local branch="$1" base="origin/main"
   while [ $# -gt 1 ]; do
@@ -85,9 +103,7 @@ cmd_new() {
   git -C "$root" worktree add -b "$branch" "$dir" "$base"
   echo "git-worktree: created $root/$dir (branch $branch, base $base)"
   copy_config "$root" "$root/$dir"
-  if command -v codegraph >/dev/null 2>&1 && [ -f "$root/main/.codegraph/codegraph.db" ]; then
-    echo "git-worktree: run 'codegraph init' inside $root/$dir to index it (CodeGraph MCP is inactive without a .codegraph/ dir)"
-  fi
+  codegraph_index "$root/$dir"
 }
 
 cmd_rm() {
