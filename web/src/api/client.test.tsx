@@ -177,3 +177,31 @@ describe('api.getConversation and health', () => {
         await expect(api.health()).rejects.toThrow()
     })
 })
+
+describe('api.saveNote', () => {
+    beforeEach(() => {
+        vi.clearAllMocks()
+    })
+
+    it('promotes content into a note and parses the path', async () => {
+        mocks.post.mockResolvedValue({
+            data: { path: 'knowledge/the-answer.md', title: 'The Answer', type: 'knowledge' }
+        })
+        const res = await api.saveNote({ content: '# The Answer', folder: 'knowledge' })
+        expect(res.path).toBe('knowledge/the-answer.md')
+        expect(res.title).toBe('The Answer')
+        expect(mocks.post).toHaveBeenCalledWith('/api/v1/notes', { content: '# The Answer', folder: 'knowledge' })
+    })
+
+    it('omits the folder when not chosen', async () => {
+        mocks.post.mockResolvedValue({ data: { path: 'inbox/solo.md', title: 'Solo', type: 'inbox' } })
+        const res = await api.saveNote({ content: '# Solo' })
+        expect(res.path).toBe('inbox/solo.md')
+        expect(mocks.post).toHaveBeenCalledWith('/api/v1/notes', { content: '# Solo' })
+    })
+
+    it('rejects a malformed response', async () => {
+        mocks.post.mockResolvedValue({ data: { path: 42 } })
+        await expect(api.saveNote({ content: '# X' })).rejects.toThrow()
+    })
+})

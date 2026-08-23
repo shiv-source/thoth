@@ -19,6 +19,7 @@ The dashboard is organized into five views, reachable from the sidebar:
 The chat view is the heart of Thoth. Every conversation runs against the built-in **Thoth Agent**, which reads your wiki and writes into it under the rulebook's rules.
 
 - **Ask** — type a question and get an answer grounded in your notes. The assistant searches the index and cites what it reads.
+- **Save as note** — any finished assistant answer can be promoted into a permanent wiki note with the **Save as note** button on the message: pick the target folder (it defaults to the first configured one) and the note is filed with correct frontmatter and a kebab-case filename. The saved path is toasted and the wiki tree refreshes within about 200 ms. This is the same save path the assistant's own saves use — the note is immediately searchable.
 - **Save** — say *"save this: …"* and the assistant files the note into the right folder (see [Knowledge base](knowledge-base.md)) with correct frontmatter. Watch the wiki tree refresh within about 200 ms as the note is indexed.
 - **Stop** — cancel an in-flight turn with the Stop button. The turn's request is aborted and nothing from that turn is saved.
 - **New chat** — start a fresh conversation with the New chat button. Conversations are listed and day-grouped in the sidebar; delete them there too.

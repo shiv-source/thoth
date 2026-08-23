@@ -25,6 +25,7 @@ The REST surface is documented as an OpenAPI 3.x specification — the single so
 |---|---|
 | Logging | Every `/api/v1/*` request is logged at Info level with method, path, status, and duration — the source of truth for latency investigations. Errors carry the error text; SPA assets and `/ws/v1` are not logged. |
 | SPA deep links | `/chat/<conversation-id>` serves the app shell (index.html fallback), which loads and pins that conversation; unknown `/api/v1/*` paths stay JSON 404s. |
+| Note promotion | `POST /api/v1/notes` files a chat answer (or any markdown) into the wiki as a permanent note via the same save path the assistant's own saves use (`wiki.Save`): frontmatter with `title`/`date`/`type` matching the folder, kebab-case filename, validated through `wiki.Validate`. The folder defaults to the first configured one; the title defaults to the content's first heading/line. The saved note is searchable immediately and appears in the tree within the watcher's ~200 ms debounce. |
 
 ## WebSocket chat (`/ws/v1`)
 

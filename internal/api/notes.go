@@ -61,6 +61,74 @@ func note(c echo.Context, d Deps) error {
 	return c.Blob(http.StatusOK, ctype, content)
 }
 
+// saveNoteRequest is the POST /api/v1/notes body: the markdown content to
+// promote plus an optional target folder (the UI's "Save as note"). The
+// folder defaults to the first configured folder; the title defaults to the
+// content's first heading/line; the type derives from the folder per the
+// rulebook.
+type saveNoteRequest struct {
+	Content string `json:"content"`
+	Folder  string `json:"folder"`
+}
+
+// createNote promotes content into a permanent wiki note: it files the
+// content via the same save path the assistant's own saves use (wiki.Save —
+// frontmatter, folder-appropriate type, kebab filename), so promotion cannot
+// drift from the rulebook. Returns the created note's wiki-relative path and
+// the derived title/type. 400 for empty content or an unknown/unsafe folder.
+func createNote(c echo.Context, d Deps) error {
+	var req saveNoteRequest
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
+	}
+	if strings.TrimSpace(req.Content) == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "content is required"})
+	}
+	folder := strings.TrimSpace(req.Folder)
+	if folder == "" {
+		folder = defaultSaveFolder(d)
+	}
+	rel, err := d.Wiki.Save(wiki.SaveOptions{Folder: folder, Body: req.Content})
+	if err != nil {
+		// The save's own validations (empty folder, unsafe folder) are
+		// client errors; filesystem failures are internal. Distinguish by
+		// re-running the folder gate, which is the only client-facing check
+		// beyond content.
+		if verr := wiki.ValidFolder(folder); verr != nil {
+			return c.JSON(http.StatusBadRequest, map[string]string{"error": verr.Error()})
+		}
+		return internalError(c, d, "save note", err)
+	}
+	// Title mirrors the save's derivation; the type is the folder's rulebook
+	// type. Both are advisory for the toast/UI, never authoritative for the
+	// file (FormatNote wrote the real frontmatter).
+	title := wiki.DefaultTitle(req.Content)
+	if title == "" {
+		title = filepath.Base(rel)
+	}
+	return c.JSON(http.StatusCreated, map[string]string{
+		"path":  rel,
+		"title": title,
+		"type":  wiki.NoteType(folder),
+	})
+}
+
+// defaultSaveFolder returns the first configured folder, falling back to the
+// wiki's default set; the attachments dir is never a save target.
+func defaultSaveFolder(d Deps) string {
+	folders, err := d.Settings.Folders()
+	if err != nil || len(folders) == 0 {
+		folders = wiki.Folders()
+	}
+	for _, f := range folders {
+		if f == wiki.AttachmentsDir {
+			continue
+		}
+		return f
+	}
+	return "inbox"
+}
+
 func tree(c echo.Context, d Deps) error {
 	nodes, err := d.Wiki.Tree()
 	if err != nil {

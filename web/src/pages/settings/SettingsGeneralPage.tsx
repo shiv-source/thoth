@@ -4,15 +4,12 @@ import { BookOutlined, RocketOutlined, SettingOutlined } from '@ant-design/icons
 import { fetchModels, selectHealth, selectModelGroups, selectSettings } from '../../store'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import { WikiPathInput } from '../../shared/WikiPathInput'
+import { DEFAULT_WIKI_FOLDERS } from '../../shared/wikiFolders'
 import { CardTitle } from './components/CardTitle'
 import { SaveFooter } from './components/SaveFooter'
 import { SectionHeading } from './components/SectionHeading'
 import { SettingsShell } from './SettingsShell'
 import { useSettingsForm } from './useSettingsForm'
-
-// The scaffold folder set offered as suggestions in the General tab; the
-// server keeps these defaults whenever wiki_folders is unset.
-const defaultFolders = ['inbox', 'meetings', 'projects', 'links', 'setup', 'knowledge', 'todos', 'daily']
 
 // SettingsGeneralPage is the wiki path + provider/model pickers in one card,
 // with the save button and the saved/error feedback under them. Credentials
@@ -85,7 +82,7 @@ export function SettingsGeneralPage() {
                             virtual={false}
                             mode="tags"
                             placeholder="inbox, meetings, projects, …"
-                            options={defaultFolders.map((f) => ({ value: f }))}
+                            options={DEFAULT_WIKI_FOLDERS.map((f) => ({ value: f }))}
                             tokenSeparators={[',']}
                         />
                     </Form.Item>

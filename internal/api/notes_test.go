@@ -6,9 +6,11 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/shiv-source/thoth/internal/index"
+	"github.com/shiv-source/thoth/internal/settings"
 	"github.com/shiv-source/thoth/internal/wiki"
 )
 
@@ -234,5 +236,164 @@ func TestTreeEndpointMissingRoot(t *testing.T) {
 	e.ServeHTTP(rec, req)
 	if rec.Code != http.StatusInternalServerError {
 		t.Fatalf("expected 500 on missing root, got %d", rec.Code)
+	}
+}
+
+func TestCreateNoteEndpoint(t *testing.T) {
+	d := testDeps(t)
+	if err := wiki.Scaffold(d.Wiki.Root()); err != nil {
+		t.Fatal(err)
+	}
+	e := New(d)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/notes", strings.NewReader(`{"content":"# The Answer\n\nbody","folder":"knowledge"}`))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+	var body struct {
+		Path  string `json:"path"`
+		Title string `json:"title"`
+		Type  string `json:"type"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+	if body.Path != "knowledge/the-answer.md" {
+		t.Fatalf("path = %q, want knowledge/the-answer.md", body.Path)
+	}
+	if body.Title != "The Answer" || body.Type != "knowledge" {
+		t.Fatalf("title/type = %q/%q", body.Title, body.Type)
+	}
+
+	// The file landed as a valid, frontmattered note under the wiki root.
+	content, err := os.ReadFile(filepath.Join(d.Wiki.Root(), "knowledge", "the-answer.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	meta, _, perr := wiki.ParseNote(content)
+	if perr != nil {
+		t.Fatal(perr)
+	}
+	if meta.Title != "The Answer" || meta.Kind != "knowledge" {
+		t.Fatalf("frontmatter = %+v", meta)
+	}
+	if problems := wiki.Validate("knowledge/the-answer.md", content); len(problems) > 0 {
+		t.Fatalf("note not valid: %+v", problems)
+	}
+
+	// The promoted note is searchable after an index sync, matching the
+	// "appears in the tree within ~200 ms" expectation (the watcher syncs).
+	if err := d.Index.Sync(d.Wiki.Root(), d.Log); err != nil {
+		t.Fatal(err)
+	}
+	results, err := d.Index.Search(`"The Answer"`, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(results) != 1 || results[0].Path != "knowledge/the-answer.md" {
+		t.Fatalf("search results = %+v", results)
+	}
+}
+
+func TestCreateNoteEndpointDefaultsFolder(t *testing.T) {
+	d := testDeps(t)
+	if err := wiki.Scaffold(d.Wiki.Root()); err != nil {
+		t.Fatal(err)
+	}
+	e := New(d)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/notes", strings.NewReader(`{"content":"# Solo\n\nbody"}`))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+	var body struct {
+		Path string `json:"path"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+	if body.Path != "inbox/solo.md" {
+		t.Fatalf("default folder path = %q, want inbox/solo.md", body.Path)
+	}
+}
+
+func TestCreateNoteEndpointUsesConfiguredFolders(t *testing.T) {
+	d := testDeps(t)
+	if err := d.Settings.SetSetting(settings.KeyWikiFolders, "journal, recipes"); err != nil {
+		t.Fatal(err)
+	}
+	if err := wiki.ScaffoldWithOptions(d.Wiki.Root(), wiki.ScaffoldOptions{Folders: []string{"journal", "recipes"}, GitInit: false}); err != nil {
+		t.Fatal(err)
+	}
+	e := New(d)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/notes", strings.NewReader(`{"content":"# J\n\nbody"}`))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+	var body struct {
+		Path string `json:"path"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+	if body.Path != "journal/j.md" {
+		t.Fatalf("default folder path = %q, want journal/j.md", body.Path)
+	}
+}
+
+func TestCreateNoteEndpointRequiresContent(t *testing.T) {
+	d := testDeps(t)
+	e := New(d)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/notes", strings.NewReader(`{"content":"  "}`))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for empty content, got %d", rec.Code)
+	}
+}
+
+func TestCreateNoteEndpointRejectsUnsafeFolder(t *testing.T) {
+	d := testDeps(t)
+	if err := wiki.Scaffold(d.Wiki.Root()); err != nil {
+		t.Fatal(err)
+	}
+	e := New(d)
+	for _, folder := range []string{"../evil", "a/b", ".hidden", "attachments"} {
+		body := `{"content":"# X\n\nbody","folder":"` + folder + `"}`
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/notes", strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		rec := httptest.NewRecorder()
+		e.ServeHTTP(rec, req)
+		if rec.Code != http.StatusBadRequest {
+			t.Errorf("folder %q: expected 400, got %d", folder, rec.Code)
+		}
+	}
+}
+
+func TestCreateNoteEndpointEscapingFolderDoesNotWrite(t *testing.T) {
+	d := testDeps(t)
+	if err := wiki.Scaffold(d.Wiki.Root()); err != nil {
+		t.Fatal(err)
+	}
+	e := New(d)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/notes", strings.NewReader(`{"content":"# X\n\nbody","folder":"../secret"}`))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for escaping folder, got %d", rec.Code)
+	}
+	// Nothing escaped the wiki root: no secret dir outside it.
+	if _, err := os.Stat(filepath.Join(d.Wiki.Root(), "..", "secret")); !os.IsNotExist(err) {
+		t.Fatal("escaping folder wrote outside the wiki root")
 	}
 }
