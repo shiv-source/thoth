@@ -189,6 +189,66 @@ func TestImportWikiRejectsTraversal(t *testing.T) {
 	}
 }
 
+func TestExportWikiStreamError(t *testing.T) {
+	// An unreadable wiki root fails the export before any zip bytes are
+	// written, so the 500 lands instead of a truncated stream.
+	root := filepath.Join(t.TempDir(), "wiki")
+	if err := wiki.Scaffold(root); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(root, 0o000); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(root, 0o755) })
+
+	d := testDeps(t)
+	d.Wiki = wiki.New(root)
+	e := New(d)
+	// The streamed zip commits 200 before the walk error surfaces, so the
+	// failure is visible as the internal-error body rather than the status.
+	rec := exportReq(t, e, "")
+	if !strings.Contains(rec.Body.String(), "internal error") {
+		t.Fatalf("export of an unreadable wiki: want an internal-error body, got status %d %q", rec.Code, rec.Body.String())
+	}
+}
+
+func TestImportWikiReindexError(t *testing.T) {
+	src := filepath.Join(t.TempDir(), "src")
+	if err := wiki.Scaffold(src); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(src, "inbox", "hello.md"), []byte("---\ntitle: Hello\n---\nBody"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	d := testDeps(t)
+	d.Wiki = wiki.New(filepath.Join(t.TempDir(), "wiki"))
+	if err := d.Index.Close(); err != nil {
+		t.Fatal(err)
+	}
+	e := New(d)
+	if rec := importReq(t, e, zipWiki(t, src)); rec.Code != http.StatusInternalServerError {
+		t.Fatalf("import with a closed index = %d, want 500: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestImportWikiClosedBusPublish(t *testing.T) {
+	// The wiki_changed publish is best-effort: a closed bus must not turn a
+	// successful import into an error.
+	src := filepath.Join(t.TempDir(), "src")
+	if err := wiki.Scaffold(src); err != nil {
+		t.Fatal(err)
+	}
+	d := testDeps(t)
+	d.Wiki = wiki.New(filepath.Join(t.TempDir(), "wiki"))
+	bus := events.New()
+	bus.Close()
+	d.Events = bus
+	e := New(d)
+	if rec := importReq(t, e, zipWiki(t, src)); rec.Code != http.StatusOK {
+		t.Fatalf("import with a closed bus = %d, want 200: %s", rec.Code, rec.Body.String())
+	}
+}
+
 func TestImportWikiPublishesChange(t *testing.T) {
 	src := filepath.Join(t.TempDir(), "src")
 	if err := wiki.Scaffold(src); err != nil {

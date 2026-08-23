@@ -74,6 +74,47 @@ func TestGitToolSchemas(t *testing.T) {
 	}
 }
 
+func TestGitToolsWithoutRepoPath(t *testing.T) {
+	// Every git tool reports the missing path cleanly instead of panicking.
+	opts := GitOptions{}
+	cases := []struct {
+		name string
+		tl   Tool
+	}{
+		{"git_init", NewGitInit(opts)},
+		{"git_status", NewGitStatus(opts)},
+		{"git_log", NewGitLog(opts)},
+		{"git_diff", NewGitDiff(opts)},
+		{"git_commit", NewGitCommit(opts)},
+		{"git_push", NewGitPush(opts)},
+	}
+	for _, tc := range cases {
+		if _, err := tc.tl.Run(testCtx, map[string]any{}); err == nil {
+			t.Fatalf("%s with no repo path succeeded", tc.name)
+		}
+	}
+}
+
+func TestGitLogValidatesCount(t *testing.T) {
+	tl := NewGitLog(gitOpts(committedDir(t)))
+	if _, err := tl.Run(testCtx, map[string]any{"n": 0}); err == nil {
+		t.Fatal("git_log with n=0 succeeded")
+	}
+	if _, err := tl.Run(testCtx, map[string]any{"n": "not a number"}); err == nil {
+		t.Fatal("git_log with a non-numeric n succeeded")
+	}
+}
+
+func TestGitInitOnFileFails(t *testing.T) {
+	blocker := filepath.Join(t.TempDir(), "blocker")
+	if err := os.WriteFile(blocker, []byte("file"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := NewGitInit(gitOpts(blocker)).Run(testCtx, map[string]any{}); err == nil {
+		t.Fatal("git_init on a file path succeeded")
+	}
+}
+
 func TestGitInit(t *testing.T) {
 	dir := t.TempDir() // not a repository yet
 	if _, err := os.Stat(filepath.Join(dir, ".git")); !os.IsNotExist(err) {

@@ -4,6 +4,7 @@ import (
 	"archive/zip"
 	"bytes"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"os"
@@ -358,6 +359,162 @@ func TestImportBackupFirstMerge(t *testing.T) {
 	}
 	if !strings.Contains(string(b), "OLD") {
 		t.Errorf("backup conflict.md = %q, want the original OLD content", b)
+	}
+}
+
+func TestImportRejectsEmptyEntryName(t *testing.T) {
+	var buf bytes.Buffer
+	zw := zip.NewWriter(&buf)
+	if _, err := zw.Create(""); err != nil {
+		t.Fatal(err)
+	}
+	if err := zw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := New(filepath.Join(t.TempDir(), "wiki")).ImportFrom(bytes.NewReader(buf.Bytes()), int64(buf.Len()), discardLog); err == nil {
+		t.Fatal("empty entry name accepted")
+	}
+}
+
+func TestImportRejectsTotalSizeCap(t *testing.T) {
+	var buf bytes.Buffer
+	zw := zip.NewWriter(&buf)
+	for i := 0; i < 3; i++ {
+		f, err := zw.Create(fmt.Sprintf("inbox/f%d.md", i))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := f.Write(bytes.Repeat([]byte("x"), 100)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := zw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	zr, err := zip.NewReader(bytes.NewReader(buf.Bytes()), int64(buf.Len()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	im := importer{log: discardLog, maxEntry: 1000, maxTotal: 250}
+	// Two 100-byte entries fit; the third trips the uncompressed total cap.
+	for _, f := range zr.File {
+		if err := im.extract(f, t.TempDir()); err != nil {
+			if !strings.Contains(err.Error(), "exceeds") {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			return
+		}
+	}
+	t.Fatal("expected the total uncompressed cap to trip")
+}
+
+func TestExportFailsOnUnreadableDir(t *testing.T) {
+	root := sampleWiki(t, filepath.Join(t.TempDir(), "wiki"))
+	locked := filepath.Join(root, "locked")
+	if err := os.MkdirAll(locked, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(locked, "secret.md"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(locked, 0o000); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(locked, 0o755) })
+	var buf bytes.Buffer
+	if err := New(root).ExportTo(&buf, ExportOptions{}); err == nil {
+		t.Fatal("expected export to fail on an unreadable directory")
+	}
+}
+
+func TestImportFailsWhenBackupUnreadable(t *testing.T) {
+	// The existing root holds an unreadable directory, so the pre-import
+	// backup copy fails and the whole import aborts before the root is
+	// touched.
+	root := sampleWiki(t, filepath.Join(t.TempDir(), "wiki"))
+	locked := filepath.Join(root, "locked")
+	if err := os.MkdirAll(locked, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(locked, "secret.md"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(locked, 0o000); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(locked, 0o755) })
+
+	src := sampleWiki(t, filepath.Join(t.TempDir(), "src"))
+	zipR := exportedZip(t, New(src), ExportOptions{})
+	if _, err := New(root).ImportFrom(zipR, int64(zipR.Len()), discardLog); err == nil {
+		t.Fatal("expected the backup copy to fail")
+	}
+}
+
+func TestExportFailsOnUnreadableFile(t *testing.T) {
+	// A regular file that cannot be opened fails the export at the zip stage.
+	root := sampleWiki(t, filepath.Join(t.TempDir(), "wiki"))
+	secret := filepath.Join(root, "inbox", "secret.md")
+	if err := os.WriteFile(secret, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(secret, 0o000); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(secret, 0o644) })
+	var buf bytes.Buffer
+	if err := New(root).ExportTo(&buf, ExportOptions{}); err == nil {
+		t.Fatal("expected export to fail on an unreadable file")
+	}
+}
+
+func TestImportFailsWhenWikiParentIsFile(t *testing.T) {
+	// A root whose parent path is a regular file makes the parent-creation
+	// step fail before any extraction happens.
+	blocker := filepath.Join(t.TempDir(), "blocker")
+	if err := os.WriteFile(blocker, []byte("file"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	src := sampleWiki(t, filepath.Join(t.TempDir(), "src"))
+	zipR := exportedZip(t, New(src), ExportOptions{})
+	if _, err := New(filepath.Join(blocker, "wiki")).ImportFrom(zipR, int64(zipR.Len()), discardLog); err == nil {
+		t.Fatal("expected import to fail when the wiki parent is a file")
+	}
+}
+
+func TestImportFailsWhenWikiRootIsFile(t *testing.T) {
+	// A wiki root that is itself a regular file fails the root-creation step
+	// (the backup succeeds, then mkdir on the file path fails).
+	root := filepath.Join(t.TempDir(), "wiki")
+	if err := os.WriteFile(root, []byte("file"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	src := sampleWiki(t, filepath.Join(t.TempDir(), "src"))
+	zipR := exportedZip(t, New(src), ExportOptions{})
+	if _, err := New(root).ImportFrom(zipR, int64(zipR.Len()), discardLog); err == nil {
+		t.Fatal("expected import to fail when the wiki root is a file")
+	}
+}
+
+func TestImportFailsWhenEntryCollidesWithFile(t *testing.T) {
+	// A zip naming a plain file "inbox" and then "inbox/a.md": the second
+	// entry's parent is a file, so extraction fails instead of escaping.
+	var buf bytes.Buffer
+	zw := zip.NewWriter(&buf)
+	for _, name := range []string{"inbox", "inbox/a.md"} {
+		w, err := zw.Create(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := w.Write([]byte("x")); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := zw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := New(filepath.Join(t.TempDir(), "wiki")).ImportFrom(bytes.NewReader(buf.Bytes()), int64(buf.Len()), discardLog); err == nil {
+		t.Fatal("expected extraction to fail when a parent is a file")
 	}
 }
 

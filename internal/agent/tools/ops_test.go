@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	agenttools "github.com/shiv-source/thoth/agent/tools"
 	"github.com/shiv-source/thoth/internal/wiki"
 )
 
@@ -167,5 +168,53 @@ func TestOpsToolsCtxCancelled(t *testing.T) {
 	}
 	if _, err := NewRemember(fs, "", nil).Run(ctx, map[string]any{"fact": "x"}); err == nil {
 		t.Fatal("remember on cancelled ctx succeeded")
+	}
+}
+
+func TestOpsToolsFSErrors(t *testing.T) {
+	ctx := context.Background()
+	base := newTestFS(t)
+	if err := base.MkdirAll("todos", 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := base.WriteFile("todos/TODO.md", []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cases := []struct {
+		name  string
+		fail  string
+		build func(agenttools.FS) agenttools.Tool
+		args  map[string]any
+	}{
+		{"get_todos read error", "ReadFile", func(f agenttools.FS) agenttools.Tool { return NewGetTodos(f, "") }, map[string]any{}},
+		{"update_todos missing content", "", func(f agenttools.FS) agenttools.Tool { return NewUpdateTodos(f, "") }, map[string]any{}},
+		{"update_todos non-string content", "", func(f agenttools.FS) agenttools.Tool { return NewUpdateTodos(f, "") }, map[string]any{"content": 7}},
+		{"update_todos mkdir error", "MkdirAll", func(f agenttools.FS) agenttools.Tool { return NewUpdateTodos(f, "sub/todo.md") }, map[string]any{"content": "x"}},
+		{"update_todos write error", "WriteFile", func(f agenttools.FS) agenttools.Tool { return NewUpdateTodos(f, "") }, map[string]any{"content": "x"}},
+		{"get_inbox read error", "ReadDir", func(f agenttools.FS) agenttools.Tool { return NewGetInbox(f, "") }, map[string]any{}},
+		{"file_inbox missing path", "", func(f agenttools.FS) agenttools.Tool { return NewFileInbox(f, "") }, map[string]any{"dest": "x"}},
+		{"file_inbox missing dest", "", func(f agenttools.FS) agenttools.Tool { return NewFileInbox(f, "") }, map[string]any{"path": "a.md"}},
+		{"file_inbox non-string path", "", func(f agenttools.FS) agenttools.Tool { return NewFileInbox(f, "") }, map[string]any{"path": 5, "dest": "x"}},
+		{"file_inbox escaping path", "", func(f agenttools.FS) agenttools.Tool { return NewFileInbox(f, "") }, map[string]any{"path": "../a.md", "dest": "x"}},
+		{"file_inbox escaping dest", "", func(f agenttools.FS) agenttools.Tool { return NewFileInbox(f, "") }, map[string]any{"path": "a.md", "dest": "../x"}},
+		{"file_inbox mkdir error", "MkdirAll", func(f agenttools.FS) agenttools.Tool { return NewFileInbox(f, "") }, map[string]any{"path": "a.md", "dest": "sub"}},
+		{"file_inbox rename error", "Rename", func(f agenttools.FS) agenttools.Tool { return NewFileInbox(f, "") }, map[string]any{"path": "a.md", "dest": "x"}},
+		{"remember missing fact", "", func(f agenttools.FS) agenttools.Tool { return NewRemember(f, "", nil) }, map[string]any{}},
+		{"remember non-string fact", "", func(f agenttools.FS) agenttools.Tool { return NewRemember(f, "", nil) }, map[string]any{"fact": 5}},
+		{"remember read error", "ReadFile", func(f agenttools.FS) agenttools.Tool { return NewRemember(f, "", nil) }, map[string]any{"fact": "x"}},
+		{"remember mkdir error", "MkdirAll", func(f agenttools.FS) agenttools.Tool { return NewRemember(f, "sub/mem.md", nil) }, map[string]any{"fact": "x"}},
+		{"remember write error", "WriteFile", func(f agenttools.FS) agenttools.Tool { return NewRemember(f, "", nil) }, map[string]any{"fact": "x"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var fs agenttools.FS = base
+			if tc.fail != "" {
+				fs = failingFS{FS: base, fail: tc.fail}
+			}
+			if _, err := tc.build(fs).Run(ctx, tc.args); err == nil {
+				t.Fatalf("expected an error, got success")
+			}
+		})
 	}
 }
