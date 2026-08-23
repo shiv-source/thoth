@@ -3,6 +3,7 @@ import { Flex, Tooltip } from 'antd'
 import type { ChatMessage } from '../../hooks/useChat'
 import { AssistantIcon } from './AssistantIcon'
 import { CopyButton } from '../../shared/CopyButton'
+import { SaveAsNote } from './SaveAsNote'
 import { Markdown } from '../../shared/Markdown'
 
 // Memoized: message objects from the store are referentially stable, so
@@ -39,6 +40,7 @@ export const MessageItem = memo(function MessageItem({
                         </span>
                     </Tooltip>
                 )}
+                {!isUser && !streaming && <SaveAsNote content={message.content} />}
                 {isUser ? (
                     <p className="whitespace-pre-wrap text-sm leading-relaxed">{message.content}</p>
                 ) : (

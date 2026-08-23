@@ -220,6 +220,46 @@
             }
           }
         }
+      },
+      "post": {
+        "tags": ["notes"],
+        "summary": "Promote a chat answer into a wiki note",
+        "description": "Files markdown content into the wiki as a permanent note via the same save path the assistant's own saves use (wiki.Save): frontmatter with title/date/type matching the folder, kebab-case filename, validated through wiki.Validate. The folder defaults to the first configured folder; the title defaults to the content's first heading/line. The saved note is searchable immediately and appears in the wiki tree.",
+        "operationId": "createNote",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/saveNoteRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Note created",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/saveNoteResponse" }
+              }
+            }
+          },
+          "400": {
+            "description": "Empty content or unknown/unsafe folder",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/errorEnvelope" }
+              }
+            }
+          },
+          "500": {
+            "description": "Filesystem failure",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/errorEnvelope" }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/wiki/tree": {
@@ -867,6 +907,27 @@
         "required": ["error"],
         "properties": {
           "error": { "type": "string", "description": "Human-readable error message" }
+        }
+      },
+      "saveNoteRequest": {
+        "type": "object",
+        "required": ["content"],
+        "properties": {
+          "content": { "type": "string", "description": "Markdown content to promote into a note" },
+          "folder": {
+            "type": "string",
+            "description": "Target folder, e.g. knowledge. Defaults to the first configured folder.",
+            "example": "knowledge"
+          }
+        }
+      },
+      "saveNoteResponse": {
+        "type": "object",
+        "required": ["path", "title", "type"],
+        "properties": {
+          "path": { "type": "string", "description": "Wiki-relative path of the created note", "example": "knowledge/the-answer.md" },
+          "title": { "type": "string", "description": "Derived note title", "example": "The Answer" },
+          "type": { "type": "string", "description": "The folder's rulebook frontmatter type", "example": "knowledge" }
         }
       },
       "ok": {

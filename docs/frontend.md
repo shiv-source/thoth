@@ -65,7 +65,8 @@ semantic tokens.
 | `ChatsList` | The day-grouped conversation history (one antd `List` per Today/Yesterday/Previous 7 days/Older), re-fetched on URL change, active item kept in view; deletes via text button + antd Tooltip, toasts via `App.useApp().message` |
 | `ChatPage` | Owns the socket lifecycle (created in an effect, closed on unmount); antd `Alert` banners for connection/thinking/tool status; message list + scroll; toasts via `App.useApp().message` |
 | `Composer` | antd `Input.TextArea autoSize` (Enter = send, Shift+Enter = newline) + primary Send / Stop buttons — sending while streaming supersedes the turn; the draft is deliberately local state |
-| `MessageItem` | Memoized row: user bubble vs assistant (react-markdown + GFM) with streaming caret; antd Tooltip + CopyButton for the copy action; assistant rows lead with the `AssistantIcon` avatar |
+| `MessageItem` | Memoized row: user bubble vs assistant (react-markdown + GFM) with streaming caret; antd Tooltip + CopyButton for the copy action; assistant rows lead with the `AssistantIcon` avatar; a `SaveAsNote` button on completed assistant rows promotes the answer into a wiki note |
+| `SaveAsNote` | The chat "Save as note" action: a Tooltip'd save Button on assistant messages opens a `Modal` with a folder `Select` (configured folders from the settings slice, defaulting to the first; `virtual={false}` for jsdom-compatible tests); saving calls `api.saveNote` (`POST /api/v1/notes`), toasts the created path via the notifications slice, and refetches the wiki tree |
 | `AssistantIcon` | The small square accent avatar (`RobotOutlined`) shown left of every assistant message |
 | `Markdown` | GFM renderer with Shiki code blocks (via CodeBlock) in the shared prose wrapper (light only) |
 | `CodeBlock` | Fenced code via Shiki (`github-light`, module-level 200-entry cache) + copy button, plain `<pre>` fallback |

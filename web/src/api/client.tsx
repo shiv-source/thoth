@@ -7,6 +7,12 @@ export type SearchResult = z.infer<typeof SearchResult>
 const Note = z.object({ path: z.string(), content: z.string() })
 export type Note = z.infer<typeof Note>
 
+// SaveNoteResponse is the promotion endpoint's reply: the created note's
+// wiki-relative path plus the derived title/type (advisory — the file holds
+// the real frontmatter).
+const SaveNoteResponse = z.object({ path: z.string(), title: z.string(), type: z.string() })
+export type SaveNoteResponse = z.infer<typeof SaveNoteResponse>
+
 type TreeNodeShape = {
     name: string
     path: string
@@ -147,6 +153,12 @@ export const api = {
     search: (q: string, signal?: AbortSignal) =>
         get(`/api/v1/search?q=${encodeURIComponent(q)}`, z.object({ results: z.array(SearchResult) }), signal),
     note: (path: string) => get(`/api/v1/notes?path=${encodeURIComponent(path)}`, Note),
+    // saveNote promotes content into a permanent wiki note. folder is
+    // optional: the server defaults to the first configured folder.
+    saveNote: async (input: { content: string; folder?: string }): Promise<SaveNoteResponse> => {
+        const res = await http.post('/api/v1/notes', input)
+        return parseBody(res, SaveNoteResponse)
+    },
     tree: () => get('/api/v1/wiki/tree', z.object({ nodes: z.array(TreeNodeSchema) })),
     settings: () => get('/api/v1/settings', Settings),
     listDirs: (path: string) =>
