@@ -31,7 +31,7 @@ Run `make help` for the full self-documenting list.
 | `make dev-web` / `make dev-server` | Frontend only / backend only |
 | `make web` | `pnpm install --frozen-lockfile` + build + sync into `internal/webui/dist` |
 | `make web-sync` | Fast path: ensure the embed exists without reinstalling |
-| `make build [VERSION=…]` | Release binary with version stamping |
+| `make build [VERSION=…]` | Release binary with version stamping (`-buildvcs=false` — required in the bare-clone layout, where Go's VCS detection can't resolve the worktree gitfile; version still stamps via `-ldflags -X`) |
 | `make release VERSION=…` | Cross-compile all five targets into `dist/` (fails without a real `VERSION` — never ships `dev`-stamped binaries) |
 | `make install-bin [PREFIX=…]` | Copy the binary system-wide (default `/usr/local/bin`) |
 | `make test` / `make race` / `make cover` / `make lint` / `make fmt` | Quality gates |
@@ -66,7 +66,7 @@ Run `make help` for the full self-documenting list.
 
 - Branch workflow: never commit to `main` directly — sync and branch first (`git switch main && git pull --ff-only && git switch -c <type>/<scope>/<slug>`), conventional commits on the branch, squash-merge back via PR
 - PRs follow `.github/pull_request_template.md` — conventional-commit title, full summary (bullet points when it helps), files changed, and the verification checklist
-- Code rules, memory-safety rules, and token-efficiency rules live in the root `CLAUDE.md` — read it before coding
+- Code rules, memory-safety rules, and token-efficiency rules live in the `code-rules` skill (`.claude/skills/code-rules/SKILL.md`) — load it before coding
 - `docs/` (this documentation set) is committed and maintained alongside code; `docs-site/` renders it (docs is the single source — never fork content into the site)
 - Generated output (`bin/`, `web/dist/`, `internal/webui/dist/`, `docs-site/build/`, `.docusaurus/`, `node_modules/`, `*.db`) is never committed
 - No secrets anywhere — env vars or placeholders only

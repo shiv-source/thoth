@@ -1,8 +1,8 @@
 # Contributing to Thoth
 
-Thoth is a local-first personal knowledge base: one Go binary (Echo + SQLite + a headless Claude Code CLI) serving an embedded React dashboard, with your plain-markdown wiki as the source of truth. It is intentionally small — the whole stack fits in your head after a read of the docs.
+Thoth is a local-first personal knowledge base: one Go binary (Echo + SQLite + a native agent library) serving an embedded React dashboard, with your plain-markdown wiki as the source of truth. It is intentionally small — the whole stack fits in your head after a read of the docs.
 
-This page is the workflow; the ground rules for writing code in this repository live in [CLAUDE.md](CLAUDE.md) — read it before you touch anything. The documentation set in [docs/](docs/index.md) is the design authority.
+This page is the workflow; the ground rules for writing code in this repository live in the `code-rules` skill (`.claude/skills/code-rules/SKILL.md`) — load it before writing or changing code. [CLAUDE.md](CLAUDE.md) and [AGENTS.md](AGENTS.md) are the repo map (identical copies). The documentation set in [docs/](docs/index.md) is the design authority.
 
 ## Setup
 
@@ -80,7 +80,7 @@ That is: `gofmt`/`golangci-lint` clean, `go test -race ./...`, coverage ≥ **90
 
 ## Documentation
 
-`docs/` is committed and maintained alongside code — update the relevant page whenever behavior changes (the hub is [docs/index.md](docs/index.md)). CLAUDE.md documents the repository itself and must stay in sync with the layout and toolchain as they evolve.
+`docs/` is committed and maintained alongside code — update the relevant page whenever behavior changes (the hub is [docs/index.md](docs/index.md)). CLAUDE.md and AGENTS.md are identical copies of the repo map and the `code-rules` skill holds the rules; all must stay in sync as layout and toolchain evolve.
 
 ## Need help?
 

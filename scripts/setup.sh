@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # setup.sh — one-command developer setup for Thoth.
 # Run from anywhere: ./scripts/setup.sh (cds to the repo root itself).
-# Toolchain versions: go.mod (Go) and CLAUDE.md (Node via nvm, pnpm) are
+# Toolchain versions: go.mod (Go) and docs/development.md (Node via nvm, pnpm) are
 # authoritative — this script checks presence and warns on major mismatch.
 set -euo pipefail
 
@@ -15,21 +15,21 @@ fi
 echo "go:      $(go version)"
 
 if ! command -v node >/dev/null 2>&1; then
-  echo "node not found — expected via nvm (CLAUDE.md pins the version)" >&2
+  echo "node not found — expected via nvm (docs/development.md pins the version)" >&2
   exit 1
 fi
 echo "node:    $(node --version)"
 
 node_major="$(node --version | sed 's/^v//' | cut -d. -f1)"
-[ "$node_major" = "24" ] || echo "warning: node major $node_major — CLAUDE.md pins 24" >&2
+[ "$node_major" = "24" ] || echo "warning: node major $node_major — docs/development.md pins 24" >&2
 
 if ! command -v pnpm >/dev/null 2>&1; then
-  echo "pnpm not found — enable corepack or install it (CLAUDE.md pins the version)" >&2
+  echo "pnpm not found — enable corepack or install it (docs/development.md pins the version)" >&2
   exit 1
 fi
 echo "pnpm:    $(pnpm --version)"
 pnpm_major="$(pnpm --version | cut -d. -f1)"
-[ "$pnpm_major" = "11" ] || echo "warning: pnpm major $pnpm_major — CLAUDE.md pins 11" >&2
+[ "$pnpm_major" = "11" ] || echo "warning: pnpm major $pnpm_major — docs/development.md pins 11" >&2
 
 if ! command -v git >/dev/null 2>&1; then
   echo "git not found — required" >&2

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # token-guard.sh — read-guard for Claude Code hooks.
 #
-# Enforces the CLAUDE.md token-efficiency rule "Don't re-read what you just
+# Enforces the code-rules skill token-efficiency rule "Don't re-read what you just
 # wrote": PostToolUse(Read) records every file read per session (record);
 # PreToolUse(Read) warns once per file when a file is about to be re-read
 # (check). Warnings never block — they nudge.
@@ -15,6 +15,10 @@ set -u
 input="$(cat)"
 session_id="$(printf '%s' "$input" | sed -n 's/.*"session_id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
 path="$(printf '%s' "$input" | sed -n 's/.*"file_path"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
+
+# session_id is interpolated into a file path — strip anything that could
+# escape the state dir (path separators, dots, quotes, backslashes).
+session_id="$(printf '%s' "$session_id" | tr -cd '[:alnum:]_-')"
 
 [ -n "$session_id" ] || session_id="unknown"
 [ -n "$path" ] || exit 0
@@ -30,9 +34,9 @@ case "$mode" in
     printf '%s\n' "$path" >> "$state_file"
     ;;
   check)
-    if grep -qxF "$path" "$state_file" 2>/dev/null \
-      && ! grep -qxF "warned:$path" "$state_file" 2>/dev/null; then
-      echo "token-guard: about to re-read $path — the CLAUDE.md rule says don't re-read what you just wrote. Only continue if the earlier content was compacted away." >&2
+    if grep -qxF -- "$path" "$state_file" 2>/dev/null \
+      && ! grep -qxF -- "warned:$path" "$state_file" 2>/dev/null; then
+      echo "token-guard: about to re-read $path — the code-rules skill rule says don't re-read what you just wrote. Only continue if the earlier content was compacted away." >&2
       printf 'warned:%s\n' "$path" >> "$state_file"
     fi
     ;;

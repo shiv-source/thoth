@@ -18,7 +18,7 @@
   components (grouped by owner), `shared/` cross-cutting primitives,
   `hooks/` reusable hooks, `store/slices/` one per feature; shared logic
   becomes a hook/helper and is imported, never pasted
-- canonical: CLAUDE.md §Code Rules · the react skill §1a
+- canonical: code-rules skill §Code Rules · the react skill §1a
 
 ## Ant Design first
 - All UI chrome renders through antd v6 components (Layout, Menu, Button,
@@ -38,7 +38,7 @@
 ## The API boundary (zod)
 - web/src/api/client.tsx is the typed REST client: axios + zod, every
   response parsed by a zod schema — validation at the boundary
-- TS strict, zero any (CLAUDE.md invariant); DTOs must match the Go side
+- TS strict, zero any (code-rules skill invariant); DTOs must match the Go side
 - Tests use mockAxios and assert the parsed payload, not the transport
 - canonical: web/src/api/client.tsx · docs/api.md
 
@@ -56,7 +56,7 @@
 - renderWithStore — renders with a fresh store + the antd App wrapper
   (mirrors main.tsx, so App.useApp().message works in tests)
 - setup — Vitest setup file (stubs ResizeObserver/matchMedia — antd needs both)
-- Rule: use these; never hand-roll mocks of the app itself (CLAUDE.md)
+- Rule: use these; never hand-roll mocks of the app itself (code-rules skill)
 - jsdom quirks: antd motion callbacks never complete — assert store state
   for close transitions; prefer findBy* over getBy* for async renders
 
@@ -92,7 +92,7 @@
 - pnpm only — never npm; workspace root; lockfile committed; save-exact
 - antd + @ant-design/icons are direct deps; icons only from @ant-design/icons
 - make web syncs web/dist into internal/webui/dist — required before go build/test
-- canonical: CLAUDE.md §Toolchain
+- canonical: docs/development.md § Toolchain · § Commands
 
 Stale if: a zod schema changes shape without a client.tsx update, the WS
 frame set changes, a new test double appears in web/src/test, new

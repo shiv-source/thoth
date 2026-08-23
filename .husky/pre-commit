@@ -1,8 +1,14 @@
 #!/bin/sh
 set -e
 
-# Repo rule: never commit directly to main (CLAUDE.md § Repo rules)
+# Repo rule: never commit directly to main (code-rules skill § Repo rules)
 sh scripts/main-guard.sh
+
+# CLAUDE.md and AGENTS.md are kept as exact copies — fail if they drift
+if ! cmp -s CLAUDE.md AGENTS.md; then
+  echo "pre-commit: CLAUDE.md and AGENTS.md differ — they must stay identical (cp one over the other)" >&2
+  exit 1
+fi
 
 go_staged=$(git diff --cached --name-only --diff-filter=ACM | grep -c '\.go$' || true)
 

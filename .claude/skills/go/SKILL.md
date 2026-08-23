@@ -44,7 +44,7 @@ description: >-
 6. Request logging is automatic (internal/api/logging.go) — nothing to add
 
 ### 2. Extend the WS protocol
-1. CHANGE BOTH SIDES: internal/api/chat.go (server frames) AND web/src/ws/chat.tsx (client types) — server message types must match (CLAUDE.md invariant)
+1. CHANGE BOTH SIDES: internal/api/chat.go (server frames) AND web/src/ws/chat.tsx (client types) — server message types must match (code-rules skill invariant)
 2. Read docs/api.md first — frames: send/cancel/resume/open/new_chat; semantics: supersede, cancel, resume replay (≤500-message ring), open, new_chat
 3. Update docs/api.md's WS table in the same commit as the code
 4. Test server side against Hub with a scripted client; client side with the fakeWS double
@@ -89,7 +89,7 @@ description: >-
 1. go get <pkg>@latest — go.mod is authoritative; lockfiles (go.sum) are committed
 2. Run make check (fmt, lint, race, cover, build) — CI enforces every bump
 3. The coverage floor is 90% on agent/ + internal/ + cmd/ (make cover) — a bump can't lower it
-4. If a framework version changed, update the version in CLAUDE.md's Toolchain section
+4. If a framework version changed, go.mod is authoritative — the version lives there, not in CLAUDE.md
 
 ### 8. Add a doctor install check
 1. Add the check to internal/doctor/doctor.go's Run() suite (nine checks: wiki, claude, claude login, api key, model, database, index, api, websocket) — []Check{Name, OK, Message}
@@ -114,12 +114,12 @@ description: >-
 ### 11. Cut a release
 1. Run `make check` first — the release is a build, not a test skip
 2. `make release` — all five cross-compile targets into dist/, VERSION=v1.2.3 stamps the binary
-3. Verify all five targets built (CLAUDE.md invariant); the release itself lands via a reviewed PR (git-workflow skill)
+3. Verify all five targets built (code-rules skill invariant); the release itself lands via a reviewed PR (git-workflow skill)
 
 ## Gotchas
 - Fresh clone: run make web before go build/test (embed)
-- WS is chat + server-push transport (`wiki_changed` frames); REST for everything else (CLAUDE.md invariant)
-- ctx cancel = the stop button; every goroutine must end (CLAUDE.md memory rules)
+- WS is chat + server-push transport (`wiki_changed` frames); REST for everything else (code-rules skill invariant)
+- ctx cancel = the stop button; every goroutine must end (code-rules skill memory rules)
 - thoth.db is derived data; wiki files are the source of truth
 - All five cross-compile targets must build — process-group code is build-tagged (proc_unix.go / proc_windows.go)
 - Errors wrap with %w; slog keys are lowercase; no panics in library code

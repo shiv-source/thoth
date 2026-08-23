@@ -9,6 +9,10 @@
     "antd": {
       "command": "npx",
       "args": ["-y", "@ant-design/cli", "mcp"]
+    },
+    "codegraph": {
+      "command": "codegraph",
+      "args": ["serve", "--mcp"]
     }
   }
 }

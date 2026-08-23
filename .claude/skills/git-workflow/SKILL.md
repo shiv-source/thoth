@@ -31,7 +31,7 @@ description: >-
 1. **Assigned an issue/feature/bug? Decide where to work first.** When told to work on a specific issue, feature, or bug, do not branch blindly — confirm the target with the user first: work in the current worktree/branch, or create a new one?
    - A branch/worktree for it already exists? Reuse it — `./scripts/git-worktree.sh list` (bare-clone layout) names the worktree dir to switch into; a standard clone just `git switch <branch>`.
    - Creating new? Use step 2's per-layout commands: `git fetch origin` then `./scripts/git-worktree.sh new <type>/<scope>/<slug>` for the bare-clone layout, or `git switch main && git pull --ff-only && git switch -c <type>/<scope>/<slug>` for a standard clone.
-2. Never commit to main (CLAUDE.md § Repo rules) — main is always deployable; changes live on `<type>/<scope>/<slug>` branches and land via reviewed PRs. Create the branch per your clone layout:
+2. Never commit to main (code-rules skill § Repo rules) — main is always deployable; changes live on `<type>/<scope>/<slug>` branches and land via reviewed PRs. Create the branch per your clone layout:
    - **Bare-clone layout** (this repo's container: a dir holding a hidden `.bare` clone + a `.git` gitfile, one working directory per branch) — `git switch main` is impossible (main is checked out in its sibling worktree), so use `./scripts/git-worktree.sh`:
      - `git fetch origin` first — `./scripts/git-worktree.sh new` bases on `origin/main` and does not fetch for you
      - `./scripts/git-worktree.sh new <type>/<scope>/<slug>` creates the branch and its flat-hyphen worktree dir (`feat-api-x` for `feat/api/x`), basing on `origin/main` (override with `--base <ref>`), and copies `opencode.json` in
@@ -67,7 +67,7 @@ description: >-
 5. ci-pr quality gates run automatically; final-gate posts its report as a PR comment and must pass before the human merges — don't hand off a red PR
 
 ### 4. Label issues and PRs
-1. Every issue/PR carries exactly one type label and one label per area it touches; issues also carry one priority label (CLAUDE.md § Repo rules)
+1. Every issue/PR carries exactly one type label and one label per area it touches; issues also carry one priority label (code-rules skill § Repo rules)
 2. Types: bug, feature, enhancement, documentation, chore, refactor, test, performance, ci
 3. Areas (package-aligned): api, chat, cli, github, index, search, settings, store, sync, ui, webui, wiki, tooling
 4. Priorities (issues only): p-critical, p-high, p-medium, p-low
@@ -77,7 +77,7 @@ description: >-
 8. Full data: references/labels.md
 
 ### 5. Design doc first (large or cross-package changes)
-1. Before implementation, write the design doc to docs/specs/ (untracked — never committed; CLAUDE.md § Repo rules)
+1. Before implementation, write the design doc to docs/specs/ (untracked — never committed; code-rules skill § Repo rules)
 2. The spec in docs/specs/ is the working authority for that change until it lands
 3. Small, single-package changes skip it
 
@@ -89,8 +89,8 @@ description: >-
 
 ## Gotchas
 - The pre-commit hook can rewrite your staged files (eslint/prettier/golangci-lint --fix) — re-run tests after any hook-triggered edit
-- No secrets in the repo — env vars or placeholders only (CLAUDE.md § Repo rules)
-- Lockfiles (go.sum, pnpm-lock.yaml) are committed; generated dirs (bin/, web/dist/, internal/webui/dist/, node_modules/, *.db) are never committed (CLAUDE.md § Repo rules)
+- No secrets in the repo — env vars or placeholders only (code-rules skill § Repo rules)
+- Lockfiles (go.sum, pnpm-lock.yaml) are committed; generated dirs (bin/, web/dist/, internal/webui/dist/, node_modules/, *.db) are never committed (code-rules skill § Repo rules)
 - ci-pr is the fast feedback loop — it runs no cross-compiles (those run only after push to main) and only the quality gates for the areas a PR touches (docs/development.md § CI)
 - A red final-gate means a job failed — read the PR report comment before re-pushing; it is updated in place, not stacked
 
@@ -98,11 +98,11 @@ description: >-
 - CONTRIBUTING.md — § Workflow, § Before you push
 - docs/development.md — § Gates, § CI, § Rules that keep the codebase healthy
 - .github/pull_request_template.md — PR body shape
-- CLAUDE.md § Repo rules — the invariants behind these procedures
+- code-rules skill § Repo rules — the invariants behind these procedures
 
 ## Maintenance
 Derived view — update this skill in the same commit as any of: CONTRIBUTING.md,
-CLAUDE.md § Repo rules, .github/pull_request_template.md, .github/workflows/*,
+code-rules skill § Repo rules, .github/pull_request_template.md, .github/workflows/*,
 or .husky/pre-commit behavior changes. Stale if:
 the branch or PR commands in CONTRIBUTING.md differ from these steps, the label
 set changes, a workflow file changes gate names, order, or the report marker,

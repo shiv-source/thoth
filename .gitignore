@@ -12,6 +12,7 @@ internal/webui/dist/
 /thoth
 /thoth.exe
 .playwright-mcp
+.codegraph/
 docs-site/build/
 docs-site/.docusaurus/
 

@@ -23,7 +23,7 @@ Thoth's security model is simple by design: **local-only, single-user, no authen
 - **Path safety** — `internal/wiki/path.go` `SafePath`, used by `Wiki.Read`, the `/api/v1/notes` handler, and the agent's wiki file tools: it rejects absolute paths and `..` escapes syntactically, then resolves the deepest existing ancestor with `EvalSymlinks` and rejects any real target outside the wiki root — so a symlink inside the wiki cannot read or write through to the rest of the machine. Writes are atomic (temp file + rename, `agent/tools.AtomicWrite`); the directory picker (`GET /api/v1/fs/dirs`) lists subdirectories only — it never returns file contents and is bound by the same localhost-only origin rules
 - **Snippet escaping** — `html.EscapeString` then control-marker → `<mark>` replacement in `internal/index/index.go`, covered by `TestSearchSnippetEscapesHTML`
 - **Turn lifecycle** — every turn runs on a context derived from the Hub's (`internal/api/v1/chat.go`): cancel, supersede, and server shutdown cancel it, which aborts the provider stream; the tool loop is capped by `agent.MaxIterations`, and `internal/agent` bounds each turn with `WithTurnTimeout` (default 10 minutes), so no turn or subprocess can hang the server or the client socket
-- **Secrets policy** — the wiki rulebook (`internal/wiki/templates/CLAUDE.md`) plus the repo-level rule in the root `CLAUDE.md`
+- **Secrets policy** — the wiki rulebook (`internal/wiki/templates/CLAUDE.md`) plus the repo-level rule in the `code-rules` skill
 
 ## Deliberate trade-offs
 

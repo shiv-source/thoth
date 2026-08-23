@@ -44,7 +44,7 @@ Details and floors: .claude/skills/go/references/quality.md
 - gofmt/vet/lint failing → fix the code; never suppress with lint directives
 - race failing → a real data race: mutex/atomic/ownership — investigate, don't skip
 - coverage < 90% → add tests for the new/changed code; never delete tests to raise the floor
-- tsc errors → fix the types; no `any` escape hatches (CLAUDE.md invariant)
+- tsc errors → fix the types; no `any` escape hatches (code-rules skill invariant)
 - vitest failing → reproduce the failure, then fix the test if it asserts wrong or the code if it behaves wrong
 - After the fix: re-run the failed gate AND its neighbors (a fmt fix can shift a test)
 
@@ -53,11 +53,11 @@ Details and floors: .claude/skills/go/references/quality.md
 - ci-pr runs the quality gates but NOT the cross-compiles — those run only on push to main, so a PR can be green and a main push red (docs/development.md § CI)
 - The gate checks here are the local commands; CI's quality.yml runs them as 6 jobs (vet+race+coverage, golangci-lint, vitest, eslint, tsc, and `issue-labels-test` running `node --test` over the `.github/actions/issue-labels` JS suite) — same gates, different packaging; `make check` includes the same JS suite via `tools-test` so local and CI stay in sync
 - New code must be covered to keep the total ≥ 90% on agent/ + internal/ + cmd/ — a large feature with thin tests fails CI
-- Pre-commit runs the full Go suite when Go files are staged — keep focused tests while iterating, full suite once before commit (CLAUDE.md § Token Efficiency)
+- Pre-commit runs the full Go suite when Go files are staged — keep focused tests while iterating, full suite once before commit (code-rules skill § Token Efficiency)
 
 ## Canonical docs
 - docs/development.md — § Gates, § CI
-- CLAUDE.md — § Code Rules, § Invariants (the rules behind the checklist)
+- code-rules skill — § Code Rules, § Invariants (the rules behind the checklist)
 - .claude/skills/go/references/quality.md — gate details
 
 ## Maintenance
@@ -65,4 +65,4 @@ Derived view — update this skill in the same commit as any change to
 docs/development.md § Gates, .golangci.yml, quality.yml, or the go quality
 reference. Stale if: a gate command above no
 longer matches `make check`, the coverage floor changes, or the checklist
-diverges from CLAUDE.md § Code Rules.
+diverges from code-rules skill § Code Rules.
