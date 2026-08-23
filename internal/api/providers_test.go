@@ -293,3 +293,66 @@ func TestProvidersDeleteNotFound(t *testing.T) {
 		t.Fatalf("status %d, want 404", rec.Code)
 	}
 }
+
+// TestProvidersEdgeCases covers the remaining provider branches: a PUT that
+// rotates the key, non-numeric ids on PUT/DELETE, and a delete whose provider
+// does not own the selected model.
+func TestProvidersEdgeCases(t *testing.T) {
+	d := testDeps(t)
+	p, err := d.Store.CreateProvider("Vendor", "https://api.vendor.example", "old-key")
+	if err != nil {
+		t.Fatal(err)
+	}
+	e := New(d)
+
+	// A PUT with a non-empty api_key rotates the stored key (write-only means
+	// an empty one keeps it, a non-empty one replaces it).
+	rec := doProvidersReq(t, e, http.MethodPut, "/api/v1/providers/"+strconv.FormatInt(p.ID, 10),
+		`{"name":"Vendor","api_key":"new-key"}`)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("key rotate status %d: %s", rec.Code, rec.Body.String())
+	}
+	got, err := d.Store.Provider(p.ID)
+	if err != nil || got.APIKey != "new-key" {
+		t.Fatalf("stored key after rotate = %q/%v", got.APIKey, err)
+	}
+
+	// Non-numeric ids on PUT and DELETE map to 404 (the id parse error).
+	if rec := doProvidersReq(t, e, http.MethodPut, "/api/v1/providers/abc", `{"name":"X"}`); rec.Code != http.StatusNotFound {
+		t.Fatalf("put bad id: %d, want 404", rec.Code)
+	}
+	if rec := doProvidersReq(t, e, http.MethodDelete, "/api/v1/providers/abc", ""); rec.Code != http.StatusNotFound {
+		t.Fatalf("delete bad id: %d, want 404", rec.Code)
+	}
+}
+
+// TestProvidersDeleteKeepsUnrelatedSelectedModel: deleting a provider whose
+// models do not include the selected model leaves the model setting intact
+// (the clear is scoped to the deleted provider's own models).
+func TestProvidersDeleteKeepsUnrelatedSelectedModel(t *testing.T) {
+	d := testDeps(t)
+	kept, err := d.Store.CreateProvider("Kept", "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	doomed, err := d.Store.CreateProvider("Doomed", "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := d.Store.CreateModel("kept-model", "Kept", "", kept.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err := d.Settings.SetSetting(settings.KeyModel, "kept-model"); err != nil {
+		t.Fatal(err)
+	}
+
+	e := New(d)
+	rec := doProvidersReq(t, e, http.MethodDelete, "/api/v1/providers/"+strconv.FormatInt(doomed.ID, 10), "")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+	got, _, err := d.Settings.Setting(settings.KeyModel)
+	if err != nil || got != "kept-model" {
+		t.Fatalf("model setting = %q/%v, want kept-model", got, err)
+	}
+}
