@@ -4,14 +4,19 @@ import { axiosError, axiosModuleMock, stubAPI } from '../../test/mockAxios'
 import { makeStore } from '../index'
 import {
     createModel,
+    createProvider,
     deleteModel,
+    deleteProvider,
     fetchModels,
+    fetchProviders,
     fetchSettings,
     saveSettings,
     selectModelGroups,
     selectModelList,
+    selectProviders,
     selectSettings,
-    updateModel
+    updateModel,
+    updateProvider
 } from './settingsSlice'
 
 const mocks = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() }))
@@ -21,13 +26,20 @@ const saved: Settings = {
     wiki_path: '~/.thoth/wiki',
     wiki_folders: [],
     model: 'claude-sonnet-5',
-    providers: {},
     repo_url: 'git@github.com:me/wiki.git',
     sync_enabled: true,
     context_injection: false
 }
 
-const llmModel: LLMModel = { id: 3, value: 'my-model', name: 'My Model', tag: 'test', provider: 'Vendor' }
+const llmModel: LLMModel = {
+    id: 3,
+    value: 'my-model',
+    name: 'My Model',
+    tag: 'test',
+    provider: 'Vendor',
+    provider_id: 1
+}
+const provider = { id: 1, name: 'Vendor', base_url: 'https://api.vendor.example', has_api_key: false, model_count: 1 }
 
 describe('settingsSlice', () => {
     beforeEach(() => {
@@ -36,7 +48,14 @@ describe('settingsSlice', () => {
 
     it('starts empty and loading', () => {
         const store = makeStore()
-        expect(store.getState().settings).toEqual({ data: null, loading: true, saving: false, error: null, groups: [] })
+        expect(store.getState().settings).toEqual({
+            data: null,
+            loading: true,
+            saving: false,
+            error: null,
+            groups: [],
+            providers: []
+        })
     })
 
     it('loads settings', async () => {
@@ -122,5 +141,43 @@ describe('settingsSlice', () => {
         const id = await store.dispatch(deleteModel(3)).unwrap()
         expect(id).toBe(3)
         expect(mocks.delete).toHaveBeenCalledWith('/api/v1/models/3')
+    })
+
+    it('loads providers', async () => {
+        stubAPI(mocks, { 'GET /api/v1/providers': () => ({ providers: [provider] }) })
+        const store = makeStore()
+        await store.dispatch(fetchProviders())
+        expect(selectProviders(store.getState())).toEqual([provider])
+    })
+
+    it('clears providers on a failed fetch', async () => {
+        mocks.get.mockRejectedValueOnce(axiosError(500, { error: 'boom' }))
+        const store = makeStore()
+        await store.dispatch(fetchProviders())
+        expect(selectProviders(store.getState())).toEqual([])
+    })
+
+    it('createProvider calls the API', async () => {
+        mocks.post.mockResolvedValueOnce({ data: provider })
+        const store = makeStore()
+        const created = await store.dispatch(createProvider({ name: 'Vendor' })).unwrap()
+        expect(created).toEqual(provider)
+        expect(mocks.post).toHaveBeenCalledWith('/api/v1/providers', { name: 'Vendor' })
+    })
+
+    it('updateProvider calls the API', async () => {
+        const renamed = { ...provider, name: 'Vendor AI' }
+        mocks.put.mockResolvedValueOnce({ data: renamed })
+        const store = makeStore()
+        await store.dispatch(updateProvider({ id: 1, input: { name: 'Vendor AI' } }))
+        expect(mocks.put).toHaveBeenCalledWith('/api/v1/providers/1', { name: 'Vendor AI' })
+    })
+
+    it('deleteProvider calls the API and returns the id', async () => {
+        mocks.delete.mockResolvedValueOnce({ data: { ok: true } })
+        const store = makeStore()
+        const id = await store.dispatch(deleteProvider(1)).unwrap()
+        expect(id).toBe(1)
+        expect(mocks.delete).toHaveBeenCalledWith('/api/v1/providers/1')
     })
 })

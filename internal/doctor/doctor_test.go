@@ -144,14 +144,15 @@ func healthyThothDir(t *testing.T) string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := st.CreateModel("claude-sonnet-5", "Claude Sonnet 5", "balanced", "Anthropic"); err != nil {
+	p, err := st.CreateProvider("Anthropic", "", "sk-healthy")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := st.CreateModel("claude-sonnet-5", "Claude Sonnet 5", "balanced", p.ID); err != nil {
 		t.Fatal(err)
 	}
 	r, err := settings.OpenRepo(dbPath)
 	if err != nil {
-		t.Fatal(err)
-	}
-	if err := r.SetSetting(settings.ProviderAPIKeyKey("Anthropic"), "sk-healthy"); err != nil {
 		t.Fatal(err)
 	}
 	if err := r.SetSetting(settings.KeyModel, "claude-sonnet-5"); err != nil {
@@ -294,7 +295,11 @@ func TestRunProviderRoutesByRegistryProvider(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := st.CreateModel("deepseek-v4-flash", "V4 Flash", "fastest", "DeepSeek"); err != nil {
+	p, err := st.CreateProvider("DeepSeek", "https://api.deepseek.com", "ds-secret")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := st.CreateModel("deepseek-v4-flash", "V4 Flash", "fastest", p.ID); err != nil {
 		t.Fatal(err)
 	}
 	r, err := settings.OpenRepo(dbPath)
@@ -302,12 +307,6 @@ func TestRunProviderRoutesByRegistryProvider(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := r.SetSetting(settings.KeyModel, "deepseek-v4-flash"); err != nil {
-		t.Fatal(err)
-	}
-	if err := r.SetSetting(settings.ProviderAPIKeyKey("DeepSeek"), "ds-secret"); err != nil {
-		t.Fatal(err)
-	}
-	if err := r.SetSetting(settings.ProviderBaseURLKey("DeepSeek"), "https://api.deepseek.com"); err != nil {
 		t.Fatal(err)
 	}
 	_ = r.Close()
@@ -347,7 +346,11 @@ func TestRunApiKeyCheckResolvesPerProviderKey(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := st.CreateModel("deepseek-v4-flash", "V4 Flash", "fastest", "DeepSeek"); err != nil {
+	p, err := st.CreateProvider("DeepSeek", "", "ds-secret")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := st.CreateModel("deepseek-v4-flash", "V4 Flash", "fastest", p.ID); err != nil {
 		t.Fatal(err)
 	}
 	r, err := settings.OpenRepo(dbPath)
@@ -355,9 +358,6 @@ func TestRunApiKeyCheckResolvesPerProviderKey(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := r.SetSetting(settings.KeyModel, "deepseek-v4-flash"); err != nil {
-		t.Fatal(err)
-	}
-	if err := r.SetSetting(settings.ProviderAPIKeyKey("DeepSeek"), "ds-secret"); err != nil {
 		t.Fatal(err)
 	}
 	_ = r.Close()

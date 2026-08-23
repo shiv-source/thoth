@@ -1,16 +1,17 @@
-package settings
+package settings_test
 
 import (
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/shiv-source/thoth/internal/settings"
 	"github.com/shiv-source/thoth/internal/store"
 )
 
 // openTestRepo builds a temp db via the store's migrations (which seed the
 // settings defaults) and opens the settings repo on it.
-func openTestRepo(t *testing.T) *Repo {
+func openTestRepo(t *testing.T) *settings.Repo {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), "test.db")
 	st, err := store.Open(path)
@@ -20,7 +21,7 @@ func openTestRepo(t *testing.T) *Repo {
 	if err := st.Close(); err != nil {
 		t.Fatal(err)
 	}
-	r, err := OpenRepo(path)
+	r, err := settings.OpenRepo(path)
 	if err != nil {
 		t.Fatalf("OpenRepo: %v", err)
 	}
@@ -28,14 +29,32 @@ func openTestRepo(t *testing.T) *Repo {
 	return r
 }
 
+// openTestRepos additionally keeps the store open so tests can seed provider
+// rows (ProviderConfig now reads the providers table, not settings keys).
+func openTestRepos(t *testing.T) (*settings.Repo, *store.Store) {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "test.db")
+	st, err := store.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = st.Close() })
+	r, err := settings.OpenRepo(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = r.Close() })
+	return r, st
+}
+
 func TestOpenSeedsDefaults(t *testing.T) {
 	r := openTestRepo(t)
 	for key, want := range map[string]string{
-		KeyWikiPath:     "~/.thoth/wiki",
-		KeyRepoURL:      "",
-		KeySyncEnabled:  "false",
-		KeyLastSyncedAt: "",
-		KeySyncError:    "",
+		settings.KeyWikiPath:     "~/.thoth/wiki",
+		settings.KeyRepoURL:      "",
+		settings.KeySyncEnabled:  "false",
+		settings.KeyLastSyncedAt: "",
+		settings.KeySyncError:    "",
 	} {
 		got, found, err := r.Setting(key)
 		if err != nil || !found || got != want {
@@ -59,10 +78,10 @@ func TestProviderSlugAndKeys(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := ProviderAPIKeyKey(tt.provider); got != tt.apiKeyKey {
+			if got := settings.ProviderAPIKeyKey(tt.provider); got != tt.apiKeyKey {
 				t.Fatalf("ProviderAPIKeyKey(%q) = %q, want %q", tt.provider, got, tt.apiKeyKey)
 			}
-			if got := ProviderBaseURLKey(tt.provider); got != tt.baseURLKey {
+			if got := settings.ProviderBaseURLKey(tt.provider); got != tt.baseURLKey {
 				t.Fatalf("ProviderBaseURLKey(%q) = %q, want %q", tt.provider, got, tt.baseURLKey)
 			}
 		})
@@ -70,12 +89,9 @@ func TestProviderSlugAndKeys(t *testing.T) {
 }
 
 func TestProviderConfigResolution(t *testing.T) {
-	t.Run("per-provider values win", func(t *testing.T) {
-		r := openTestRepo(t)
-		if err := r.SetSetting(ProviderAPIKeyKey("DeepSeek"), "deepseek-key"); err != nil {
-			t.Fatal(err)
-		}
-		if err := r.SetSetting(ProviderBaseURLKey("DeepSeek"), "https://api.deepseek.com"); err != nil {
+	t.Run("provider row wins", func(t *testing.T) {
+		r, st := openTestRepos(t)
+		if _, err := st.CreateProvider("DeepSeek", "https://api.deepseek.com", "deepseek-key"); err != nil {
 			t.Fatal(err)
 		}
 		apiKey, baseURL, err := r.ProviderConfig("DeepSeek")
@@ -84,7 +100,7 @@ func TestProviderConfigResolution(t *testing.T) {
 		}
 	})
 
-	t.Run("absent per-provider config resolves empty", func(t *testing.T) {
+	t.Run("absent provider resolves empty", func(t *testing.T) {
 		r := openTestRepo(t)
 		apiKey, baseURL, err := r.ProviderConfig("Anthropic")
 		if err != nil || apiKey != "" || baseURL != "" {
@@ -93,8 +109,8 @@ func TestProviderConfigResolution(t *testing.T) {
 	})
 
 	t.Run("empty provider name resolves empty", func(t *testing.T) {
-		r := openTestRepo(t)
-		if err := r.SetSetting(ProviderAPIKeyKey("Anthropic"), "anthropic-key"); err != nil {
+		r, st := openTestRepos(t)
+		if _, err := st.CreateProvider("Anthropic", "", "anthropic-key"); err != nil {
 			t.Fatal(err)
 		}
 		apiKey, baseURL, err := r.ProviderConfig("")
@@ -106,13 +122,13 @@ func TestProviderConfigResolution(t *testing.T) {
 
 func TestModelSettingRoundTrip(t *testing.T) {
 	r := openTestRepo(t)
-	if _, found, err := r.Setting(KeyModel); err != nil || found {
+	if _, found, err := r.Setting(settings.KeyModel); err != nil || found {
 		t.Fatalf("model must default to absent, found=%v err=%v", found, err)
 	}
-	if err := r.SetSetting(KeyModel, "claude-haiku-4-5-20251001"); err != nil {
+	if err := r.SetSetting(settings.KeyModel, "claude-haiku-4-5-20251001"); err != nil {
 		t.Fatal(err)
 	}
-	got, found, err := r.Setting(KeyModel)
+	got, found, err := r.Setting(settings.KeyModel)
 	if err != nil || !found || got != "claude-haiku-4-5-20251001" {
 		t.Fatalf("model round trip = %q/%v/%v", got, found, err)
 	}
@@ -120,27 +136,24 @@ func TestModelSettingRoundTrip(t *testing.T) {
 
 func TestSettingRoundTrip(t *testing.T) {
 	r := openTestRepo(t)
-	if err := r.SetSetting(KeyRepoURL, "https://github.com/octo/wiki.git"); err != nil {
+	if err := r.SetSetting(settings.KeyRepoURL, "https://github.com/octo/wiki.git"); err != nil {
 		t.Fatal(err)
 	}
-	got, found, err := r.Setting(KeyRepoURL)
+	got, found, err := r.Setting(settings.KeyRepoURL)
 	if err != nil || !found || got != "https://github.com/octo/wiki.git" {
 		t.Fatalf("after set: %q/%v/%v", got, found, err)
 	}
 	// Upsert semantics: a second write replaces the value.
-	if err := r.SetSetting(KeyRepoURL, ""); err != nil {
+	if err := r.SetSetting(settings.KeyRepoURL, ""); err != nil {
 		t.Fatal(err)
 	}
-	if got, found, err = r.Setting(KeyRepoURL); err != nil || !found || got != "" {
+	if got, found, err = r.Setting(settings.KeyRepoURL); err != nil || !found || got != "" {
 		t.Fatalf("after clear: %q/%v/%v", got, found, err)
 	}
 }
 
 func TestSettingAbsent(t *testing.T) {
 	r := openTestRepo(t)
-	if _, err := r.db.Exec(`DELETE FROM settings WHERE key = ?`, "no-such-key"); err != nil {
-		t.Fatal(err)
-	}
 	got, found, err := r.Setting("no-such-key")
 	if err != nil || found || got != "" {
 		t.Fatalf("absent key: %q/%v/%v, want empty/false/nil", got, found, err)
@@ -154,7 +167,7 @@ func TestSyncEnabledParsing(t *testing.T) {
 		t.Fatalf("seeded sync_enabled = %v/%v, want false/nil", on, err)
 	}
 	for _, in := range []string{"true"} {
-		if err := r.SetSetting(KeySyncEnabled, in); err != nil {
+		if err := r.SetSetting(settings.KeySyncEnabled, in); err != nil {
 			t.Fatal(err)
 		}
 		if on, err := r.SyncEnabled(); err != nil || !on {
@@ -162,7 +175,7 @@ func TestSyncEnabledParsing(t *testing.T) {
 		}
 	}
 	for _, in := range []string{"false", "garbage", "TRUE"} {
-		if err := r.SetSetting(KeySyncEnabled, in); err != nil {
+		if err := r.SetSetting(settings.KeySyncEnabled, in); err != nil {
 			t.Fatal(err)
 		}
 		if on, err := r.SyncEnabled(); err != nil || on {
@@ -178,7 +191,7 @@ func TestContextInjectionParsing(t *testing.T) {
 		t.Fatalf("absent context_injection = %v/%v, want false/nil", on, err)
 	}
 	for _, in := range []string{"true"} {
-		if err := r.SetSetting(KeyContextInjection, in); err != nil {
+		if err := r.SetSetting(settings.KeyContextInjection, in); err != nil {
 			t.Fatal(err)
 		}
 		if on, err := r.ContextInjection(); err != nil || !on {
@@ -186,7 +199,7 @@ func TestContextInjectionParsing(t *testing.T) {
 		}
 	}
 	for _, in := range []string{"false", "garbage", "TRUE"} {
-		if err := r.SetSetting(KeyContextInjection, in); err != nil {
+		if err := r.SetSetting(settings.KeyContextInjection, in); err != nil {
 			t.Fatal(err)
 		}
 		if on, err := r.ContextInjection(); err != nil || on {
@@ -203,7 +216,7 @@ func TestFoldersParsing(t *testing.T) {
 		t.Fatalf("absent wiki_folders = %v/%v, want nil/nil", folders, err)
 	}
 	// Comma-separated with whitespace is parsed and trimmed.
-	if err := r.SetSetting(KeyWikiFolders, "journal, recipes , notes"); err != nil {
+	if err := r.SetSetting(settings.KeyWikiFolders, "journal, recipes , notes"); err != nil {
 		t.Fatal(err)
 	}
 	folders, err = r.Folders()
@@ -214,14 +227,14 @@ func TestFoldersParsing(t *testing.T) {
 		t.Fatalf("parsed folders = %v, want [journal recipes notes]", folders)
 	}
 	// An empty value means the defaults again.
-	if err := r.SetSetting(KeyWikiFolders, ""); err != nil {
+	if err := r.SetSetting(settings.KeyWikiFolders, ""); err != nil {
 		t.Fatal(err)
 	}
 	if folders, err = r.Folders(); err != nil || folders != nil {
 		t.Fatalf("empty wiki_folders = %v/%v, want nil/nil", folders, err)
 	}
 	// Stray commas produce no empty entries.
-	if err := r.SetSetting(KeyWikiFolders, ",,,"); err != nil {
+	if err := r.SetSetting(settings.KeyWikiFolders, ",,,"); err != nil {
 		t.Fatal(err)
 	}
 	if folders, err = r.Folders(); err != nil || len(folders) != 0 {
@@ -234,10 +247,10 @@ func TestRepoClosedErrors(t *testing.T) {
 	if err := r.Close(); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := r.Setting(KeyWikiPath); err == nil {
+	if _, _, err := r.Setting(settings.KeyWikiPath); err == nil {
 		t.Fatal("Setting on closed repo must error")
 	}
-	if err := r.SetSetting(KeyWikiPath, "x"); err == nil {
+	if err := r.SetSetting(settings.KeyWikiPath, "x"); err == nil {
 		t.Fatal("SetSetting on closed repo must error")
 	}
 }

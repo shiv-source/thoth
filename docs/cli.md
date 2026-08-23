@@ -17,7 +17,7 @@ Startup sequence:
 2. Scaffold the wiki if it doesn't exist
 3. Open `thoth.db` (index + store), sync the search index with the tree
 4. Start the fsnotify watcher
-5. Resolve the turn's model and credential: the selected model's `llm_models` row names the provider, whose per-provider api key/base URL win over the shared key and the provider's default endpoint (`modelProvider` + `ProviderConfig`)
+5. Resolve the turn's model and credential: the selected model's `llm_models` row names its `providers` row, whose api key/base URL override are used (empty base URL → the provider's default endpoint; `modelProvider` + `ProviderConfig`)
 6. Build the Thoth Agent host — `agent.New(model, apiKey, wiki, store, index, …)` with the provider config and folder set. It runs in-process: there is no CLI subprocess to spawn or pool to pre-warm anywhere in the chat path
 7. Serve; SIGINT/SIGTERM → graceful shutdown (cancels in-flight agent turns, then exits)
 
@@ -44,8 +44,8 @@ Runs nine health checks and reports each. The checks live in the shared `interna
 |---|---|
 
 | wiki | wiki exists with all 9 folders + `CLAUDE.md` |
-| provider | the provider the selected model's `llm_models` row names answers its models endpoint, probed with the per-provider API key and base URL (falling back to the shared key and the provider default); 200 = reachable; 401 = bad/absent API key, 429 = rate limited, 5xx = provider error, timeout = unreachable |
-| api key | a usable API key is configured for the selected provider — its own per-provider key, read from thoth.db (unset = no key) |
+| provider | the provider the selected model's `llm_models` row names answers its models endpoint, probed with that provider's API key and base URL from its `providers` row (empty base URL → the provider default); 200 = reachable; 401 = bad/absent API key, 429 = rate limited, 5xx = provider error, timeout = unreachable |
+| api key | a usable API key is configured for the selected provider — its own `providers` row key, read from thoth.db (unset = no key) |
 | model | a model is selected and exists in the `llm_models` registry (unset = the default model; a value not in the registry = "unknown model") |
 | database | db opens in WAL with `notes` + `notes_fts` tables |
 | index | indexed count matches the number of valid notes on disk |

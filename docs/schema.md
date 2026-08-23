@@ -1,6 +1,6 @@
 # Database schema
 
-Everything lives in one SQLite file, `~/.thoth/thoth.db` (WAL mode). The schema is defined entirely by SQL migrations in `internal/store/migrations/` — one file per table, applied in filename order, gated on `PRAGMA user_version` (currently 9). Go code issues no DDL of its own.
+Everything lives in one SQLite file, `~/.thoth/thoth.db` (WAL mode). The schema is defined entirely by SQL migrations in `internal/store/migrations/` — one file per table, applied in filename order, gated on `PRAGMA user_version` (currently 11). Go code issues no DDL of its own.
 
 ```mermaid
 erDiagram
@@ -42,12 +42,20 @@ erDiagram
         text email
         text created_at
     }
+    providers ||--o{ llm_models : "owns"
+    providers {
+        integer id PK
+        text name "UNIQUE"
+        text base_url
+        text api_key
+        text created_at
+    }
     llm_models {
         integer id PK
         text value "UNIQUE"
         text name
         text tag
-        text provider
+        integer provider_id FK
     }
 ```
 
@@ -126,16 +134,30 @@ The app's user-facing settings, key/value. `config.toml` is deprecated — this 
 | `wiki_path` | `~/.thoth/wiki` | Where the wiki lives (seed mirrors `settings.DefaultWikiPath`) |
 | `wiki_folders` | — (absent) | Comma-separated scaffold folder set; absent/empty means the default 9 (`inbox, meetings, projects, links, setup, knowledge, todos, daily, attachments`). Applied when a wiki is scaffolded |
 | `model` | — (absent) | The model value selected for every turn; absent/empty falls back to the first seeded claude model. Read at boot, applied on next start |
-| `api_key` | `''` | Legacy shared key, seeded by migration `0008` but no longer used — credentials are per-provider (`provider_<slug>_api_key`), and nothing is read from the environment |
-| `provider_<slug>_api_key` | — (absent) | A provider's own API key; `slug` is the lowercased provider label with non-alphanumerics stripped (`DeepSeek` → `deepseek`, `Z.AI` → `zai`). The only credential for that provider's models. Write-only — GET reports `has_api_key` only |
-| `provider_<slug>_base_url` | — (absent) | A provider's API base URL override (`DeepSeek` → `provider_deepseek_base_url`). Empty/absent = the provider's default endpoint. Applied on next boot |
+| `api_key` | `''` | Legacy shared key, seeded by migration `0008` but no longer used — credentials are per-provider (in the `providers` table since migration `0011`), and nothing is read from the environment |
+| `provider_<slug>_api_key` | — (absent) | Retired. Migration `0011` moved per-provider credentials into the `providers` table; the one-time backfill in `store.Open` copies these keys into the new rows and deletes them. `slug` is the lowercased provider label with non-alphanumerics stripped (`DeepSeek` → `deepseek`, `Z.AI` → `zai`) |
+| `provider_<slug>_base_url` | — (absent) | Retired, same cutover as the api key above |
 | `github_sync_repo` | `''` | The wiki's sync repo URL |
 | `github_sync_enabled` | `'false'` | The auto-sync switch (`'true'`/`'false'`) |
 | `github_last_synced_at` | `''` | UTC RFC3339 of the last successful git sync |
 | `github_sync_error` | `''` | Sanitized error of the last failed sync |
 | `context_injection` | — (absent) | Opt-in pre-search of the wiki into each chat turn's first prompt (`'true'`/`'false'`; absent/other = off). Answers start faster and skip the search/read tool round-trips, but change answer semantics, so they must opt in |
 
-### `llm_models` (migrations `0008_llm_models.sql` + `0009_llm_models_tag.sql`)
+### `providers` (migration `0011_providers.sql`)
+
+The model providers, one row per provider the user configures. Providers are first-class: a provider row exists before any of its models, and it owns its own credentials. Rows are added/edited/deleted from the Settings → Providers tab.
+
+| Column | Type | Meaning |
+|---|---|---|
+| `id` | INTEGER PK AUTOINCREMENT | Referenced by `llm_models.provider_id` |
+| `name` | TEXT NOT NULL UNIQUE | Display label (e.g. `Anthropic`); the settings resolver matches on it |
+| `base_url` | TEXT NOT NULL DEFAULT '' | API base URL override; empty = the provider's default endpoint |
+| `api_key` | TEXT NOT NULL DEFAULT '' | The provider's own API key, stored plaintext locally. Write-only in the UI — the API reports `has_api_key` and never returns the key |
+| `created_at` | TEXT NOT NULL | UTC RFC3339 |
+
+The table is seeded from the distinct `llm_models` labels by migration `0011` (credentials copied from the legacy `provider_<slug>_*` settings keys by a one-time backfill in `store.Open`), and `ensureModels` creates any missing provider row for a model option on boot.
+
+### `llm_models` (migrations `0008_llm_models.sql` + `0009_llm_models_tag.sql` + `0011_providers.sql`)
 
 The user-editable model registry. Every startup seeds it from `internal/assets/models.json` (the single source for the built-in list) when the table is empty; afterwards the table is authoritative — rows are added/edited/deleted from the Settings → Providers tab.
 
@@ -145,13 +167,13 @@ The user-editable model registry. Every startup seeds it from `internal/assets/m
 | `value` | The model id sent to the provider on every turn; `UNIQUE` — the `model` setting points at it |
 | `name` | Display name (e.g. `Claude Opus 4.8`) |
 | `tag` | Preset-friendly label rendered as a colored chip (e.g. `strongest`) |
-| `provider` | Grouping label for the picker (e.g. `Anthropic`) |
+| `provider_id` | → `providers.id`; NULL for the Unassigned catch-all. Added by `0011`, which backfilled it from the old `provider` text label and dropped that column (credential state moved to the `providers` row) |
 
 ## Reading and writing
 
-- `internal/settings` owns the `settings` table (KV access, `SyncEnabled`/`SyncState`/`SetSyncResult` conveniences, and `ProviderConfig` for the model→provider→credential resolution). Its `OpenRepo` deliberately runs no migrations and no WAL pragma — the doctor must never mutate a database it only reads.
-- `internal/github` owns `github_auth`; `internal/store` owns conversations/messages/app_metadata and `llm_models`; `internal/index` owns notes/notes_fts.
-- **`claude_session_id` decision (T12):** the column is retained, no migration. Thoth Agent stopped writing it when it replaced the CLI; dropping it would rewrite `conversations` for a column nothing reads, and keeping it preserves the schema for any rollback tooling. The settings resolution at boot is: the selected model's `llm_models` row names the provider → `provider_<slug>_api_key`/`provider_<slug>_base_url` when set, else the shared `api_key` and the provider's default endpoint (`settings.ProviderConfig`).
+- `internal/settings` owns the `settings` table (KV access, `SyncEnabled`/`SyncState`/`SetSyncResult` conveniences, and `ProviderConfig` for the model→provider→credential resolution, which reads the `providers` table). Its `OpenRepo` deliberately runs no migrations and no WAL pragma — the doctor must never mutate a database it only reads.
+- `internal/github` owns `github_auth`; `internal/store` owns conversations/messages/app_metadata, the `providers` table, and `llm_models`; `internal/index` owns notes/notes_fts.
+- **`claude_session_id` decision (T12):** the column is retained, no migration. Thoth Agent stopped writing it when it replaced the CLI; dropping it would rewrite `conversations` for a column nothing reads, and keeping it preserves the schema for any rollback tooling. The settings resolution at boot is: the selected model's `llm_models` row names its `providers` row, whose `api_key`/`base_url` are used (`settings.ProviderConfig`); empty provider → no key and the provider's default endpoint.
 
 ## Upgrade note
 

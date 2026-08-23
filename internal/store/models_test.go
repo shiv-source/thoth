@@ -20,10 +20,21 @@ func openModels(t *testing.T) *Store {
 	return s
 }
 
+// modelProvider ensures a provider row exists for name and returns its id.
+func modelProvider(t *testing.T, s *Store, name string) int64 {
+	t.Helper()
+	p, err := s.EnsureProvider(name)
+	if err != nil {
+		t.Fatalf("EnsureProvider(%q): %v", name, err)
+	}
+	return p.ID
+}
+
 func TestModelsCRUD(t *testing.T) {
 	s := openModels(t)
+	pid := modelProvider(t, s, "Vendor")
 
-	created, err := s.CreateModel("my-model", "My Model", "test", "Vendor")
+	created, err := s.CreateModel("my-model", "My Model", "test", pid)
 	if err != nil {
 		t.Fatalf("CreateModel: %v", err)
 	}
@@ -36,18 +47,19 @@ func TestModelsCRUD(t *testing.T) {
 		t.Fatalf("ListModels: %v %+v", err, models)
 	}
 	got := models[0]
-	if got.Value != "my-model" || got.Name != "My Model" || got.Tag != "test" || got.Provider != "Vendor" {
+	if got.Value != "my-model" || got.Name != "My Model" || got.Tag != "test" ||
+		got.Provider != "Vendor" || got.ProviderID != pid {
 		t.Fatalf("round trip mismatch: %+v", got)
 	}
 
-	if err := s.UpdateModel(created.ID, "my-model-2", "My Model 2", "", ""); err != nil {
+	if err := s.UpdateModel(created.ID, "my-model-2", "My Model 2", "", 0); err != nil {
 		t.Fatalf("UpdateModel: %v", err)
 	}
 	models, err = s.ListModels()
 	if err != nil || len(models) != 1 {
 		t.Fatalf("ListModels after update: %v %+v", err, models)
 	}
-	if models[0].Value != "my-model-2" || models[0].Name != "My Model 2" {
+	if models[0].Value != "my-model-2" || models[0].Name != "My Model 2" || models[0].ProviderID != 0 {
 		t.Fatalf("update mismatch: %+v", models[0])
 	}
 
@@ -62,7 +74,8 @@ func TestModelsCRUD(t *testing.T) {
 
 func TestModelByID(t *testing.T) {
 	s := openModels(t)
-	created, err := s.CreateModel("m", "M", "d", "p")
+	pid := modelProvider(t, s, "p")
+	created, err := s.CreateModel("m", "M", "d", pid)
 	if err != nil {
 		t.Fatalf("CreateModel: %v", err)
 	}
@@ -70,7 +83,7 @@ func TestModelByID(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Model: %v", err)
 	}
-	if got.Value != "m" || got.Name != "M" || got.Tag != "d" || got.Provider != "p" {
+	if got.Value != "m" || got.Name != "M" || got.Tag != "d" || got.Provider != "p" || got.ProviderID != pid {
 		t.Fatalf("round trip mismatch: %+v", got)
 	}
 	if _, err := s.Model(created.ID + 1); !errors.Is(err, ErrModelNotFound) {
@@ -80,10 +93,10 @@ func TestModelByID(t *testing.T) {
 
 func TestCreateModelDuplicateValue(t *testing.T) {
 	s := openModels(t)
-	if _, err := s.CreateModel("dup", "First", "", ""); err != nil {
+	if _, err := s.CreateModel("dup", "First", "", 0); err != nil {
 		t.Fatalf("CreateModel: %v", err)
 	}
-	_, err := s.CreateModel("dup", "Second", "", "")
+	_, err := s.CreateModel("dup", "Second", "", 0)
 	if !errors.Is(err, ErrModelExists) {
 		t.Fatalf("expected ErrModelExists, got %v", err)
 	}
@@ -91,7 +104,7 @@ func TestCreateModelDuplicateValue(t *testing.T) {
 
 func TestUpdateModelNotFound(t *testing.T) {
 	s := openModels(t)
-	if err := s.UpdateModel(404, "x", "X", "", ""); !errors.Is(err, ErrModelNotFound) {
+	if err := s.UpdateModel(404, "x", "X", "", 0); !errors.Is(err, ErrModelNotFound) {
 		t.Fatalf("expected ErrModelNotFound, got %v", err)
 	}
 }
@@ -106,7 +119,7 @@ func TestDeleteModelNotFound(t *testing.T) {
 func TestListModelsSeedOrder(t *testing.T) {
 	s := openModels(t)
 	for _, v := range []string{"b", "a", "c"} {
-		if _, err := s.CreateModel(v, v, "", ""); err != nil {
+		if _, err := s.CreateModel(v, v, "", 0); err != nil {
 			t.Fatalf("CreateModel %s: %v", v, err)
 		}
 	}
@@ -116,6 +129,20 @@ func TestListModelsSeedOrder(t *testing.T) {
 	}
 	if len(models) != 3 || models[0].Value != "b" || models[1].Value != "a" || models[2].Value != "c" {
 		t.Fatalf("expected insertion order, got %+v", models)
+	}
+}
+
+func TestListModelsUnassignedProvider(t *testing.T) {
+	s := openModels(t)
+	if _, err := s.CreateModel("orphan", "Orphan", "", 0); err != nil {
+		t.Fatalf("CreateModel: %v", err)
+	}
+	models, err := s.ListModels()
+	if err != nil || len(models) != 1 {
+		t.Fatalf("ListModels: %v %+v", err, models)
+	}
+	if models[0].Provider != "" || models[0].ProviderID != 0 {
+		t.Fatalf("unassigned model must carry an empty provider: %+v", models[0])
 	}
 }
 
@@ -163,6 +190,14 @@ func TestUpgradeRenamesDescriptionToTag(t *testing.T) {
 	}
 	if len(models) != 1 || models[0].Tag != "d" || models[0].Value != "v" {
 		t.Fatalf("data lost in the rename: %+v", models)
+	}
+	// 0011 moved the provider label into a providers row; the model points at
+	// it and the legacy column is gone.
+	if models[0].Provider != "P" || models[0].ProviderID == 0 {
+		t.Fatalf("provider not migrated by 0011: %+v", models[0])
+	}
+	if _, err := s.ProviderByName("P"); err != nil {
+		t.Fatalf("providers row for legacy label missing: %v", err)
 	}
 }
 

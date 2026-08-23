@@ -108,10 +108,11 @@ func TestHealthBackendUnconfigured(t *testing.T) {
 
 func TestHealthBackendConfigured(t *testing.T) {
 	deps := testDeps(t)
-	if _, err := deps.Store.CreateModel("claude-sonnet-5", "Claude Sonnet 5", "balanced", "Anthropic"); err != nil {
+	p, err := deps.Store.CreateProvider("Anthropic", "", "sk-test")
+	if err != nil {
 		t.Fatal(err)
 	}
-	if err := deps.Settings.SetSetting(settings.ProviderAPIKeyKey("Anthropic"), "sk-test"); err != nil {
+	if _, err := deps.Store.CreateModel("claude-sonnet-5", "Claude Sonnet 5", "balanced", p.ID); err != nil {
 		t.Fatal(err)
 	}
 	if err := deps.Settings.SetSetting(settings.KeyModel, "claude-sonnet-5"); err != nil {

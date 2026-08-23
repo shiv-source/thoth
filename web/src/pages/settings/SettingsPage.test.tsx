@@ -63,7 +63,6 @@ const settings = {
     wiki_path: '~/.thoth/wiki',
     wiki_folders: [] as string[],
     model: '',
-    providers: {} as Record<string, { api_key?: string; has_api_key: boolean; base_url: string }>,
     repo_url: '',
     sync_enabled: false,
     context_injection: false
@@ -204,7 +203,8 @@ describe('SettingsPage', () => {
                                 value: 'deepseek-v4-flash',
                                 name: 'V4 Flash',
                                 tag: 'fastest',
-                                provider: 'DeepSeek'
+                                provider: 'DeepSeek',
+                                provider_id: 1
                             }
                         ]
                     }
@@ -226,80 +226,73 @@ describe('SettingsPage', () => {
         expect(lastBody('put', '/api/v1/settings')).toMatchObject({ model: 'deepseek-v4-flash' })
     })
 
-    it('renders and saves per-provider credentials', async () => {
+    it('adds a provider with its credentials', async () => {
+        const seeded = {
+            id: 1,
+            name: 'DeepSeek',
+            base_url: 'https://api.deepseek.com',
+            has_api_key: true,
+            model_count: 0
+        }
+        let providers: (typeof seeded)[] = []
         stubAPI({
-            'GET /api/v1/settings': () => ({
-                ...settings,
-                providers: { DeepSeek: { api_key: '', has_api_key: true, base_url: 'https://api.deepseek.com' } }
-            }),
+            'GET /api/v1/settings': getSettings,
             'GET /api/v1/github/auth': getEmptyGitHub,
-            'GET /api/v1/models': () => ({
-                groups: [
-                    {
-                        provider: 'DeepSeek',
-                        models: [
-                            {
-                                id: 1,
-                                value: 'deepseek-v4-flash',
-                                name: 'V4 Flash',
-                                tag: 'fastest',
-                                provider: 'DeepSeek'
-                            }
-                        ]
-                    }
-                ]
-            }),
-            'PUT /api/v1/settings': () => ({ ...settings })
+            'GET /api/v1/models': () => ({ groups: [] }),
+            'GET /api/v1/providers': () => ({ providers }),
+            'POST /api/v1/providers': () => {
+                providers = [seeded]
+                return seeded
+            }
         })
 
         renderSettings()
         await userEvent.click(await screen.findByRole('menuitem', { name: 'Providers' }))
-        // The only provider's panel is open by default with the saved base URL.
-        expect(await screen.findByText('DeepSeek')).toBeInTheDocument()
-        const baseURL = await screen.findByLabelText('Base URL')
-        expect(baseURL).toHaveValue('https://api.deepseek.com')
-        await userEvent.clear(baseURL)
-        await userEvent.type(baseURL, 'https://api.deepseek.com/v1')
-        // The per-provider key input is the '•••••••• (saved)' one (the
-        // fallback key is unset, so its placeholder is sk-ant-…).
-        await userEvent.type(await screen.findByPlaceholderText('•••••••• (saved)'), 'ds-new-key')
-        await userEvent.click(screen.getByRole('button', { name: /Save/ }))
-        expect(await screen.findByText('Settings saved')).toBeInTheDocument()
+        await userEvent.click(await screen.findByRole('button', { name: /Add provider/ }))
+        await userEvent.type(await screen.findByLabelText('Name'), 'DeepSeek')
+        await userEvent.type(screen.getByLabelText('Base URL'), 'https://api.deepseek.com')
+        await userEvent.type(screen.getByLabelText('API key'), 'ds-secret')
+        await userEvent.click(screen.getByRole('button', { name: 'OK' }))
 
-        const body = JSON.stringify(lastBody('put', '/api/v1/settings'))
-        expect(body).toContain('https://api.deepseek.com/v1')
-        expect(body).toContain('ds-new-key')
+        expect(await screen.findByText('Provider added')).toBeInTheDocument()
+        expect(await screen.findByText('DeepSeek')).toBeInTheDocument()
+        const body = JSON.stringify(lastBody('post', '/api/v1/providers'))
+        expect(body).toContain('"name":"DeepSeek"')
+        expect(body).toContain('"base_url":"https://api.deepseek.com"')
+        expect(body).toContain('"api_key":"ds-secret"')
     })
 
-    it('saves a provider base URL without touching an existing key', async () => {
+    it('edits a provider and leaves a blank key untouched', async () => {
+        const seeded = {
+            id: 1,
+            name: 'DeepSeek',
+            base_url: 'https://api.deepseek.com',
+            has_api_key: true,
+            model_count: 0
+        }
         stubAPI({
-            'GET /api/v1/settings': () => ({
-                ...settings,
-                providers: { OpenAI: { api_key: '', has_api_key: true, base_url: '' } }
-            }),
+            'GET /api/v1/settings': getSettings,
             'GET /api/v1/github/auth': getEmptyGitHub,
-            'GET /api/v1/models': () => ({
-                groups: [
-                    {
-                        provider: 'OpenAI',
-                        models: [{ id: 2, value: 'gpt-5.6-mini', name: 'Mini', tag: 'fast', provider: 'OpenAI' }]
-                    }
-                ]
-            }),
-            'PUT /api/v1/settings': () => ({ ...settings })
+            'GET /api/v1/models': () => ({ groups: [] }),
+            'GET /api/v1/providers': () => ({ providers: [seeded] }),
+            'PUT /api/v1/providers/1': () => ({ ...seeded, base_url: 'https://api.deepseek.com/v1' })
         })
 
         renderSettings()
         await userEvent.click(await screen.findByRole('menuitem', { name: 'Providers' }))
+        expect(await screen.findByText('DeepSeek')).toBeInTheDocument()
+        await userEvent.click(await screen.findByRole('button', { name: 'Edit DeepSeek' }))
         const baseURL = await screen.findByLabelText('Base URL')
-        await userEvent.type(baseURL, 'https://api.openai.com/v1')
-        await userEvent.click(screen.getByRole('button', { name: /Save/ }))
-        expect(await screen.findByText('Settings saved')).toBeInTheDocument()
+        await userEvent.clear(baseURL)
+        await userEvent.type(baseURL, 'https://api.deepseek.com/v1')
+        await userEvent.click(screen.getByRole('button', { name: 'OK' }))
 
-        // The per-provider api key stays empty in the PUT body (write-only
-        // leave-unchanged semantics are the server's), the base URL goes.
-        const put = lastBody('put', '/api/v1/settings') as { providers?: Record<string, unknown> }
-        expect(put.providers?.['OpenAI']).toMatchObject({ base_url: 'https://api.openai.com/v1' })
+        expect(await screen.findByText('Provider updated')).toBeInTheDocument()
+        // The api key is write-only: a blank edit sends no key and the base
+        // URL round-trips.
+        const body = JSON.stringify(lastBody('put', '/api/v1/providers/1'))
+        expect(body).toContain('https://api.deepseek.com/v1')
+        expect(body).not.toContain('api_key')
     })
 
     it('shows the save error when the server rejects', async () => {
@@ -497,9 +490,10 @@ describe('SettingsPage wiki export/import', () => {
 })
 
 describe('SettingsPage Providers tab', () => {
-    const seeded = { id: 1, value: 'my-model', name: 'My Model', tag: 'test', provider: 'Vendor' }
+    const vendor = { id: 1, name: 'Vendor', base_url: '', has_api_key: false, model_count: 1 }
+    const seeded = { id: 1, value: 'my-model', name: 'My Model', tag: 'test', provider: 'Vendor', provider_id: 1 }
 
-    it('lists models and adds one', async () => {
+    it('lists models and adds one under the provider', async () => {
         // Stateful stubs: mutations refetch the registry, so the GET handler
         // must return the updated list after the POST.
         let list = [seeded]
@@ -507,8 +501,16 @@ describe('SettingsPage Providers tab', () => {
             'GET /api/v1/settings': getSettings,
             'GET /api/v1/github/auth': getEmptyGitHub,
             'GET /api/v1/models': () => ({ groups: [{ provider: 'Vendor', models: list }] }),
+            'GET /api/v1/providers': () => ({ providers: [vendor] }),
             'POST /api/v1/models': () => {
-                const created = { id: 2, value: 'new-model', name: 'New Model', tag: '', provider: 'Vendor' }
+                const created = {
+                    id: 2,
+                    value: 'new-model',
+                    name: 'New Model',
+                    tag: '',
+                    provider: 'Vendor',
+                    provider_id: 1
+                }
                 list = [...list, created]
                 return created
             }
@@ -527,14 +529,14 @@ describe('SettingsPage Providers tab', () => {
         await userEvent.click(screen.getByRole('button', { name: 'Add model' }))
         await userEvent.type(await screen.findByLabelText('Value'), 'new-model')
         await userEvent.type(screen.getByLabelText('Name'), 'New Model')
-        // Adding from a provider panel pre-fills the provider field (the
-        // placeholder scopes the query — the hidden General tab has its own
-        // "Provider" label).
-        expect(screen.getByPlaceholderText('Anthropic')).toHaveValue('Vendor')
+        // Adding from a provider panel pre-fills the provider select, so the
+        // POST carries that provider's id.
         await userEvent.click(screen.getByRole('button', { name: 'OK' }))
 
         expect(await screen.findByText('New Model')).toBeInTheDocument()
-        expect(JSON.stringify(lastBody('post', '/api/v1/models'))).toContain('new-model')
+        const body = JSON.stringify(lastBody('post', '/api/v1/models'))
+        expect(body).toContain('new-model')
+        expect(body).toContain('"provider_id":1')
     })
 
     it('edits a model', async () => {
@@ -543,6 +545,7 @@ describe('SettingsPage Providers tab', () => {
             'GET /api/v1/settings': getSettings,
             'GET /api/v1/github/auth': getEmptyGitHub,
             'GET /api/v1/models': () => ({ groups: [{ provider: 'Vendor', models: list }] }),
+            'GET /api/v1/providers': () => ({ providers: [vendor] }),
             'PUT /api/v1/models/1': () => {
                 list = [{ ...seeded, name: 'Renamed' }]
                 return list[0]!
@@ -569,6 +572,7 @@ describe('SettingsPage Providers tab', () => {
             'GET /api/v1/settings': getSettings,
             'GET /api/v1/github/auth': getEmptyGitHub,
             'GET /api/v1/models': () => ({ groups: [{ provider: 'Vendor', models: list }] }),
+            'GET /api/v1/providers': () => ({ providers: [vendor] }),
             'DELETE /api/v1/models/1': () => {
                 list = []
                 return { ok: true }
@@ -589,15 +593,39 @@ describe('SettingsPage Providers tab', () => {
         stubAPI({
             'GET /api/v1/settings': getSettings,
             'GET /api/v1/github/auth': getEmptyGitHub,
-            'GET /api/v1/models': () => ({ groups: [] })
+            'GET /api/v1/models': () => ({ groups: [] }),
+            'GET /api/v1/providers': () => ({ providers: [] })
         })
 
         renderSettings()
         await userEvent.click(await screen.findByRole('menuitem', { name: 'Providers' }))
-        expect(await screen.findByText('No models yet')).toBeInTheDocument()
-        // The empty-state CTA opens the same add modal.
-        await userEvent.click(await screen.findByText('Add your first model'))
-        expect(await screen.findByLabelText('Value')).toBeInTheDocument()
+        expect(await screen.findByText('No providers yet')).toBeInTheDocument()
+        // The empty-state CTA opens the add-provider modal.
+        await userEvent.click(await screen.findByText('Add your first provider'))
+        expect(await screen.findByLabelText('Name')).toBeInTheDocument()
+    })
+
+    it('deletes a provider and removes its models', async () => {
+        let providers = [{ id: 7, name: 'Doomed', base_url: '', has_api_key: false, model_count: 1 }]
+        stubAPI({
+            'GET /api/v1/settings': getSettings,
+            'GET /api/v1/github/auth': getEmptyGitHub,
+            'GET /api/v1/models': () => ({ groups: [] }),
+            'GET /api/v1/providers': () => ({ providers }),
+            'DELETE /api/v1/providers/7': () => {
+                providers = []
+                return { ok: true }
+            }
+        })
+
+        renderSettings()
+        await userEvent.click(await screen.findByRole('menuitem', { name: 'Providers' }))
+        expect(await screen.findByText('Doomed')).toBeInTheDocument()
+        await userEvent.click(await screen.findByRole('button', { name: 'Delete Doomed' }))
+        await userEvent.click(await screen.findByRole('button', { name: 'OK' }))
+
+        expect(await screen.findByText('Provider deleted')).toBeInTheDocument()
+        expect(mocks.delete.mock.calls.some(([u]) => u === '/api/v1/providers/7')).toBe(true)
     })
 })
 

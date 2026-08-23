@@ -13,13 +13,13 @@ import (
 )
 
 // modelInput is the POST/PUT body for /api/models. Value is the --model
-// argument; name is the display name; tag and provider are optional display
-// fields.
+// argument; name is the display name; tag is an optional display field.
+// ProviderID selects the owning provider (0 = the Unassigned catch-all).
 type modelInput struct {
-	Value    string `json:"value"`
-	Name     string `json:"name"`
-	Tag      string `json:"tag"`
-	Provider string `json:"provider"`
+	Value      string `json:"value"`
+	Name       string `json:"name"`
+	Tag        string `json:"tag"`
+	ProviderID int64  `json:"provider_id"`
 }
 
 // modelGroup is the GET /api/models wire shape: models grouped by provider,
@@ -70,7 +70,7 @@ func createModel(c echo.Context, d Deps) error {
 	if in.Value == "" || in.Name == "" {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "value and name are required"})
 	}
-	m, err := d.Store.CreateModel(in.Value, in.Name, in.Tag, in.Provider)
+	m, err := d.Store.CreateModel(in.Value, in.Name, in.Tag, in.ProviderID)
 	if errors.Is(err, store.ErrModelExists) {
 		return c.JSON(http.StatusConflict, map[string]string{"error": "a model with this value already exists"})
 	}
@@ -96,7 +96,7 @@ func updateModel(c echo.Context, d Deps) error {
 	if err != nil {
 		return modelStoreError(c, d, err, "read model")
 	}
-	if err := d.Store.UpdateModel(id, in.Value, in.Name, in.Tag, in.Provider); err != nil {
+	if err := d.Store.UpdateModel(id, in.Value, in.Name, in.Tag, in.ProviderID); err != nil {
 		return modelStoreError(c, d, err, "update model")
 	}
 	// A renamed value follows the selected-model setting, so the --model
@@ -112,7 +112,7 @@ func updateModel(c echo.Context, d Deps) error {
 			}
 		}
 	}
-	return c.JSON(http.StatusOK, store.LLMModel{ID: id, Value: in.Value, Name: in.Name, Tag: in.Tag, Provider: in.Provider})
+	return c.JSON(http.StatusOK, store.LLMModel{ID: id, Value: in.Value, Name: in.Name, Tag: in.Tag, ProviderID: in.ProviderID})
 }
 
 func deleteModel(c echo.Context, d Deps) error {

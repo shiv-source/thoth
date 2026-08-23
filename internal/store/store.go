@@ -48,6 +48,13 @@ func Open(path string) (*Store, error) {
 		_ = db.Close()
 		return nil, fmt.Errorf("migrate store: %w", err)
 	}
+	// 0011 moved the per-provider credentials from the legacy settings keys
+	// into the providers table; the copy runs after the migrations so the
+	// table exists, and is a no-op once the keys are gone.
+	if err := backfillProviderCredentials(db); err != nil {
+		_ = db.Close()
+		return nil, fmt.Errorf("backfill provider credentials: %w", err)
+	}
 	return &Store{db: db}, nil
 }
 

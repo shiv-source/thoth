@@ -1,58 +1,57 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { TableProps } from 'antd'
 import { App, Button, Card, Collapse, Empty, Flex, Form, Popconfirm, Tag, Typography } from 'antd'
-import { ApiOutlined } from '@ant-design/icons'
-import type { LLMModel, ModelInput } from '../../api/client'
+import { ApiOutlined, PlusOutlined } from '@ant-design/icons'
+import type { LLMModel, ModelInput, Provider, ProviderInput } from '../../api/client'
 import {
     createModel,
+    createProvider,
     deleteModel,
+    deleteProvider,
     fetchModels,
+    fetchProviders,
     fetchSettings,
     selectModelGroups,
     selectModelList,
-    selectSettings,
-    updateModel
+    selectProviders,
+    updateModel,
+    updateProvider
 } from '../../store'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import { CardTitle } from './components/CardTitle'
 import { ModelModal } from './components/ModelModal'
 import { ProviderHeader } from './components/ProviderHeader'
+import { ProviderModal } from './components/ProviderModal'
 import { ProviderPanel } from './components/ProviderPanel'
 import { tagColor } from './components/tagColor'
 import { SettingsShell } from './SettingsShell'
-import { useSettingsForm } from './useSettingsForm'
 
-// SettingsProvidersPage is the provider management surface: a fallback API
-// key for providers without a key of their own, then one collapsible panel
-// per provider holding its credential form (base URL + API key) and the
-// models registered under it. Every model mutation refetches the registry
-// (the server re-groups and re-sorts) and settings (a rename may have moved
-// the selected-model setting, a delete may have cleared it).
+// SettingsProvidersPage is the provider management surface: a card of one
+// collapsible panel per provider, each holding its models table. Providers
+// are created first (a provider row exists before any model); credentials
+// (base URL + API key) live on the provider row and are edited through the
+// provider modal. Every mutation refetches the registry (the server
+// re-groups and re-sorts) and, where a rename/delete may have moved the
+// selected-model setting, the settings.
 export function SettingsProvidersPage() {
     const dispatch = useAppDispatch()
-    const settings = useAppSelector(selectSettings)
     const models = useAppSelector(selectModelList)
     const groups = useAppSelector(selectModelGroups)
-    const { form, status, saving, hasError, save } = useSettingsForm()
+    const providers = useAppSelector(selectProviders)
     const { message } = App.useApp()
-    const [open, setOpen] = useState(false)
+
+    const [providerOpen, setProviderOpen] = useState(false)
+    const [editingProvider, setEditingProvider] = useState<Provider | null>(null)
+    const [providerForm] = Form.useForm<ProviderInput>()
+
+    const [modelOpen, setModelOpen] = useState(false)
     const [editing, setEditing] = useState<LLMModel | null>(null)
     const [modelForm] = Form.useForm<ModelInput>()
 
     useEffect(() => {
         void dispatch(fetchModels())
+        void dispatch(fetchProviders())
     }, [dispatch])
-
-    // Panels are the union of registry providers (the model groups, already
-    // A→Z) and any leftover settings keys, so a provider keeps its panel even
-    // when its last model is deleted.
-    const providerNames = useMemo(() => {
-        const names = groups.map((g) => g.provider)
-        for (const p of Object.keys(settings.data?.providers ?? {})) {
-            if (!names.includes(p)) names.push(p)
-        }
-        return names
-    }, [groups, settings.data])
 
     // The tag dropdown offers every tag already in the registry (sorted);
     // AutoComplete also lets the user type a new one.
@@ -64,20 +63,62 @@ export function SettingsProvidersPage() {
         [groups]
     )
 
-    const openAdd = (provider: string) => {
+    const openAddProvider = () => {
+        setEditingProvider(null)
+        providerForm.resetFields()
+        setProviderOpen(true)
+    }
+
+    const openEditProvider = (p: Provider) => {
+        setEditingProvider(p)
+        providerForm.resetFields()
+        providerForm.setFieldsValue({ name: p.name, base_url: p.base_url })
+        setProviderOpen(true)
+    }
+
+    const submitProvider = async () => {
+        const values = await providerForm.validateFields()
+        try {
+            if (editingProvider) {
+                await dispatch(updateProvider({ id: editingProvider.id, input: values })).unwrap()
+            } else {
+                await dispatch(createProvider(values)).unwrap()
+            }
+            void dispatch(fetchProviders())
+            void dispatch(fetchModels())
+            setProviderOpen(false)
+            void message.success(editingProvider ? 'Provider updated' : 'Provider added')
+        } catch {
+            void message.error('Could not save provider')
+        }
+    }
+
+    const removeProvider = async (p: Provider) => {
+        try {
+            await dispatch(deleteProvider(p.id)).unwrap()
+            void dispatch(fetchProviders())
+            void dispatch(fetchModels())
+            void dispatch(fetchSettings())
+            void message.success('Provider deleted')
+        } catch {
+            void message.error('Could not delete provider')
+        }
+    }
+
+    const openAddModel = (providerID: number) => {
         setEditing(null)
         modelForm.resetFields()
-        modelForm.setFieldsValue({ provider })
-        setOpen(true)
+        modelForm.setFieldsValue({ provider_id: providerID })
+        setModelOpen(true)
     }
 
-    const openEdit = (m: LLMModel) => {
+    const openEditModel = (m: LLMModel) => {
         setEditing(m)
         modelForm.setFieldsValue(m)
-        setOpen(true)
+        setModelOpen(true)
     }
 
-    const submit = async () => {
+    const submitModel = async () => {
         const values = await modelForm.validateFields()
         try {
             if (editing) {
@@ -87,14 +128,14 @@ export function SettingsProvidersPage() {
             }
             void dispatch(fetchModels())
             void dispatch(fetchSettings())
-            setOpen(false)
+            setModelOpen(false)
             void message.success(editing ? 'Model updated' : 'Model added')
         } catch {
             void message.error('Could not save model')
         }
     }
 
-    const remove = async (m: LLMModel) => {
+    const removeModel = async (m: LLMModel) => {
         try {
             await dispatch(deleteModel(m.id)).unwrap()
             void dispatch(fetchModels())
@@ -130,10 +171,10 @@ export function SettingsProvidersPage() {
             width: 150,
             render: (_, m) => (
                 <Flex gap={4} justify="flex-end">
-                    <Button size="small" onClick={() => openEdit(m)}>
+                    <Button size="small" onClick={() => openEditModel(m)}>
                         Edit
                     </Button>
-                    <Popconfirm title="Delete this model?" trigger="click" onConfirm={() => void remove(m)}>
+                    <Popconfirm title="Delete this model?" trigger="click" onConfirm={() => void removeModel(m)}>
                         <Button size="small" danger>
                             Delete
                         </Button>
@@ -143,53 +184,87 @@ export function SettingsProvidersPage() {
         }
     ]
 
+    // Models without a provider (provider_id 0 — the Unassigned catch-all)
+    // keep a panel of their own so they never become invisible.
+    const unassignedModels = models.filter((m) => m.provider_id === 0)
+    const panelItems = [
+        ...providers.map((p) => ({
+            key: p.name,
+            label: (
+                <ProviderHeader
+                    name={p.name}
+                    modelCount={p.model_count}
+                    hasKey={p.has_api_key}
+                    baseURL={p.base_url}
+                    onEdit={() => openEditProvider(p)}
+                    onDelete={() => void removeProvider(p)}
+                />
+            ),
+            children: (
+                <ProviderPanel
+                    models={models.filter((m) => m.provider_id === p.id)}
+                    columns={columns}
+                    onAdd={() => openAddModel(p.id)}
+                />
+            )
+        })),
+        ...(unassignedModels.length > 0
+            ? [
+                  {
+                      key: '__unassigned__',
+                      label: (
+                          <ProviderHeader
+                              name="Unassigned"
+                              modelCount={unassignedModels.length}
+                              hasKey={false}
+                              baseURL=""
+                          />
+                      ),
+                      children: (
+                          <ProviderPanel models={unassignedModels} columns={columns} onAdd={() => openAddModel(0)} />
+                      )
+                  }
+              ]
+            : [])
+    ]
+
     return (
         <SettingsShell active="providers">
-            <Form form={form} layout="vertical" onFinish={(values) => void save(values)}>
-                <Card size="small" title={<CardTitle icon={ApiOutlined}>Providers</CardTitle>}>
-                    {providerNames.length === 0 ? (
-                        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No models yet">
-                            <Button type="primary" onClick={() => openAdd('')}>
-                                Add your first model
-                            </Button>
-                        </Empty>
-                    ) : (
-                        <Collapse
-                            defaultActiveKey={[providerNames[0]!]}
-                            items={providerNames.map((provider) => ({
-                                key: provider,
-                                label: (
-                                    <ProviderHeader
-                                        provider={provider}
-                                        modelCount={models.filter((m) => m.provider === provider).length}
-                                        hasKey={settings.data?.providers?.[provider]?.has_api_key === true}
-                                        baseURL={settings.data?.providers?.[provider]?.base_url ?? ''}
-                                    />
-                                ),
-                                children: (
-                                    <ProviderPanel
-                                        provider={provider}
-                                        models={models.filter((m) => m.provider === provider)}
-                                        columns={columns}
-                                        status={status}
-                                        saving={saving}
-                                        hasError={hasError}
-                                        onAdd={() => openAdd(provider)}
-                                    />
-                                )
-                            }))}
-                        />
-                    )}
-                    <ModelModal
-                        open={open}
-                        editing={editing}
-                        form={modelForm}
-                        tagOptions={tagOptions}
-                        onCancel={() => setOpen(false)}
-                        onOk={() => void submit()}
-                    />
-                </Card>
-            </Form>
+            <Card
+                size="small"
+                title={<CardTitle icon={ApiOutlined}>Providers</CardTitle>}
+                extra={
+                    <Button type="primary" icon={<PlusOutlined aria-hidden="true" />} onClick={openAddProvider}>
+                        Add provider
+                    </Button>
+                }
+            >
+                {panelItems.length === 0 ? (
+                    <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No providers yet">
+                        <Button type="primary" onClick={openAddProvider}>
+                            Add your first provider
+                        </Button>
+                    </Empty>
+                ) : (
+                    <Collapse defaultActiveKey={[panelItems[0]!.key]} items={panelItems} />
+                )}
+                <ProviderModal
+                    open={providerOpen}
+                    editing={editingProvider}
+                    form={providerForm}
+                    onCancel={() => setProviderOpen(false)}
+                    onOk={() => void submitProvider()}
+                />
+                <ModelModal
+                    open={modelOpen}
+                    editing={editing}
+                    form={modelForm}
+                    providers={providers}
+                    tagOptions={tagOptions}
+                    onCancel={() => setModelOpen(false)}
+                    onOk={() => void submitModel()}
+                />
+            </Card>
         </SettingsShell>
     )
 }

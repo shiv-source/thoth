@@ -21,7 +21,7 @@ internal/
   cli/                    Cobra: root, serve, init, version, doctor
   wiki/                   file contract: ParseNote, SafePath, Tree, Rulebook
   index/                  SQLite WAL + FTS5 + watcher (derived)
-  store/                  conversations/messages; migrations 0001–0010
+  store/                  conversations/messages + providers + llm_models; migrations 0001–0011
   settings/ config/ doctor/ github/ webui/   (see docs/components.md)
 web/src/                  React 19 · TS strict · antd 6 · pnpm
   app/ App.tsx · api/ client.tsx (axios+zod) · ws/ chat/protocol/events

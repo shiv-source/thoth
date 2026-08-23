@@ -1,5 +1,12 @@
 import { createAsyncThunk, createSelector, createSlice, type PayloadAction } from '@reduxjs/toolkit'
-import { api, type ModelGroup, type ModelInput, type Settings } from '../../api/client'
+import {
+    api,
+    type ModelGroup,
+    type ModelInput,
+    type Provider,
+    type ProviderInput,
+    type Settings
+} from '../../api/client'
 import type { RootState } from '../index'
 
 export const fetchSettings = createAsyncThunk('settings/fetch', async () => api.settings())
@@ -13,6 +20,18 @@ export const deleteModel = createAsyncThunk('settings/deleteModel', async (id: n
     await api.deleteModel(id)
     return id
 })
+export const fetchProviders = createAsyncThunk('settings/fetchProviders', async () => api.providers())
+export const createProvider = createAsyncThunk('settings/createProvider', async (input: ProviderInput) =>
+    api.createProvider(input)
+)
+export const updateProvider = createAsyncThunk(
+    'settings/updateProvider',
+    async (arg: { id: number; input: ProviderInput }) => api.updateProvider(arg.id, arg.input)
+)
+export const deleteProvider = createAsyncThunk('settings/deleteProvider', async (id: number) => {
+    await api.deleteProvider(id)
+    return id
+})
 
 interface SettingsState {
     data: Settings | null
@@ -23,9 +42,11 @@ interface SettingsState {
     // A→Z. Mutations refetch it (the server re-groups and re-sorts), so the
     // store never edits the list itself.
     groups: ModelGroup[]
+    // The providers table, sorted A→Z by the server. Mutations refetch it.
+    providers: Provider[]
 }
 
-const initialState: SettingsState = { data: null, loading: true, saving: false, error: null, groups: [] }
+const initialState: SettingsState = { data: null, loading: true, saving: false, error: null, groups: [], providers: [] }
 
 export const settingsSlice = createSlice({
     name: 'settings',
@@ -63,6 +84,12 @@ export const settingsSlice = createSlice({
             .addCase(fetchModels.rejected, (s) => {
                 s.groups = []
             })
+            .addCase(fetchProviders.fulfilled, (s, a: PayloadAction<{ providers: Provider[] }>) => {
+                s.providers = a.payload.providers
+            })
+            .addCase(fetchProviders.rejected, (s) => {
+                s.providers = []
+            })
     }
 })
 
@@ -71,3 +98,4 @@ export const selectSettings = (s: RootState) => s.settings
 // list from it (createSelector keeps the derived array reference stable).
 export const selectModelGroups = (s: RootState) => s.settings.groups
 export const selectModelList = createSelector([selectModelGroups], (groups) => groups.flatMap((g) => g.models))
+export const selectProviders = (s: RootState) => s.settings.providers

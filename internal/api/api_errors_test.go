@@ -49,16 +49,6 @@ func TestGetSettingsStoreError(t *testing.T) {
 	}
 }
 
-func TestGetSettingsProviderReadError(t *testing.T) {
-	d := testDeps(t)
-	if err := d.Store.Close(); err != nil {
-		t.Fatal(err)
-	}
-	if rec := doReq(t, New(d), http.MethodGet, "/api/v1/settings", ""); rec.Code != http.StatusInternalServerError {
-		t.Fatalf("status %d, want 500 (provider config read)", rec.Code)
-	}
-}
-
 // ---- models ----
 
 func TestModelsListStoreError(t *testing.T) {
@@ -117,7 +107,7 @@ func TestModelsUpdateStoreError(t *testing.T) {
 
 func TestModelsUpdateRenamesSelectedSettingError(t *testing.T) {
 	d := testDeps(t)
-	m, err := d.Store.CreateModel("old-value", "Old", "", "")
+	m, err := d.Store.CreateModel("old-value", "Old", "", 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -149,7 +139,7 @@ func TestModelsDeleteStoreError(t *testing.T) {
 
 func TestModelsDeleteClearsSelectedSettingError(t *testing.T) {
 	d := testDeps(t)
-	m, err := d.Store.CreateModel("doomed", "Doomed", "", "")
+	m, err := d.Store.CreateModel("doomed", "Doomed", "", 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -488,7 +478,8 @@ func TestHealthProviderNameUnknownModel(t *testing.T) {
 	if got := providerName(d.Store, "no-such-model"); got != "" {
 		t.Fatalf("providerName(unknown) = %q, want \"\"", got)
 	}
-	if _, err := d.Store.CreateModel("m", "M", "", "Vendor"); err != nil {
+	pid := seedProvider(t, d, "Vendor")
+	if _, err := d.Store.CreateModel("m", "M", "", pid); err != nil {
 		t.Fatal(err)
 	}
 	if got := providerName(d.Store, "m"); got != "Vendor" {

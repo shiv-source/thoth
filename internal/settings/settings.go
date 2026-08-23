@@ -11,9 +11,10 @@ import (
 )
 
 // Key constants for the settings table — one place for the wire keys.
-// GitHub/sync keys carry the github_ prefix; per-provider keys are built
-// from the provider slug via ProviderAPIKeyKey/ProviderBaseURLKey (flat
-// keys, not a JSON blob — the point of the key/value shape).
+// GitHub/sync keys carry the github_ prefix. The per-provider keys below are
+// retired: migration 0011 moved credentials into the providers table, so
+// ProviderAPIKeyKey/ProviderBaseURLKey survive only as the read keys of the
+// one-time credential backfill in store.Open.
 const (
 	KeyWikiPath     = "wiki_path"
 	KeyWikiFolders  = "wiki_folders"
@@ -41,15 +42,16 @@ func providerSlug(provider string) string {
 	return b.String()
 }
 
-// ProviderAPIKeyKey returns the settings key holding a provider's own API
-// key, e.g. provider_deepseek_api_key for the "DeepSeek" provider label.
+// ProviderAPIKeyKey returns the legacy settings key that held a provider's
+// own API key, e.g. provider_deepseek_api_key for the "DeepSeek" provider
+// label. Retained for the 0011 credential backfill — no new code writes it.
 func ProviderAPIKeyKey(provider string) string {
 	return "provider_" + providerSlug(provider) + "_api_key"
 }
 
-// ProviderBaseURLKey returns the settings key holding a provider's API base
-// URL override, e.g. provider_deepseek_base_url for "DeepSeek". Empty means
-// the provider's default endpoint.
+// ProviderBaseURLKey returns the legacy settings key that held a provider's
+// API base URL override, e.g. provider_deepseek_base_url for "DeepSeek".
+// Retained for the 0011 credential backfill — no new code writes it.
 func ProviderBaseURLKey(provider string) string {
 	return "provider_" + providerSlug(provider) + "_base_url"
 }
@@ -103,22 +105,22 @@ func (r *Repo) SetSetting(key, value string) error {
 	return nil
 }
 
-// ProviderConfig resolves the credentials for a provider name (the
-// llm_models row's provider label): its per-provider API key and base URL
-// override. Keys live in thoth.db only — there is no shared fallback and
-// nothing is read from the environment. An empty provider name (no registry
-// row) resolves to an empty key and the provider's default endpoint.
+// ProviderConfig resolves the credentials for a provider name from the
+// providers table (migration 0011): its own API key and base URL override.
+// Keys live in thoth.db only — there is no shared fallback and nothing is
+// read from the environment. An empty provider name (no registry row)
+// resolves to an empty key and the provider's default endpoint.
 func (r *Repo) ProviderConfig(provider string) (apiKey, baseURL string, err error) {
 	if provider == "" {
 		return "", "", nil
 	}
-	apiKey, _, err = r.Setting(ProviderAPIKeyKey(provider))
-	if err != nil {
-		return "", "", err
+	err = r.db.QueryRow(`SELECT api_key, base_url FROM providers WHERE name = ?`, provider).
+		Scan(&apiKey, &baseURL)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", "", nil
 	}
-	baseURL, _, err = r.Setting(ProviderBaseURLKey(provider))
 	if err != nil {
-		return "", "", err
+		return "", "", fmt.Errorf("read provider config %q: %w", provider, err)
 	}
 	return apiKey, baseURL, nil
 }

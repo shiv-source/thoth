@@ -204,6 +204,26 @@ run_checks() {
   make check
 }
 
+# codegraph_sync refreshes the CodeGraph index so the PR reflects the branch's
+# final tree (post make-check) before the push. Best-effort and only when an
+# index already exists — a missing or failing codegraph must never block the PR
+# (the same stance git-worktree.sh takes on init).
+codegraph_sync() {
+  local db=".codegraph/codegraph.db"
+  if [ ! -e "$db" ]; then
+    echo "pr: no $db — skipping codegraph sync"
+    return 0
+  fi
+  if ! command -v codegraph >/dev/null 2>&1; then
+    echo "pr: codegraph not on PATH — skipping codegraph sync"
+    return 0
+  fi
+  echo "pr: syncing codegraph index"
+  if ! codegraph sync .; then
+    echo "pr: codegraph sync failed — continuing without it" >&2
+  fi
+}
+
 # Newest-first commit subjects on the branch relative to main; picks the
 # first whose type matches the branch (type+scope match wins over
 # type-only). Falls back to the branch slug.
@@ -292,6 +312,7 @@ main() {
   echo "== 3/5 Branch ==";      parse_branch; derive_labels
   echo "== 4/5 make check ==";  run_checks
   derive_title
+  codegraph_sync
   echo "== 5/5 Push + PR ==";   push_and_open
 }
 
