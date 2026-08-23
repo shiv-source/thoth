@@ -1,4 +1,4 @@
-import { Button, List, Tooltip } from 'antd'
+import { Button, Tooltip } from 'antd'
 import { DeleteOutlined } from '@ant-design/icons'
 import type { Conversation } from '../../api/client'
 
@@ -17,12 +17,17 @@ export function ConversationRow({
     onDelete: () => void
 }) {
     return (
-        <List.Item
+        <div
             aria-current={active ? 'true' : undefined}
             onClick={onOpen}
-            className={`cursor-pointer rounded-md px-2 ${active ? 'bg-accent-soft' : 'hover:bg-raised'}`}
-            actions={[
-                <Tooltip key="delete" title="Delete chat">
+            className={`flex cursor-pointer items-center rounded-md px-2 py-1.5 ${active ? 'bg-accent-soft' : 'hover:bg-raised'}`}
+        >
+            <span className={`min-w-0 flex-1 truncate text-sm ${active ? 'font-medium text-accent' : ''}`}>
+                {conversation.title}
+            </span>
+            <span className="ml-2 shrink-0 text-[11px] text-subtle">{relativeDate(conversation.created_at)}</span>
+            <span className="ml-2 shrink-0">
+                <Tooltip title="Delete chat">
                     <Button
                         type="text"
                         size="small"
@@ -35,13 +40,8 @@ export function ConversationRow({
                         }}
                     />
                 </Tooltip>
-            ]}
-        >
-            <span className={`min-w-0 truncate text-sm ${active ? 'font-medium text-accent' : ''}`}>
-                {conversation.title}
             </span>
-            <span className="ml-2 shrink-0 text-[11px] text-subtle">{relativeDate(conversation.created_at)}</span>
-        </List.Item>
+        </div>
     )
 }
 

@@ -1,6 +1,39 @@
 name: quality
 on:
   workflow_call:
+    outputs:
+      coverage:
+        description: >-
+          Total Go backend test coverage % from backend-test, when the backend
+          was touched ("" when the job is skipped).
+        value: ${{ jobs.backend-test.outputs.coverage }}
+      coverage_floor:
+        description: >-
+          The repo's coverage floor %, sourced from Makefile (COVERAGE_FLOOR),
+          so the final-gate report and the gate can never drift apart.
+        value: ${{ jobs.backend-test.outputs.coverage_floor }}
+      coverage_covered:
+        description: Covered backend statements (coverage.out), for the overall line.
+        value: ${{ jobs.backend-test.outputs.coverage_covered }}
+      coverage_total:
+        description: Total backend statements (coverage.out), for the overall line.
+        value: ${{ jobs.backend-test.outputs.coverage_total }}
+      web_coverage:
+        description: >-
+          Total frontend (vitest) statement coverage % from frontend-test,
+          when the frontend was touched ("" when the job is skipped).
+        value: ${{ jobs.frontend-test.outputs.web_coverage }}
+      web_coverage_floor:
+        description: >-
+          The frontend coverage floor %, sourced from web/vite.config.ts
+          (vitest thresholds), so the report and the gate stay in sync.
+        value: ${{ jobs.frontend-test.outputs.web_coverage_floor }}
+      web_coverage_covered:
+        description: Covered frontend statements (vitest summary), for the overall line.
+        value: ${{ jobs.frontend-test.outputs.web_coverage_covered }}
+      web_coverage_total:
+        description: Total frontend statements (vitest summary), for the overall line.
+        value: ${{ jobs.frontend-test.outputs.web_coverage_total }}
 
 permissions:
   contents: read
@@ -20,6 +53,7 @@ jobs:
       backend: ${{ steps.diff.outputs.backend }}
       frontend: ${{ steps.diff.outputs.frontend }}
       issue_labels: ${{ steps.diff.outputs.issue_labels }}
+      ci_report: ${{ steps.diff.outputs.ci_report }}
       docs: ${{ steps.diff.outputs.docs }}
     steps:
       - uses: actions/checkout@v7
@@ -33,14 +67,15 @@ jobs:
           head="${{ github.event.pull_request.head.sha }}"
 
           # Push and manual runs are not PRs: run every gate.
-          backend=true; frontend=true; issue_labels=true; docs=true
+          backend=true; frontend=true; issue_labels=true; ci_report=true; docs=true
           if [ -n "$base" ] && [ -n "$head" ]; then
             files="$(git diff --name-only "$base...$head")"
-            backend=false; frontend=false; issue_labels=false; docs=false
+            backend=false; frontend=false; issue_labels=false; ci_report=false; docs=false
             if [ -n "$files" ]; then
               # Tooling/config that a gate depends on counts as that area.
               if printf '%s\n' "$files" | grep -Eq '^\.github/(workflows|actions)/' \
-                && ! printf '%s\n' "$files" | grep -Eq '^\.github/actions/issue-labels/'; then
+                && ! printf '%s\n' "$files" | grep -Eq '^\.github/actions/issue-labels/' \
+                && ! printf '%s\n' "$files" | grep -Eq '^\.github/actions/ci-report/'; then
                 backend=true; frontend=true
               fi
               if printf '%s\n' "$files" | grep -Eq '^\.husky/|^scripts/|^Makefile$'; then
@@ -58,13 +93,17 @@ jobs:
               if printf '%s\n' "$files" | grep -Eq '^\.github/actions/issue-labels/'; then
                 issue_labels=true
               fi
+              if printf '%s\n' "$files" | grep -Eq '^\.github/actions/ci-report/'; then
+                ci_report=true
+              fi
             fi
           fi
-          echo "backend=$backend frontend=$frontend issue_labels=$issue_labels docs=$docs"
+          echo "backend=$backend frontend=$frontend issue_labels=$issue_labels ci_report=$ci_report docs=$docs"
           {
             echo "backend=$backend"
             echo "frontend=$frontend"
             echo "issue_labels=$issue_labels"
+            echo "ci_report=$ci_report"
             echo "docs=$docs"
           } >> "$GITHUB_OUTPUT"
 
@@ -73,13 +112,30 @@ jobs:
     if: needs.changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    outputs:
+      coverage: ${{ steps.cover.outputs.coverage }}
+      coverage_floor: ${{ steps.cover.outputs.coverage_floor }}
+      coverage_covered: ${{ steps.cover.outputs.coverage_covered }}
+      coverage_total: ${{ steps.cover.outputs.coverage_total }}
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-go-web
       - run: go vet ./...
       - run: go test -race -failfast ./...
-      - name: coverage gate (>= 90% on the Go backend)
-        run: make cover
+      # Gate on the floor, then lift the actual % and the floor up to the
+      # report (both from the Makefile so they stay in sync with `make cover`).
+      - name: coverage gate (>= COVERAGE_FLOOR% on the Go backend)
+        id: cover
+        run: |
+          make cover
+          total=$(go tool cover -func=coverage.out | awk -F'\t' '/^total:/ { gsub(/%/, "", $NF); print $NF }')
+          floor=$(make -s coverage-floor)
+          read -r covered stmts < <(awk '!/^mode:/ { t += $2; if ($3 > 0) c += $2 } END { print c, t }' coverage.out)
+          echo "coverage=$total" >> "$GITHUB_OUTPUT"
+          echo "coverage_floor=$floor" >> "$GITHUB_OUTPUT"
+          echo "coverage_covered=$covered" >> "$GITHUB_OUTPUT"
+          echo "coverage_total=$stmts" >> "$GITHUB_OUTPUT"
+          echo "coverage=$total% floor=$floor% statements=$covered/$stmts"
 
   backend-lint:
     needs: [changes]
@@ -116,13 +172,70 @@ jobs:
     if: needs.changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    outputs:
+      web_coverage: ${{ steps.cover.outputs.web_coverage }}
+      web_coverage_floor: ${{ steps.cover.outputs.web_coverage_floor }}
+      web_coverage_covered: ${{ steps.cover.outputs.web_coverage_covered }}
+      web_coverage_total: ${{ steps.cover.outputs.web_coverage_total }}
     defaults:
       run:
         working-directory: web
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-web
-      - run: pnpm exec vitest run
+      # Split the run from the gate on purpose: vitest 4.1.x's v8 coverage
+      # provider has an intermittent teardown race that exits 1 right after a
+      # fully-green run on shared CI runners (issue #166). The run step records
+      # vitest's exit code but never gates on it — the coverage gate below
+      # decides from the summary, so a spurious exit can never flip a good run
+      # red while a genuine failure still fails loudly.
+      - name: frontend tests
+        continue-on-error: true
+        run: pnpm exec vitest run --coverage
+
+      # The real gate. The summary exists iff the report fully generated: the
+      # v8 reporters run synchronously in array order (text, then json-summary)
+      # and vitest writes no coverage files when tests failed (reportOnFailure
+      # defaults to false — keep it that way, the gate depends on it). So a
+      # missing summary means the run genuinely failed or died early. When it
+      # exists, compare every metric against the thresholds in vite.config.ts
+      # (the same numbers the run itself enforces) and fail only when genuinely
+      # below. Outputs are written here so the final-gate report gets values
+      # even when the run step exited spuriously.
+      - name: frontend coverage gate
+        id: cover
+        if: always()
+        run: |
+          if [ ! -f coverage/coverage-summary.json ]; then
+            echo "ERROR: coverage/coverage-summary.json is missing — the vitest run failed or died before writing it (see the 'frontend tests' step)." >&2
+            exit 1
+          fi
+          out=$(
+            node -e '
+              const t = require("./coverage/coverage-summary.json").total
+              const config = require("fs").readFileSync("vite.config.ts", "utf8")
+              const floor = {}
+              for (const key of ["lines", "functions", "branches", "statements"]) {
+                const m = config.match(new RegExp(`${key}:\\s*([0-9]+)`))
+                if (!m) throw new Error(`threshold for ${key} not found in vite.config.ts`)
+                floor[key] = Number(m[1])
+              }
+              const below = ["lines", "functions", "branches", "statements"]
+                .filter((key) => t[key].pct < floor[key])
+                .map((key) => `${key} ${t[key].pct}% < ${floor[key]}%`)
+              if (below.length) {
+                console.error(`ERROR: coverage below threshold: ${below.join(", ")}`)
+                process.exit(1)
+              }
+              console.log(`web coverage=${t.statements.pct}% floor=${floor.statements}% statements=${t.statements.covered}/${t.statements.total}`)
+              console.log(`web_coverage=${t.statements.pct}`)
+              console.log(`web_coverage_floor=${floor.statements}`)
+              console.log(`web_coverage_covered=${t.statements.covered}`)
+              console.log(`web_coverage_total=${t.statements.total}`)
+            '
+          )
+          echo "$out" | head -n 1
+          echo "$out" | tail -n +2 >> "$GITHUB_OUTPUT"
 
   frontend-lint:
     needs: [changes]

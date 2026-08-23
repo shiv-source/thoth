@@ -20,6 +20,7 @@ description: >-
 - .github/pull_request_template.md — the PR body shape (Summary / Related issue / Files changed / How verified / Notes)
 - .github/workflows/ — ci-pr.yml (PR gates on PRs targeting `main`; quality.yml is path-aware — its internal `changes` job diffs the PR and skips the quality gates for areas the PR didn't touch — docs-only PRs skip them all) · quality.yml (the quality gates, each gated on its own `changes` job's area outputs) · final-gate.yml (single required check + PR report comment; skipped gates count as passing) · ci.yml (push to main adds 5 cross-compiles + frontend build) · pr-assignee.yml (auto-assigns PR committers; runs on every PR, never gated) · issue-labels.yml (applies the form-selected labels to new/edited issues)
 - .github/actions/issue-labels/ — reusable composite action: applies the three-tier labels (type, priority, areas) from issue-form answers; JS, add-only
+- .github/actions/ci-report/ — reusable composite action: renders the final-gate per-job report (step summary + marker-tagged PR comment) and gates the run; JS (final-gate.yml is just the caller)
 - .husky/pre-commit — the commit gate: lint-staged autofixes, plus Go vet/lint/test when Go is staged
 - docs/development.md — § Gates (what make check enforces), § CI (workflow mechanics)
 - docs/specs/ — untracked design docs for large or cross-package changes (convention, may be empty)
@@ -34,7 +35,7 @@ description: >-
 2. Never commit to main (code-rules skill § Repo rules) — main is always deployable; changes live on `<type>/<scope>/<slug>` branches and land via reviewed PRs. Create the branch per your clone layout:
    - **Bare-clone layout** (this repo's container: a dir holding a hidden `.bare` clone + a `.git` gitfile, one working directory per branch) — `git switch main` is impossible (main is checked out in its sibling worktree), so use `./scripts/git-worktree.sh`:
      - `git fetch origin` first — `./scripts/git-worktree.sh new` bases on `origin/main` and does not fetch for you
-     - `./scripts/git-worktree.sh new <type>/<scope>/<slug>` creates the branch and its flat-hyphen worktree dir (`feat-api-x` for `feat/api/x`), basing on `origin/main` (override with `--base <ref>`), copies `opencode.json` in, and runs `codegraph init` in the new worktree when CodeGraph is installed (non-fatal — indexing is optional)
+     - `./scripts/git-worktree.sh new <type>/<scope>/<slug>` creates the branch and its flat-hyphen worktree dir (`feat-api-x` for `feat/api/x`), basing on `origin/main` (override with `--base <ref>`), copies `opencode.json` in, and runs `codegraph init` in the new worktree (best-effort — no-op when codegraph is missing, so branching is never blocked)
      - `./scripts/git-worktree.sh rm <dir-or-branch> [--force]` removes the worktree and deletes its branch
      - `./scripts/git-worktree.sh list` shows all worktrees
      Each worktree is its own checkout, so parallel branches (or agent runs) never collide; `git fetch` in any worktree updates the shared refs for all of them (working trees only change on pull/checkout inside each).

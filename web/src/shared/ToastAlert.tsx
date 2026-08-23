@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { Alert, Button } from 'antd'
+import { Alert } from 'antd'
 import { CloseOutlined } from '@ant-design/icons'
 import type { NotificationKind } from '../store/slices/notificationsSlice'
 import { NotificationIcon } from './notifications'
@@ -30,18 +30,16 @@ export function ToastAlert({
             type="info"
             showIcon
             icon={<NotificationIcon kind={kind} />}
-            message={title}
+            title={title}
             description={body}
-            closable
-            closeIcon={
-                <Button
-                    type="text"
-                    size="small"
-                    aria-label={`Dismiss: ${title}`}
-                    icon={<CloseOutlined aria-hidden="true" />}
-                />
-            }
-            onClose={onDismiss}
+            // antd's close button already renders a <button>; passing a
+            // <Button> here nests one inside the other (a React DOM error), so
+            // pass only the icon, via the closable config.
+            closable={{
+                closeIcon: <CloseOutlined aria-hidden="true" />,
+                onClose: onDismiss,
+                'aria-label': `Dismiss: ${title}`
+            }}
         />
     )
 }

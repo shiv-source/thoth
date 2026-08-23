@@ -1,4 +1,4 @@
-import { Card, List } from 'antd'
+import { Card, Listy } from 'antd'
 import { ClockCircleOutlined } from '@ant-design/icons'
 
 // Meeting is one row of today's meetings widget.
@@ -13,11 +13,13 @@ export interface Meeting {
 export function MeetingsCard({ meetings }: { meetings: Meeting[] }) {
     return (
         <Card size="small" title="Today's meetings">
-            <List
-                size="small"
-                dataSource={meetings}
-                renderItem={(m) => (
-                    <List.Item className="group px-2 hover:bg-raised">
+            <Listy
+                items={meetings}
+                rowKey={(m) => m.path}
+                className="divide-y divide-line"
+                classNames={{ item: 'p-0!' }}
+                itemRender={(m) => (
+                    <div className="group flex items-center px-2 py-1 hover:bg-raised">
                         <span className="mr-2.5 shrink-0 rounded-md bg-raised px-1.5 py-0.5 font-mono text-xs text-subtle">
                             {m.time}
                         </span>
@@ -29,7 +31,7 @@ export function MeetingsCard({ meetings }: { meetings: Meeting[] }) {
                             className="h-4 w-4 shrink-0 text-subtle opacity-0 transition group-hover:opacity-100"
                             aria-hidden="true"
                         />
-                    </List.Item>
+                    </div>
                 )}
             />
             <p className="mt-3 text-xs text-subtle">mock data — index by kind</p>

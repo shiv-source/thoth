@@ -34,7 +34,7 @@ export function GitConnectSection({
             >
                 <Input.Password placeholder="ghp_…" value={token} onChange={(e) => onTokenChange(e.target.value)} />
             </Form.Item>
-            {error && <Alert type="error" showIcon message={error} className="mb-4" />}
+            {error && <Alert type="error" showIcon title={error} className="mb-4" />}
             <div className="flex justify-end">
                 <Button type="primary" loading={connecting} onClick={onConnect}>
                     Connect

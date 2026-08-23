@@ -100,17 +100,17 @@ export function ChatPage({
                 <Alert
                     type="warning"
                     banner
-                    message={status === 'reconnecting' ? 'Connection lost — reconnecting…' : 'Connection lost.'}
+                    title={status === 'reconnecting' ? 'Connection lost — reconnecting…' : 'Connection lost.'}
                 />
             )}
             {thinking && !lastTool && (
-                <Alert type="info" banner message={<span className="truncate">Thinking… {thinkingText}</span>} />
+                <Alert type="info" banner title={<span className="truncate">Thinking… {thinkingText}</span>} />
             )}
             {lastTool && (
                 <Alert
                     type="info"
                     banner
-                    message={
+                    title={
                         <>
                             Reading <code className="font-mono text-[11px]">{lastTool}</code>
                         </>

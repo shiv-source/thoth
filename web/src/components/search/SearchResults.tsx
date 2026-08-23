@@ -1,4 +1,4 @@
-import { Empty, List } from 'antd'
+import { Empty, Listy } from 'antd'
 import type { SearchResult } from '../../api/client'
 
 // SearchResults renders the current query's matches: a loading line, an
@@ -24,30 +24,26 @@ export function SearchResults({
                 <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No notes match." className="py-4" />
             )}
             {results.length > 0 && (
-                <List
-                    size="small"
-                    dataSource={results}
-                    renderItem={(r, i) => (
-                        <List.Item
+                <Listy
+                    items={results}
+                    rowKey={(r) => r.path}
+                    className="divide-y divide-line"
+                    classNames={{ item: 'p-0!' }}
+                    itemRender={(r, i) => (
+                        <div
                             onClick={() => onOpen(r.path)}
                             onMouseEnter={() => onHover(i)}
-                            className={`cursor-pointer rounded-lg px-2 ${i === active ? 'bg-accent-soft' : 'hover:bg-raised'}`}
+                            className={`cursor-pointer rounded-lg px-2 py-1 ${i === active ? 'bg-accent-soft' : 'hover:bg-raised'}`}
                         >
-                            <List.Item.Meta
-                                title={<span className="text-sm font-medium">{r.title}</span>}
-                                description={
-                                    <>
-                                        <div className="truncate text-xs text-subtle">{r.path}</div>
-                                        {/* Safe: the server escapes note text before building the
-                                            snippet; only its <mark> markers survive as real tags. */}
-                                        <div
-                                            className="mt-0.5 line-clamp-2 text-xs"
-                                            dangerouslySetInnerHTML={{ __html: r.snippet }}
-                                        />
-                                    </>
-                                }
+                            <div className="text-sm font-medium">{r.title}</div>
+                            <div className="truncate text-xs text-subtle">{r.path}</div>
+                            {/* Safe: the server escapes note text before building the
+                                snippet; only its <mark> markers survive as real tags. */}
+                            <div
+                                className="mt-0.5 line-clamp-2 text-xs"
+                                dangerouslySetInnerHTML={{ __html: r.snippet }}
                             />
-                        </List.Item>
+                        </div>
                     )}
                 />
             )}

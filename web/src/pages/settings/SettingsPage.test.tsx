@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react'
+import { act, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { SettingsPage } from './SettingsPage'
@@ -181,8 +181,12 @@ describe('SettingsPage', () => {
 
         const { store } = renderSettings()
         // Seed the health slice the way the real API would: the fulfilled
-        // action carries the dev payload straight into the reducer.
-        store.dispatch(fetchHealth.fulfilled(devHealth, 'test', undefined))
+        // action carries the dev payload straight into the reducer. The
+        // dispatch re-renders SettingsGeneralPage (it reads default_wiki_path
+        // for the hint), so it must run inside act.
+        act(() => {
+            store.dispatch(fetchHealth.fulfilled(devHealth, 'test', undefined))
+        })
         expect(await screen.findByText(/Defaults to ~\/\.thoth\/dev\/wiki/)).toBeInTheDocument()
     })
 

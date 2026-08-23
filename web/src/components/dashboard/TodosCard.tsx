@@ -1,4 +1,4 @@
-import { Card, List, Progress } from 'antd'
+import { Card, Listy, Progress } from 'antd'
 
 // Todo is one row of the open-todos widget.
 export interface Todo {
@@ -13,11 +13,15 @@ export function TodosCard({ todos }: { todos: Todo[] }) {
 
     return (
         <Card size="small" title="Open todos">
-            <List
-                size="small"
-                dataSource={todos}
-                renderItem={(t) => (
-                    <List.Item className={`text-sm ${t.done ? 'text-subtle line-through' : 'text-ink'}`}>
+            <Listy
+                items={todos}
+                rowKey={(t) => t.text}
+                className="divide-y divide-line"
+                classNames={{ item: 'p-0!' }}
+                itemRender={(t) => (
+                    <div
+                        className={`flex items-center py-1 text-sm ${t.done ? 'text-subtle line-through' : 'text-ink'}`}
+                    >
                         <span
                             aria-hidden="true"
                             className={`mr-2.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border text-[10px] ${
@@ -27,7 +31,7 @@ export function TodosCard({ todos }: { todos: Todo[] }) {
                             {t.done ? '✓' : ''}
                         </span>
                         {t.text}
-                    </List.Item>
+                    </div>
                 )}
             />
             <div className="mt-3 flex items-center gap-2">

@@ -1,4 +1,4 @@
-import { Button, List } from 'antd'
+import { Button, Listy } from 'antd'
 import { ClockCircleOutlined } from '@ant-design/icons'
 
 // RecentSearches is the empty-query state of SearchPanel: the persisted
@@ -21,21 +21,20 @@ export function RecentSearches({
                     Clear
                 </Button>
             </div>
-            <List
-                size="small"
-                dataSource={history}
-                renderItem={(h) => (
-                    <List.Item className="p-0">
-                        <Button
-                            type="text"
-                            block
-                            className="flex h-auto items-center justify-start py-1.5 text-left"
-                            icon={<ClockCircleOutlined aria-hidden="true" />}
-                            onClick={() => onPick(h)}
-                        >
-                            <span className="truncate">{h}</span>
-                        </Button>
-                    </List.Item>
+            <Listy
+                items={history}
+                rowKey={(h) => h}
+                classNames={{ item: 'p-0!' }}
+                itemRender={(h) => (
+                    <Button
+                        type="text"
+                        block
+                        className="flex h-auto items-center justify-start py-1.5 text-left"
+                        icon={<ClockCircleOutlined aria-hidden="true" />}
+                        onClick={() => onPick(h)}
+                    >
+                        <span className="truncate">{h}</span>
+                    </Button>
                 )}
             />
         </div>
