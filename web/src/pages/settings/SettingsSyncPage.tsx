@@ -150,7 +150,7 @@ export function SettingsSyncPage() {
 
     return (
         <SettingsShell active="sync">
-            <Card size="small" title={<CardTitle icon={CloudServerOutlined}>Sync destinations</CardTitle>}>
+            <Card title={<CardTitle icon={CloudServerOutlined}>Sync destinations</CardTitle>}>
                 <SectionHeading icon={ApiOutlined}>Connected destinations</SectionHeading>
                 {loading ? (
                     <Flex justify="center" className="py-10">

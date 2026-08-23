@@ -24,13 +24,13 @@ export function SettingsShell({ active, children }: { active: SettingsSection; c
     return (
         <div className="flex min-h-0 flex-1 flex-col">
             <AppHeader title="Settings" />
-            <div className="flex min-h-0 w-full flex-1 flex-col px-6 py-5">
-                <p className="mb-5 max-w-2xl text-sm text-subtle">
+            <div className="flex min-h-0 w-full flex-1 flex-col px-6 py-6">
+                <p className="mb-6 max-w-2xl text-sm leading-relaxed text-subtle">
                     Configure your knowledge base, model providers, and wiki sync destinations — or run the installation
                     health checks.
                 </p>
-                <div className="flex min-h-0 flex-1 gap-6">
-                    <nav className="w-48 shrink-0" aria-label="Settings sections">
+                <div className="flex min-h-0 flex-1 gap-8">
+                    <nav className="w-52 shrink-0" aria-label="Settings sections">
                         <Menu
                             mode="inline"
                             items={ITEMS}
@@ -40,7 +40,7 @@ export function SettingsShell({ active, children }: { active: SettingsSection; c
                             style={{ borderInlineEnd: 'none' }}
                         />
                     </nav>
-                    <div className="mx-auto w-full max-w-4xl min-h-0 min-w-0 flex-1 overflow-y-auto px-1">
+                    <div className="mx-auto w-full max-w-3xl min-h-0 min-w-0 flex-1 overflow-y-auto px-1 pb-6">
                         {children}
                     </div>
                 </div>

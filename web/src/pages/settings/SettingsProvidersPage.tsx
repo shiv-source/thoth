@@ -231,7 +231,6 @@ export function SettingsProvidersPage() {
     return (
         <SettingsShell active="providers">
             <Card
-                size="small"
                 title={<CardTitle icon={ApiOutlined}>Providers</CardTitle>}
                 extra={
                     <Button type="primary" icon={<PlusOutlined aria-hidden="true" />} onClick={openAddProvider}>
