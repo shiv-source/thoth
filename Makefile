@@ -146,14 +146,22 @@ race:
 # COVER_PKGS is the coverage gate scope: the whole Go backend — the
 # native-agent epic (the agent module plus the internal packages it drives)
 # and every other internal package plus cmd/. A change to any Go code must
-# not drag the shared 90% floor below the gate.
+# not drag the shared coverage floor below the gate.
 COVER_PKGS := ./agent/... ./internal/... ./cmd/...
+# The repo's coverage floor — single source of truth, read by the CI report
+# (`make coverage-floor`) so the gate and the report can never drift.
+COVERAGE_FLOOR := 90
 
-cover: web-sync ## coverage report with the CI gate (>= 90% on the Go backend)
+cover: web-sync ## coverage report with the CI gate (>= COVERAGE_FLOOR% on the Go backend)
 .PHONY: cover
 cover:
 	go test -failfast -coverprofile=coverage.out $(COVER_PKGS)
-	@go tool cover -func=coverage.out | awk -F'\t' '/^total:/ { printf "total: %s\n", $$NF; gsub(/%/,"",$$NF); total=$$NF } END { if (total=="") { print "FAIL: no total coverage line — coverage.out missing or corrupt"; exit 1 } if (total+0 < 90) { print "FAIL: coverage below 90% floor"; exit 1 } }'
+	@go tool cover -func=coverage.out | awk -F'\t' '/^total:/ { printf "total: %s\n", $$NF; gsub(/%/,"",$$NF); total=$$NF } END { if (total=="") { print "FAIL: no total coverage line — coverage.out missing or corrupt"; exit 1 } if (total+0 < $(COVERAGE_FLOOR)) { print "FAIL: coverage below $(COVERAGE_FLOOR)% floor"; exit 1 } }'
+
+coverage-floor: ## print the coverage floor (single source: COVERAGE_FLOOR)
+.PHONY: coverage-floor
+coverage-floor:
+	@echo $(COVERAGE_FLOOR)
 
 web-test: ## frontend unit tests
 .PHONY: web-test

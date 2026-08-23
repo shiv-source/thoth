@@ -6,6 +6,7 @@ import { join } from "node:path"
 import {
   MARKER,
   commitUrl,
+  coverageText,
   displayName,
   eventPullRequestNumber,
   fetchRunJobs,
@@ -118,6 +119,29 @@ test("renderPrBody carries the marker, tally, table, and footer", () => {
   assert.ok(lines.includes("</details>"))
   assert.ok(lines.includes("🤖 Updated automatically on every run by [final-gate](https://github.com/owner/repo/actions/workflows/final-gate.yml)"))
   assert.ok(lines.includes("⛔ This check must pass before merging"))
+})
+
+test("coverageText shows actual and floor with a pass/fail marker", () => {
+  assert.equal(coverageText("91.2", "90"), "📊 Coverage: **91.2%** — floor **90%** ✅")
+  assert.equal(coverageText("87.3", "90"), "📊 Coverage: **87.3%** — floor **90%** ❌")
+  assert.equal(coverageText("90", "90"), "📊 Coverage: **90%** — floor **90%** ✅")
+  assert.equal(coverageText("91.2%", "90%"), "📊 Coverage: **91.2%** — floor **90%** ✅", "trailing % on inputs is tolerated")
+  assert.equal(coverageText("91.2"), "📊 Coverage: **91.2%**", "without a floor the marker is omitted")
+  assert.equal(coverageText("", "90"), null)
+  assert.equal(coverageText(undefined, "90"), null)
+  assert.equal(coverageText("  ", "90"), null)
+})
+
+test("renderStepSummary inserts the coverage line between the run and the table", () => {
+  const report = reportJobs(jobs, { self: "report", wrapper: "final-gate" })
+  const summary = renderStepSummary({ ...report, ...ctx, coverage: "91.2", coverageFloor: "90" })
+  assert.ok(summary.includes("\n\n📊 Coverage: **91.2%** — floor **90%** ✅\n\n| Job | Result |"))
+})
+
+test("renderPrBody inserts the coverage line after the tally", () => {
+  const report = reportJobs(jobs, { self: "report", wrapper: "final-gate" })
+  const body = renderPrBody({ ...report, ...ctx, coverage: "91.2", coverageFloor: "90" })
+  assert.ok(body.includes("\n\n📊 Coverage: **91.2%** — floor **90%** ✅\n\n<details>"))
 })
 
 test("githubContext maps runner env into the github context", () => {

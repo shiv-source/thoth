@@ -39,7 +39,7 @@ function stubFetch({ conclusions, comments }) {
   }
 }
 
-function withEnv(event, { wrapper = "final-gate" } = {}) {
+function withEnv(event, { wrapper = "final-gate", coverage = "", coverageFloor = "" } = {}) {
   const dir = mkdtempSync(join(tmpdir(), "ci-report-"))
   const eventFile = join(dir, "event.json")
   const outputFile = join(dir, "out.txt")
@@ -57,6 +57,8 @@ function withEnv(event, { wrapper = "final-gate" } = {}) {
     GITHUB_EVENT_PATH: eventFile,
     GH_TOKEN: "test-token",
     INPUT_WRAPPER: wrapper,
+    INPUT_COVERAGE: coverage,
+    INPUT_COVERAGE_FLOOR: coverageFloor,
     GITHUB_OUTPUT: outputFile,
     GITHUB_STEP_SUMMARY: summaryFile,
   })
@@ -80,6 +82,21 @@ function withEnv(event, { wrapper = "final-gate" } = {}) {
     },
   }
 }
+
+test("coverage values flow into the step summary and the PR comment", async () => {
+  const env = withEnv({ pull_request: { number: 7 } }, { coverage: "91.2", coverageFloor: "90" })
+  const stub = stubFetch({ conclusions: ["success", "skipped", "success"], comments: [] })
+  try {
+    await main()
+    assert.ok(env.summary().includes("📊 Coverage: **91.2%** — floor **90%** ✅"))
+    const post = stub.calls.find((call) => call.init?.method === "POST")
+    assert.ok(post, "a POST comment call must happen on a PR run")
+    assert.ok(JSON.parse(post.init.body).body.includes("📊 Coverage: **91.2%** — floor **90%** ✅"))
+  } finally {
+    env.cleanup()
+    stub.restore()
+  }
+})
 
 test("passing run: writes summary, POSTs a PR comment, exits 0", async () => {
   const env = withEnv({ pull_request: { number: 7 } })

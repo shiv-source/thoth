@@ -19,6 +19,8 @@ export async function main() {
   const ctx = githubContext()
   const token = process.env.GH_TOKEN
   const wrapper = process.env.INPUT_WRAPPER?.trim() ?? ""
+  const coverage = process.env.INPUT_COVERAGE?.trim() ?? ""
+  const coverageFloor = process.env.INPUT_COVERAGE_FLOOR?.trim() ?? ""
 
   if (!ctx.repository || !ctx.runId || !token) {
     console.error("ci-report: GITHUB_REPOSITORY, GITHUB_RUN_ID and GH_TOKEN are required")
@@ -33,7 +35,7 @@ export async function main() {
   writeStepOutput("passed", String(report.passed))
   writeStepOutput("total", String(report.total))
 
-  const summary = renderStepSummary({ ...report, ...ctx, runId: ctx.runId, runNumber: ctx.runNumber, sha: ctx.sha })
+  const summary = renderStepSummary({ ...report, ...ctx, runId: ctx.runId, runNumber: ctx.runNumber, sha: ctx.sha, coverage, coverageFloor })
   if (process.env.GITHUB_STEP_SUMMARY) {
     appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${summary}\n`)
   }
@@ -41,7 +43,7 @@ export async function main() {
   if (ctx.eventName === "pull_request") {
     const pr = eventPullRequestNumber(ctx.eventPath)
     if (pr) {
-      const body = renderPrBody({ ...report, ...ctx, runId: ctx.runId, runNumber: ctx.runNumber, sha: ctx.sha })
+      const body = renderPrBody({ ...report, ...ctx, runId: ctx.runId, runNumber: ctx.runNumber, sha: ctx.sha, coverage, coverageFloor })
       const action = await upsertReportComment({ repository: ctx.repository, apiUrl: ctx.apiUrl, pr, token, body })
       console.log(`ci-report: ${action} report comment on PR #${pr}`)
     }

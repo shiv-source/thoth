@@ -1,6 +1,17 @@
 name: quality
 on:
   workflow_call:
+    outputs:
+      coverage:
+        description: >-
+          Total Go backend test coverage % from backend-test, when the backend
+          was touched ("" when the job is skipped).
+        value: ${{ jobs.backend-test.outputs.coverage }}
+      coverage_floor:
+        description: >-
+          The repo's coverage floor %, sourced from Makefile (COVERAGE_FLOOR),
+          so the final-gate report and the gate can never drift apart.
+        value: ${{ jobs.backend-test.outputs.coverage_floor }}
 
 permissions:
   contents: read
@@ -79,13 +90,25 @@ jobs:
     if: needs.changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    outputs:
+      coverage: ${{ steps.cover.outputs.coverage }}
+      coverage_floor: ${{ steps.cover.outputs.coverage_floor }}
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-go-web
       - run: go vet ./...
       - run: go test -race -failfast ./...
-      - name: coverage gate (>= 90% on the Go backend)
-        run: make cover
+      # Gate on the floor, then lift the actual % and the floor up to the
+      # report (both from the Makefile so they stay in sync with `make cover`).
+      - name: coverage gate (>= COVERAGE_FLOOR% on the Go backend)
+        id: cover
+        run: |
+          make cover
+          total=$(go tool cover -func=coverage.out | awk -F'\t' '/^total:/ { gsub(/%/, "", $NF); print $NF }')
+          floor=$(make -s coverage-floor)
+          echo "coverage=$total" >> "$GITHUB_OUTPUT"
+          echo "coverage_floor=$floor" >> "$GITHUB_OUTPUT"
+          echo "coverage=$total% floor=$floor%"
 
   backend-lint:
     needs: [changes]

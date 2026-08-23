@@ -94,16 +94,31 @@ function shortSha(sha) {
   return sha.slice(0, 8)
 }
 
-// The step summary: title line, run/commit links, then the job table. This is
-// what the human opens the "summary + gate" step for — rendered even when the
-// gate fails, which is why the exit code is decided only after writing it.
-export function renderStepSummary({ rows, failed, repository, runNumber, serverUrl, runId, sha }) {
+// One-line coverage summary for the report: actual % and the repo floor side
+// by side, with a pass/fail marker against the floor. Returns null when no
+// coverage value was provided (backend not touched → the line is omitted).
+export function coverageText(coverage, coverageFloor) {
+  const actual = String(coverage ?? "").trim().replace(/%$/, "")
+  if (!actual) return null
+  const floor = String(coverageFloor ?? "").trim().replace(/%$/, "")
+  if (!floor) return `📊 Coverage: **${actual}%**`
+  const ok = Number(actual) >= Number(floor)
+  return `📊 Coverage: **${actual}%** — floor **${floor}%** ${ok ? "✅" : "❌"}`
+}
+
+// The step summary: title line, run/commit links, coverage line when known,
+// then the job table. This is what the human opens the "summary + gate" step
+// for — rendered even when the gate fails, which is why the exit code is
+// decided only after writing it.
+export function renderStepSummary({ rows, failed, repository, runNumber, serverUrl, runId, sha, coverage, coverageFloor }) {
   const run = runUrl({ serverUrl, repository }, runId)
   const commit = commitUrl({ serverUrl, repository }, sha)
   const lines = [failed > 0 ? `## CI failed ❌ — ${failed} job(s) failed` : "## CI passed ✅"]
   lines.push("")
   lines.push(`Run: [${repository}#${runNumber}](${run}) · commit [\`${shortSha(sha)}\`](${commit})`)
   lines.push("")
+  const coverageLine = coverageText(coverage, coverageFloor)
+  if (coverageLine) lines.push(coverageLine, "")
   lines.push("| Job | Result |")
   lines.push("|---|---|")
   for (const row of rows) lines.push(`| ${row.name} | ${row.text} |`)
@@ -112,17 +127,15 @@ export function renderStepSummary({ rows, failed, repository, runNumber, serverU
 
 // The prettier report posted (and updated in place) as a PR comment. Same
 // data as the step summary, wrapped for a comment and tagged with the marker.
-export function renderPrBody({ rows, failed, passed, total, repository, serverUrl, runNumber, runId, sha }) {
+export function renderPrBody({ rows, failed, passed, total, repository, serverUrl, runNumber, runId, sha, coverage, coverageFloor }) {
   const title = failed > 0 ? "### CI Report ❌" : "### CI Report ✅"
   const run = runUrl({ serverUrl, repository }, runId)
   const commit = commitUrl({ serverUrl, repository }, sha)
   const workflow = `${serverUrl}/${repository}/actions/workflows/final-gate.yml`
-  return [
-    MARKER,
-    "",
-    title,
-    "",
-    `**${passed}/${total} jobs passed** · [Run #${runNumber}](${run}) · commit [\`${shortSha(sha)}\`](${commit})`,
+  const lines = [MARKER, "", title, "", `**${passed}/${total} jobs passed** · [Run #${runNumber}](${run}) · commit [\`${shortSha(sha)}\`](${commit})`]
+  const coverageLine = coverageText(coverage, coverageFloor)
+  if (coverageLine) lines.push("", coverageLine)
+  lines.push(
     "",
     "<details>",
     "<summary>Job results</summary>",
@@ -135,7 +148,8 @@ export function renderPrBody({ rows, failed, passed, total, repository, serverUr
     "---",
     `🤖 Updated automatically on every run by [final-gate](${workflow})`,
     "⛔ This check must pass before merging",
-  ].join("\n")
+  )
+  return lines.join("\n")
 }
 
 // Find the existing marker-tagged comment on a PR (any page), so a re-run

@@ -18,6 +18,18 @@ inputs:
       Caller job id — excluded from the report alongside the job this action
       runs in, so a caller's own final-gate job never counts against itself.
     required: true
+  coverage:
+    description: >-
+      Total Go backend test coverage % to render in the report. Empty (e.g.
+      the backend wasn't touched) → the coverage line is omitted.
+    required: false
+    default: ""
+  coverage-floor:
+    description: >-
+      The repo's coverage floor % (Makefile COVERAGE_FLOOR), shown next to the
+      actual % so the report and the gate stay visibly in sync.
+    required: false
+    default: ""
 
 outputs:
   result:
@@ -42,4 +54,6 @@ runs:
       env:
         GH_TOKEN: ${{ inputs.token }}
         INPUT_WRAPPER: ${{ inputs.wrapper }}
+        INPUT_COVERAGE: ${{ inputs.coverage }}
+        INPUT_COVERAGE_FLOOR: ${{ inputs.coverage-floor }}
       run: node "${{ github.action_path }}/src/index.mjs"

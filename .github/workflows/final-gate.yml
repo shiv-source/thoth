@@ -6,6 +6,18 @@ on:
         description: caller job id — excluded from the report alongside this job
         type: string
         required: true
+      coverage:
+        description: >-
+          Total Go backend test coverage % (from quality.yml's backend-test).
+          Empty when the backend wasn't touched — the report omits the line.
+        type: string
+        required: false
+      coverage-floor:
+        description: >-
+          The repo's coverage floor % (Makefile COVERAGE_FLOOR), paired with
+          `coverage` for the report's threshold line.
+        type: string
+        required: false
 
 permissions:
   contents: read
@@ -28,3 +40,5 @@ jobs:
         uses: ./.github/actions/ci-report
         with:
           wrapper: ${{ inputs.wrapper }}
+          coverage: ${{ inputs.coverage }}
+          coverage-floor: ${{ inputs.coverage-floor }}

@@ -31,3 +31,5 @@ jobs:
     uses: ./.github/workflows/final-gate.yml
     with:
       wrapper: final-gate
+      coverage: ${{ needs.quality.outputs.coverage }}
+      coverage-floor: ${{ needs.quality.outputs.coverage_floor }}
