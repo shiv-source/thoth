@@ -268,4 +268,16 @@ func TestRepoClosedErrors(t *testing.T) {
 	if err := r.SetSetting(settings.KeyWikiPath, "x"); err == nil {
 		t.Fatal("SetSetting on closed repo must error")
 	}
+	if _, _, err := r.ProviderConfig("DeepSeek"); err == nil {
+		t.Fatal("ProviderConfig on closed repo must error")
+	}
+	if _, err := r.ProviderHeaders("DeepSeek"); err == nil {
+		t.Fatal("ProviderHeaders on closed repo must error")
+	}
+	if _, err := r.Folders(); err == nil {
+		t.Fatal("Folders on closed repo must error")
+	}
+	if _, err := r.ContextInjection(); err == nil {
+		t.Fatal("ContextInjection on closed repo must error")
+	}
 }

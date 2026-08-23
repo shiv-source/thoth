@@ -356,3 +356,37 @@ func TestProvidersDeleteKeepsUnrelatedSelectedModel(t *testing.T) {
 		t.Fatalf("model setting = %q/%v, want kept-model", got, err)
 	}
 }
+
+// TestProvidersStoreErrors exercises the handlers' failure branches: a closed
+// store surfaces 500s on list/create/update/delete, and a closed settings repo
+// turns a delete into a 500 before any provider row is touched.
+func TestProvidersStoreErrors(t *testing.T) {
+	d := testDeps(t)
+	if err := d.Store.Close(); err != nil {
+		t.Fatal(err)
+	}
+	e := New(d)
+	if rec := doProvidersReq(t, e, http.MethodGet, "/api/v1/providers", ""); rec.Code != http.StatusInternalServerError {
+		t.Fatalf("list on closed store: %d, want 500", rec.Code)
+	}
+	if rec := doProvidersReq(t, e, http.MethodPost, "/api/v1/providers", `{"name":"X"}`); rec.Code != http.StatusInternalServerError {
+		t.Fatalf("create on closed store: %d, want 500", rec.Code)
+	}
+	if rec := doProvidersReq(t, e, http.MethodPut, "/api/v1/providers/1", `{"name":"X"}`); rec.Code != http.StatusInternalServerError {
+		t.Fatalf("update on closed store: %d, want 500", rec.Code)
+	}
+	if rec := doProvidersReq(t, e, http.MethodDelete, "/api/v1/providers/1", ""); rec.Code != http.StatusInternalServerError {
+		t.Fatalf("delete on closed store: %d, want 500", rec.Code)
+	}
+}
+
+func TestProvidersDeleteSettingsClosed(t *testing.T) {
+	d := testDeps(t)
+	if err := d.Settings.Close(); err != nil {
+		t.Fatal(err)
+	}
+	e := New(d)
+	if rec := doProvidersReq(t, e, http.MethodDelete, "/api/v1/providers/1", ""); rec.Code != http.StatusInternalServerError {
+		t.Fatalf("delete with closed settings: %d, want 500", rec.Code)
+	}
+}

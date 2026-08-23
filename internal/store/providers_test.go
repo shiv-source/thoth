@@ -239,3 +239,37 @@ func mustProvider(t *testing.T, s *Store, name string) Provider {
 	}
 	return p
 }
+
+// TestProviderStoreClosedErrors exercises the store's error-return paths on a
+// closed database: every provider mutation and read surfaces the underlying
+// error instead of panicking, which also keeps the error branches covered.
+func TestProviderStoreClosedErrors(t *testing.T) {
+	s := openProviders(t)
+	if err := s.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.ListProviders(); err == nil {
+		t.Fatal("ListProviders on a closed store must error")
+	}
+	if _, err := s.Provider(1); err == nil {
+		t.Fatal("Provider on a closed store must error")
+	}
+	if _, err := s.ProviderByName("x"); err == nil {
+		t.Fatal("ProviderByName on a closed store must error")
+	}
+	if _, err := s.CreateProvider("x", "", ""); err == nil {
+		t.Fatal("CreateProvider on a closed store must error")
+	}
+	if err := s.UpdateProvider(1, "x", "", ""); err == nil {
+		t.Fatal("UpdateProvider on a closed store must error")
+	}
+	if _, err := s.EnsureProvider("x"); err == nil {
+		t.Fatal("EnsureProvider on a closed store must error")
+	}
+	if err := s.SetProviderHeaders(1, map[string]string{"x": "y"}); err == nil {
+		t.Fatal("SetProviderHeaders on a closed store must error")
+	}
+	if err := s.DeleteProvider(1); err == nil {
+		t.Fatal("DeleteProvider on a closed store must error")
+	}
+}
