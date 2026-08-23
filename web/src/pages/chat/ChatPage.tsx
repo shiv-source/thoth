@@ -1,14 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Alert, App, Flex } from 'antd'
+import { App, Flex } from 'antd'
 import { useChat } from '../../hooks/useChat'
 import { useConversationRoute } from '../../hooks/useConversationRoute'
-import { fetchConversations, selectConnectionStatus, setStatus } from '../../store'
+import { fetchConversations, fetchSettings, selectConnectionStatus, selectSettings, setStatus } from '../../store'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import { ChatSocket } from '../../ws/chat'
 import { Composer } from '../../components/chat/Composer'
 import { MessageItem } from '../../components/chat/MessageItem'
 import { AppHeader } from '../../shared/AppHeader'
 import { UsageLine } from '../../components/chat/UsageLine'
+import { ChatEmptyState } from '../../components/chat/ChatEmptyState'
+import { StatusPill } from '../../components/chat/StatusPill'
 
 function createSocket(): ChatSocket {
     const socket = new ChatSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws/v1`)
@@ -43,6 +45,14 @@ export function ChatPage({
     } = useChat(socket)
     const { message } = App.useApp()
     const endRef = useRef<HTMLDivElement>(null)
+    const settings = useAppSelector(selectSettings)
+    const model = settings.data?.model ?? ''
+
+    // The composer's model chip reads the default model; settings load on
+    // chat mount so it is populated without a settings visit first.
+    useEffect(() => {
+        void dispatch(fetchSettings())
+    }, [dispatch])
 
     // The socket lives for the panel's lifetime: created on mount (StrictMode
     // remounts close the first one), closed on unmount so no orphan connection
@@ -97,41 +107,19 @@ export function ChatPage({
         <div className="flex h-full flex-col">
             <AppHeader title={displayTitle} onOpenSettings={onOpenSettings} />
             {status !== 'connected' && (
-                <Alert
-                    type="warning"
-                    banner
-                    title={status === 'reconnecting' ? 'Connection lost — reconnecting…' : 'Connection lost.'}
-                />
+                <StatusPill tone="warning">
+                    {status === 'reconnecting' ? 'Connection lost — reconnecting…' : 'Connection lost'}
+                </StatusPill>
             )}
-            {thinking && !lastTool && (
-                <Alert type="info" banner title={<span className="truncate">Thinking… {thinkingText}</span>} />
-            )}
-            {lastTool && (
-                <Alert
-                    type="info"
-                    banner
-                    title={
-                        <>
-                            Reading <code className="font-mono text-[11px]">{lastTool}</code>
-                        </>
-                    }
-                />
-            )}
+            {thinking && !lastTool && <StatusPill>Thinking… {thinkingText}</StatusPill>}
+            {lastTool && <StatusPill>Reading {lastTool}</StatusPill>}
             {/* Scroll + padding live on a plain div: antd Flex's cssinjs
                 reset zeroes both margin AND padding on .ant-flex children,
                 so layout utilities must not ride on the Flex element itself.
                 Message spacing comes from the Flex's own gap. */}
             <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
                 <Flex vertical gap={16}>
-                    {messages.length === 0 && (
-                        <div className="flex h-full flex-col items-center justify-center text-center">
-                            <div className="font-display text-3xl font-semibold text-heading">Thoth</div>
-                            <p className="mt-2 max-w-sm text-sm text-subtle">
-                                Ask anything — “what did we decide in Tuesday's standup?” or “save this: the client
-                                approved the new roadmap.”
-                            </p>
-                        </div>
-                    )}
+                    {messages.length === 0 && <ChatEmptyState onSend={send} />}
                     {messages.map((m, i) => (
                         <MessageItem
                             key={i}
@@ -144,7 +132,7 @@ export function ChatPage({
                     <div ref={endRef} />
                 </Flex>
             </div>
-            <Composer onSend={send} onCancel={cancel} streaming={streaming} />
+            <Composer onSend={send} onCancel={cancel} streaming={streaming} model={model} />
         </div>
     )
 }
