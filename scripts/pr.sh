@@ -287,12 +287,12 @@ main() {
     shift
   done
 
-  echo "== 1/6 Preflight ==";   preflight
-  echo "== 2/6 Sync ==";        sync_main
-  echo "== 3/6 Branch ==";      parse_branch; derive_labels
-  echo "== 4/6 make check ==";  run_checks
+  echo "== 1/5 Preflight ==";   preflight
+  echo "== 2/5 Sync ==";        sync_main
+  echo "== 3/5 Branch ==";      parse_branch; derive_labels
+  echo "== 4/5 make check ==";  run_checks
   derive_title
-  echo "== 5/6 Push + PR ==";   push_and_open
+  echo "== 5/5 Push + PR ==";   push_and_open
 }
 
 load_label_sets
