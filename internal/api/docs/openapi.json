@@ -297,6 +297,104 @@
         }
       }
     },
+    "/api/v1/wiki/export": {
+      "get": {
+        "tags": ["notes"],
+        "summary": "Export wiki as a zip",
+        "description": "Streams a zip of the wiki tree — folders, notes, attachments and the CLAUDE.md rulebook — for backup or transfer. `history=1` also includes dotfiles (.git) so git history travels; the default export skips dotfile tooling except .gitkeep. The zip is streamed (never fully buffered), so large wikis stay memory-bounded. 404 when the wiki root does not exist.",
+        "operationId": "exportWiki",
+        "parameters": [
+          {
+            "name": "history",
+            "in": "query",
+            "required": false,
+            "description": "When 1, include dotfiles/.git in the export",
+            "schema": { "type": "string", "enum": ["0", "1"] }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Wiki archive",
+            "content": {
+              "application/zip": {
+                "schema": { "type": "string", "format": "binary" }
+              }
+            }
+          },
+          "404": {
+            "description": "Wiki root does not exist",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/errorEnvelope" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/wiki/import": {
+      "post": {
+        "tags": ["notes"],
+        "summary": "Import a wiki from a zip",
+        "description": "Validates a multipart wiki zip and merges it onto the wiki root as a backup-first merge: the existing tree is copied to a sibling `<root>-backup-<timestamp>` directory first, then the archive's files are laid over it (archive wins on conflicts, local-only files are kept). Every entry is validated for path traversal, the archive must be wiki-shaped (a root CLAUDE.md or a markdown note with frontmatter), and the index is rebuilt so search and the tree reflect the imported files. The request body is capped at 200 MiB.",
+        "operationId": "importWiki",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": ["file"],
+                "properties": {
+                  "file": { "type": "string", "format": "binary" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Import result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["files"],
+                  "properties": {
+                    "files": { "type": "integer", "description": "Number of files merged into the wiki root" },
+                    "backup": { "type": "string", "description": "Pre-import backup directory path, or null when none was created" }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing file, malformed zip, path traversal, or a non-wiki archive",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/errorEnvelope" }
+              }
+            }
+          },
+          "413": {
+            "description": "Archive exceeds the 200 MiB cap",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/errorEnvelope" }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error — reindex or merge failure",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/errorEnvelope" }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/fs/dirs": {
       "get": {
         "tags": ["notes"],

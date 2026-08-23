@@ -81,6 +81,8 @@ func newServer(d Deps) (*echo.Echo, *Hub) {
 	e.GET("/api"+APIVersion+"/notes", func(c echo.Context) error { return note(c, d) })
 	e.POST("/api"+APIVersion+"/notes", func(c echo.Context) error { return createNote(c, d) })
 	e.GET("/api"+APIVersion+"/wiki/tree", func(c echo.Context) error { return tree(c, d) })
+	e.GET("/api"+APIVersion+"/wiki/export", func(c echo.Context) error { return exportWiki(c, d) })
+	e.POST("/api"+APIVersion+"/wiki/import", func(c echo.Context) error { return importWiki(c, d) })
 	e.GET("/api"+APIVersion+"/fs/dirs", func(c echo.Context) error { return listDirs(c, d) })
 	e.GET("/api"+APIVersion+"/settings", func(c echo.Context) error { return getSettings(c, d) })
 	e.PUT("/api"+APIVersion+"/settings", func(c echo.Context) error { return putSettings(c, d) })

@@ -145,11 +145,12 @@ cmd_rm() {
     git -C "$root" worktree remove --force "$dir"
     git -C "$root" branch -D "$branch"
   else
-    # A freshly created worktree carries the copied opencode.json as an
-    # untracked file; that is our own bookkeeping, not a reason to refuse
-    # removal. Remove with --force only when no other dirty files exist.
+    # A freshly created worktree carries the copied opencode.json and (when
+    # CodeGraph auto-indexed it) a .codegraph/ dir as untracked files; those
+    # are our own bookkeeping, not a reason to refuse removal. Remove with
+    # --force only when no other dirty files exist.
     local other_dirty
-    other_dirty="$(git -C "$dir" status --porcelain | grep -v '^?? opencode.json$' || true)"
+    other_dirty="$(git -C "$dir" status --porcelain | grep -v '^?? opencode.json$' | grep -v '^?? .codegraph/' || true)"
     if [ -z "$other_dirty" ]; then
       git -C "$root" worktree remove --force "$dir"
     else

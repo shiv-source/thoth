@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Card, Divider, Flex, Form, Select, Switch } from 'antd'
-import { BookOutlined, RocketOutlined, SettingOutlined } from '@ant-design/icons'
+import { App, Button, Card, Divider, Flex, Form, Progress, Select, Switch, Upload } from 'antd'
+import { BookOutlined, DownloadOutlined, RocketOutlined, SettingOutlined, UploadOutlined } from '@ant-design/icons'
+import { api } from '../../api/client'
 import { fetchModels, selectHealth, selectModelGroups, selectSettings } from '../../store'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import { WikiPathInput } from '../../shared/WikiPathInput'
@@ -59,6 +60,40 @@ export function SettingsGeneralPage() {
         form.setFieldValue('model', undefined)
     }
 
+    const { message } = App.useApp()
+    const [exporting, setExporting] = useState(false)
+    const [importing, setImporting] = useState(false)
+    const [importProgress, setImportProgress] = useState(0)
+
+    // export downloads the wiki as a zip; history pulls in .git so git
+    // history travels with it.
+    const exportWiki = async (history: boolean) => {
+        setExporting(true)
+        try {
+            await api.exportWiki(history)
+            void message.success('Wiki exported')
+        } catch {
+            void message.error('Could not export the wiki')
+        } finally {
+            setExporting(false)
+        }
+    }
+
+    // doImport uploads a selected zip. beforeUpload (below) already stopped
+    // antd's auto-upload, so this runs the request and reports progress.
+    const doImport = async (file: File) => {
+        setImporting(true)
+        setImportProgress(0)
+        try {
+            const res = await api.importWiki(file, setImportProgress)
+            void message.success(`Imported ${res.files} files${res.backup ? ' — a backup was saved' : ''}`)
+        } catch (e) {
+            void message.error(e instanceof Error ? e.message : 'Could not import the wiki')
+        } finally {
+            setImporting(false)
+        }
+    }
+
     return (
         <SettingsShell active="general">
             <Form form={form} layout="vertical" onFinish={(values) => void save(values)}>
@@ -93,6 +128,46 @@ export function SettingsGeneralPage() {
                         extra="Pre-search the wiki into each turn so answers start faster and skip the search/read round-trips. Off by default — it changes how the assistant answers."
                     >
                         <Switch />
+                    </Form.Item>
+                    <Form.Item
+                        label="Backup & transfer"
+                        extra="Export downloads the wiki as a zip; Import merges a zip back in, backing up the current wiki first."
+                    >
+                        <Flex gap={8} wrap="wrap">
+                            <Button
+                                icon={<DownloadOutlined aria-hidden="true" />}
+                                loading={exporting}
+                                onClick={() => void exportWiki(false)}
+                            >
+                                Export
+                            </Button>
+                            <Button
+                                icon={<DownloadOutlined aria-hidden="true" />}
+                                loading={exporting}
+                                onClick={() => void exportWiki(true)}
+                            >
+                                Export with history
+                            </Button>
+                            <Upload
+                                accept=".zip,application/zip"
+                                showUploadList={false}
+                                beforeUpload={(file) => {
+                                    void doImport(file)
+                                    return false
+                                }}
+                            >
+                                <Button
+                                    icon={<UploadOutlined aria-hidden="true" />}
+                                    loading={importing}
+                                    disabled={exporting}
+                                >
+                                    Import
+                                </Button>
+                            </Upload>
+                        </Flex>
+                        {importing && (
+                            <Progress className="mt-3" percent={importProgress} status="active" size="small" />
+                        )}
                     </Form.Item>
                     <Divider />
                     <SectionHeading icon={RocketOutlined}>Default model</SectionHeading>

@@ -165,3 +165,65 @@ func TestDeleteFileTool(t *testing.T) {
 		t.Fatal("deleting an escaping path succeeded")
 	}
 }
+
+func TestEditFileWriteErrors(t *testing.T) {
+	ctx := context.Background()
+	cancelled, cancel := context.WithCancel(ctx)
+	cancel()
+
+	// Each case names the error branch it must hit; the tool is built over
+	// either a working FS or a failingFS that rejects the mutating call.
+	cases := []struct {
+		name  string
+		fail  string // failingFS branch to force: "" = working FS
+		build func(FS) Tool
+		args  map[string]any
+	}{
+		{"edit cancelled", "", func(f FS) Tool { return NewEditFile(f) }, map[string]any{}},
+		{"edit missing path", "", func(f FS) Tool { return NewEditFile(f) }, map[string]any{"old_text": "a", "new_text": "b"}},
+		{"edit missing old_text", "", func(f FS) Tool { return NewEditFile(f) }, map[string]any{"path": "x.md", "new_text": "b"}},
+		{"edit non-string path", "", func(f FS) Tool { return NewEditFile(f) }, map[string]any{"path": 5, "old_text": "a", "new_text": "b"}},
+		{"edit escaping path", "", func(f FS) Tool { return NewEditFile(f) }, map[string]any{"path": "../x.md", "old_text": "a", "new_text": "b"}},
+		{"edit read error", "", func(f FS) Tool { return NewEditFile(f) }, map[string]any{"path": "nope.md", "old_text": "a", "new_text": "b"}},
+		{"edit write error", "WriteFile", func(f FS) Tool { return NewEditFile(f) }, map[string]any{"path": "x.md", "old_text": "alpha", "new_text": "beta"}},
+		{"append cancelled", "", func(f FS) Tool { return NewAppendFile(f) }, map[string]any{}},
+		{"append missing path", "", func(f FS) Tool { return NewAppendFile(f) }, map[string]any{"content": "c"}},
+		{"append non-string content", "", func(f FS) Tool { return NewAppendFile(f) }, map[string]any{"path": "x.md", "content": 7}},
+		{"append escaping path", "", func(f FS) Tool { return NewAppendFile(f) }, map[string]any{"path": "../x.md", "content": "c"}},
+		{"append read error", "ReadFile", func(f FS) Tool { return NewAppendFile(f) }, map[string]any{"path": "x.md", "content": "c"}},
+		{"append write error", "WriteFile", func(f FS) Tool { return NewAppendFile(f) }, map[string]any{"path": "x.md", "content": "c"}},
+		{"rename cancelled", "", func(f FS) Tool { return NewRenameFile(f) }, map[string]any{}},
+		{"rename missing path", "", func(f FS) Tool { return NewRenameFile(f) }, map[string]any{"new_path": "b.md"}},
+		{"rename missing new_path", "", func(f FS) Tool { return NewRenameFile(f) }, map[string]any{"path": "a.md"}},
+		{"rename non-string path", "", func(f FS) Tool { return NewRenameFile(f) }, map[string]any{"path": 5, "new_path": "b.md"}},
+		{"rename escaping source", "", func(f FS) Tool { return NewRenameFile(f) }, map[string]any{"path": "../a.md", "new_path": "b.md"}},
+		{"rename escaping dest", "", func(f FS) Tool { return NewRenameFile(f) }, map[string]any{"path": "a.md", "new_path": "../b.md"}},
+		{"rename mkdir error", "MkdirAll", func(f FS) Tool { return NewRenameFile(f) }, map[string]any{"path": "a.md", "new_path": "sub/b.md"}},
+		{"rename error", "Rename", func(f FS) Tool { return NewRenameFile(f) }, map[string]any{"path": "a.md", "new_path": "b.md"}},
+		{"delete cancelled", "", func(f FS) Tool { return NewDeleteFile(f) }, map[string]any{}},
+		{"delete missing path", "", func(f FS) Tool { return NewDeleteFile(f) }, map[string]any{}},
+		{"delete non-string path", "", func(f FS) Tool { return NewDeleteFile(f) }, map[string]any{"path": 5}},
+		{"delete escaping path", "", func(f FS) Tool { return NewDeleteFile(f) }, map[string]any{"path": "../x.md"}},
+		{"delete remove error", "Remove", func(f FS) Tool { return NewDeleteFile(f) }, map[string]any{"path": "x.md"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			base := newTestFS(t)
+			if err := base.WriteFile("x.md", []byte("alpha"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			var fs FS = base
+			if tc.fail != "" {
+				fs = failingFS{FS: base, fail: tc.fail}
+			}
+			runCtx := ctx
+			if tc.name == "edit cancelled" || tc.name == "append cancelled" ||
+				tc.name == "rename cancelled" || tc.name == "delete cancelled" {
+				runCtx = cancelled
+			}
+			if _, err := tc.build(fs).Run(runCtx, tc.args); err == nil {
+				t.Fatalf("expected an error, got success")
+			}
+		})
+	}
+}

@@ -427,6 +427,75 @@ describe('SettingsPage', () => {
     })
 })
 
+describe('SettingsPage wiki export/import', () => {
+    afterEach(() => {
+        window.history.pushState(null, '', '/')
+    })
+
+    it('exports the wiki as a zip', async () => {
+        stubAPI({
+            'GET /api/v1/settings': getSettings,
+            'GET /api/v1/github/auth': getEmptyGitHub,
+            'GET /api/v1/wiki/export': () => new Blob(['zip'])
+        })
+        // jsdom has no createObjectURL; the export only needs the call to
+        // resolve and build an anchor download.
+        vi.stubGlobal('URL', { ...URL, createObjectURL: vi.fn(() => 'blob:mock'), revokeObjectURL: vi.fn() })
+
+        renderSettings()
+        await userEvent.click(await screen.findByRole('button', { name: /^Export$/ }))
+
+        expect(await screen.findByText('Wiki exported')).toBeInTheDocument()
+        expect(mocks.get.mock.calls.some(([u]) => u === '/api/v1/wiki/export')).toBe(true)
+    })
+
+    it('exports with history when requested', async () => {
+        stubAPI({
+            'GET /api/v1/settings': getSettings,
+            'GET /api/v1/github/auth': getEmptyGitHub,
+            'GET /api/v1/wiki/export': () => new Blob(['zip'])
+        })
+        vi.stubGlobal('URL', { ...URL, createObjectURL: vi.fn(() => 'blob:mock'), revokeObjectURL: vi.fn() })
+
+        renderSettings()
+        await userEvent.click(await screen.findByRole('button', { name: /Export with history/ }))
+
+        expect(await screen.findByText('Wiki exported')).toBeInTheDocument()
+        const call = [...mocks.get.mock.calls].reverse().find(([u]) => u === '/api/v1/wiki/export')
+        const config = call?.[1] as { params?: { history?: string } } | undefined
+        expect(config?.params?.history).toBe('1')
+    })
+
+    it('imports a wiki zip and reports the merged count', async () => {
+        stubAPI({
+            'GET /api/v1/settings': getSettings,
+            'GET /api/v1/github/auth': getEmptyGitHub,
+            'POST /api/v1/wiki/import': () => ({ files: 7, backup: '/tmp/wiki-backup-20260823-093000' })
+        })
+
+        renderSettings()
+        const file = new File(['zip'], 'wiki.zip', { type: 'application/zip' })
+        await userEvent.upload(document.querySelector('input[type="file"]') as HTMLInputElement, file)
+
+        expect(await screen.findByText('Imported 7 files — a backup was saved')).toBeInTheDocument()
+        expect(mocks.post.mock.calls.some(([u]) => u === '/api/v1/wiki/import')).toBe(true)
+    })
+
+    it('surfaces an import error from the server', async () => {
+        stubAPI({
+            'GET /api/v1/settings': getSettings,
+            'GET /api/v1/github/auth': getEmptyGitHub
+        })
+        mocks.post.mockRejectedValueOnce(axiosError(400, { error: 'archive is not a wiki' }))
+
+        renderSettings()
+        const file = new File(['zip'], 'wiki.zip', { type: 'application/zip' })
+        await userEvent.upload(document.querySelector('input[type="file"]') as HTMLInputElement, file)
+
+        expect(await screen.findByText('archive is not a wiki')).toBeInTheDocument()
+    })
+})
+
 describe('SettingsPage Providers tab', () => {
     const seeded = { id: 1, value: 'my-model', name: 'My Model', tag: 'test', provider: 'Vendor' }
 

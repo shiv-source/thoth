@@ -179,6 +179,41 @@ export const api = {
         const res = await http.put('/api/v1/settings', s)
         return parseBody(res, Settings)
     },
+    // exportWiki downloads the wiki as a zip. includeHistory pulls in dotfiles
+    // (.git) so git history travels. The blob is handed to the browser as a
+    // download named thoth-wiki-YYYY-MM-DD.zip.
+    exportWiki: async (includeHistory = false): Promise<void> => {
+        const res = await http.get('/api/v1/wiki/export', {
+            responseType: 'blob',
+            params: includeHistory ? { history: '1' } : undefined
+        })
+        const url = URL.createObjectURL(res.data as Blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `thoth-wiki-${new Date().toISOString().slice(0, 10)}.zip`
+        a.click()
+        URL.revokeObjectURL(url)
+    },
+    // importWiki uploads a wiki zip and returns how many files were merged and
+    // the pre-import backup directory (null when the wiki was empty). onUpload
+    // reports upload progress as a 0-100 percentage.
+    importWiki: async (
+        file: File,
+        onUpload?: (percent: number) => void
+    ): Promise<{ files: number; backup: string | null }> => {
+        const form = new FormData()
+        form.append('file', file)
+        try {
+            const res = await http.post('/api/v1/wiki/import', form, {
+                onUploadProgress: (e) => {
+                    if (onUpload && e.total) onUpload(Math.round((e.loaded / e.total) * 100))
+                }
+            })
+            return parseBody(res, z.object({ files: z.number(), backup: z.string().nullable() }))
+        } catch (err) {
+            throw new Error(axiosErrorMessage(err), { cause: err })
+        }
+    },
     health: () => get('/api/v1/health', Health),
     doctor: () => get('/api/v1/doctor', z.object({ checks: z.array(DoctorCheck) })),
     listConversations: () => get('/api/v1/conversations', z.object({ conversations: z.array(Conversation) })),

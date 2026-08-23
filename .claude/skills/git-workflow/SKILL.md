@@ -29,7 +29,7 @@ description: >-
 ## Workflows
 
 ### 1. Start a change (branch)
-1. **Assigned an issue/feature/bug? Decide where to work first.** When told to work on a specific issue, feature, or bug, do not branch blindly — confirm the target with the user first: work in the current worktree/branch, or create a new one?
+1. **Assigned an issue/feature/bug? Read and analyze it before branching or exploring.** When told to work on a specific issue, feature, or bug, the order is fixed: (1) fetch and read the issue (`gh issue view <n>`), (2) analyze it — understand the problem, scope, and which areas it touches — (3) only then decide where to work (reuse an existing worktree/branch, or create a new one, confirming the target with the user), and (4) start code exploration inside that worktree. Never create a branch or start digging into the codebase before the issue is read and the target is confirmed.
    - A branch/worktree for it already exists? Reuse it — `./scripts/git-worktree.sh list` (bare-clone layout) names the worktree dir to switch into; a standard clone just `git switch <branch>`.
    - Creating new? Use step 2's per-layout commands: `git fetch origin` then `./scripts/git-worktree.sh new <type>/<scope>/<slug>` for the bare-clone layout, or `git switch main && git pull --ff-only && git switch -c <type>/<scope>/<slug>` for a standard clone.
 2. Never commit to main (code-rules skill § Repo rules) — main is always deployable; changes live on `<type>/<scope>/<slug>` branches and land via reviewed PRs. Create the branch per your clone layout:
