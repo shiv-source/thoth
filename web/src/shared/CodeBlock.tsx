@@ -48,12 +48,12 @@ export function CodeBlock({ code, lang }: { code: string; lang: string }) {
                 className="absolute right-2 top-2 z-10 rounded-md border border-line bg-surface/90 p-1.5 opacity-0 transition group-hover:opacity-100 focus-visible:opacity-100"
             />
             {html === null || html === '' ? (
-                <pre className="overflow-x-auto rounded-lg bg-[#f6f8fa] p-3 text-xs text-[#1f2328]">
+                <pre className="overflow-x-auto rounded-lg bg-raised p-3 text-xs text-ink">
                     <code>{code}</code>
                 </pre>
             ) : (
                 <div
-                    className="overflow-x-auto rounded-lg text-xs [&_pre]:m-0 [&_pre]:p-3 [&_pre]:bg-[#f6f8fa]"
+                    className="overflow-x-auto rounded-lg text-xs [&_pre]:m-0 [&_pre]:p-3 [&_pre]:bg-raised"
                     dangerouslySetInnerHTML={{ __html: html }}
                 />
             )}

@@ -1,9 +1,10 @@
 import { useEffect, useMemo } from 'react'
-import { Button, Empty, Tooltip } from 'antd'
-import { CompressOutlined, ExpandOutlined } from '@ant-design/icons'
+import { Button, Tooltip } from 'antd'
+import { CompressOutlined, ExpandOutlined, FileTextOutlined } from '@ant-design/icons'
 import { collectTreeInfo, selectNotesExpandedKeys, selectWikiNodes, setNotesExpandedKeys } from '../../store'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import { AppHeader } from '../../shared/AppHeader'
+import { EmptyState } from '../../shared/EmptyState'
 import { NoteViewer } from '../../components/notes/NoteViewer'
 import { WikiTree } from '../../components/notes/WikiTree'
 
@@ -69,11 +70,13 @@ export function NotesPage({
                     {openPath ? (
                         <NoteViewer path={openPath} onClose={() => onOpenNote(null)} />
                     ) : (
-                        <Empty
-                            image={Empty.PRESENTED_IMAGE_SIMPLE}
-                            description="Select a note to read it here"
-                            className="m-auto"
-                        />
+                        <div className="m-auto">
+                            <EmptyState
+                                icon={<FileTextOutlined aria-hidden="true" />}
+                                title="Select a note to read it here"
+                                description="Pick a note in the tree to preview its contents."
+                            />
+                        </div>
                     )}
                 </main>
             </div>

@@ -1,8 +1,9 @@
-import { Button, Empty, Listy } from 'antd'
-import { CheckOutlined, CloseOutlined } from '@ant-design/icons'
+import { Button, Listy } from 'antd'
+import { BellOutlined, CheckOutlined, CloseOutlined } from '@ant-design/icons'
 import { dismissNotification, markAllRead, selectNotifications } from '../store'
 import { useAppDispatch, useAppSelector } from '../store/hooks'
 import { NotificationRow } from './NotificationRow'
+import { EmptyState } from './EmptyState'
 
 // NotificationPanel is the Popover content for the header bell: a header
 // row with mark-all-read/close, then the notification list. Dismissing an
@@ -33,7 +34,12 @@ export function NotificationPanel({ onClose }: { onClose: () => void }) {
                 </div>
             </div>
             {items.length === 0 ? (
-                <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No notifications yet" className="py-6" />
+                <EmptyState
+                    icon={<BellOutlined aria-hidden="true" />}
+                    title="No notifications yet"
+                    description="Wiki changes, sync results, and doctor warnings land here."
+                    className="py-6"
+                />
             ) : (
                 <Listy
                     items={items}

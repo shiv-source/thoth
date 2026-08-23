@@ -1,5 +1,7 @@
-import { Empty, Listy } from 'antd'
+import { Listy } from 'antd'
+import { SearchOutlined } from '@ant-design/icons'
 import type { SearchResult } from '../../api/client'
+import { EmptyState } from '../../shared/EmptyState'
 
 // SearchResults renders the current query's matches: a loading line, an
 // Empty state, or the result list. Keyboard/mouse highlights come in as the
@@ -21,7 +23,12 @@ export function SearchResults({
         <div className="mt-1.5">
             {loading && <p className="px-1 text-xs text-subtle">Searching…</p>}
             {!loading && results.length === 0 && (
-                <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No notes match." className="py-4" />
+                <EmptyState
+                    icon={<SearchOutlined aria-hidden="true" />}
+                    title="No notes match"
+                    description="Try a different term — search covers note titles and contents."
+                    className="py-4"
+                />
             )}
             {results.length > 0 && (
                 <Listy

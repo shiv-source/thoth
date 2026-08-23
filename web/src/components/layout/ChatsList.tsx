@@ -48,7 +48,7 @@ export function ChatsList() {
     if (error) {
         return (
             <div className="px-3 pb-2">
-                <p className="text-sm text-red-600">Could not load conversations</p>
+                <p className="text-sm text-error">Could not load conversations</p>
                 <Button
                     type="link"
                     size="small"

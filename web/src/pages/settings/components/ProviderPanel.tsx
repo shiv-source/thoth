@@ -1,7 +1,8 @@
 import type { TableProps } from 'antd'
-import { Button, Empty, Flex, Table } from 'antd'
+import { Button, Flex, Table } from 'antd'
 import { ApiOutlined } from '@ant-design/icons'
 import type { LLMModel } from '../../../api/client'
+import { EmptyState } from '../../../shared/EmptyState'
 import { SectionHeading } from './SectionHeading'
 
 // ProviderPanel is one Collapse body: the provider's registered models table
@@ -25,7 +26,11 @@ export function ProviderPanel({
                 </Button>
             </Flex>
             {models.length === 0 ? (
-                <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No models for this provider yet" />
+                <EmptyState
+                    icon={<ApiOutlined aria-hidden="true" />}
+                    title="No models for this provider yet"
+                    description="Add a model to use this provider for chat."
+                />
             ) : (
                 <Table<LLMModel> rowKey="id" size="small" columns={columns} dataSource={models} pagination={false} />
             )}

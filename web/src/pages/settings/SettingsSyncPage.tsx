@@ -1,7 +1,8 @@
 import { useEffect } from 'react'
-import { App, Alert, Card, Collapse, Divider, Empty, Flex, Spin } from 'antd'
+import { App, Alert, Card, Collapse, Divider, Flex, Spin } from 'antd'
 import { ApiOutlined, CloudServerOutlined } from '@ant-design/icons'
 import type { Connection, SyncProvider } from '../../api/client'
+import { EmptyState } from '../../shared/EmptyState'
 import {
     connectSync,
     createSyncProvider,
@@ -157,7 +158,10 @@ export function SettingsSyncPage() {
                         <Spin />
                     </Flex>
                 ) : connections.length === 0 ? (
-                    <Empty description="No destinations connected yet — connect one below" />
+                    <EmptyState
+                        icon={<CloudServerOutlined aria-hidden="true" />}
+                        title="No destinations connected yet — connect one below"
+                    />
                 ) : (
                     <div className="grid gap-4">
                         {connections.map((c) => {
