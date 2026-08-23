@@ -53,6 +53,22 @@ describe('ChatSocket', () => {
         expect(received).toEqual([frame, bare])
     })
 
+    it('forwards the sync_result push frame', () => {
+        const socket = new ChatSocket('ws://x/ws/v1')
+        socket.connect()
+        const received: ServerMessage[] = []
+        socket.onMessage((m) => received.push(m))
+        const ws = FakeWS.instances[0]!
+        ws.open()
+
+        const frame: ServerMessage = {
+            type: ServerEvent.SyncResult,
+            sync_result: { connection_id: 3, name: 'backup', ok: false, error: 'no credentials stored' }
+        }
+        ws.onmessage!({ data: JSON.stringify(frame) })
+        expect(received).toEqual([frame])
+    })
+
     it('drops frames that parse as JSON but fail the schema', () => {
         const socket = new ChatSocket('ws://x/ws/v1')
         socket.connect()

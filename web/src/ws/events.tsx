@@ -20,6 +20,7 @@ export const ServerEvent = {
     ToolActivity: 'tool_activity',
     TurnDone: 'turn_done',
     WikiChanged: 'wiki_changed',
+    SyncResult: 'sync_result',
     Error: 'error'
 } as const
 

@@ -13,6 +13,7 @@ describe('ServerEvent wire names', () => {
             ToolActivity: 'tool_activity',
             TurnDone: 'turn_done',
             WikiChanged: 'wiki_changed',
+            SyncResult: 'sync_result',
             Error: 'error'
         })
     })

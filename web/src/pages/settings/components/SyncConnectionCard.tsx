@@ -1,19 +1,30 @@
-import { useEffect } from 'react'
-import { Alert, Button, Divider, Flex, Form, Input, Select, Switch, Tag } from 'antd'
-import { BranchesOutlined, CloudOutlined, DeleteOutlined, FolderOpenOutlined, SyncOutlined } from '@ant-design/icons'
-import type { Connection, SyncProvider, SyncTarget } from '../../../api/client'
+import { useEffect, useState } from 'react'
+import { Alert, Button, Divider, Flex, Form, Input, Modal, Select, Switch, Tag } from 'antd'
+import {
+    BranchesOutlined,
+    CloudOutlined,
+    DeleteOutlined,
+    FolderOpenOutlined,
+    HistoryOutlined,
+    SyncOutlined
+} from '@ant-design/icons'
+import type { Connection, SyncProvider, SyncSnapshot, SyncTarget } from '../../../api/client'
 
 // SyncConnectionCard is one configured sync destination: identity line,
 // editable target fields (from the provider's field descriptors), the
 // enabled switch, and push/disconnect actions. Git connections offer a
 // repository picker fed by the account's targets; local shows its backup
-// folder; s3 its bucket/region/prefix.
+// folder; s3 its bucket/region/prefix. s3 + local connections can also
+// restore the wiki from a stored snapshot (the Restore action).
 export function SyncConnectionCard({
     connection,
     provider,
     targets,
+    snapshots,
     pushing,
+    restoring,
     onPush,
+    onRestore,
     onDisconnect,
     onSetActive,
     onUpdate
@@ -21,13 +32,18 @@ export function SyncConnectionCard({
     connection: Connection
     provider: SyncProvider
     targets: SyncTarget[] | null
+    snapshots: SyncSnapshot[] | null
     pushing: boolean
+    restoring: boolean
     onPush: () => void
+    onRestore: (key: string) => void
     onDisconnect: () => void
     onSetActive: () => void
     onUpdate: (input: { name?: string; enabled?: boolean; config?: Record<string, string> }) => void
 }) {
     const [form] = Form.useForm<{ config: Record<string, string> }>()
+    const [restoreOpen, setRestoreOpen] = useState(false)
+    const [restoreKey, setRestoreKey] = useState('')
 
     useEffect(() => {
         // Seed the form with the connection's non-secret config; the git
@@ -55,6 +71,7 @@ export function SyncConnectionCard({
 
     const nonSecret = provider.fields.filter((f) => !f.secret)
     const isGit = provider.kind === 'git'
+    const canRestore = provider.kind === 's3' || provider.kind === 'local'
 
     return (
         <div className="rounded-md border border-line bg-raised p-4">
@@ -103,6 +120,22 @@ export function SyncConnectionCard({
             {connection.last_error !== '' && (
                 <Alert type="error" showIcon title={connection.last_error} className="mb-3" />
             )}
+            {connection.push_history.length > 0 && (
+                <div className="mb-3 text-xs text-subtle">
+                    <Flex gap={6} align="center" className="mb-1">
+                        <HistoryOutlined aria-hidden="true" />
+                        <span>Recent runs</span>
+                    </Flex>
+                    <ul className="space-y-0.5 pl-4">
+                        {connection.push_history.slice(0, 5).map((h, i) => (
+                            <li key={i}>
+                                {h.ok ? '✓' : '✗'} {h.at.slice(0, 16).replace('T', ' ')}
+                                {!h.ok && h.error ? ` — ${h.error}` : ''}
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            )}
             <Divider className="my-3" />
             <Flex gap={8} justify="end" align="center">
                 <span className="mr-auto text-xs text-subtle">
@@ -113,6 +146,15 @@ export function SyncConnectionCard({
                 {!connection.active && (
                     <Button size="small" onClick={onSetActive}>
                         Set active
+                    </Button>
+                )}
+                {canRestore && (
+                    <Button
+                        size="small"
+                        icon={<HistoryOutlined aria-hidden="true" />}
+                        onClick={() => setRestoreOpen(true)}
+                    >
+                        Restore
                     </Button>
                 )}
                 <Button
@@ -130,6 +172,41 @@ export function SyncConnectionCard({
                     </Button>
                 )}
             </Flex>
+
+            <Modal
+                title="Restore the wiki from a snapshot"
+                open={restoreOpen}
+                onCancel={() => setRestoreOpen(false)}
+                onOk={() => {
+                    onRestore(restoreKey)
+                    setRestoreOpen(false)
+                }}
+                okText="Restore"
+                okButtonProps={{ danger: true, loading: restoring }}
+                destroyOnClose
+            >
+                <p className="mb-3 text-sm text-subtle">
+                    The wiki is overwritten by the selected snapshot. A local backup of the current wiki is taken first,
+                    so nothing is lost.
+                </p>
+                {snapshots === null ? (
+                    <p className="text-sm text-subtle">Loading snapshots…</p>
+                ) : snapshots.length === 0 ? (
+                    <p className="text-sm text-subtle">No snapshots stored for this destination yet.</p>
+                ) : (
+                    <Select
+                        virtual={false}
+                        className="w-full"
+                        placeholder="Choose a snapshot…"
+                        value={restoreKey || undefined}
+                        options={snapshots.map((s) => ({
+                            value: s.key,
+                            label: s.time ? `${s.key} (${s.time})` : s.key
+                        }))}
+                        onChange={(v: string) => setRestoreKey(v)}
+                    />
+                )}
+            </Modal>
         </div>
     )
 }

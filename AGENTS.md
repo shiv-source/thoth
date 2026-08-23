@@ -21,9 +21,9 @@ internal/
   cli/                    Cobra: root, serve, init, version, doctor
   wiki/                   file contract: ParseNote, SafePath, Tree, Rulebook
   index/                  SQLite WAL + FTS5 + watcher (derived)
-  store/                  conversations/messages + providers + llm_models + sync_providers + connections; migrations 0001–0012
+  store/                  conversations/messages + providers + llm_models + sync_providers + connections + sync_push_history; migrations 0001–0013
   settings/ config/ doctor/ webui/          (see docs/components.md)
-  sync/                   multi-provider sync engine: git/s3/local drivers over sync_providers + sync_connections
+  sync/                   multi-provider sync engine: git/s3/local drivers + restore capability + auto-sync scheduler over sync_providers + sync_connections
   github/                 GitHub REST client (identity + repos) — consumed by the sync git driver
 web/src/                  React 19 · TS strict · antd 6 · pnpm
   app/ App.tsx · api/ client.tsx (axios+zod) · ws/ chat/protocol/events

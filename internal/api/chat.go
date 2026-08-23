@@ -42,6 +42,17 @@ type serverMsg struct {
 	ConversationID string          `json:"conversation_id,omitempty"`
 	Changes        []wiki.Change   `json:"changes,omitempty"`
 	Usage          *agentlib.Usage `json:"usage,omitempty"` // turn_done only; nil when the provider reported none
+	// SyncResult is the sync_result frame payload (auto-sync notification).
+	SyncResult *syncResultFrame `json:"sync_result,omitempty"`
+}
+
+// syncResultFrame is the auto-sync notification frame: one scheduled push
+// completed, so the UI can surface a toast/notification without polling.
+type syncResultFrame struct {
+	ConnectionID int64  `json:"connection_id"`
+	Name         string `json:"name"`
+	OK           bool   `json:"ok"`
+	Error        string `json:"error,omitempty"`
 }
 
 // usagePtr returns u as a pointer when any counter is non-zero, so a turn

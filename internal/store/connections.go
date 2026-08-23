@@ -150,7 +150,9 @@ func (s *Store) UpdateConnection(id int64, name, config string, enabled bool) er
 
 // SetConnectionSyncResult records the outcome of a sync: success stamps
 // last_synced_at and clears last_error; failure records the error and keeps
-// last_synced_at at the last successful sync.
+// last_synced_at at the last successful sync. Every outcome is also appended
+// to the connection's push history (capped), so the Settings page can render
+// recent runs.
 func (s *Store) SetConnectionSyncResult(id int64, ok bool, detail string) error {
 	lastSyncedAt := ""
 	if ok {
@@ -172,6 +174,9 @@ func (s *Store) SetConnectionSyncResult(id int64, ok bool, detail string) error 
 		lastSyncedAt, nullString(lastError), time.Now().UTC().Format(time.RFC3339), id)
 	if err != nil {
 		return fmt.Errorf("set connection sync result: %w", err)
+	}
+	if err := s.AppendPushHistory(id, ok, detail); err != nil {
+		return err
 	}
 	return nil
 }

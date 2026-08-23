@@ -37,6 +37,17 @@ export const serverMessageSchema = z.discriminatedUnion('type', [
         type: z.literal(ServerEvent.WikiChanged),
         changes: z.array(wikiChangeSchema).optional()
     }),
+    // sync_result is the auto-sync notification frame: a scheduled push
+    // completed, so the UI can surface a toast without polling.
+    z.object({
+        type: z.literal(ServerEvent.SyncResult),
+        sync_result: z.object({
+            connection_id: z.number(),
+            name: z.string(),
+            ok: z.boolean(),
+            error: z.string().optional()
+        })
+    }),
     z.object({ type: z.literal(ServerEvent.Error), message: z.string() })
 ])
 

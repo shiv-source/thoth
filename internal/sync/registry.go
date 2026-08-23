@@ -1,8 +1,11 @@
 package sync
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/shiv-source/thoth/internal/github"
 	"github.com/shiv-source/thoth/internal/store"
@@ -60,4 +63,65 @@ func (s *Service) Driver(p store.SyncProvider) (Driver, error) {
 func (s *Service) KnownDriver(driver string) bool {
 	_, ok := s.drivers[driver]
 	return ok
+}
+
+// Push syncs the wiki at root through connection c, retrying transient
+// failures with backoff, and records the outcome (last_synced_at/last_error +
+// push history) on the row. It is the single push path shared by the API
+// handler and the background scheduler, so both record the same state. The
+// returned error is the driver's sanitized message ("" on success).
+func (s *Service) Push(ctx context.Context, c store.Connection, root string) error {
+	p, err := s.Store.SyncProvider(c.ProviderID)
+	if err != nil {
+		return err
+	}
+	drv, err := s.Driver(p)
+	if err != nil {
+		return err
+	}
+	cfg, err := DecodeConfig(c.Config)
+	if err != nil {
+		return err
+	}
+	ident, err := DecodeIdentity(c.Identity)
+	if err != nil {
+		return err
+	}
+	err = pushWithRetry(ctx, drv, cfg, root, ident)
+	detail := ""
+	if err != nil {
+		detail = err.Error()
+	}
+	_ = s.Store.SetConnectionSyncResult(c.ID, err == nil, detail)
+	return err
+}
+
+// pushAttempts caps how many times a transient failure is retried before the
+// final error is surfaced; pushBackoffBase is the exponential backoff step.
+const (
+	pushAttempts    = 3
+	pushBackoffBase = 500 * time.Millisecond
+)
+
+// pushWithRetry runs drv.Push, retrying only ErrRetryable failures (network
+// flakes, server faults) with exponential backoff. A permanent error returns
+// immediately. The final transient error is annotated with the retry count so
+// last_error surfaces the retry state.
+func pushWithRetry(ctx context.Context, drv Driver, cfg Config, root string, ident Identity) error {
+	var err error
+	for attempt := 1; attempt <= pushAttempts; attempt++ {
+		err = drv.Push(ctx, cfg, root, ident)
+		if err == nil || !errors.Is(err, ErrRetryable) {
+			return err
+		}
+		if attempt == pushAttempts {
+			return retryable(fmt.Sprintf("%s (retried %d times)", err.Error(), pushAttempts-1))
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(pushBackoffBase * time.Duration(attempt)):
+		}
+	}
+	return err
 }

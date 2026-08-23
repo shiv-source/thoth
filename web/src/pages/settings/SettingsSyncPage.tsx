@@ -8,14 +8,18 @@ import {
     deleteSyncProvider,
     disconnectSync,
     fetchSync,
+    fetchSyncSnapshots,
     fetchSyncTargets,
     pushSync,
+    restoreSync,
     selectSyncConnecting,
     selectSyncConnections,
     selectSyncError,
     selectSyncLoading,
     selectSyncProviders,
     selectSyncPushing,
+    selectSyncRestoring,
+    selectSyncSnapshots,
     selectSyncTargets,
     setActiveSync,
     updateSyncConnection
@@ -34,7 +38,9 @@ function ConnectionRow({
     connection,
     provider,
     pushing,
+    restoring,
     onPush,
+    onRestore,
     onDisconnect,
     onSetActive,
     onUpdate
@@ -42,19 +48,25 @@ function ConnectionRow({
     connection: Connection
     provider: SyncProvider
     pushing: boolean
+    restoring: boolean
     onPush: () => void
+    onRestore: (key: string) => void
     onDisconnect: () => void
     onSetActive: () => void
     onUpdate: (input: { name?: string; enabled?: boolean; config?: Record<string, string> }) => void
 }) {
     const targets = useAppSelector(selectSyncTargets(connection.id))
+    const snapshots = useAppSelector(selectSyncSnapshots(connection.id))
     return (
         <SyncConnectionCard
             connection={connection}
             provider={provider}
             targets={targets}
+            snapshots={snapshots}
             pushing={pushing}
+            restoring={restoring}
             onPush={onPush}
+            onRestore={onRestore}
             onDisconnect={onDisconnect}
             onSetActive={onSetActive}
             onUpdate={onUpdate}
@@ -65,7 +77,8 @@ function ConnectionRow({
 // SettingsSyncPage is the multi-provider sync page: the protected local
 // backup plus any connected destinations (GitHub/GitLab remotes, S3 buckets),
 // the connect flow driven by each provider's field descriptors, and the
-// provider catalog editor.
+// provider catalog editor. S3 + local connections offer a Restore action that
+// imports a stored snapshot onto the wiki.
 export function SettingsSyncPage() {
     const dispatch = useAppDispatch()
     const { message } = App.useApp()
@@ -74,6 +87,7 @@ export function SettingsSyncPage() {
     const loading = useAppSelector(selectSyncLoading)
     const connecting = useAppSelector(selectSyncConnecting)
     const pushing = useAppSelector(selectSyncPushing)
+    const restoring = useAppSelector(selectSyncRestoring)
     const error = useAppSelector(selectSyncError)
 
     useEffect(() => {
@@ -89,6 +103,18 @@ export function SettingsSyncPage() {
         .map((c) => c.id)
     useEffect(() => {
         for (const id of gitConnectionIds) void dispatch(fetchSyncTargets(id))
+    }, [connections, providers, dispatch])
+
+    // s3 + local connections offer restore; fetch their snapshots lazily the
+    // same way, so the restore modal's picker is ready when it opens.
+    const restorableConnectionIds = connections
+        .filter((c) => {
+            const kind = providers.find((p) => p.id === c.provider_id)?.kind
+            return kind === 's3' || kind === 'local'
+        })
+        .map((c) => c.id)
+    useEffect(() => {
+        for (const id of restorableConnectionIds) void dispatch(fetchSyncSnapshots(id))
     }, [connections, providers, dispatch])
 
     const connect = async (input: { provider_id: number; name: string; config: Record<string, string> }) => {
@@ -107,6 +133,16 @@ export function SettingsSyncPage() {
             void dispatch(fetchSync())
         } catch {
             void message.error('Could not push the wiki')
+        }
+    }
+
+    const restore = async (id: number, key: string) => {
+        try {
+            const res = await dispatch(restoreSync({ id, key })).unwrap()
+            void message.success(`Wiki restored (${res.files} files)`)
+            void dispatch(fetchSync())
+        } catch (e) {
+            void message.error(e instanceof Error ? e.message : 'Could not restore the wiki')
         }
     }
 
@@ -133,7 +169,9 @@ export function SettingsSyncPage() {
                                     connection={c}
                                     provider={provider}
                                     pushing={pushing}
+                                    restoring={restoring}
                                     onPush={() => void push(c.id)}
+                                    onRestore={(key) => void restore(c.id, key)}
                                     onDisconnect={() => {
                                         void dispatch(disconnectSync(c.id)).then(
                                             () => void message.success('Disconnected')

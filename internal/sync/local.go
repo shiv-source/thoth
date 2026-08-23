@@ -3,8 +3,10 @@ package sync
 import (
 	"context"
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -15,13 +17,17 @@ import (
 // localDriver writes timestamped zip snapshots of the wiki to a local backup
 // folder — the first-class, always-available destination for users who do not
 // trust external servers. The target must be outside the wiki tree (a
-// self-referential mirror would recurse forever).
+// self-referential mirror would recurse forever). It also restores: the
+// timestamped archives are read back for the API's import flow.
 type localDriver struct{}
 
 func (d *localDriver) Kind() Kind { return KindLocal }
 
 func (d *localDriver) Fields() []Field {
-	return []Field{{Key: "path", Label: "Backup folder", Required: true}}
+	return []Field{
+		{Key: "path", Label: "Backup folder", Required: true},
+		IntervalField,
+	}
 }
 
 func (d *localDriver) Verify(_ context.Context, cfg Config) (Identity, error) {
@@ -61,6 +67,59 @@ func (d *localDriver) Push(_ context.Context, cfg Config, root string, _ Identit
 		return errors.New("could not create the wiki archive")
 	}
 	return f.Close()
+}
+
+// Snapshots lists the stored timestamped backups newest-first.
+func (d *localDriver) Snapshots(_ context.Context, cfg Config) ([]Snapshot, error) {
+	dir, err := config.ExpandHome(cfg["path"])
+	if err != nil {
+		return nil, errors.New("could not resolve the backup folder")
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, errors.New("could not read the backup folder")
+	}
+	var snaps []Snapshot
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasPrefix(e.Name(), "thoth-wiki-") || !strings.HasSuffix(e.Name(), ".zip") {
+			continue
+		}
+		snaps = append(snaps, Snapshot{Key: e.Name(), Time: snapshotTimeFromKey(e.Name())})
+	}
+	sort.Slice(snaps, func(i, j int) bool { return snaps[i].Key > snaps[j].Key })
+	return snaps, nil
+}
+
+// Restore opens the archive at key ("" = the newest) as a ReaderAt + size for
+// the API's import flow.
+func (d *localDriver) Restore(_ context.Context, cfg Config, key string) (io.ReaderAt, int64, error) {
+	dir, err := config.ExpandHome(cfg["path"])
+	if err != nil {
+		return nil, 0, errors.New("could not resolve the backup folder")
+	}
+	if key == "" {
+		snaps, err := d.Snapshots(context.Background(), cfg)
+		if err != nil {
+			return nil, 0, err
+		}
+		if len(snaps) == 0 {
+			return nil, 0, errors.New("no backups in the folder to restore")
+		}
+		key = snaps[0].Key
+	}
+	f, err := os.Open(filepath.Join(dir, key))
+	if err != nil {
+		return nil, 0, errors.New("could not read the backup file")
+	}
+	info, err := f.Stat()
+	if err != nil {
+		_ = f.Close()
+		return nil, 0, errors.New("could not read the backup file")
+	}
+	return f, info.Size(), nil
 }
 
 // pathContains reports whether child is equal to parent or inside it.

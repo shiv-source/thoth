@@ -160,6 +160,18 @@ func runServe(cmd *cobra.Command, dev bool, noAPIDocs bool) error {
 	// (both seeded above) live on sync_providers/sync_connections.
 	syncSvc := syncsvc.NewService(st, http.DefaultClient)
 
+	// The auto-sync scheduler pushes enabled connections whose configured
+	// interval has elapsed. It shares the Service.Push path with the API, and
+	// reports each result on the event bus so the API layer can surface a
+	// notification. It stops on server shutdown (ctx), so no goroutine
+	// outlives serve.
+	syncScheduler := syncsvc.NewScheduler(syncSvc, w.Root(), log, func(r syncsvc.Result) {
+		if err := bus.Publish(ctx, r); err != nil && !errors.Is(err, events.ErrClosed) {
+			log.Warn("publish sync result", "err", err)
+		}
+	})
+	go syncScheduler.Start(ctx)
+
 	// The native agent host drives every turn — no CLI subprocess exists
 	// anywhere in the chat path. Model, provider config, wiki (tools +
 	// rulebook), store (history) and index (search) are all read at boot;

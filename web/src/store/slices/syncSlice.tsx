@@ -6,6 +6,7 @@ import {
     type ConnectionUpdateInput,
     type SyncProvider,
     type SyncProviderInput,
+    type SyncSnapshot,
     type SyncTarget
 } from '../../api/client'
 import type { RootState } from '../index'
@@ -52,6 +53,20 @@ export const deleteSyncProvider = createAsyncThunk('sync/deleteSyncProvider', as
     await api.deleteSyncProvider(id)
     return id
 })
+export const fetchSyncSnapshots = createAsyncThunk(
+    'sync/fetchSyncSnapshots',
+    async (id: number): Promise<{ id: number; snapshots: SyncSnapshot[] }> => {
+        const res = await api.syncSnapshots(id)
+        return { id, snapshots: res.snapshots }
+    }
+)
+export const restoreSync = createAsyncThunk(
+    'sync/restoreSync',
+    async ({ id, key = '' }: { id: number; key?: string }): Promise<{ id: number; files: number }> => {
+        const res = await api.restoreSync(id, key)
+        return { id, files: res.files }
+    }
+)
 
 interface SyncState {
     providers: SyncProvider[]
@@ -59,9 +74,12 @@ interface SyncState {
     // targets is a per-connection cache of selectable sync destinations
     // (repos for git providers).
     targets: Record<number, SyncTarget[]>
+    // snapshots is a per-connection cache of restore points (s3/local).
+    snapshots: Record<number, SyncSnapshot[]>
     loading: boolean
     connecting: boolean
     pushing: boolean
+    restoring: boolean
     error: string | null
 }
 
@@ -69,9 +87,11 @@ const initialState: SyncState = {
     providers: [],
     connections: [],
     targets: {},
+    snapshots: {},
     loading: false,
     connecting: false,
     pushing: false,
+    restoring: false,
     error: null
 }
 
@@ -117,6 +137,7 @@ export const syncSlice = createSlice({
             .addCase(disconnectSync.fulfilled, (s, a: PayloadAction<number>) => {
                 s.connections = s.connections.filter((c) => c.id !== a.payload)
                 delete s.targets[a.payload]
+                delete s.snapshots[a.payload]
             })
             .addCase(pushSync.pending, (s) => {
                 s.pushing = true
@@ -136,6 +157,20 @@ export const syncSlice = createSlice({
             .addCase(fetchSyncTargets.fulfilled, (s, a: PayloadAction<{ id: number; targets: SyncTarget[] }>) => {
                 s.targets[a.payload.id] = a.payload.targets
             })
+            .addCase(fetchSyncSnapshots.fulfilled, (s, a: PayloadAction<{ id: number; snapshots: SyncSnapshot[] }>) => {
+                s.snapshots[a.payload.id] = a.payload.snapshots
+            })
+            .addCase(restoreSync.pending, (s) => {
+                s.restoring = true
+                s.error = null
+            })
+            .addCase(restoreSync.fulfilled, (s) => {
+                s.restoring = false
+            })
+            .addCase(restoreSync.rejected, (s, a) => {
+                s.restoring = false
+                s.error = a.error.message ?? 'could not restore the wiki'
+            })
             .addCase(createSyncProvider.fulfilled, (s, a: PayloadAction<SyncProvider>) => {
                 s.providers = [...s.providers, a.payload]
             })
@@ -151,7 +186,9 @@ export const syncSlice = createSlice({
 export const selectSyncProviders = (s: RootState) => s.sync.providers
 export const selectSyncConnections = (s: RootState) => s.sync.connections
 export const selectSyncTargets = (id: number) => (s: RootState) => s.sync.targets[id] ?? null
+export const selectSyncSnapshots = (id: number) => (s: RootState) => s.sync.snapshots[id] ?? null
 export const selectSyncLoading = (s: RootState) => s.sync.loading
 export const selectSyncConnecting = (s: RootState) => s.sync.connecting
 export const selectSyncPushing = (s: RootState) => s.sync.pushing
+export const selectSyncRestoring = (s: RootState) => s.sync.restoring
 export const selectSyncError = (s: RootState) => s.sync.error

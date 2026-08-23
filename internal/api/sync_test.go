@@ -2,6 +2,7 @@ package api
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -14,6 +15,7 @@ import (
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/shiv-source/thoth/internal/store"
 	syncsvc "github.com/shiv-source/thoth/internal/sync"
 )
 
@@ -82,8 +84,11 @@ func TestSyncProvidersList(t *testing.T) {
 	if local.Slug != "local" || !local.Protected || local.Kind != syncsvc.KindLocal {
 		t.Fatalf("local provider wrong: %+v", local)
 	}
-	if len(local.Fields) != 1 || local.Fields[0].Key != "path" {
+	if len(local.Fields) != 2 || local.Fields[0].Key != "path" {
 		t.Fatalf("local fields wrong: %+v", local.Fields)
+	}
+	if local.Fields[1].Key != "interval" {
+		t.Fatalf("local interval field missing: %+v", local.Fields)
 	}
 	github := body.Providers[0]
 	if github.Slug != "github" || github.Kind != syncsvc.KindGit || len(github.Fields) == 0 {
@@ -181,14 +186,19 @@ func TestSyncAPIErrorPaths(t *testing.T) {
 		connectInput{ProviderID: 999999, Name: "x", Config: map[string]string{"token": "t"}}); rec.Code != http.StatusNotFound {
 		t.Fatalf("connect missing provider = %d, want 404", rec.Code)
 	}
-	// 404: get/update/targets/push/active on a missing connection.
-	for _, tc := range []struct{ method, path, body string }{
-		{http.MethodGet, "/api/v1/sync/connections/999999", ""},
-		{http.MethodPut, "/api/v1/sync/connections/999999", `{}`},
-		{http.MethodDelete, "/api/v1/sync/connections/999999", ""},
-		{http.MethodGet, "/api/v1/sync/connections/999999/targets", ""},
-		{http.MethodPost, "/api/v1/sync/connections/999999/push", ""},
-		{http.MethodPost, "/api/v1/sync/connections/999999/active", ""},
+	// 404: get/update/targets/push/snapshots/restore/active on a missing connection.
+	for _, tc := range []struct {
+		method, path string
+		body         any
+	}{
+		{http.MethodGet, "/api/v1/sync/connections/999999", nil},
+		{http.MethodPut, "/api/v1/sync/connections/999999", map[string]string{}},
+		{http.MethodDelete, "/api/v1/sync/connections/999999", nil},
+		{http.MethodGet, "/api/v1/sync/connections/999999/targets", nil},
+		{http.MethodPost, "/api/v1/sync/connections/999999/push", nil},
+		{http.MethodGet, "/api/v1/sync/connections/999999/snapshots", nil},
+		{http.MethodPost, "/api/v1/sync/connections/999999/restore", map[string]string{"key": ""}},
+		{http.MethodPost, "/api/v1/sync/connections/999999/active", nil},
 	} {
 		rec := apiJSON(e, tc.method, tc.path, tc.body)
 		if rec.Code != http.StatusNotFound {
@@ -443,4 +453,224 @@ func TestDisconnectClearsActive(t *testing.T) {
 
 func itoa(n int64) string {
 	return strconv.FormatInt(n, 10)
+}
+
+// TestRestoreLocal exercises the restore flow against the protected local
+// backup connection: push a snapshot, list snapshots, restore the latest, and
+// verify the wiki tree now contains the pushed note.
+func TestRestoreLocal(t *testing.T) {
+	d := testDeps(t)
+	local, err := d.Store.EnsureLocalBackup()
+	if err != nil {
+		t.Fatal(err)
+	}
+	backup := t.TempDir()
+	e := New(d)
+	// A note in the wiki makes the pushed archive wiki-shaped.
+	notePath := filepath.Join(d.Wiki.Root(), "hello.md")
+	if err := os.WriteFile(notePath,
+		[]byte("---\ntitle: Hi\n---\n\nHi\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// Set the backup folder and push once.
+	if rec := apiJSON(e, http.MethodPut, "/api/v1/sync/connections/"+itoa(local.ID),
+		updateConnectionInput{Config: map[string]string{"path": backup}}); rec.Code != http.StatusOK {
+		t.Fatalf("update status %d: %s", rec.Code, rec.Body.String())
+	}
+	if rec := apiJSON(e, http.MethodPost, "/api/v1/sync/connections/"+itoa(local.ID)+"/push", nil); rec.Code != http.StatusOK {
+		t.Fatalf("push status %d: %s", rec.Code, rec.Body.String())
+	}
+
+	// List snapshots — one timestamped backup.
+	rec := apiJSON(e, http.MethodGet, "/api/v1/sync/connections/"+itoa(local.ID)+"/snapshots", nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("snapshots status %d: %s", rec.Code, rec.Body.String())
+	}
+	var snaps struct {
+		Snapshots []syncsvc.Snapshot `json:"snapshots"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &snaps); err != nil {
+		t.Fatal(err)
+	}
+	if len(snaps.Snapshots) != 1 || !strings.HasPrefix(snaps.Snapshots[0].Key, "thoth-wiki-") {
+		t.Fatalf("snapshots wrong: %+v", snaps.Snapshots)
+	}
+
+	// Remove the live note, restore, and confirm the archive brought it back.
+	if err := os.Remove(notePath); err != nil {
+		t.Fatal(err)
+	}
+	rec = apiJSON(e, http.MethodPost, "/api/v1/sync/connections/"+itoa(local.ID)+"/restore", map[string]string{"key": ""})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("restore status %d: %s", rec.Code, rec.Body.String())
+	}
+	var res struct {
+		Files int `json:"files"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &res); err != nil || res.Files == 0 {
+		t.Fatalf("restore result wrong: %v %s", err, rec.Body.String())
+	}
+	if _, err := os.Stat(notePath); err != nil {
+		t.Fatalf("restored note missing: %v", err)
+	}
+}
+
+// TestRestoreNotSupportedForGit verifies a git-kind connection (no stored
+// archives) surfaces a clean 400 from the restore endpoints.
+func TestRestoreNotSupportedForGit(t *testing.T) {
+	d := testDeps(t)
+	p, err := d.Store.SyncProviderBySlug("github")
+	if err != nil {
+		t.Fatal(err)
+	}
+	conn, err := d.Store.CreateConnection(p.ID, "work", `{"token":"t"}`, `{"username":"octo"}`, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	e := New(d)
+	rec := apiJSON(e, http.MethodGet, "/api/v1/sync/connections/"+itoa(conn.ID)+"/snapshots", nil)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("git snapshots = %d, want 400", rec.Code)
+	}
+	rec = apiJSON(e, http.MethodPost, "/api/v1/sync/connections/"+itoa(conn.ID)+"/restore", map[string]string{"key": ""})
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("git restore = %d, want 400", rec.Code)
+	}
+}
+
+// TestRestoreUnknownDriver covers the restore endpoints' driver-resolve error
+// branch: a provider row with an unregistered driver surfaces a 500.
+func TestRestoreUnknownDriver(t *testing.T) {
+	d := testDeps(t)
+	p, err := d.Store.CreateSyncProvider("bogusdrv", "Bogus", "does-not-exist", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	conn, err := d.Store.CreateConnection(p.ID, "x", `{"path":"/tmp/x"}`, "", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	e := New(d)
+	for _, tc := range []struct{ method, path string }{
+		{http.MethodGet, "/api/v1/sync/connections/" + itoa(conn.ID) + "/snapshots"},
+		{http.MethodPost, "/api/v1/sync/connections/" + itoa(conn.ID) + "/restore"},
+	} {
+		rec := apiJSON(e, tc.method, tc.path, map[string]string{"key": ""})
+		if rec.Code != http.StatusInternalServerError {
+			t.Fatalf("%s %s = %d, want 500", tc.method, tc.path, rec.Code)
+		}
+	}
+}
+
+// TestRestoreRejectsNonWikiArchive covers the restore handler's 400 branch:
+// an archive that is not wiki-shaped (no CLAUDE.md, no frontmatter note)
+// surfaces a clean 400.
+func TestRestoreRejectsNonWikiArchive(t *testing.T) {
+	d := testDeps(t)
+	local, err := d.Store.EnsureLocalBackup()
+	if err != nil {
+		t.Fatal(err)
+	}
+	backup := t.TempDir()
+	e := New(d)
+	if rec := apiJSON(e, http.MethodPut, "/api/v1/sync/connections/"+itoa(local.ID),
+		updateConnectionInput{Config: map[string]string{"path": backup}}); rec.Code != http.StatusOK {
+		t.Fatalf("update status %d: %s", rec.Code, rec.Body.String())
+	}
+	// A non-wiki note (no frontmatter) pushed into the backup makes the
+	// restored archive fail the wiki-shape check.
+	notWiki := filepath.Join(t.TempDir(), "notwiki")
+	if err := os.MkdirAll(notWiki, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(notWiki, "note.md"), []byte("# no frontmatter\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// Push via the local driver directly so the archive is non-wiki.
+	drv, _ := d.Sync.Driver(mustLocalProvider(t, d))
+	if err := drv.Push(context.Background(), map[string]string{"path": backup}, notWiki, syncsvc.Identity{}); err != nil {
+		t.Fatal(err)
+	}
+	rec := apiJSON(e, http.MethodPost, "/api/v1/sync/connections/"+itoa(local.ID)+"/restore", map[string]string{"key": ""})
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("restore of a non-wiki archive = %d, want 400: %s", rec.Code, rec.Body.String())
+	}
+}
+
+// mustLocalProvider returns the seeded local sync provider row.
+func mustLocalProvider(t *testing.T, d Deps) store.SyncProvider {
+	t.Helper()
+	p, err := d.Store.SyncProviderBySlug("local")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return p
+}
+
+// TestRestoreBadBody covers the restore handler's bad-body 400 branch.
+func TestRestoreBadBody(t *testing.T) {
+	d := testDeps(t)
+	local, err := d.Store.EnsureLocalBackup()
+	if err != nil {
+		t.Fatal(err)
+	}
+	e := New(d)
+	rec := apiJSON(e, http.MethodPost, "/api/v1/sync/connections/"+itoa(local.ID)+"/restore", "{not-json")
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("bad restore body = %d, want 400", rec.Code)
+	}
+}
+
+// TestRestoreDriverError covers the restore handler's driver-error branch: a
+// local connection whose folder has no backups surfaces a 500 (fetch failed).
+func TestRestoreDriverError(t *testing.T) {
+	d := testDeps(t)
+	local, err := d.Store.EnsureLocalBackup()
+	if err != nil {
+		t.Fatal(err)
+	}
+	e := New(d)
+	emptyFolder := filepath.Join(t.TempDir(), "empty")
+	if err := os.MkdirAll(emptyFolder, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if rec := apiJSON(e, http.MethodPut, "/api/v1/sync/connections/"+itoa(local.ID),
+		updateConnectionInput{Config: map[string]string{"path": emptyFolder}}); rec.Code != http.StatusOK {
+		t.Fatalf("update status %d: %s", rec.Code, rec.Body.String())
+	}
+	rec := apiJSON(e, http.MethodPost, "/api/v1/sync/connections/"+itoa(local.ID)+"/restore", map[string]string{"key": ""})
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("restore from an empty folder = %d, want 500: %s", rec.Code, rec.Body.String())
+	}
+}
+
+// TestPushHistoryInDTO verifies the connection wire shape carries push_history
+// after a successful push.
+func TestPushHistoryInDTO(t *testing.T) {
+	d := testDeps(t)
+	local, err := d.Store.EnsureLocalBackup()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(d.Wiki.Root(), "hello.md"),
+		[]byte("---\ntitle: Hi\n---\n\nHi\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	backup := t.TempDir()
+	e := New(d)
+	if rec := apiJSON(e, http.MethodPut, "/api/v1/sync/connections/"+itoa(local.ID),
+		updateConnectionInput{Config: map[string]string{"path": backup}}); rec.Code != http.StatusOK {
+		t.Fatalf("update status %d: %s", rec.Code, rec.Body.String())
+	}
+	if rec := apiJSON(e, http.MethodPost, "/api/v1/sync/connections/"+itoa(local.ID)+"/push", nil); rec.Code != http.StatusOK {
+		t.Fatalf("push status %d: %s", rec.Code, rec.Body.String())
+	}
+	rec := apiJSON(e, http.MethodGet, "/api/v1/sync/connections/"+itoa(local.ID), nil)
+	var conn connectionDTO
+	if err := json.Unmarshal(rec.Body.Bytes(), &conn); err != nil {
+		t.Fatal(err)
+	}
+	if len(conn.PushHistory) != 1 || !conn.PushHistory[0].OK {
+		t.Fatalf("push_history wrong: %+v", conn.PushHistory)
+	}
 }

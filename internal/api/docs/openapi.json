@@ -1647,11 +1647,96 @@
           "sync"
         ],
         "summary": "Push the wiki",
-        "description": "Syncs the wiki through the connection's driver. Returns ok:false with a sanitized message on failure.",
+        "description": "Syncs the wiki through the connection's driver. Transient failures are retried with backoff; returns ok:false with a sanitized message on failure. Records the outcome (last_synced_at/last_error + push history) on the connection row.",
         "operationId": "pushConnection",
         "responses": {
           "200": {
             "description": "OK"
+          },
+          "500": {
+            "description": "internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/errorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sync/connections/{id}/snapshots": {
+      "get": {
+        "tags": [
+          "sync"
+        ],
+        "summary": "List restore snapshots",
+        "description": "Restore points available for a connection (S3 objects / local backup files), newest-first. Git-kind connections return an empty list — they have no stored archives to restore from.",
+        "operationId": "listSnapshots",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "restore is not supported for this destination",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/errorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/errorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sync/connections/{id}/restore": {
+      "post": {
+        "tags": [
+          "sync"
+        ],
+        "summary": "Restore the wiki from a snapshot",
+        "description": "Downloads a stored archive (the latest, or the chosen snapshot key) and imports it onto the wiki via the backup-first merge flow, then reindexes and pushes a wiki_changed frame. The wiki is overwritten by the archive — a sibling backup is taken first, so nothing is lost.",
+        "operationId": "restoreConnection",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "key": {
+                    "type": "string",
+                    "description": "Snapshot key to restore; empty selects the latest."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "restore not supported or a bad/non-wiki archive",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/errorEnvelope"
+                }
+              }
+            }
           },
           "500": {
             "description": "internal error",
@@ -2271,6 +2356,25 @@
           },
           "last_error": {
             "type": "string"
+          },
+          "push_history": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "at": {
+                  "type": "string",
+                  "description": "UTC RFC3339 of the attempt"
+                },
+                "ok": {
+                  "type": "boolean"
+                },
+                "error": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Recent sync runs, newest first"
           }
         }
       },

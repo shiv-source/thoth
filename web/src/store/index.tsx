@@ -118,14 +118,18 @@ export {
     pushSync,
     setActiveSync,
     fetchSyncTargets,
+    fetchSyncSnapshots,
+    restoreSync,
     createSyncProvider,
     updateSyncProvider,
     deleteSyncProvider,
     selectSyncProviders,
     selectSyncConnections,
     selectSyncTargets,
+    selectSyncSnapshots,
     selectSyncLoading,
     selectSyncConnecting,
     selectSyncPushing,
+    selectSyncRestoring,
     selectSyncError
 } from './slices/syncSlice'

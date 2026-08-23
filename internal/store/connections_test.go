@@ -50,6 +50,15 @@ func TestConnectionRoundTrip(t *testing.T) {
 		t.Fatalf("sync failure state wrong: %+v", got)
 	}
 
+	// Every outcome lands in the push history, newest first.
+	history, err := s.ListPushHistory(c.ID)
+	if err != nil {
+		t.Fatalf("ListPushHistory: %v", err)
+	}
+	if len(history) != 2 || history[0].OK || history[0].Error != "upstream rejected" || !history[1].OK {
+		t.Fatalf("push history wrong: %+v", history)
+	}
+
 	// List returns every connection with its provider joined.
 	all, err := s.ListConnections()
 	if err != nil || len(all) != 1 {

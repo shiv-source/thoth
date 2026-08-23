@@ -115,6 +115,22 @@ export const SyncTarget = z.object({
 })
 export type SyncTarget = z.infer<typeof SyncTarget>
 
+// SyncSnapshot is one restorable archive for a connection (an S3 object key
+// or a local backup file), listed by the restore picker.
+export const SyncSnapshot = z.object({
+    key: z.string(),
+    time: z.string().optional()
+})
+export type SyncSnapshot = z.infer<typeof SyncSnapshot>
+
+// PushEntry is one completed sync run, newest first.
+const PushEntry = z.object({
+    at: z.string(),
+    ok: z.boolean(),
+    error: z.string()
+})
+export type PushEntry = z.infer<typeof PushEntry>
+
 export const Connection = z.object({
     id: z.number(),
     provider_id: z.number(),
@@ -127,7 +143,8 @@ export const Connection = z.object({
     identity: SyncIdentity.nullable(),
     config: z.record(z.string(), z.any()),
     last_synced_at: z.string(),
-    last_error: z.string()
+    last_error: z.string(),
+    push_history: z.array(PushEntry).default([])
 })
 export type Connection = z.infer<typeof Connection>
 export type ConnectInput = { provider_id: number; name: string; config: Record<string, string> }
@@ -346,6 +363,16 @@ export const api = {
     setActiveSync: async (id: number): Promise<void> => {
         try {
             await http.post(`/api/v1/sync/connections/${id}/active`)
+        } catch (err) {
+            throw new Error(axiosErrorMessage(err), { cause: err })
+        }
+    },
+    syncSnapshots: (id: number) =>
+        get(`/api/v1/sync/connections/${id}/snapshots`, z.object({ snapshots: z.array(SyncSnapshot) })),
+    restoreSync: async (id: number, key = ''): Promise<{ files: number; backup: string | null }> => {
+        try {
+            const res = await http.post(`/api/v1/sync/connections/${id}/restore`, { key })
+            return parseBody(res, z.object({ files: z.number(), backup: z.string().nullable() }))
         } catch (err) {
             throw new Error(axiosErrorMessage(err), { cause: err })
         }

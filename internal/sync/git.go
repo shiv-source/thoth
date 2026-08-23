@@ -3,9 +3,29 @@ package sync
 import (
 	"context"
 	"errors"
+	"net"
+	"net/url"
 
 	agentgit "github.com/shiv-source/thoth/agent/git"
 )
+
+// isRetryableGit classifies a go-git push error: a network-level failure
+// (DNS, connect, timeout, unexpected EOF) is a transient flake worth retrying;
+// anything else (auth, missing remote) is permanent.
+func isRetryableGit(err error) bool {
+	var netErr *net.OpError
+	if errors.As(err, &netErr) {
+		return true
+	}
+	var urlErr *url.Error
+	if errors.As(err, &urlErr) {
+		return true
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		return true
+	}
+	return false
+}
 
 // gitService is the identity/target seam for git-kind providers. The shared
 // gitDriver serves both GitHub and GitLab through it; push is identical
@@ -26,7 +46,7 @@ type gitDriver struct {
 func (d *gitDriver) Kind() Kind { return KindGit }
 
 func (d *gitDriver) Fields() []Field {
-	return []Field{{Key: "token", Label: "Personal access token", Secret: true, Required: true}}
+	return []Field{{Key: "token", Label: "Personal access token", Secret: true, Required: true}, IntervalField}
 }
 
 func (d *gitDriver) Verify(ctx context.Context, cfg Config) (Identity, error) {
@@ -84,6 +104,9 @@ func (d *gitDriver) Push(_ context.Context, cfg Config, root string, committer I
 		username = "oauth2"
 	}
 	if err := repo.Push(agentgit.Auth{Username: username, Token: token}); err != nil {
+		if isRetryableGit(err) {
+			return retryable("could not push — a transient network error occurred")
+		}
 		return errors.New("could not push — check the remote URL, your credentials, and network access")
 	}
 	return nil

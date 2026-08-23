@@ -7,12 +7,15 @@ import {
     deleteSyncProvider,
     disconnectSync,
     fetchSync,
+    fetchSyncSnapshots,
     fetchSyncTargets,
     pushSync,
+    restoreSync,
     selectSyncConnections,
     selectSyncError,
     selectSyncLoading,
     selectSyncPushing,
+    selectSyncSnapshots,
     selectSyncTargets,
     setActiveSync,
     updateSyncConnection,
@@ -56,7 +59,8 @@ const connection = {
     identity: { username: 'octo', display_name: 'Octo Cat' },
     config: { repo_url: 'https://github.com/octo/wiki.git', has_token: true },
     last_synced_at: '2026-08-23T09:00:00Z',
-    last_error: ''
+    last_error: '',
+    push_history: []
 }
 const target = {
     full_name: 'octo/wiki',
@@ -76,9 +80,11 @@ describe('syncSlice', () => {
             providers: [],
             connections: [],
             targets: {},
+            snapshots: {},
             loading: false,
             connecting: false,
             pushing: false,
+            restoring: false,
             error: null
         })
     })
@@ -192,6 +198,41 @@ describe('syncSlice', () => {
         const store = makeStore()
         await store.dispatch(fetchSyncTargets(3))
         expect(selectSyncTargets(3)(store.getState())).toEqual([target])
+    })
+
+    it('caches restore snapshots per connection', async () => {
+        const snapshot = { key: 'thoth-wiki-20260102-030405.zip', time: '2026-01-02T03:04:05Z' }
+        stubAPI(mocks, { 'GET /api/v1/sync/connections/3/snapshots': () => ({ snapshots: [snapshot] }) })
+        const store = makeStore()
+        await store.dispatch(fetchSyncSnapshots(3))
+        expect(selectSyncSnapshots(3)(store.getState())).toEqual([snapshot])
+    })
+
+    it('restores the wiki from a snapshot', async () => {
+        stubAPI(mocks, { 'POST /api/v1/sync/connections/3/restore': () => ({ files: 4, backup: '/tmp/x' }) })
+        const store = makeStore()
+        const pending = store.dispatch(restoreSync({ id: 3, key: 'thoth-wiki-20260102-030405.zip' }))
+        expect(store.getState().sync.restoring).toBe(true)
+        await pending
+        expect(store.getState().sync.restoring).toBe(false)
+        expect(mocks.post).toHaveBeenCalledWith('/api/v1/sync/connections/3/restore', {
+            key: 'thoth-wiki-20260102-030405.zip'
+        })
+    })
+
+    it('restores the latest snapshot when no key is given', async () => {
+        stubAPI(mocks, { 'POST /api/v1/sync/connections/3/restore': () => ({ files: 2, backup: null }) })
+        const store = makeStore()
+        await store.dispatch(restoreSync({ id: 3 }))
+        expect(mocks.post).toHaveBeenCalledWith('/api/v1/sync/connections/3/restore', { key: '' })
+    })
+
+    it('surfaces a restore failure', async () => {
+        mocks.post.mockRejectedValueOnce(axiosError(400, { error: 'archive is not a wiki' }))
+        const store = makeStore()
+        await expect(store.dispatch(restoreSync({ id: 3 })).unwrap()).rejects.toThrow('archive is not a wiki')
+        expect(store.getState().sync.restoring).toBe(false)
+        expect(selectSyncError(store.getState())).toBe('archive is not a wiki')
     })
 
     it('creates and updates a sync provider', async () => {

@@ -9,6 +9,7 @@ import (
 
 	"github.com/go-warehouse/events"
 	"github.com/gorilla/websocket"
+	syncsvc "github.com/shiv-source/thoth/internal/sync"
 	"github.com/shiv-source/thoth/internal/wiki"
 )
 
@@ -73,6 +74,46 @@ func TestHubBroadcastDropsSlowClient(t *testing.T) {
 	case m := <-fast:
 		t.Fatalf("removed client received %+v", m)
 	case <-time.After(100 * time.Millisecond):
+	}
+}
+
+func TestSyncResultFrameReachesSocket(t *testing.T) {
+	d := testDeps(t)
+	bus := events.New(events.WithLogger(slog.New(slog.NewTextHandler(io.Discard, nil))))
+	d.Events = bus
+	ctx := context.Background()
+	t.Cleanup(func() { bus.Close(); _ = bus.Wait(ctx) })
+	e := New(d)
+
+	conn, _, err := websocket.DefaultDialer.Dial(wsURL(t, e), nil)
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	defer func() { _ = conn.Close() }()
+
+	// Roundtrip first: a reply proves the connection is registered with the
+	// hub, so the following publish cannot race client registration.
+	if err := conn.WriteJSON(map[string]string{"type": "bogus"}); err != nil {
+		t.Fatal(err)
+	}
+	if m := readMsg(t, conn); m["type"] != "error" {
+		t.Fatalf("expected error reply, got %+v", m)
+	}
+
+	if err := bus.Publish(ctx, syncsvc.Result{
+		ConnectionID: 3, Name: "backup", OK: false, Error: "no credentials stored",
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	m := readMsg(t, conn)
+	if m["type"] != "sync_result" {
+		t.Fatalf("expected sync_result frame, got %+v", m)
+	}
+	payload, ok := m["sync_result"].(map[string]any)
+	if !ok || payload["connection_id"] != float64(3) || payload["name"] != "backup" ||
+		payload["ok"] != false || payload["error"] != "no credentials stored" {
+		t.Fatalf("sync_result payload = %+v", m["sync_result"])
 	}
 }
 

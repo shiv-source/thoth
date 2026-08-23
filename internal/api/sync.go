@@ -11,6 +11,7 @@ import (
 	"github.com/shiv-source/thoth/internal/settings"
 	"github.com/shiv-source/thoth/internal/store"
 	syncsvc "github.com/shiv-source/thoth/internal/sync"
+	"github.com/shiv-source/thoth/internal/wiki"
 )
 
 // syncProviderDTO is the catalog wire shape. fields are the driver's input
@@ -44,6 +45,9 @@ type connectionDTO struct {
 	Config       map[string]any    `json:"config"`
 	LastSyncedAt string            `json:"last_synced_at"`
 	LastError    string            `json:"last_error"`
+	// PushHistory is the recent sync runs (newest first), beyond the single
+	// last_synced_at/last_error columns.
+	PushHistory []store.PushEntry `json:"push_history"`
 }
 
 // syncProviderInput is the POST/PUT body for /api/sync/providers.
@@ -330,8 +334,11 @@ func listTargets(c echo.Context, d Deps) error {
 }
 
 // pushConnection syncs the wiki through the connection's driver and records
-// the outcome on the row (last_synced_at / last_error). Driver errors are
-// already sanitized fixed messages, so they are safe to surface and store.
+// the outcome on the row (last_synced_at / last_error + push history).
+// Driver errors are already sanitized fixed messages, so they are safe to
+// surface and store; transient failures are retried with backoff inside
+// Service.Push. The push path is shared with the background scheduler, so
+// both record the same state.
 func pushConnection(c echo.Context, d Deps) error {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
@@ -341,28 +348,120 @@ func pushConnection(c echo.Context, d Deps) error {
 	if err != nil {
 		return connectionStoreError(c, d, err, "read connection")
 	}
+	if err := d.Sync.Push(c.Request().Context(), conn, d.Wiki.Root()); err != nil {
+		return c.JSON(http.StatusOK, map[string]any{"ok": false, "error": err.Error()})
+	}
+	return c.JSON(http.StatusOK, map[string]bool{"ok": true})
+}
+
+// restoreInput is the POST /api/v1/sync/connections/:id/restore body. Key
+// selects a snapshot; empty = the latest.
+type restoreInput struct {
+	Key string `json:"key"`
+}
+
+// connectionRestorer resolves the connection's driver and type-asserts it to
+// the sync.Restorer capability. Git-kind drivers are push-only today, so they
+// surface a clean 400 here. Errors are raw store/driver errors — the caller
+// maps them (connectionStoreError etc.) so a successful c.JSON write inside
+// the mapping cannot be mistaken for a restorer.
+func connectionRestorer(d Deps, id int64) (store.Connection, syncsvc.Restorer, error) {
+	conn, err := d.Store.Connection(id)
+	if err != nil {
+		return store.Connection{}, nil, err
+	}
 	p, err := d.Store.SyncProvider(conn.ProviderID)
 	if err != nil {
-		return syncProviderStoreError(c, d, err, "read sync provider")
+		return conn, nil, err
 	}
 	drv, err := d.Sync.Driver(p)
 	if err != nil {
-		return internalError(c, d, "resolve sync driver", err)
+		return conn, nil, err
+	}
+	restorer, ok := drv.(syncsvc.Restorer)
+	if !ok {
+		return conn, nil, errRestoreUnsupported
+	}
+	return conn, restorer, nil
+}
+
+// errRestoreUnsupported marks a connection whose driver cannot restore.
+var errRestoreUnsupported = errors.New("restore is not supported for this destination")
+
+// listSnapshots returns the restore points available for a connection (S3
+// objects / local backup files), newest-first. Git-kind connections return an
+// empty list — there is nothing stored to restore.
+func listSnapshots(c echo.Context, d Deps) error {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		return c.JSON(http.StatusNotFound, map[string]string{"error": "connection not found"})
+	}
+	conn, restorer, err := connectionRestorer(d, id)
+	if errors.Is(err, errRestoreUnsupported) {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": errRestoreUnsupported.Error()})
+	}
+	if err != nil {
+		return connectionStoreError(c, d, err, "read connection")
 	}
 	cfg, err := syncsvc.DecodeConfig(conn.Config)
 	if err != nil {
 		return internalError(c, d, "decode connection config", err)
 	}
-	ident, err := syncsvc.DecodeIdentity(conn.Identity)
+	snaps, err := restorer.Snapshots(c.Request().Context(), cfg)
 	if err != nil {
-		return internalError(c, d, "decode connection identity", err)
+		return internalError(c, d, "list snapshots", err)
 	}
-	if err := drv.Push(c.Request().Context(), cfg, d.Wiki.Root(), ident); err != nil {
-		_ = d.Store.SetConnectionSyncResult(id, false, err.Error())
-		return c.JSON(http.StatusOK, map[string]any{"ok": false, "error": err.Error()})
+	if snaps == nil {
+		snaps = []syncsvc.Snapshot{}
 	}
-	_ = d.Store.SetConnectionSyncResult(id, true, "")
-	return c.JSON(http.StatusOK, map[string]bool{"ok": true})
+	return c.JSON(http.StatusOK, map[string]any{"snapshots": snaps})
+}
+
+// restoreConnection downloads a stored archive (the latest, or the chosen
+// snapshot key) and imports it onto the wiki via the same backup-first merge
+// the upload path uses (wiki.ImportFrom), then rebuilds the index and pushes
+// a wiki_changed frame. The wiki is overwritten by the archive — the merge
+// takes a sibling backup first, so nothing is lost. Errors are sanitized; a
+// 400 means "restore not supported" or a bad/non-wiki archive.
+func restoreConnection(c echo.Context, d Deps) error {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		return c.JSON(http.StatusNotFound, map[string]string{"error": "connection not found"})
+	}
+	var in restoreInput
+	if err := c.Bind(&in); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
+	}
+	conn, restorer, err := connectionRestorer(d, id)
+	if errors.Is(err, errRestoreUnsupported) {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": errRestoreUnsupported.Error()})
+	}
+	if err != nil {
+		return connectionStoreError(c, d, err, "read connection")
+	}
+	cfg, err := syncsvc.DecodeConfig(conn.Config)
+	if err != nil {
+		return internalError(c, d, "decode connection config", err)
+	}
+	ra, size, err := restorer.Restore(c.Request().Context(), cfg, in.Key)
+	if err != nil {
+		return internalError(c, d, "fetch snapshot", err)
+	}
+	imported, err := d.Wiki.ImportFrom(ra, size, d.Log)
+	if err != nil {
+		if errors.Is(err, wiki.ErrArchiveTooLarge) {
+			return c.JSON(http.StatusRequestEntityTooLarge, map[string]string{"error": err.Error()})
+		}
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
+	}
+	if err := d.Index.Sync(d.Wiki.Root(), d.Log); err != nil {
+		return internalError(c, d, "reindex after restore", err)
+	}
+	d.publishWikiChanged()
+	return c.JSON(http.StatusOK, map[string]any{
+		"files":  imported.Files,
+		"backup": imported.Backup,
+	})
 }
 
 // setActiveConnection marks the connection the agent's git tools default to.
@@ -418,6 +517,9 @@ func connectionDTOFromStore(d Deps, c store.Connection, activeID string) connect
 				}
 			}
 		}
+	}
+	if history, err := d.Store.ListPushHistory(c.ID); err == nil {
+		dto.PushHistory = history
 	}
 	return dto
 }

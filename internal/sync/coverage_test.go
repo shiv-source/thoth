@@ -286,8 +286,11 @@ func TestS3PushUploadError(t *testing.T) {
 func TestLocalFields(t *testing.T) {
 	d := &localDriver{}
 	fields := d.Fields()
-	if len(fields) != 1 || fields[0].Key != "path" || !fields[0].Required {
+	if len(fields) != 2 || fields[0].Key != "path" || !fields[0].Required {
 		t.Fatalf("local fields wrong: %+v", fields)
+	}
+	if fields[1].Key != "interval" {
+		t.Fatalf("local interval field missing: %+v", fields)
 	}
 }
 

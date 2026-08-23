@@ -1,6 +1,6 @@
 # Database schema
 
-Everything lives in one SQLite file, `~/.thoth/thoth.db` (WAL mode). The schema is defined entirely by SQL migrations in `internal/store/migrations/` — one file per table, applied in filename order, gated on `PRAGMA user_version` (currently 11). Go code issues no DDL of its own.
+Everything lives in one SQLite file, `~/.thoth/thoth.db` (WAL mode). The schema is defined entirely by SQL migrations in `internal/store/migrations/` — one file per table, applied in filename order, gated on `PRAGMA user_version` (currently 13). Go code issues no DDL of its own.
 
 ```mermaid
 erDiagram
@@ -36,11 +36,33 @@ erDiagram
         text installation_id
         text created_at
     }
-    github_auth {
-        text token
-        text username
-        text email
-        text created_at
+    sync_providers ||--o{ sync_connections : "owns"
+    sync_providers {
+        integer id PK
+        text slug "UNIQUE"
+        text name
+        text driver
+        text base_url
+        integer protected
+    }
+    sync_connections ||--o{ sync_push_history : "has"
+    sync_connections {
+        integer id PK
+        integer provider_id FK
+        text name
+        text config
+        text identity
+        integer enabled
+        integer protected
+        text last_synced_at
+        text last_error
+    }
+    sync_push_history {
+        integer id PK
+        integer connection_id FK
+        text at
+        integer ok
+        text error
     }
     providers ||--o{ llm_models : "owns"
     providers {
@@ -112,22 +134,9 @@ One-time install facts, single row (enforced by `CHECK (id = 1)`).
 | `installation_id` | TEXT NOT NULL | v4 UUID identifying this installation |
 | `created_at` | TEXT NOT NULL | First boot, UTC RFC3339 |
 
-### `github_auth` (migration `0006_github_auth.sql`)
-
-The connected GitHub account, single row. Identity only — the sync repo URL lives in `settings`.
-
-| Column | Meaning |
-|---|---|
-| `token` | The PAT, plaintext (gh-CLI trust model). Never serialized by the API |
-| `username` / `display_name` / `email` / `avatar_url` / `profile_url` | Identity from `GET /user` (+ `GET /user/emails` for the primary verified email) |
-| `scopes` | `X-OAuth-Scopes` header — kept to warn about a missing `user:email` scope |
-| `expires_at` | Reserved — `/user` returns no expiry |
-| `account_created_at` / `account_updated_at` | The GitHub account's own timestamps |
-| `created_at` / `updated_at` | When the connection was first made / last refreshed |
-
 ### `settings` (migration `0007_settings.sql`)
 
-The app's user-facing settings, key/value. `config.toml` is deprecated — this table is the single source. New keys need no schema change.
+The app's user-facing settings, key/value. `config.toml` is deprecated — this table is the single source. New keys need no schema change. Sync state (target, enabled, last sync, errors) lives on `sync_connections` rows since migration `0012` — the `github_sync_*` keys are gone.
 
 | Key | Seed | Meaning |
 |---|---|---|
@@ -137,11 +146,52 @@ The app's user-facing settings, key/value. `config.toml` is deprecated — this 
 | `api_key` | `''` | Legacy shared key, seeded by migration `0008` but no longer used — credentials are per-provider (in the `providers` table since migration `0011`), and nothing is read from the environment |
 | `provider_<slug>_api_key` | — (absent) | Retired. Migration `0011` moved per-provider credentials into the `providers` table; the one-time backfill in `store.Open` copies these keys into the new rows and deletes them. `slug` is the lowercased provider label with non-alphanumerics stripped (`DeepSeek` → `deepseek`, `Z.AI` → `zai`) |
 | `provider_<slug>_base_url` | — (absent) | Retired, same cutover as the api key above |
-| `github_sync_repo` | `''` | The wiki's sync repo URL |
-| `github_sync_enabled` | `'false'` | The auto-sync switch (`'true'`/`'false'`) |
-| `github_last_synced_at` | `''` | UTC RFC3339 of the last successful git sync |
-| `github_sync_error` | `''` | Sanitized error of the last failed sync |
+| `sync_active_connection` | — (absent) | The connection id the agent's git tools and the Settings tab default to (a `sync_connections` row); absent means no active connection |
 | `context_injection` | — (absent) | Opt-in pre-search of the wiki into each chat turn's first prompt (`'true'`/`'false'`; absent/other = off). Answers start faster and skip the search/read tool round-trips, but change answer semantics, so they must opt in |
+
+### `sync_providers` (migration `0012_sync_providers.sql`)
+
+The catalog of sync destination types. Built-ins (`github`, `gitlab`, `aws_s3`, `local`) are seeded in the migration and again at serve time from `assets/sync-providers.json` when the table is empty (the `ensureModels` self-heal pattern); users add their own rows (custom GitHub/GitLab base URLs, S3-compatible endpoints).
+
+| Column | Type | Meaning |
+|---|---|---|
+| `id` | INTEGER PK AUTOINCREMENT | |
+| `slug` | TEXT NOT NULL UNIQUE | Stable machine id (`github`, `local`) |
+| `name` | TEXT NOT NULL | Display label (`GitHub`, `Local backup`) |
+| `driver` | TEXT NOT NULL | The sync implementation: `github` \| `gitlab` \| `s3` \| `local` |
+| `base_url` | TEXT NOT NULL DEFAULT '' | API endpoint override for git/s3 drivers; '' = provider default (meaningless for local) |
+| `protected` | INTEGER NOT NULL DEFAULT 0 | First-class providers the user can neither delete nor edit — currently only `local` |
+| `created_at` | TEXT NOT NULL | UTC RFC3339 |
+
+### `sync_connections` (migration `0012_sync_providers.sql`)
+
+One row per configured sync destination — the credentials + target + sync state. Supersedes the single-row `github_auth` table (dropped by `0012`).
+
+| Column | Type | Meaning |
+|---|---|---|
+| `id` | INTEGER PK AUTOINCREMENT | |
+| `provider_id` | INTEGER NOT NULL | → `sync_providers.id` (FK off today; the app blocks deleting a provider with connections) |
+| `name` | TEXT NOT NULL | User label (`home wiki`, `work`) |
+| `config` | TEXT NOT NULL DEFAULT '{}' | JSON of credentials + target (`token`/`repo_url`, `access_key_id`/`secret_access_key`/`region`/`bucket`/`prefix`/`snapshot`/`retention`, `path`, `interval`…). Local plaintext — the documented localhost trust model; **write-only over the wire** |
+| `identity` | TEXT | Token-free identity JSON for display (git: username/email/…; s3: account; local: none) |
+| `enabled` | INTEGER NOT NULL DEFAULT 1 | Per-connection sync switch |
+| `protected` | INTEGER NOT NULL DEFAULT 0 | First-class connection (the auto-created local backup) that cannot be deleted — only its config edited |
+| `last_synced_at` | TEXT | UTC RFC3339 of the last successful sync |
+| `last_error` | TEXT | Sanitized error of the last failed sync |
+| `created_at` / `updated_at` | TEXT NOT NULL | UTC RFC3339 |
+
+### `sync_push_history` (migration `0013_sync_push_history.sql`)
+
+A bounded per-connection record of every completed push attempt, newest first. The single `last_synced_at`/`last_error` columns carry only the latest outcome; this table keeps the recent run history the Settings page renders. `AppendPushHistory` (called by `SetConnectionSyncResult`) prunes to 20 rows per connection.
+
+| Column | Type | Meaning |
+|---|---|---|
+| `id` | INTEGER PK AUTOINCREMENT | Ordered newest-first for the list query |
+| `connection_id` | INTEGER NOT NULL | → `sync_connections.id` |
+| `at` | TEXT NOT NULL | UTC RFC3339 of the attempt |
+| `ok` | INTEGER NOT NULL | 1 = pushed, 0 = failed |
+| `error` | TEXT | Sanitized error for a failure; '' otherwise |
+| `created_at` | TEXT NOT NULL | UTC RFC3339 |
 
 ### `providers` (migration `0011_providers.sql`)
 
@@ -171,8 +221,8 @@ The user-editable model registry. Every startup seeds it from `internal/assets/m
 
 ## Reading and writing
 
-- `internal/settings` owns the `settings` table (KV access, `SyncEnabled`/`SyncState`/`SetSyncResult` conveniences, and `ProviderConfig` for the model→provider→credential resolution, which reads the `providers` table). Its `OpenRepo` deliberately runs no migrations and no WAL pragma — the doctor must never mutate a database it only reads.
-- `internal/github` owns `github_auth`; `internal/store` owns conversations/messages/app_metadata, the `providers` table, and `llm_models`; `internal/index` owns notes/notes_fts.
+- `internal/settings` owns the `settings` table (KV access and `ProviderConfig` for the model→provider→credential resolution, which reads the `providers` table). Its `OpenRepo` deliberately runs no migrations and no WAL pragma — the doctor must never mutate a database it only reads.
+- `internal/store` owns conversations/messages/app_metadata, the `providers` table, `llm_models`, and the sync tables (`sync_providers`, `sync_connections`, `sync_push_history`); `internal/index` owns notes/notes_fts.
 - **`claude_session_id` decision (T12):** the column is retained, no migration. Thoth Agent stopped writing it when it replaced the CLI; dropping it would rewrite `conversations` for a column nothing reads, and keeping it preserves the schema for any rollback tooling. The settings resolution at boot is: the selected model's `llm_models` row names its `providers` row, whose `api_key`/`base_url` are used (`settings.ProviderConfig`); empty provider → no key and the provider's default endpoint.
 
 ## Upgrade note
