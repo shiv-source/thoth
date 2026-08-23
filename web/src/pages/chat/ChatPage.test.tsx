@@ -16,7 +16,7 @@ const mocks = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), put: vi.fn(), del
 vi.mock('axios', () => axiosModuleMock(mocks))
 
 function renderPanel() {
-    return renderWithStore(<ChatPage onOpenSettings={() => {}} />)
+    return renderWithStore(<ChatPage onOpenSettings={() => {}} onOpenNote={() => {}} />)
 }
 
 describe('ChatPage', () => {

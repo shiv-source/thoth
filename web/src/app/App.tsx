@@ -56,7 +56,9 @@ export default function App() {
                                     </div>
                                 }
                             >
-                                {view === 'chat' && <ChatPage onOpenSettings={openSettings} />}
+                                {view === 'chat' && (
+                                    <ChatPage onOpenSettings={openSettings} onOpenNote={openNoteHere} />
+                                )}
                                 {view === 'notes' && (
                                     <NotesPage
                                         openPath={segment}
