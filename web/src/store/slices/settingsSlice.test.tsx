@@ -23,7 +23,8 @@ const saved: Settings = {
     model: 'claude-sonnet-5',
     providers: {},
     repo_url: 'git@github.com:me/wiki.git',
-    sync_enabled: true
+    sync_enabled: true,
+    context_injection: false
 }
 
 const llmModel: LLMModel = { id: 3, value: 'my-model', name: 'My Model', tag: 'test', provider: 'Vendor' }

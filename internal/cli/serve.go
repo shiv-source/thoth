@@ -157,18 +157,25 @@ func runServe(cmd *cobra.Command, dev bool, noAPIDocs bool) error {
 
 	// The native agent host drives every turn — no CLI subprocess exists
 	// anywhere in the chat path. Model, provider config, wiki (tools +
-	// rulebook), store (history) and index (search) are all read at boot.
+	// rulebook), store (history) and index (search) are all read at boot;
+	// the context_injection setting opts the host into pre-searching the
+	// wiki into each turn's first prompt.
 	// The git tools follow the live wiki root and are guarded by the sync
 	// switch: commit/push run only after the user opted into sync, with the
 	// stored GitHub connection supplying identity and push credentials. The
 	// conversation-memory tools (list/get/search_conversations) are wired to
 	// the store, and system_health to the same doctor checks the CLI runs.
+	contextInjection, err := stg.ContextInjection()
+	if err != nil {
+		return err
+	}
 	ac, err := agent.New(model, apiKey, w, st, ix,
 		agent.WithProviderConfig(providerName, baseURL),
 		agent.WithLogger(log),
 		agent.WithFolders(scaffoldFolders(stg, log)),
 		agent.WithGitOptions(gitToolOptions(w, stg, gh)),
 		agent.WithHealthFunc(agent.DoctorHealth(dir)),
+		agent.WithContextInjection(contextInjection),
 	)
 	if err != nil {
 		return err

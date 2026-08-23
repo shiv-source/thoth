@@ -26,12 +26,13 @@ type providerDTO struct {
 // empty api_key as "leave unchanged" — the secret is never echoed back to
 // the UI. There is no shared key: credentials belong to each provider.
 type settingsDTO struct {
-	WikiPath    string                 `json:"wiki_path"`
-	WikiFolders []string               `json:"wiki_folders"`
-	Model       string                 `json:"model"`
-	Providers   map[string]providerDTO `json:"providers"`
-	RepoURL     string                 `json:"repo_url"`
-	SyncEnabled bool                   `json:"sync_enabled"`
+	WikiPath         string                 `json:"wiki_path"`
+	WikiFolders      []string               `json:"wiki_folders"`
+	Model            string                 `json:"model"`
+	Providers        map[string]providerDTO `json:"providers"`
+	RepoURL          string                 `json:"repo_url"`
+	SyncEnabled      bool                   `json:"sync_enabled"`
+	ContextInjection bool                   `json:"context_injection"`
 }
 
 func getSettings(c echo.Context, d Deps) error {
@@ -62,9 +63,14 @@ func getSettings(c echo.Context, d Deps) error {
 	if err != nil {
 		return internalError(c, d, "read sync_enabled", err)
 	}
+	contextInjection, err := d.Settings.ContextInjection()
+	if err != nil {
+		return internalError(c, d, "read context_injection", err)
+	}
 	return c.JSON(http.StatusOK, settingsDTO{
 		WikiPath: wikiPath, WikiFolders: wikiFolders, Model: model,
 		Providers: providers, RepoURL: repoURL, SyncEnabled: syncEnabled,
+		ContextInjection: contextInjection,
 	})
 }
 
@@ -140,8 +146,20 @@ func putSettings(c echo.Context, d Deps) error {
 	if err := d.Settings.SetSetting(settings.KeyRepoURL, next.RepoURL); err != nil {
 		return internalError(c, d, "set repo_url", err)
 	}
-	if err := d.Settings.SetSetting(settings.KeySyncEnabled, map[bool]string{true: "true", false: "false"}[next.SyncEnabled]); err != nil {
+	if err := d.Settings.SetSetting(settings.KeySyncEnabled, boolString(next.SyncEnabled)); err != nil {
 		return internalError(c, d, "set sync_enabled", err)
 	}
+	if err := d.Settings.SetSetting(settings.KeyContextInjection, boolString(next.ContextInjection)); err != nil {
+		return internalError(c, d, "set context_injection", err)
+	}
 	return c.JSON(http.StatusOK, next)
+}
+
+// boolString renders a boolean setting value the way the settings table
+// stores it: the literals "true"/"false".
+func boolString(b bool) string {
+	if b {
+		return "true"
+	}
+	return "false"
 }

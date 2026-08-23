@@ -30,18 +30,19 @@ const defaultTurnTimeout = 10 * time.Minute
 type Option func(*options)
 
 type options struct {
-	provider        agentlib.Provider
-	providerName    string
-	baseURL         string
-	logger          *slog.Logger
-	folders         []string
-	historyCap      int
-	maxIterations   int
-	maxOutputTokens int
-	turnTimeout     time.Duration
-	gitOptions      agenttools.GitOptions
-	healthFunc      agenttools.HealthFunc
-	customTools     []agenttools.Tool
+	provider         agentlib.Provider
+	providerName     string
+	baseURL          string
+	logger           *slog.Logger
+	folders          []string
+	historyCap       int
+	maxIterations    int
+	maxOutputTokens  int
+	turnTimeout      time.Duration
+	gitOptions       agenttools.GitOptions
+	healthFunc       agenttools.HealthFunc
+	customTools      []agenttools.Tool
+	contextInjection bool
 }
 
 // WithProvider overrides the provider New would choose from the model id
@@ -100,21 +101,31 @@ func WithHealthFunc(fn agenttools.HealthFunc) Option {
 	return func(o *options) { o.healthFunc = fn }
 }
 
+// WithContextInjection enables pre-searching the wiki into each turn's first
+// prompt, so the model answers from provided context instead of driving a
+// retrieval tool loop. Off by default — it changes answer semantics, so
+// users opt in through the context_injection setting.
+func WithContextInjection(enabled bool) Option {
+	return func(o *options) { o.contextInjection = enabled }
+}
+
 // Client is the Thoth host layer on the reusable agent library: the chat
 // seam the api Hub depends on (Start with an EventWriter), driving
 // agent.Agent instead of the CLI. sessionID is treated as the conversation
 // id for history lookup.
 type Client struct {
-	provider        agentlib.Provider
-	wiki            *wiki.Wiki
-	store           *store.Store
-	folders         []string
-	tools           *agenttools.Registry
-	logger          *slog.Logger
-	historyCap      int
-	maxIterations   int
-	maxOutputTokens int
-	turnTimeout     time.Duration
+	provider         agentlib.Provider
+	wiki             *wiki.Wiki
+	store            *store.Store
+	index            *index.Index
+	folders          []string
+	tools            *agenttools.Registry
+	logger           *slog.Logger
+	historyCap       int
+	maxIterations    int
+	maxOutputTokens  int
+	turnTimeout      time.Duration
+	contextInjection bool
 }
 
 // New wires a Client from the model id and API key plus the wiki (tools and
@@ -162,16 +173,18 @@ func New(model, apiKey string, w *wiki.Wiki, st *store.Store, ix *index.Index, o
 		return nil, fmt.Errorf("agent: build tools: %w", err)
 	}
 	return &Client{
-		provider:        prov,
-		wiki:            w,
-		store:           st,
-		folders:         o.folders,
-		tools:           reg,
-		logger:          logger,
-		historyCap:      o.historyCap,
-		maxIterations:   o.maxIterations,
-		maxOutputTokens: o.maxOutputTokens,
-		turnTimeout:     o.turnTimeout,
+		provider:         prov,
+		wiki:             w,
+		store:            st,
+		index:            ix,
+		folders:          o.folders,
+		tools:            reg,
+		logger:           logger,
+		historyCap:       o.historyCap,
+		maxIterations:    o.maxIterations,
+		maxOutputTokens:  o.maxOutputTokens,
+		turnTimeout:      o.turnTimeout,
+		contextInjection: o.contextInjection,
 	}, nil
 }
 
@@ -235,6 +248,14 @@ func (c *Client) Start(ctx context.Context, sessionID, prompt string, w agentlib
 	ctx, cancel := context.WithTimeout(ctx, c.turnTimeout)
 	defer cancel()
 	system := SystemPrompt(c.wiki, c.folders)
+	if enriched, err := c.enrichPrompt(prompt); err != nil {
+		// Fail open: a pre-search failure (e.g. a malformed FTS5 MATCH from
+		// the prompt text) must never fail the turn — answer from the raw
+		// prompt as before.
+		c.logger.Warn("context injection skipped", "err", err)
+	} else {
+		prompt = enriched
+	}
 	ag, err := agentlib.New(agentlib.Options{
 		Provider:        c.provider,
 		System:          system,

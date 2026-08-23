@@ -60,7 +60,8 @@ const settings = {
     model: '',
     providers: {} as Record<string, { api_key?: string; has_api_key: boolean; base_url: string }>,
     repo_url: '',
-    sync_enabled: false
+    sync_enabled: false,
+    context_injection: false
 }
 
 const emptyGitHub = {

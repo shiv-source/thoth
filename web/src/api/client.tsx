@@ -39,7 +39,8 @@ export const Settings = z.object({
     model: z.string(),
     providers: z.record(z.string(), ProviderConfig),
     repo_url: z.string(),
-    sync_enabled: z.boolean()
+    sync_enabled: z.boolean(),
+    context_injection: z.boolean()
 })
 export type Settings = z.infer<typeof Settings>
 

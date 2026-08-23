@@ -15,7 +15,8 @@ const current: Settings = {
         OpenAI: { api_key: '', has_api_key: false, base_url: '' }
     },
     repo_url: '',
-    sync_enabled: false
+    sync_enabled: false,
+    context_injection: false
 }
 
 // Form submit values for the providers page: only the registered base_url /
@@ -65,5 +66,11 @@ describe('settingsBody', () => {
             Anthropic: { api_key: '', base_url: '' }
         })
         expect(settingsBody(current, next).providers).toEqual({ Anthropic: { api_key: '', base_url: '' } })
+    })
+
+    it('carries the context_injection toggle', () => {
+        const body = settingsBody(current, { context_injection: true })
+        expect(body.context_injection).toBe(true)
+        expect(body.sync_enabled).toBe(false)
     })
 })

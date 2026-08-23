@@ -133,6 +133,7 @@ The app's user-facing settings, key/value. `config.toml` is deprecated — this 
 | `github_sync_enabled` | `'false'` | The auto-sync switch (`'true'`/`'false'`) |
 | `github_last_synced_at` | `''` | UTC RFC3339 of the last successful git sync |
 | `github_sync_error` | `''` | Sanitized error of the last failed sync |
+| `context_injection` | — (absent) | Opt-in pre-search of the wiki into each chat turn's first prompt (`'true'`/`'false'`; absent/other = off). Answers start faster and skip the search/read tool round-trips, but change answer semantics, so they must opt in |
 
 ### `llm_models` (migrations `0008_llm_models.sql` + `0009_llm_models_tag.sql`)
 
