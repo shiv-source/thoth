@@ -205,3 +205,59 @@ describe('api.saveNote', () => {
         await expect(api.saveNote({ content: '# X' })).rejects.toThrow()
     })
 })
+
+describe('api.exportWiki', () => {
+    beforeEach(() => {
+        vi.clearAllMocks()
+        vi.stubGlobal('URL', { ...URL, createObjectURL: vi.fn(() => 'blob:mock'), revokeObjectURL: vi.fn() })
+    })
+
+    it('downloads the wiki as a zip without history by default', async () => {
+        mocks.get.mockResolvedValue({ data: new Blob(['zip']) })
+        await expect(api.exportWiki()).resolves.toBeUndefined()
+        expect(mocks.get).toHaveBeenCalledWith('/api/v1/wiki/export', {
+            responseType: 'blob',
+            params: undefined
+        })
+    })
+
+    it('passes history=1 when requested', async () => {
+        mocks.get.mockResolvedValue({ data: new Blob(['zip']) })
+        await api.exportWiki(true)
+        expect(mocks.get).toHaveBeenCalledWith('/api/v1/wiki/export', {
+            responseType: 'blob',
+            params: { history: '1' }
+        })
+    })
+})
+
+describe('api.importWiki', () => {
+    beforeEach(() => {
+        vi.clearAllMocks()
+    })
+
+    it('uploads a file and parses the merged count and backup path', async () => {
+        mocks.post.mockResolvedValue({ data: { files: 7, backup: '/tmp/wiki-backup-20260823-093000' } })
+        const res = await api.importWiki(new File(['zip'], 'wiki.zip'))
+        expect(res).toEqual({ files: 7, backup: '/tmp/wiki-backup-20260823-093000' })
+        const [url, form] = mocks.post.mock.calls[0] as [string, FormData]
+        expect(url).toBe('/api/v1/wiki/import')
+        expect(form.get('file')).toBeInstanceOf(File)
+    })
+
+    it('rejects a null backup path and surfaces the server error', async () => {
+        mocks.post.mockResolvedValue({ data: { files: 2, backup: null } })
+        const res = await api.importWiki(new File(['zip'], 'wiki.zip'))
+        expect(res.backup).toBeNull()
+    })
+
+    it('throws the server error message when the import is rejected', async () => {
+        mocks.post.mockRejectedValue(
+            Object.assign(new Error('400'), {
+                isAxiosError: true,
+                response: { status: 400, statusText: 'Bad Request', data: { error: 'archive is not a wiki' } }
+            })
+        )
+        await expect(api.importWiki(new File(['zip'], 'wiki.zip'))).rejects.toThrow('archive is not a wiki')
+    })
+})
