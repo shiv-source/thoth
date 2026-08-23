@@ -1,4 +1,4 @@
-import { Button, Empty, List } from 'antd'
+import { Button, Empty, Listy } from 'antd'
 import { CheckOutlined, CloseOutlined } from '@ant-design/icons'
 import { dismissNotification, markAllRead, selectNotifications } from '../store'
 import { useAppDispatch, useAppSelector } from '../store/hooks'
@@ -35,11 +35,12 @@ export function NotificationPanel({ onClose }: { onClose: () => void }) {
             {items.length === 0 ? (
                 <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No notifications yet" className="py-6" />
             ) : (
-                <List
-                    size="small"
-                    className="max-h-80 overflow-y-auto"
-                    dataSource={items}
-                    renderItem={(n) => (
+                <Listy
+                    items={items}
+                    rowKey="id"
+                    className="max-h-80 divide-y divide-line overflow-y-auto"
+                    classNames={{ item: 'p-0!' }}
+                    itemRender={(n) => (
                         <NotificationRow
                             title={n.title}
                             body={n.body}

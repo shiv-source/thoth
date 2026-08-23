@@ -26,7 +26,7 @@ export function SettingsDoctorPage() {
     return (
         <SettingsShell active="doctor">
             <Card size="small" title={<CardTitle icon={MedicineBoxOutlined}>Checks</CardTitle>}>
-                {error && <Alert type="error" showIcon message={error} className="mb-4" />}
+                {error && <Alert type="error" showIcon title={error} className="mb-4" />}
                 <div className="flex items-center justify-between gap-3">
                     <p className="text-sm text-subtle">
                         Installation health, using the same checks as{' '}

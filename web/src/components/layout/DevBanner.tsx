@@ -14,7 +14,7 @@ export function DevBanner({ dev, commit }: { dev: boolean; commit: string }) {
         <Alert
             banner
             showIcon
-            message={message}
+            title={message}
             styles={{
                 root: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
                 section: { flex: 'none' }

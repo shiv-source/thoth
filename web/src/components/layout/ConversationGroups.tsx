@@ -1,11 +1,11 @@
 import type { RefObject } from 'react'
-import { List } from 'antd'
+import { Listy } from 'antd'
 import type { Conversation } from '../../api/client'
 import { ConversationRow } from './ConversationRow'
 
-// ConversationGroups renders the day-grouped conversation history as one
-// antd List per group, the group label as its header. Pure presentation —
-// the grouped data and the open/delete events flow in from ChatsList.
+// ConversationGroups renders the day-grouped conversation history, one group
+// label followed by its rows. Pure presentation — the grouped data and the
+// open/delete events flow in from ChatsList.
 export function ConversationGroups({
     groups,
     activeConvID,
@@ -22,22 +22,24 @@ export function ConversationGroups({
     return (
         <div ref={listRef} className="h-full overflow-y-auto px-2 pb-2">
             {groups.map(([label, items]) => (
-                <List
-                    key={label}
-                    size="small"
-                    header={
-                        <span className="text-[11px] font-semibold uppercase tracking-wider text-subtle">{label}</span>
-                    }
-                    dataSource={items}
-                    renderItem={(c) => (
-                        <ConversationRow
-                            conversation={c}
-                            active={c.id === activeConvID}
-                            onOpen={() => onOpen(c.id)}
-                            onDelete={() => onDelete(c)}
-                        />
-                    )}
-                />
+                <div key={label}>
+                    <div className="px-1 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wider text-subtle">
+                        {label}
+                    </div>
+                    <Listy
+                        items={items}
+                        rowKey="id"
+                        classNames={{ item: 'p-0!' }}
+                        itemRender={(c) => (
+                            <ConversationRow
+                                conversation={c}
+                                active={c.id === activeConvID}
+                                onOpen={() => onOpen(c.id)}
+                                onDelete={() => onDelete(c)}
+                            />
+                        )}
+                    />
+                </div>
             ))}
         </div>
     )

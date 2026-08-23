@@ -138,7 +138,7 @@ export function SettingsGitPage() {
                         </div>
                     </div>
                     <Divider />
-                    {gitError && <Alert type="error" showIcon message={gitError} />}
+                    {gitError && <Alert type="error" showIcon title={gitError} />}
                     <div className="flex justify-end gap-3">
                         <Button htmlType="submit">Save</Button>
                         <Button type="primary" loading={pushing} disabled={publicSelected} onClick={() => void push()}>

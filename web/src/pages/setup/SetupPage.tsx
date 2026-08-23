@@ -57,7 +57,7 @@ export function SetupPage({
                                 key={p.title}
                                 type="error"
                                 showIcon
-                                message={p.title}
+                                title={p.title}
                                 description={
                                     p.fix && (
                                         <code className="inline-block max-w-full overflow-x-auto rounded-lg bg-raised px-2 py-1 font-mono text-xs text-ink">
