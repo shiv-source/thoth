@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/labstack/echo/v4"
+	"github.com/shiv-source/thoth/internal/index"
 	"github.com/shiv-source/thoth/internal/wiki"
 )
 
@@ -27,6 +28,9 @@ func search(c echo.Context, d Deps) error {
 	results, err := d.Index.Search(`"`+cleaned+`"`, limit)
 	if err != nil {
 		return internalError(c, d, "search", err)
+	}
+	if results == nil {
+		results = []index.Result{} // no matches serializes as [], never null — the client types it as an array
 	}
 	return c.JSON(http.StatusOK, map[string]any{"results": results})
 }

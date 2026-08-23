@@ -178,6 +178,45 @@ describe('api.getConversation and health', () => {
     })
 })
 
+describe('api.syncConnections', () => {
+    beforeEach(() => {
+        vi.clearAllMocks()
+    })
+
+    const baseConnection = {
+        id: 1,
+        provider_id: 4,
+        provider_slug: 'local',
+        provider_name: 'Local backup',
+        name: 'Local backup',
+        enabled: true,
+        protected: true,
+        active: false,
+        identity: null,
+        config: { path: '', interval: '' },
+        last_synced_at: '',
+        last_error: ''
+    }
+
+    it('defaults a null push_history to [] instead of rejecting the fetch', async () => {
+        mocks.get.mockResolvedValue({ data: { connections: [{ ...baseConnection, push_history: null }] } })
+        const { connections } = await api.syncConnections()
+        expect(connections[0]?.push_history).toEqual([])
+    })
+
+    it('parses push_history when present', async () => {
+        mocks.get.mockResolvedValue({
+            data: {
+                connections: [
+                    { ...baseConnection, push_history: [{ at: '2026-08-23T15:00:00Z', ok: true, error: '' }] }
+                ]
+            }
+        })
+        const { connections } = await api.syncConnections()
+        expect(connections[0]?.push_history).toEqual([{ at: '2026-08-23T15:00:00Z', ok: true, error: '' }])
+    })
+})
+
 describe('api.saveNote', () => {
     beforeEach(() => {
         vi.clearAllMocks()

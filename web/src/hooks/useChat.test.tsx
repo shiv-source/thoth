@@ -212,6 +212,30 @@ describe('useChat', () => {
         expect(mocks.get).toHaveBeenCalledTimes(1)
     })
 
+    it('surfaces a failed scheduled sync as a sync notification', () => {
+        const socket = freshSocket()
+        const store = makeStore()
+        const wrapper = ({ children }: { children: ReactNode }) => <Provider store={store}>{children}</Provider>
+        const { result } = renderHook(() => useChat(socket), { wrapper })
+
+        const ws = FakeWS.instances[0]!
+        act(() =>
+            ws?.onmessage?.({
+                data: JSON.stringify({
+                    type: 'sync_result',
+                    sync_result: { connection_id: 3, name: 'backup', ok: false, error: 'no credentials stored' }
+                })
+            })
+        )
+
+        expect(result.current.messages).toEqual([]) // a notification, not a chat message
+        expect(store.getState().notifications.items[0]).toMatchObject({
+            kind: 'sync',
+            title: 'Sync failed',
+            body: 'no credentials stored'
+        })
+    })
+
     it('reset() clears locally and unpins the server', () => {
         const socket = freshSocket()
         const { result } = renderChatHook(socket)

@@ -49,6 +49,35 @@ func TestSearchEndpoint(t *testing.T) {
 	}
 }
 
+// TestSearchEndpointEmptyIsArray verifies a search with no matches serializes
+// results as [] — never null — so the client's array schema accepts it.
+func TestSearchEndpointEmptyIsArray(t *testing.T) {
+	d := testDeps(t)
+	if err := wiki.Scaffold(d.Wiki.Root()); err != nil {
+		t.Fatal(err)
+	}
+	if err := d.Index.Sync(d.Wiki.Root(), d.Log); err != nil {
+		t.Fatal(err)
+	}
+
+	e := New(d)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/search?q=zzzznomatch", nil)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+	var body struct {
+		Results json.RawMessage `json:"results"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+	if string(body.Results) != "[]" {
+		t.Fatalf("results = %s, want []", body.Results)
+	}
+}
+
 func TestNoteEndpoint(t *testing.T) {
 	d := testDeps(t)
 	if err := wiki.Scaffold(d.Wiki.Root()); err != nil {

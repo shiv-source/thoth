@@ -61,6 +61,28 @@ func TestGetConversationFound(t *testing.T) {
 	}
 }
 
+// TestListConversationsEmptyIsArray verifies the empty conversation list
+// serializes as [] — never null — so the client's array schema accepts it.
+func TestListConversationsEmptyIsArray(t *testing.T) {
+	d := testDeps(t)
+	e := New(d)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/conversations", nil)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("list status %d: %s", rec.Code, rec.Body.String())
+	}
+	var body struct {
+		Conversations json.RawMessage `json:"conversations"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+	if string(body.Conversations) != "[]" {
+		t.Fatalf("conversations = %s, want []", body.Conversations)
+	}
+}
+
 func TestGetConversationNotFound(t *testing.T) {
 	d := testDeps(t)
 	e := New(d)

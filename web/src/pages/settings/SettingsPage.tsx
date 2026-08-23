@@ -2,14 +2,14 @@ import { useEffect } from 'react'
 import { navigateSegment, useViewRoute } from '../../hooks/useView'
 import { SettingsDoctorPage } from './SettingsDoctorPage'
 import { SettingsGeneralPage } from './SettingsGeneralPage'
-import { SettingsGitPage } from './SettingsGitPage'
 import { SettingsProvidersPage } from './SettingsProvidersPage'
+import { SettingsSyncPage } from './SettingsSyncPage'
 import type { SettingsSection } from './SettingsShell'
 
 // The settings section routes, mirroring the rail in SettingsShell. The
 // segment rides the URL (#/settings/<section>) so it survives reloads and
 // back/forward.
-const SECTIONS: SettingsSection[] = ['general', 'providers', 'git', 'doctor']
+const SECTIONS: SettingsSection[] = ['general', 'providers', 'sync', 'doctor']
 
 function sectionFromSegment(segment: string | null): SettingsSection {
     return SECTIONS.includes(segment as SettingsSection) ? (segment as SettingsSection) : 'general'
@@ -29,8 +29,8 @@ export function SettingsPage() {
     switch (section) {
         case 'providers':
             return <SettingsProvidersPage />
-        case 'git':
-            return <SettingsGitPage />
+        case 'sync':
+            return <SettingsSyncPage />
         case 'doctor':
             return <SettingsDoctorPage />
         default:

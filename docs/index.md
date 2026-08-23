@@ -57,8 +57,8 @@ Follow the full walkthrough in [Getting started](getting-started.md), or jump in
 | Path | Role |
 |---|---|
 | `~/.thoth/wiki/` | The knowledge base — plain markdown you own (the source of truth) |
-| `~/.thoth/thoth.db` | SQLite: search index + conversation history (derived data) |
-| `thoth.db` `settings` table | Settings: `wiki_path`, `github_sync_*` keys |
+| `~/.thoth/thoth.db` | SQLite: search index + conversation history + sync connections (derived data) |
+| `thoth.db` `settings` table | Settings: `wiki_path`, `model`, `sync_active_connection`, … |
 | `CLAUDE.md` (wiki root) | Rules the assistant follows when reading/writing your notes |
 | `code-rules` skill (`.claude/skills/code-rules/`) | Rules for working on this codebase · `CLAUDE.md` / `AGENTS.md` (repo root) are identical copies of the repo map |
 | `.claude/skills/` | Procedure skills: go (backend), react (frontend), git-workflow, code-quality |

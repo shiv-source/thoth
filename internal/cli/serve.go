@@ -24,10 +24,10 @@ import (
 	"github.com/shiv-source/thoth/internal/api"
 	"github.com/shiv-source/thoth/internal/assets"
 	"github.com/shiv-source/thoth/internal/config"
-	"github.com/shiv-source/thoth/internal/github"
 	"github.com/shiv-source/thoth/internal/index"
 	"github.com/shiv-source/thoth/internal/settings"
 	"github.com/shiv-source/thoth/internal/store"
+	syncsvc "github.com/shiv-source/thoth/internal/sync"
 	"github.com/shiv-source/thoth/internal/wiki"
 	"github.com/spf13/cobra"
 )
@@ -79,6 +79,12 @@ func runServe(cmd *cobra.Command, dev bool, noAPIDocs bool) error {
 	}
 	defer func() { _ = stg.Close() }()
 	if err := ensureModels(st); err != nil {
+		return err
+	}
+	if err := ensureSyncProviders(st); err != nil {
+		return err
+	}
+	if err := ensureLocalBackup(st); err != nil {
 		return err
 	}
 
@@ -149,22 +155,34 @@ func runServe(cmd *cobra.Command, dev bool, noAPIDocs bool) error {
 	}
 	startWatcher(w.Root())
 
-	gh, err := github.OpenRepo(dbPath)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = gh.Close() }()
+	// The multi-provider sync engine reads the same thoth.db: connections
+	// (credentials + targets), the provider catalog, and the local backup
+	// (both seeded above) live on sync_providers/sync_connections.
+	syncSvc := syncsvc.NewService(st, http.DefaultClient)
+
+	// The auto-sync scheduler pushes enabled connections whose configured
+	// interval has elapsed. It shares the Service.Push path with the API, and
+	// reports each result on the event bus so the API layer can surface a
+	// notification. It stops on server shutdown (ctx), so no goroutine
+	// outlives serve.
+	syncScheduler := syncsvc.NewScheduler(syncSvc, w.Root(), log, func(r syncsvc.Result) {
+		if err := bus.Publish(ctx, r); err != nil && !errors.Is(err, events.ErrClosed) {
+			log.Warn("publish sync result", "err", err)
+		}
+	})
+	go syncScheduler.Start(ctx)
 
 	// The native agent host drives every turn — no CLI subprocess exists
 	// anywhere in the chat path. Model, provider config, wiki (tools +
 	// rulebook), store (history) and index (search) are all read at boot;
 	// the context_injection setting opts the host into pre-searching the
 	// wiki into each turn's first prompt.
-	// The git tools follow the live wiki root and are guarded by the sync
-	// switch: commit/push run only after the user opted into sync, with the
-	// stored GitHub connection supplying identity and push credentials. The
-	// conversation-memory tools (list/get/search_conversations) are wired to
-	// the store, and system_health to the same doctor checks the CLI runs.
+	// The git tools follow the live wiki root and are guarded by the active
+	// git sync connection: commit/push run only when an enabled git-kind
+	// connection exists, with that connection supplying identity and push
+	// credentials. The conversation-memory tools (list/get/search_conversations)
+	// are wired to the store, and system_health to the same doctor checks the
+	// CLI runs.
 	contextInjection, err := stg.ContextInjection()
 	if err != nil {
 		return err
@@ -173,7 +191,7 @@ func runServe(cmd *cobra.Command, dev bool, noAPIDocs bool) error {
 		agent.WithProviderConfig(providerName, baseURL),
 		agent.WithLogger(log),
 		agent.WithFolders(scaffoldFolders(stg, log)),
-		agent.WithGitOptions(gitToolOptions(w, stg, gh)),
+		agent.WithGitOptions(gitToolOptions(w, stg, syncSvc)),
 		agent.WithHealthFunc(agent.DoctorHealth(dir)),
 		agent.WithContextInjection(contextInjection),
 	)
@@ -190,7 +208,7 @@ func runServe(cmd *cobra.Command, dev bool, noAPIDocs bool) error {
 		Log:             log,
 		Store:           st,
 		Claude:          ac,
-		GitHub:          &github.Service{Client: github.New(http.DefaultClient), Repo: gh},
+		Sync:            syncSvc,
 		Settings:        stg,
 		DataDir:         dir,
 		Version:         Version(),
@@ -317,6 +335,42 @@ func ensureModels(st *store.Store) error {
 	return nil
 }
 
+// ensureSyncProviders seeds sync_providers from assets/sync-providers.json
+// whenever the table is empty — the ensureModels self-heal: a fresh or wiped
+// database gets the built-ins back, a table with rows is never touched.
+// Migration 0012 seeds the same four rows on a fresh database so the
+// github_auth cutover has its provider to attach to; the JSON stays the
+// single source for the built-in list (a store test pins the two in sync).
+func ensureSyncProviders(st *store.Store) error {
+	providers, err := st.ListSyncProviders()
+	if err != nil {
+		return err
+	}
+	if len(providers) > 0 {
+		return nil
+	}
+	opts, err := assets.SyncProviderOptions()
+	if err != nil {
+		return err
+	}
+	for _, o := range opts {
+		if _, err := st.EnsureSyncProvider(o.Slug, o.Name, o.Driver, o.BaseURL, o.Protected); err != nil {
+			return fmt.Errorf("seed sync provider %s: %w", o.Slug, err)
+		}
+	}
+	return nil
+}
+
+// ensureLocalBackup guarantees the first-class local backup connection on
+// every boot: one protected connection under the local provider, created with
+// no folder configured (the user picks it in Settings). Idempotent.
+func ensureLocalBackup(st *store.Store) error {
+	if _, err := st.EnsureLocalBackup(); err != nil {
+		return err
+	}
+	return nil
+}
+
 // scaffoldFolders returns the configured scaffold folder set, or nil (the
 // defaults) when unset or unreadable.
 func scaffoldFolders(stg *settings.Repo, log *slog.Logger) []string {
@@ -356,48 +410,109 @@ func ensureWiki(path string, stg *settings.Repo, log *slog.Logger) (*wiki.Wiki, 
 }
 
 // gitToolOptions wires the agent's git tools to the live wiki root and the
-// stored GitHub connection. The guard gates the mutating tools on the sync
-// switch; identity and push credentials come from the github_auth row, read
-// lazily per call so a token is never held and a connection change applies
-// without restart.
-func gitToolOptions(w *wiki.Wiki, stg *settings.Repo, gh *github.Repo) agenttools.GitOptions {
+// active git-kind sync connection. The guard gates the mutating tools on an
+// enabled git connection existing; identity and push credentials come from
+// that connection, read lazily per call so a token is never held and a
+// connection change applies without restart.
+func gitToolOptions(w *wiki.Wiki, stg *settings.Repo, svc *syncsvc.Service) agenttools.GitOptions {
 	return agenttools.GitOptions{
 		RepoPath: func() string { return w.Root() },
 		Guard: func() error {
-			on, err := stg.SyncEnabled()
+			_, ok, err := activeGitConnection(svc, stg)
 			if err != nil {
 				return err
 			}
-			if !on {
-				return errors.New("git sync is disabled — enable it in Settings to commit or push")
+			if !ok {
+				return errors.New("no enabled git sync connection — enable one in Settings to commit or push")
 			}
 			return nil
 		},
 		Auth: func() (agenttools.GitAuth, error) {
-			a, ok, err := gh.Get()
+			c, ok, err := activeGitConnection(svc, stg)
 			if err != nil {
 				return agenttools.GitAuth{}, err
 			}
 			if !ok {
-				return agenttools.GitAuth{}, errors.New("no GitHub connection — connect one in Settings to push")
+				return agenttools.GitAuth{}, errors.New("no git connection — connect one in Settings to push")
 			}
-			return agenttools.GitAuth{Username: a.Username, Token: a.Token}, nil
+			cfg, err := syncsvc.DecodeConfig(c.Config)
+			if err != nil {
+				return agenttools.GitAuth{}, err
+			}
+			ident, err := syncsvc.DecodeIdentity(c.Identity)
+			if err != nil {
+				return agenttools.GitAuth{}, err
+			}
+			username := ident.Username
+			if username == "" {
+				username = "oauth2"
+			}
+			return agenttools.GitAuth{Username: username, Token: cfg["token"]}, nil
 		},
 		Identity: func() (agenttools.GitIdentity, error) {
-			a, ok, err := gh.Get()
+			c, ok, err := activeGitConnection(svc, stg)
 			if err != nil {
 				return agenttools.GitIdentity{}, err
 			}
 			if !ok {
-				return agenttools.GitIdentity{}, errors.New("no GitHub connection — connect one in Settings to commit")
+				return agenttools.GitIdentity{}, errors.New("no git connection — connect one in Settings to commit")
 			}
-			name := a.DisplayName
+			ident, err := syncsvc.DecodeIdentity(c.Identity)
+			if err != nil {
+				return agenttools.GitIdentity{}, err
+			}
+			name := ident.DisplayName
 			if name == "" {
-				name = a.Username
+				name = ident.Username
 			}
-			return agenttools.GitIdentity{Name: name, Email: a.Email}, nil
+			return agenttools.GitIdentity{Name: name, Email: ident.Email}, nil
 		},
 	}
+}
+
+// activeGitConnection returns the agent-tools' sync connection: the one named
+// by sync_active_connection when it is an enabled git-kind connection,
+// otherwise the first enabled git-kind connection. ok is false when none
+// exists.
+func activeGitConnection(svc *syncsvc.Service, stg *settings.Repo) (store.Connection, bool, error) {
+	if svc == nil || svc.Store == nil {
+		return store.Connection{}, false, nil
+	}
+	active, found, err := stg.Setting(settings.KeyActiveConnection)
+	if err != nil {
+		return store.Connection{}, false, err
+	}
+	if found && active != "" {
+		if id, err := strconv.ParseInt(active, 10, 64); err == nil {
+			if c, err := svc.Store.Connection(id); err == nil && c.Enabled && isGitConnection(svc, c) {
+				return c, true, nil
+			}
+		}
+	}
+	conns, err := svc.Store.ListConnections()
+	if err != nil {
+		return store.Connection{}, false, err
+	}
+	for _, c := range conns {
+		if c.Enabled && isGitConnection(svc, c) {
+			return c, true, nil
+		}
+	}
+	return store.Connection{}, false, nil
+}
+
+// isGitConnection reports whether a connection's provider resolves to a
+// git-kind driver.
+func isGitConnection(svc *syncsvc.Service, c store.Connection) bool {
+	p, err := svc.Store.SyncProvider(c.ProviderID)
+	if err != nil {
+		return false
+	}
+	d, err := svc.Driver(p)
+	if err != nil {
+		return false
+	}
+	return d.Kind() == syncsvc.KindGit
 }
 
 // openIndex opens the note index and syncs it from wikiPath.

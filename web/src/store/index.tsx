@@ -11,7 +11,7 @@ import { wikiSlice } from './slices/wikiSlice'
 import { noteSlice } from './slices/noteSlice'
 import { searchSlice } from './slices/searchSlice'
 import { doctorSlice } from './slices/doctorSlice'
-import { gitSlice } from './slices/gitSlice'
+import { syncSlice } from './slices/syncSlice'
 
 export function makeStore() {
     return configureStore({
@@ -28,7 +28,7 @@ export function makeStore() {
             note: noteSlice.reducer,
             search: searchSlice.reducer,
             doctor: doctorSlice.reducer,
-            git: gitSlice.reducer
+            sync: syncSlice.reducer
         },
         middleware: (getDefaultMiddleware) => getDefaultMiddleware().concat(persistSearchHistory)
     })
@@ -111,15 +111,25 @@ export {
 } from './slices/searchSlice'
 export { runDoctor, selectDoctorChecks, selectDoctorRunning, selectDoctorError } from './slices/doctorSlice'
 export {
-    fetchGitAuth,
-    fetchGitRepos,
-    connectGit,
-    pushWiki,
-    disconnectGit,
-    selectGitAuth,
-    selectGitRepos,
-    selectGitLoading,
-    selectGitConnecting,
-    selectGitPushing,
-    selectGitError
-} from './slices/gitSlice'
+    fetchSync,
+    connectSync,
+    updateSyncConnection,
+    disconnectSync,
+    pushSync,
+    setActiveSync,
+    fetchSyncTargets,
+    fetchSyncSnapshots,
+    restoreSync,
+    createSyncProvider,
+    updateSyncProvider,
+    deleteSyncProvider,
+    selectSyncProviders,
+    selectSyncConnections,
+    selectSyncTargets,
+    selectSyncSnapshots,
+    selectSyncLoading,
+    selectSyncConnecting,
+    selectSyncPushing,
+    selectSyncRestoring,
+    selectSyncError
+} from './slices/syncSlice'

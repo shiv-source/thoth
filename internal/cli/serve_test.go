@@ -1,20 +1,22 @@
 package cli
 
 import (
+	"database/sql"
 	"io"
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
 	agentgit "github.com/shiv-source/thoth/agent/git"
 	"github.com/shiv-source/thoth/internal/assets"
 	"github.com/shiv-source/thoth/internal/config"
-	"github.com/shiv-source/thoth/internal/github"
 	"github.com/shiv-source/thoth/internal/index"
 	"github.com/shiv-source/thoth/internal/settings"
 	"github.com/shiv-source/thoth/internal/store"
+	syncsvc "github.com/shiv-source/thoth/internal/sync"
 	"github.com/shiv-source/thoth/internal/wiki"
 )
 
@@ -92,6 +94,93 @@ func TestEnsureModelsKeepsUserRows(t *testing.T) {
 	models, err := st.ListModels()
 	if err != nil || len(models) != 1 || models[0].Value != "custom" {
 		t.Fatalf("user row not preserved: %v %+v", err, models)
+	}
+}
+
+// TestEnsureSyncProvidersKeepsExistingRows pins the migration+JSON seed
+// contract: a fresh database already carries the four built-ins, so the
+// serve-time ensure is a no-op and a partially wiped table (the protected
+// local row anchors it) is never overwritten.
+func TestEnsureSyncProvidersKeepsExistingRows(t *testing.T) {
+	st, _ := openTestRepos(t)
+	before, err := st.ListSyncProviders()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(before) != 4 {
+		t.Fatalf("fresh db has %d sync providers, want 4 built-ins", len(before))
+	}
+	// The user removes the three non-protected built-ins; the local backup
+	// cannot go, so the table is never empty and the seed must not resurrect
+	// the deleted rows.
+	for _, p := range before {
+		if p.Slug != "local" {
+			if err := st.DeleteSyncProvider(p.ID); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	if err := ensureSyncProviders(st); err != nil {
+		t.Fatalf("ensureSyncProviders: %v", err)
+	}
+	after, err := st.ListSyncProviders()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(after) != 1 || after[0].Slug != "local" {
+		t.Fatalf("deleted built-ins resurrected: %+v", after)
+	}
+}
+
+// TestEnsureSyncProvidersReseedsWipedTable simulates a genuinely wiped table
+// (raw delete — unreachable through the API because the local row is
+// protected) and verifies the JSON seed brings the built-ins back.
+func TestEnsureSyncProvidersReseedsWipedTable(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "test.db")
+	st, err := store.Open(dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = st.Close() })
+	raw, err := sql.Open("sqlite", dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = raw.Close() })
+	if _, err := raw.Exec(`DELETE FROM sync_providers`); err != nil {
+		t.Fatal(err)
+	}
+	if err := ensureSyncProviders(st); err != nil {
+		t.Fatalf("ensureSyncProviders: %v", err)
+	}
+	providers, err := st.ListSyncProviders()
+	if err != nil {
+		t.Fatal(err)
+	}
+	opts, err := assets.SyncProviderOptions()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(providers) != len(opts) {
+		t.Fatalf("reseeded %d providers, want %d", len(providers), len(opts))
+	}
+}
+
+// TestEnsureLocalBackupCreatesOnce pins the serve-time guarantee: the
+// protected local backup connection exists on every boot and is not
+// duplicated.
+func TestEnsureLocalBackupCreatesOnce(t *testing.T) {
+	st, _ := openTestRepos(t)
+	first, err := st.EnsureLocalBackup()
+	if err != nil {
+		t.Fatalf("EnsureLocalBackup: %v", err)
+	}
+	if !first.Protected || first.ProviderSlug != "local" {
+		t.Fatalf("local backup wrong: %+v", first)
+	}
+	again, err := st.EnsureLocalBackup()
+	if err != nil || again.ID != first.ID {
+		t.Fatalf("EnsureLocalBackup duplicated: %+v / %v", again, err)
 	}
 }
 
@@ -412,9 +501,8 @@ func TestEnsureWikiRecreatesReservedAttachments(t *testing.T) {
 }
 
 // TestGitToolOptions asserts the agent git tools are wired to the live wiki
-// root, the sync switch (Guard), and the stored GitHub connection (Auth and
-// Identity), all evaluated lazily so a connection change applies without
-// restart.
+// root and the active git-kind connection (Guard, Auth and Identity), all
+// evaluated lazily so a connection change applies without restart.
 func TestGitToolOptions(t *testing.T) {
 	dbPath := filepath.Join(t.TempDir(), "test.db")
 	st, err := store.Open(dbPath)
@@ -427,15 +515,11 @@ func TestGitToolOptions(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = stg.Close() })
-	gh, err := github.OpenRepo(dbPath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = gh.Close() })
+	svc := syncsvc.NewService(st, nil)
 
 	root := t.TempDir()
 	w := wiki.New(root)
-	opts := gitToolOptions(w, stg, gh)
+	opts := gitToolOptions(w, stg, svc)
 
 	// RepoPath follows the live wiki root (it can move).
 	if opts.RepoPath == nil {
@@ -445,29 +529,32 @@ func TestGitToolOptions(t *testing.T) {
 		t.Fatalf("RepoPath() = %q, want %q", got, root)
 	}
 
-	// Guard: disabled blocks, enabled passes.
-	if err := opts.Guard(); err == nil || !strings.Contains(err.Error(), "sync is disabled") {
-		t.Fatalf("Guard (disabled) = %v, want sync-disabled error", err)
+	// Guard, Auth, and Identity error cleanly before a git connection exists
+	// (the seeded local backup is not git-kind).
+	if err := opts.Guard(); err == nil || !strings.Contains(err.Error(), "no enabled git sync connection") {
+		t.Fatalf("Guard (no connection) = %v, want connection error", err)
 	}
-	if err := stg.SetSetting(settings.KeySyncEnabled, "true"); err != nil {
-		t.Fatal(err)
-	}
-	if err := opts.Guard(); err != nil {
-		t.Fatalf("Guard (enabled) = %v, want nil", err)
-	}
-
-	// Auth and identity error cleanly before a connection exists.
-	if _, err := opts.Auth(); err == nil || !strings.Contains(err.Error(), "no GitHub connection") {
+	if _, err := opts.Auth(); err == nil || !strings.Contains(err.Error(), "no git connection") {
 		t.Fatalf("Auth (no connection) = %v, want connection error", err)
 	}
-	if _, err := opts.Identity(); err == nil || !strings.Contains(err.Error(), "no GitHub connection") {
+	if _, err := opts.Identity(); err == nil || !strings.Contains(err.Error(), "no git connection") {
 		t.Fatalf("Identity (no connection) = %v, want connection error", err)
 	}
 
-	// The stored connection supplies push credentials and the identity; the
-	// display name overrides the username as the committer name.
-	if err := gh.Save(github.Auth{Token: "tok", Username: "user", Email: "u@e.com"}); err != nil {
+	// A git connection under the github provider supplies push credentials
+	// and the committer identity; the username is the fallback committer.
+	p, err := st.SyncProviderBySlug("github")
+	if err != nil {
 		t.Fatal(err)
+	}
+	cfg, _ := syncsvc.EncodeConfig(syncsvc.Config{"token": "tok"})
+	plain, _ := syncsvc.EncodeIdentity(syncsvc.Identity{Username: "user", Email: "u@e.com"})
+	first, err := st.CreateConnection(p.ID, "first", cfg, plain, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := opts.Guard(); err != nil {
+		t.Fatalf("Guard (git connection) = %v, want nil", err)
 	}
 	a, err := opts.Auth()
 	if err != nil {
@@ -483,7 +570,15 @@ func TestGitToolOptions(t *testing.T) {
 	if id.Name != "user" || id.Email != "u@e.com" {
 		t.Fatalf("Identity = %+v, want username fallback", id)
 	}
-	if err := gh.Save(github.Auth{Token: "t2", Username: "user", DisplayName: "Real Name", Email: "u@e.com"}); err != nil {
+
+	// A second connection with a display name becomes the active one; the
+	// display name overrides the username as the committer name.
+	named, _ := syncsvc.EncodeIdentity(syncsvc.Identity{Username: "user", DisplayName: "Real Name", Email: "u@e.com"})
+	second, err := st.CreateConnection(p.ID, "second", cfg, named, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := stg.SetSetting(settings.KeyActiveConnection, strconv.FormatInt(second.ID, 10)); err != nil {
 		t.Fatal(err)
 	}
 	id, err = opts.Identity()
@@ -492,6 +587,14 @@ func TestGitToolOptions(t *testing.T) {
 	}
 	if id.Name != "Real Name" || id.Email != "u@e.com" {
 		t.Fatalf("Identity = %+v, want display name", id)
+	}
+	// Disabling the active connection makes the tools fall back to the next
+	// enabled git connection.
+	if err := st.UpdateConnection(second.ID, second.Name, cfg, false); err != nil {
+		t.Fatal(err)
+	}
+	if a, err = opts.Auth(); err != nil || a.Token != "tok" {
+		t.Fatalf("Auth after disabling active = %+v / %v, want fallback to %d", a, err, first.ID)
 	}
 }
 

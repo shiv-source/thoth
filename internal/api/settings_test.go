@@ -49,11 +49,11 @@ func TestSettingsRoundTripAndCallback(t *testing.T) {
 
 	// GET returns the migration-seeded defaults.
 	got := getSettingsReq(t, e)
-	if got.WikiPath != "~/.thoth/wiki" || got.Model != "" || got.RepoURL != "" || got.SyncEnabled || got.ContextInjection {
+	if got.WikiPath != "~/.thoth/wiki" || got.Model != "" || got.ContextInjection {
 		t.Fatalf("seeded settings = %+v", got)
 	}
 
-	rec := putSettingsReq(t, e, `{"wiki_path":"/tmp/other/wiki","model":"claude-sonnet-5","repo_url":"https://github.com/x/w.git","sync_enabled":true,"context_injection":true}`)
+	rec := putSettingsReq(t, e, `{"wiki_path":"/tmp/other/wiki","model":"claude-sonnet-5","context_injection":true}`)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("PUT status %d: %s", rec.Code, rec.Body.String())
 	}
@@ -62,7 +62,7 @@ func TestSettingsRoundTripAndCallback(t *testing.T) {
 	}
 
 	got = getSettingsReq(t, e)
-	if got.WikiPath != "/tmp/other/wiki" || got.Model != "claude-sonnet-5" || got.RepoURL != "https://github.com/x/w.git" || !got.SyncEnabled || !got.ContextInjection {
+	if got.WikiPath != "/tmp/other/wiki" || got.Model != "claude-sonnet-5" || !got.ContextInjection {
 		t.Fatalf("after PUT: %+v", got)
 	}
 	// The values live in the settings table.
@@ -71,12 +71,6 @@ func TestSettingsRoundTripAndCallback(t *testing.T) {
 	}
 	if v, found, err := d.Settings.Setting(settings.KeyModel); err != nil || !found || v != "claude-sonnet-5" {
 		t.Fatalf("stored model = %q/%v/%v", v, found, err)
-	}
-	if v, found, err := d.Settings.Setting(settings.KeyRepoURL); err != nil || !found || v != "https://github.com/x/w.git" {
-		t.Fatalf("stored repo_url = %q/%v/%v", v, found, err)
-	}
-	if on, err := d.Settings.SyncEnabled(); err != nil || !on {
-		t.Fatalf("stored sync_enabled = %v/%v, want true/nil", on, err)
 	}
 	if on, err := d.Settings.ContextInjection(); err != nil || !on {
 		t.Fatalf("stored context_injection = %v/%v, want true/nil", on, err)
@@ -135,44 +129,27 @@ func TestSettingsSetErrorCallbackStillRan(t *testing.T) {
 }
 
 func TestSettingsRepoURLWithoutAuthStored(t *testing.T) {
-	// The old "connect GitHub first" gate is gone: the KV table accepts the
-	// URL regardless of a github_auth row.
+	// The old "connect GitHub first" gate is gone: sync state lives on
+	// connections, so the settings payload carries no repo_url at all.
 	d := testDeps(t)
 	e := New(d)
-	rec := putSettingsReq(t, e, `{"wiki_path":"/tmp/wiki","repo_url":"https://github.com/x/w.git","sync_enabled":false}`)
+	rec := putSettingsReq(t, e, `{"wiki_path":"/tmp/wiki"}`)
 	if rec.Code != http.StatusOK {
-		t.Fatalf("PUT without auth: %d: %s", rec.Code, rec.Body.String())
+		t.Fatalf("PUT: %d: %s", rec.Code, rec.Body.String())
 	}
-	if v, _, err := d.Settings.Setting(settings.KeyRepoURL); err != nil || v != "https://github.com/x/w.git" {
-		t.Fatalf("stored repo_url = %q/%v", v, err)
-	}
-}
-
-func TestSettingsSyncEnabledRoundTrip(t *testing.T) {
-	d := testDeps(t)
-	e := New(d)
-	for _, want := range []bool{true, false} {
-		body := `{"wiki_path":"/tmp/wiki","repo_url":"","sync_enabled":` + map[bool]string{true: "true", false: "false"}[want] + `}`
-		if rec := putSettingsReq(t, e, body); rec.Code != http.StatusOK {
-			t.Fatalf("PUT sync_enabled=%v: %d: %s", want, rec.Code, rec.Body.String())
-		}
-		if got := getSettingsReq(t, e); got.SyncEnabled != want {
-			t.Fatalf("sync_enabled = %v, want %v", got.SyncEnabled, want)
-		}
+	if got := getSettingsReq(t, e); got.WikiPath != "/tmp/wiki" {
+		t.Fatalf("wiki_path = %q, want /tmp/wiki", got.WikiPath)
 	}
 }
 
 func TestSettingsRepoURLClears(t *testing.T) {
 	d := testDeps(t)
 	e := New(d)
-	if rec := putSettingsReq(t, e, `{"wiki_path":"/tmp/wiki","repo_url":"https://github.com/x/w.git","sync_enabled":false}`); rec.Code != http.StatusOK {
-		t.Fatalf("seed PUT: %d: %s", rec.Code, rec.Body.String())
+	if rec := putSettingsReq(t, e, `{"wiki_path":"/tmp/wiki"}`); rec.Code != http.StatusOK {
+		t.Fatalf("PUT: %d: %s", rec.Code, rec.Body.String())
 	}
-	if rec := putSettingsReq(t, e, `{"wiki_path":"/tmp/wiki","repo_url":"","sync_enabled":false}`); rec.Code != http.StatusOK {
-		t.Fatalf("clear PUT: %d: %s", rec.Code, rec.Body.String())
-	}
-	if v, _, err := d.Settings.Setting(settings.KeyRepoURL); err != nil || v != "" {
-		t.Fatalf("repo_url not cleared: %q/%v", v, err)
+	if got := getSettingsReq(t, e); got.WikiPath != "/tmp/wiki" {
+		t.Fatalf("wiki_path = %q, want /tmp/wiki", got.WikiPath)
 	}
 }
 

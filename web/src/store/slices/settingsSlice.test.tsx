@@ -26,8 +26,6 @@ const saved: Settings = {
     wiki_path: '~/.thoth/wiki',
     wiki_folders: [],
     model: 'claude-sonnet-5',
-    repo_url: 'git@github.com:me/wiki.git',
-    sync_enabled: true,
     context_injection: false
 }
 

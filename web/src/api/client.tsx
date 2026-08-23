@@ -50,8 +50,6 @@ export const Settings = z.object({
     wiki_path: z.string(),
     wiki_folders: z.array(z.string()),
     model: z.string(),
-    repo_url: z.string(),
-    sync_enabled: z.boolean(),
     context_injection: z.boolean()
 })
 export type Settings = z.infer<typeof Settings>
@@ -72,25 +70,88 @@ export const ModelGroup = z.object({ provider: z.string(), models: z.array(LLMMo
 export type ModelGroup = z.infer<typeof ModelGroup>
 export type ModelInput = { value: string; name: string; tag?: string; provider_id?: number | null }
 
-export const GitHubIdentity = z.object({
-    username: z.string(),
-    display_name: z.string(),
-    email: z.string(),
-    avatar_url: z.string(),
-    profile_url: z.string(),
-    scopes: z.string(),
-    account_created_at: z.string(),
-    account_updated_at: z.string()
+// Sync provider catalog + connections — the wiki's sync destinations.
+// SyncField describes one credential/target input the connect form renders;
+// secret fields never round-trip (the connection wire shape reports them as
+// has_<key> booleans).
+export const SyncField = z.object({
+    key: z.string(),
+    label: z.string(),
+    secret: z.boolean(),
+    required: z.boolean()
 })
-export type GitHubIdentity = z.infer<typeof GitHubIdentity>
+export type SyncField = z.infer<typeof SyncField>
 
-export const GitHubRepo = z.object({
+export const SyncProvider = z.object({
+    id: z.number(),
+    slug: z.string(),
+    name: z.string(),
+    driver: z.string(),
+    kind: z.enum(['git', 's3', 'local']),
+    base_url: z.string(),
+    protected: z.boolean(),
+    fields: z.array(SyncField),
+    connection_count: z.number()
+})
+export type SyncProvider = z.infer<typeof SyncProvider>
+export type SyncProviderInput = { name: string; driver: string; base_url?: string }
+
+export const SyncIdentity = z.object({
+    username: z.string().optional(),
+    display_name: z.string().optional(),
+    email: z.string().optional(),
+    avatar_url: z.string().optional(),
+    profile_url: z.string().optional(),
+    scopes: z.string().optional(),
+    account: z.string().optional()
+})
+export type SyncIdentity = z.infer<typeof SyncIdentity>
+
+export const SyncTarget = z.object({
     full_name: z.string(),
-    clone_url: z.string(),
+    url: z.string(),
     private: z.boolean(),
     description: z.string()
 })
-export type GitHubRepo = z.infer<typeof GitHubRepo>
+export type SyncTarget = z.infer<typeof SyncTarget>
+
+// SyncSnapshot is one restorable archive for a connection (an S3 object key
+// or a local backup file), listed by the restore picker.
+export const SyncSnapshot = z.object({
+    key: z.string(),
+    time: z.string().optional()
+})
+export type SyncSnapshot = z.infer<typeof SyncSnapshot>
+
+// PushEntry is one completed sync run, newest first.
+const PushEntry = z.object({
+    at: z.string(),
+    ok: z.boolean(),
+    error: z.string()
+})
+export type PushEntry = z.infer<typeof PushEntry>
+
+export const Connection = z.object({
+    id: z.number(),
+    provider_id: z.number(),
+    provider_slug: z.string(),
+    provider_name: z.string(),
+    name: z.string(),
+    enabled: z.boolean(),
+    protected: z.boolean(),
+    active: z.boolean(),
+    identity: SyncIdentity.nullable(),
+    config: z.record(z.string(), z.any()),
+    last_synced_at: z.string(),
+    last_error: z.string(),
+    // push_history defaults to [] when absent AND on any parse failure (e.g.
+    // a null from an older server) — the settings sync page renders it as an
+    // array, so a null must never reject the whole connection fetch.
+    push_history: z.array(PushEntry).default([]).catch([])
+})
+export type Connection = z.infer<typeof Connection>
+export type ConnectInput = { provider_id: number; name: string; config: Record<string, string> }
+export type ConnectionUpdateInput = { name?: string; enabled?: boolean; config?: Record<string, string> }
 
 const Conversation = z.object({ id: z.string(), title: z.string(), created_at: z.string() })
 export type Conversation = z.infer<typeof Conversation>
@@ -244,23 +305,77 @@ export const api = {
             `/api/v1/conversations/${encodeURIComponent(id)}`,
             z.object({ conversation: Conversation, messages: z.array(Message) })
         ),
-    gitSetup: async (url: string): Promise<{ ok: boolean; error?: string }> => {
-        const res = await http.post('/api/v1/git/setup', { url })
-        return parseBody(res, z.object({ ok: z.boolean(), error: z.string().optional() }))
-    },
-    githubAuth: () => get('/api/v1/github/auth', GitHubIdentity),
-    githubRepos: () => get('/api/v1/github/repos', z.object({ repos: z.array(GitHubRepo) })),
-    connectGitHub: async (token: string): Promise<GitHubIdentity> => {
+    syncProviders: () => get('/api/v1/sync/providers', z.object({ providers: z.array(SyncProvider) })),
+    createSyncProvider: async (input: SyncProviderInput): Promise<SyncProvider> => {
         try {
-            const res = await http.post('/api/v1/github/auth', { token })
-            return parseBody(res, GitHubIdentity)
+            const res = await http.post('/api/v1/sync/providers', input)
+            return parseBody(res, SyncProvider)
         } catch (err) {
             throw new Error(axiosErrorMessage(err), { cause: err })
         }
     },
-    disconnectGitHub: async (): Promise<void> => {
+    updateSyncProvider: async (id: number, input: SyncProviderInput): Promise<SyncProvider> => {
         try {
-            await http.delete('/api/v1/github/auth')
+            const res = await http.put(`/api/v1/sync/providers/${id}`, input)
+            return parseBody(res, SyncProvider)
+        } catch (err) {
+            throw new Error(axiosErrorMessage(err), { cause: err })
+        }
+    },
+    deleteSyncProvider: async (id: number): Promise<void> => {
+        try {
+            await http.delete(`/api/v1/sync/providers/${id}`)
+        } catch (err) {
+            throw new Error(axiosErrorMessage(err), { cause: err })
+        }
+    },
+    syncConnections: () => get('/api/v1/sync/connections', z.object({ connections: z.array(Connection) })),
+    connectSync: async (input: ConnectInput): Promise<Connection> => {
+        try {
+            const res = await http.post('/api/v1/sync/connections', input)
+            return parseBody(res, Connection)
+        } catch (err) {
+            throw new Error(axiosErrorMessage(err), { cause: err })
+        }
+    },
+    updateSyncConnection: async (id: number, input: ConnectionUpdateInput): Promise<Connection> => {
+        try {
+            const res = await http.put(`/api/v1/sync/connections/${id}`, input)
+            return parseBody(res, Connection)
+        } catch (err) {
+            throw new Error(axiosErrorMessage(err), { cause: err })
+        }
+    },
+    disconnectSync: async (id: number): Promise<void> => {
+        try {
+            await http.delete(`/api/v1/sync/connections/${id}`)
+        } catch (err) {
+            throw new Error(axiosErrorMessage(err), { cause: err })
+        }
+    },
+    syncTargets: (id: number) =>
+        get(`/api/v1/sync/connections/${id}/targets`, z.object({ targets: z.array(SyncTarget) })),
+    pushSync: async (id: number): Promise<{ ok: boolean; error?: string }> => {
+        try {
+            const res = await http.post(`/api/v1/sync/connections/${id}/push`)
+            return parseBody(res, z.object({ ok: z.boolean(), error: z.string().optional() }))
+        } catch (err) {
+            throw new Error(axiosErrorMessage(err), { cause: err })
+        }
+    },
+    setActiveSync: async (id: number): Promise<void> => {
+        try {
+            await http.post(`/api/v1/sync/connections/${id}/active`)
+        } catch (err) {
+            throw new Error(axiosErrorMessage(err), { cause: err })
+        }
+    },
+    syncSnapshots: (id: number) =>
+        get(`/api/v1/sync/connections/${id}/snapshots`, z.object({ snapshots: z.array(SyncSnapshot) })),
+    restoreSync: async (id: number, key = ''): Promise<{ files: number; backup: string | null }> => {
+        try {
+            const res = await http.post(`/api/v1/sync/connections/${id}/restore`, { key })
+            return parseBody(res, z.object({ files: z.number(), backup: z.string().nullable() }))
         } catch (err) {
             throw new Error(axiosErrorMessage(err), { cause: err })
         }

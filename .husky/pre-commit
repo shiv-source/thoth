@@ -1,6 +1,11 @@
 #!/bin/sh
 set -e
 
+# Refresh the CodeGraph index on commit — best-effort (lib-codegraph.sh),
+# a missing or failing codegraph never blocks the commit.
+. scripts/lib-codegraph.sh
+codegraph_sync
+
 # Repo rule: never commit directly to main (code-rules skill § Repo rules)
 sh scripts/main-guard.sh
 

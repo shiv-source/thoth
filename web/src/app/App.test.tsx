@@ -58,20 +58,7 @@ const settings = {
     wiki_path: '~/.thoth/wiki',
     wiki_folders: [] as string[],
     model: '',
-    repo_url: '',
-    sync_enabled: false,
     context_injection: false
-}
-
-const emptyGitHub = {
-    username: '',
-    display_name: '',
-    email: '',
-    avatar_url: '',
-    profile_url: '',
-    scopes: '',
-    account_created_at: '',
-    account_updated_at: ''
 }
 
 describe('App setup gating', () => {
@@ -83,7 +70,6 @@ describe('App setup gating', () => {
         stubAPI({
             'GET /api/v1/health': () => notConfigured,
             'GET /api/v1/settings': () => settings,
-            'GET /api/v1/github/auth': () => emptyGitHub,
             'GET /api/v1/models': () => ({ groups: [] })
         })
 

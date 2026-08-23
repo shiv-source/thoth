@@ -3,36 +3,61 @@
   "info": {
     "title": "Thoth API",
     "version": "1.0.0",
-    "description": "Versioned REST + WebSocket API (v1) for the Thoth local-first knowledge base. Every route lives under `/api/v1/...`; the chat WebSocket upgrades at `/ws/v1`. The server binds to localhost only and requires no authentication; every endpoint assumes a trusted local caller.\n\nError responses use the envelope `{\"error\": \"<message>\"}` — 400 client error, 404 not found, 409 conflict, 500 always the generic `{\"error\": \"internal error\"}` (details go to the server log only).\n\nThe WebSocket chat protocol (`/ws/v1`) is documented in prose in `docs/api.md` (frames and semantics); this spec describes the upgrade only."
+    "description": "Versioned REST + WebSocket API (v1) for the Thoth local-first knowledge base. Every route lives under `/api/v1/...`; the chat WebSocket upgrades at `/ws/v1`. The server binds to localhost only and requires no authentication; every endpoint assumes a trusted local caller.\n\nError responses use the envelope `{\"error\": \"<message>\"}` \u2014 400 client error, 404 not found, 409 conflict, 500 always the generic `{\"error\": \"internal error\"}` (details go to the server log only).\n\nThe WebSocket chat protocol (`/ws/v1`) is documented in prose in `docs/api.md` (frames and semantics); this spec describes the upgrade only."
   },
   "servers": [
     {
       "url": "http://127.0.0.1:8334",
-      "description": "Local dev server — the API reference is served only under serve --dev (the docs page and /swagger.json do not exist in normal serve)"
+      "description": "Local dev server \u2014 the API reference is served only under serve --dev (the docs page and /swagger.json do not exist in normal serve)"
     }
   ],
   "tags": [
-    { "name": "health", "description": "Service health and setup diagnostics" },
-    { "name": "notes", "description": "Search, notes, wiki tree" },
-    { "name": "settings", "description": "Settings key/value surface and model registry" },
-    { "name": "conversations", "description": "Chat conversation history" },
-    { "name": "github", "description": "GitHub identity, git sync, and repo suggestions" },
-    { "name": "doctor", "description": "Installation health checks" },
-    { "name": "realtime", "description": "WebSocket chat channel" }
+    {
+      "name": "health",
+      "description": "Service health and setup diagnostics"
+    },
+    {
+      "name": "notes",
+      "description": "Search, notes, wiki tree"
+    },
+    {
+      "name": "settings",
+      "description": "Settings key/value surface and model registry"
+    },
+    {
+      "name": "conversations",
+      "description": "Chat conversation history"
+    },
+    {
+      "name": "github",
+      "description": "GitHub identity, git sync, and repo suggestions"
+    },
+    {
+      "name": "doctor",
+      "description": "Installation health checks"
+    },
+    {
+      "name": "realtime",
+      "description": "WebSocket chat channel"
+    }
   ],
   "paths": {
     "/api/v1/health": {
       "get": {
-        "tags": ["health"],
+        "tags": [
+          "health"
+        ],
         "summary": "Service health",
-        "description": "Reports the backend state (native agent, api-key presence, selected model and its provider), the wiki root, build version, dev-mode flag, the dev commit id, and the mode's default wiki path. `api_key_configured` reports only whether a key is stored — the key itself is never returned.",
+        "description": "Reports the backend state (native agent, api-key presence, selected model and its provider), the wiki root, build version, dev-mode flag, the dev commit id, and the mode's default wiki path. `api_key_configured` reports only whether a key is stored \u2014 the key itself is never returned.",
         "operationId": "getHealth",
         "responses": {
           "200": {
             "description": "Service is up",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/healthResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/healthResponse"
+                }
               }
             }
           }
@@ -41,9 +66,11 @@
     },
     "/api/v1/doctor": {
       "get": {
-        "tags": ["doctor"],
+        "tags": [
+          "doctor"
+        ],
         "summary": "Run installation checks",
-        "description": "Runs the shared `internal/doctor` suite — the same checks as `thoth doctor` — against the thoth dir the server runs from.",
+        "description": "Runs the shared `internal/doctor` suite \u2014 the same checks as `thoth doctor` \u2014 against the thoth dir the server runs from.",
         "operationId": "getDoctor",
         "responses": {
           "200": {
@@ -52,11 +79,15 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "required": ["checks"],
+                  "required": [
+                    "checks"
+                  ],
                   "properties": {
                     "checks": {
                       "type": "array",
-                      "items": { "$ref": "#/components/schemas/doctorCheck" }
+                      "items": {
+                        "$ref": "#/components/schemas/doctorCheck"
+                      }
                     }
                   }
                 }
@@ -66,58 +97,13 @@
         }
       }
     },
-    "/api/v1/git/setup": {
-      "post": {
-        "tags": ["github"],
-        "summary": "Push the wiki to a git remote",
-        "description": "Runs the host's git sync on the pure-Go `agent/git` backend: initializes a repo in the wiki dir if needed, points `origin` at the url, commits the current tree, and pushes HEAD. Push credentials and committer identity come from the stored GitHub connection. Failures return `ok: false` with a sanitized message that never echoes credentials or URLs.",
-        "operationId": "gitSetup",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "required": ["url"],
-                "properties": {
-                  "url": { "type": "string", "example": "git@github.com:user/wiki.git" }
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Sync outcome",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "required": ["ok"],
-                  "properties": {
-                    "ok": { "type": "boolean" },
-                    "error": { "type": "string", "description": "Present only when ok is false" }
-                  }
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Missing url",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/errorEnvelope" }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/v1/search": {
       "get": {
-        "tags": ["notes"],
+        "tags": [
+          "notes"
+        ],
         "summary": "Full-text search",
-        "description": "Searches the wiki index. `q` is treated as a literal phrase (embedded quotes stripped, FTS5 operators matched literally). `limit` defaults to 20 and is clamped to 1–100.",
+        "description": "Searches the wiki index. `q` is treated as a literal phrase (embedded quotes stripped, FTS5 operators matched literally). `limit` defaults to 20 and is clamped to 1\u2013100.",
         "operationId": "search",
         "parameters": [
           {
@@ -125,14 +111,21 @@
             "in": "query",
             "required": true,
             "description": "Search phrase",
-            "schema": { "type": "string" }
+            "schema": {
+              "type": "string"
+            }
           },
           {
             "name": "limit",
             "in": "query",
             "required": false,
-            "description": "Max results (default 20, clamped 1–100)",
-            "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 20 }
+            "description": "Max results (default 20, clamped 1\u2013100)",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
           }
         ],
         "responses": {
@@ -142,11 +135,15 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "required": ["results"],
+                  "required": [
+                    "results"
+                  ],
                   "properties": {
                     "results": {
                       "type": "array",
-                      "items": { "$ref": "#/components/schemas/searchResult" }
+                      "items": {
+                        "$ref": "#/components/schemas/searchResult"
+                      }
                     }
                   }
                 }
@@ -157,15 +154,19 @@
             "description": "q is required",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/errorEnvelope" }
+                "schema": {
+                  "$ref": "#/components/schemas/errorEnvelope"
+                }
               }
             }
           },
           "500": {
-            "description": "Index failure — generic internal error",
+            "description": "Index failure \u2014 generic internal error",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/errorEnvelope" }
+                "schema": {
+                  "$ref": "#/components/schemas/errorEnvelope"
+                }
               }
             }
           }
@@ -174,9 +175,11 @@
     },
     "/api/v1/notes": {
       "get": {
-        "tags": ["notes"],
+        "tags": [
+          "notes"
+        ],
         "summary": "Read a note or attachment",
-        "description": "Reads a wiki-relative path. Markdown paths return `{path, content}`; attachments (images, scripts, configs) are returned as raw bytes — images inline with an image/* Content-Type, everything else as a download with `Content-Disposition: attachment`. 400 when the path is missing or escapes the wiki root (SafePath); 404 when the file doesn't exist.",
+        "description": "Reads a wiki-relative path. Markdown paths return `{path, content}`; attachments (images, scripts, configs) are returned as raw bytes \u2014 images inline with an image/* Content-Type, everything else as a download with `Content-Disposition: attachment`. 400 when the path is missing or escapes the wiki root (SafePath); 404 when the file doesn't exist.",
         "operationId": "getNote",
         "parameters": [
           {
@@ -184,7 +187,9 @@
             "in": "query",
             "required": true,
             "description": "Wiki-relative path (markdown file or attachment)",
-            "schema": { "type": "string" }
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -194,10 +199,19 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "required": ["path", "content"],
+                  "required": [
+                    "path",
+                    "content"
+                  ],
                   "properties": {
-                    "path": { "type": "string", "example": "notes/hello.md" },
-                    "content": { "type": "string", "description": "Raw note markdown" }
+                    "path": {
+                      "type": "string",
+                      "example": "notes/hello.md"
+                    },
+                    "content": {
+                      "type": "string",
+                      "description": "Raw note markdown"
+                    }
                   }
                 }
               }
@@ -207,7 +221,9 @@
             "description": "Missing or unsafe path",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/errorEnvelope" }
+                "schema": {
+                  "$ref": "#/components/schemas/errorEnvelope"
+                }
               }
             }
           },
@@ -215,14 +231,18 @@
             "description": "Note not found",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/errorEnvelope" }
+                "schema": {
+                  "$ref": "#/components/schemas/errorEnvelope"
+                }
               }
             }
           }
         }
       },
       "post": {
-        "tags": ["notes"],
+        "tags": [
+          "notes"
+        ],
         "summary": "Promote a chat answer into a wiki note",
         "description": "Files markdown content into the wiki as a permanent note via the same save path the assistant's own saves use (wiki.Save): frontmatter with title/date/type matching the folder, kebab-case filename, validated through wiki.Validate. The folder defaults to the first configured folder; the title defaults to the content's first heading/line. The saved note is searchable immediately and appears in the wiki tree.",
         "operationId": "createNote",
@@ -230,7 +250,9 @@
           "required": true,
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/saveNoteRequest" }
+              "schema": {
+                "$ref": "#/components/schemas/saveNoteRequest"
+              }
             }
           }
         },
@@ -239,7 +261,9 @@
             "description": "Note created",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/saveNoteResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/saveNoteResponse"
+                }
               }
             }
           },
@@ -247,7 +271,9 @@
             "description": "Empty content or unknown/unsafe folder",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/errorEnvelope" }
+                "schema": {
+                  "$ref": "#/components/schemas/errorEnvelope"
+                }
               }
             }
           },
@@ -255,7 +281,9 @@
             "description": "Filesystem failure",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/errorEnvelope" }
+                "schema": {
+                  "$ref": "#/components/schemas/errorEnvelope"
+                }
               }
             }
           }
@@ -264,7 +292,9 @@
     },
     "/api/v1/wiki/tree": {
       "get": {
-        "tags": ["notes"],
+        "tags": [
+          "notes"
+        ],
         "summary": "Full wiki tree",
         "description": "Returns the wiki file tree. A directory that exists but cannot be read (permissions) stays in the tree with an `error` and no children, so one locked folder never fails the whole tree; only an unreadable root 500s.",
         "operationId": "getWikiTree",
@@ -275,11 +305,15 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "required": ["nodes"],
+                  "required": [
+                    "nodes"
+                  ],
                   "properties": {
                     "nodes": {
                       "type": "array",
-                      "items": { "$ref": "#/components/schemas/wikiNode" }
+                      "items": {
+                        "$ref": "#/components/schemas/wikiNode"
+                      }
                     }
                   }
                 }
@@ -287,10 +321,12 @@
             }
           },
           "500": {
-            "description": "Unreadable wiki root — generic internal error",
+            "description": "Unreadable wiki root \u2014 generic internal error",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/errorEnvelope" }
+                "schema": {
+                  "$ref": "#/components/schemas/errorEnvelope"
+                }
               }
             }
           }
@@ -299,9 +335,11 @@
     },
     "/api/v1/wiki/export": {
       "get": {
-        "tags": ["notes"],
+        "tags": [
+          "notes"
+        ],
         "summary": "Export wiki as a zip",
-        "description": "Streams a zip of the wiki tree — folders, notes, attachments and the CLAUDE.md rulebook — for backup or transfer. `history=1` also includes dotfiles (.git) so git history travels; the default export skips dotfile tooling except .gitkeep. The zip is streamed (never fully buffered), so large wikis stay memory-bounded. 404 when the wiki root does not exist.",
+        "description": "Streams a zip of the wiki tree \u2014 folders, notes, attachments and the CLAUDE.md rulebook \u2014 for backup or transfer. `history=1` also includes dotfiles (.git) so git history travels; the default export skips dotfile tooling except .gitkeep. The zip is streamed (never fully buffered), so large wikis stay memory-bounded. 404 when the wiki root does not exist.",
         "operationId": "exportWiki",
         "parameters": [
           {
@@ -309,7 +347,13 @@
             "in": "query",
             "required": false,
             "description": "When 1, include dotfiles/.git in the export",
-            "schema": { "type": "string", "enum": ["0", "1"] }
+            "schema": {
+              "type": "string",
+              "enum": [
+                "0",
+                "1"
+              ]
+            }
           }
         ],
         "responses": {
@@ -317,7 +361,10 @@
             "description": "Wiki archive",
             "content": {
               "application/zip": {
-                "schema": { "type": "string", "format": "binary" }
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
               }
             }
           },
@@ -325,7 +372,9 @@
             "description": "Wiki root does not exist",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/errorEnvelope" }
+                "schema": {
+                  "$ref": "#/components/schemas/errorEnvelope"
+                }
               }
             }
           }
@@ -334,7 +383,9 @@
     },
     "/api/v1/wiki/import": {
       "post": {
-        "tags": ["notes"],
+        "tags": [
+          "notes"
+        ],
         "summary": "Import a wiki from a zip",
         "description": "Validates a multipart wiki zip and merges it onto the wiki root as a backup-first merge: the existing tree is copied to a sibling `<root>-backup-<timestamp>` directory first, then the archive's files are laid over it (archive wins on conflicts, local-only files are kept). Every entry is validated for path traversal, the archive must be wiki-shaped (a root CLAUDE.md or a markdown note with frontmatter), and the index is rebuilt so search and the tree reflect the imported files. The request body is capped at 200 MiB.",
         "operationId": "importWiki",
@@ -344,9 +395,14 @@
             "multipart/form-data": {
               "schema": {
                 "type": "object",
-                "required": ["file"],
+                "required": [
+                  "file"
+                ],
                 "properties": {
-                  "file": { "type": "string", "format": "binary" }
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
                 }
               }
             }
@@ -359,10 +415,18 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "required": ["files"],
+                  "required": [
+                    "files"
+                  ],
                   "properties": {
-                    "files": { "type": "integer", "description": "Number of files merged into the wiki root" },
-                    "backup": { "type": "string", "description": "Pre-import backup directory path, or null when none was created" }
+                    "files": {
+                      "type": "integer",
+                      "description": "Number of files merged into the wiki root"
+                    },
+                    "backup": {
+                      "type": "string",
+                      "description": "Pre-import backup directory path, or null when none was created"
+                    }
                   }
                 }
               }
@@ -372,7 +436,9 @@
             "description": "Missing file, malformed zip, path traversal, or a non-wiki archive",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/errorEnvelope" }
+                "schema": {
+                  "$ref": "#/components/schemas/errorEnvelope"
+                }
               }
             }
           },
@@ -380,15 +446,19 @@
             "description": "Archive exceeds the 200 MiB cap",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/errorEnvelope" }
+                "schema": {
+                  "$ref": "#/components/schemas/errorEnvelope"
+                }
               }
             }
           },
           "500": {
-            "description": "Internal error — reindex or merge failure",
+            "description": "Internal error \u2014 reindex or merge failure",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/errorEnvelope" }
+                "schema": {
+                  "$ref": "#/components/schemas/errorEnvelope"
+                }
               }
             }
           }
@@ -397,7 +467,9 @@
     },
     "/api/v1/fs/dirs": {
       "get": {
-        "tags": ["notes"],
+        "tags": [
+          "notes"
+        ],
         "summary": "List subdirectories",
         "description": "Returns the immediate subdirectories of an absolute path (lexically sorted), powering the Settings directory picker. 400 when the path is missing or not a readable directory.",
         "operationId": "listDirs",
@@ -407,7 +479,9 @@
             "in": "query",
             "required": true,
             "description": "Absolute directory path (a leading ~ is expanded)",
-            "schema": { "type": "string" }
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -417,9 +491,16 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "required": ["dirs"],
+                  "required": [
+                    "dirs"
+                  ],
                   "properties": {
-                    "dirs": { "type": "array", "items": { "type": "string" } }
+                    "dirs": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
                   }
                 }
               }
@@ -429,7 +510,9 @@
             "description": "Missing or unreadable path",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/errorEnvelope" }
+                "schema": {
+                  "$ref": "#/components/schemas/errorEnvelope"
+                }
               }
             }
           }
@@ -438,7 +521,9 @@
     },
     "/api/v1/settings": {
       "get": {
-        "tags": ["settings"],
+        "tags": [
+          "settings"
+        ],
         "summary": "Read all settings",
         "description": "Returns the settings key/value surface. Per-provider api keys are write-only: `has_api_key` reports whether one is stored, the key itself is never returned.",
         "operationId": "getSettings",
@@ -447,14 +532,18 @@
             "description": "Current settings",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/settings" }
+                "schema": {
+                  "$ref": "#/components/schemas/settings"
+                }
               }
             }
           }
         }
       },
       "put": {
-        "tags": ["settings"],
+        "tags": [
+          "settings"
+        ],
         "summary": "Update settings",
         "description": "Upserts the settings table. An empty/omitted per-provider `api_key` leaves the stored key unchanged; `base_url` round-trips (empty clears back to the provider default). 400 when `wiki_path` is empty.",
         "operationId": "putSettings",
@@ -462,7 +551,9 @@
           "required": true,
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/settings" }
+              "schema": {
+                "$ref": "#/components/schemas/settings"
+              }
             }
           }
         },
@@ -471,7 +562,9 @@
             "description": "Saved settings (echoed back)",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/settings" }
+                "schema": {
+                  "$ref": "#/components/schemas/settings"
+                }
               }
             }
           },
@@ -479,15 +572,19 @@
             "description": "wiki_path is required",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/errorEnvelope" }
+                "schema": {
+                  "$ref": "#/components/schemas/errorEnvelope"
+                }
               }
             }
           },
           "500": {
-            "description": "Write failure — generic internal error",
+            "description": "Write failure \u2014 generic internal error",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/errorEnvelope" }
+                "schema": {
+                  "$ref": "#/components/schemas/errorEnvelope"
+                }
               }
             }
           }
@@ -496,9 +593,11 @@
     },
     "/api/v1/models": {
       "get": {
-        "tags": ["settings"],
+        "tags": [
+          "settings"
+        ],
         "summary": "List models grouped by provider",
-        "description": "Returns the llm_models table grouped by provider (providers sorted A→Z, models in seed order), seeded from internal/assets/models.json on first boot and user-editable afterwards.",
+        "description": "Returns the llm_models table grouped by provider (providers sorted A\u2192Z, models in seed order), seeded from internal/assets/models.json on first boot and user-editable afterwards.",
         "operationId": "listModels",
         "responses": {
           "200": {
@@ -507,11 +606,15 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "required": ["groups"],
+                  "required": [
+                    "groups"
+                  ],
                   "properties": {
                     "groups": {
                       "type": "array",
-                      "items": { "$ref": "#/components/schemas/modelGroup" }
+                      "items": {
+                        "$ref": "#/components/schemas/modelGroup"
+                      }
                     }
                   }
                 }
@@ -519,17 +622,21 @@
             }
           },
           "500": {
-            "description": "Store failure — generic internal error",
+            "description": "Store failure \u2014 generic internal error",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/errorEnvelope" }
+                "schema": {
+                  "$ref": "#/components/schemas/errorEnvelope"
+                }
               }
             }
           }
         }
       },
       "post": {
-        "tags": ["settings"],
+        "tags": [
+          "settings"
+        ],
         "summary": "Create a model",
         "description": "Adds a row to the llm_models registry. 400 when `value` or `name` is empty; 409 when the value is taken.",
         "operationId": "createModel",
@@ -537,7 +644,9 @@
           "required": true,
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/modelInput" }
+              "schema": {
+                "$ref": "#/components/schemas/modelInput"
+              }
             }
           }
         },
@@ -546,7 +655,9 @@
             "description": "The created model",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/llmModel" }
+                "schema": {
+                  "$ref": "#/components/schemas/llmModel"
+                }
               }
             }
           },
@@ -554,7 +665,9 @@
             "description": "value/name are required",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/errorEnvelope" }
+                "schema": {
+                  "$ref": "#/components/schemas/errorEnvelope"
+                }
               }
             }
           },
@@ -562,7 +675,9 @@
             "description": "A model with this value already exists",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/errorEnvelope" }
+                "schema": {
+                  "$ref": "#/components/schemas/errorEnvelope"
+                }
               }
             }
           }
@@ -571,7 +686,9 @@
     },
     "/api/v1/models/{id}": {
       "put": {
-        "tags": ["settings"],
+        "tags": [
+          "settings"
+        ],
         "summary": "Update a model",
         "description": "Updates the model's fields. Renaming the selected model's value moves the `model` setting to it. 400 invalid body, 404 unknown id, 409 value collision.",
         "operationId": "updateModel",
@@ -581,14 +698,19 @@
             "in": "path",
             "required": true,
             "description": "Model row id",
-            "schema": { "type": "integer", "format": "int64" }
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
           }
         ],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/modelInput" }
+              "schema": {
+                "$ref": "#/components/schemas/modelInput"
+              }
             }
           }
         },
@@ -597,7 +719,9 @@
             "description": "The updated model",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/llmModel" }
+                "schema": {
+                  "$ref": "#/components/schemas/llmModel"
+                }
               }
             }
           },
@@ -605,7 +729,9 @@
             "description": "value/name are required",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/errorEnvelope" }
+                "schema": {
+                  "$ref": "#/components/schemas/errorEnvelope"
+                }
               }
             }
           },
@@ -613,7 +739,9 @@
             "description": "Model not found",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/errorEnvelope" }
+                "schema": {
+                  "$ref": "#/components/schemas/errorEnvelope"
+                }
               }
             }
           },
@@ -621,14 +749,18 @@
             "description": "A model with this value already exists",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/errorEnvelope" }
+                "schema": {
+                  "$ref": "#/components/schemas/errorEnvelope"
+                }
               }
             }
           }
         }
       },
       "delete": {
-        "tags": ["settings"],
+        "tags": [
+          "settings"
+        ],
         "summary": "Delete a model",
         "description": "Deletes the model row; deleting the selected model clears the `model` setting (next boot falls back to the first seeded claude model). 404 when the model is missing.",
         "operationId": "deleteModel",
@@ -638,7 +770,10 @@
             "in": "path",
             "required": true,
             "description": "Model row id",
-            "schema": { "type": "integer", "format": "int64" }
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
           }
         ],
         "responses": {
@@ -646,7 +781,9 @@
             "description": "Deletion acknowledged",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ok" }
+                "schema": {
+                  "$ref": "#/components/schemas/ok"
+                }
               }
             }
           },
@@ -654,7 +791,9 @@
             "description": "Model not found",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/errorEnvelope" }
+                "schema": {
+                  "$ref": "#/components/schemas/errorEnvelope"
+                }
               }
             }
           }
@@ -663,9 +802,11 @@
     },
     "/api/v1/providers": {
       "get": {
-        "tags": ["settings"],
+        "tags": [
+          "settings"
+        ],
         "summary": "List providers",
-        "description": "Returns every provider row (sorted A→Z), each with its model count and key presence. Providers exist before their models, so the list includes rows with zero models.",
+        "description": "Returns every provider row (sorted A\u2192Z), each with its model count and key presence. Providers exist before their models, so the list includes rows with zero models.",
         "operationId": "listProviders",
         "responses": {
           "200": {
@@ -674,11 +815,15 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "required": ["providers"],
+                  "required": [
+                    "providers"
+                  ],
                   "properties": {
                     "providers": {
                       "type": "array",
-                      "items": { "$ref": "#/components/schemas/provider" }
+                      "items": {
+                        "$ref": "#/components/schemas/provider"
+                      }
                     }
                   }
                 }
@@ -686,17 +831,21 @@
             }
           },
           "500": {
-            "description": "Store failure — generic internal error",
+            "description": "Store failure \u2014 generic internal error",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/errorEnvelope" }
+                "schema": {
+                  "$ref": "#/components/schemas/errorEnvelope"
+                }
               }
             }
           }
         }
       },
       "post": {
-        "tags": ["settings"],
+        "tags": [
+          "settings"
+        ],
         "summary": "Create a provider",
         "description": "Adds a provider row. 400 when `name` is empty; 409 when the name is taken.",
         "operationId": "createProvider",
@@ -704,7 +853,9 @@
           "required": true,
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/providerInput" }
+              "schema": {
+                "$ref": "#/components/schemas/providerInput"
+              }
             }
           }
         },
@@ -713,7 +864,9 @@
             "description": "The created provider",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/provider" }
+                "schema": {
+                  "$ref": "#/components/schemas/provider"
+                }
               }
             }
           },
@@ -721,7 +874,9 @@
             "description": "name is required",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/errorEnvelope" }
+                "schema": {
+                  "$ref": "#/components/schemas/errorEnvelope"
+                }
               }
             }
           },
@@ -729,7 +884,9 @@
             "description": "A provider with this name already exists",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/errorEnvelope" }
+                "schema": {
+                  "$ref": "#/components/schemas/errorEnvelope"
+                }
               }
             }
           }
@@ -738,7 +895,9 @@
     },
     "/api/v1/providers/{id}": {
       "put": {
-        "tags": ["settings"],
+        "tags": [
+          "settings"
+        ],
         "summary": "Update a provider",
         "description": "Updates the provider's name and base URL; the api key is write-only, so an empty value leaves the stored key untouched. 400 invalid body, 404 unknown id, 409 name collision.",
         "operationId": "updateProvider",
@@ -748,14 +907,19 @@
             "in": "path",
             "required": true,
             "description": "Provider row id",
-            "schema": { "type": "integer", "format": "int64" }
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
           }
         ],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/providerInput" }
+              "schema": {
+                "$ref": "#/components/schemas/providerInput"
+              }
             }
           }
         },
@@ -764,7 +928,9 @@
             "description": "The updated provider",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/provider" }
+                "schema": {
+                  "$ref": "#/components/schemas/provider"
+                }
               }
             }
           },
@@ -772,7 +938,9 @@
             "description": "name is required",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/errorEnvelope" }
+                "schema": {
+                  "$ref": "#/components/schemas/errorEnvelope"
+                }
               }
             }
           },
@@ -780,7 +948,9 @@
             "description": "Provider not found",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/errorEnvelope" }
+                "schema": {
+                  "$ref": "#/components/schemas/errorEnvelope"
+                }
               }
             }
           },
@@ -788,14 +958,18 @@
             "description": "A provider with this name already exists",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/errorEnvelope" }
+                "schema": {
+                  "$ref": "#/components/schemas/errorEnvelope"
+                }
               }
             }
           }
         }
       },
       "delete": {
-        "tags": ["settings"],
+        "tags": [
+          "settings"
+        ],
         "summary": "Delete a provider",
         "description": "Deletes the provider and its models; deleting a provider whose model is selected clears the `model` setting. 404 when the provider is missing.",
         "operationId": "deleteProvider",
@@ -805,7 +979,10 @@
             "in": "path",
             "required": true,
             "description": "Provider row id",
-            "schema": { "type": "integer", "format": "int64" }
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
           }
         ],
         "responses": {
@@ -813,7 +990,9 @@
             "description": "Deletion acknowledged",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ok" }
+                "schema": {
+                  "$ref": "#/components/schemas/ok"
+                }
               }
             }
           },
@@ -821,7 +1000,9 @@
             "description": "Provider not found",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/errorEnvelope" }
+                "schema": {
+                  "$ref": "#/components/schemas/errorEnvelope"
+                }
               }
             }
           }
@@ -830,7 +1011,9 @@
     },
     "/api/v1/conversations": {
       "get": {
-        "tags": ["conversations"],
+        "tags": [
+          "conversations"
+        ],
         "summary": "List conversations",
         "description": "Returns every conversation with its id, title, and creation time.",
         "operationId": "listConversations",
@@ -841,11 +1024,15 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "required": ["conversations"],
+                  "required": [
+                    "conversations"
+                  ],
                   "properties": {
                     "conversations": {
                       "type": "array",
-                      "items": { "$ref": "#/components/schemas/conversation" }
+                      "items": {
+                        "$ref": "#/components/schemas/conversation"
+                      }
                     }
                   }
                 }
@@ -853,17 +1040,21 @@
             }
           },
           "500": {
-            "description": "Store failure — generic internal error",
+            "description": "Store failure \u2014 generic internal error",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/errorEnvelope" }
+                "schema": {
+                  "$ref": "#/components/schemas/errorEnvelope"
+                }
               }
             }
           }
         }
       },
       "post": {
-        "tags": ["conversations"],
+        "tags": [
+          "conversations"
+        ],
         "summary": "Create a conversation",
         "description": "Creates a conversation with the given title. 400 when title is missing.",
         "operationId": "createConversation",
@@ -873,9 +1064,14 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["title"],
+                "required": [
+                  "title"
+                ],
                 "properties": {
-                  "title": { "type": "string", "example": "My first conversation" }
+                  "title": {
+                    "type": "string",
+                    "example": "My first conversation"
+                  }
                 }
               }
             }
@@ -888,10 +1084,17 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "required": ["id", "title"],
+                  "required": [
+                    "id",
+                    "title"
+                  ],
                   "properties": {
-                    "id": { "type": "string" },
-                    "title": { "type": "string" }
+                    "id": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    }
                   }
                 }
               }
@@ -901,7 +1104,9 @@
             "description": "title is required",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/errorEnvelope" }
+                "schema": {
+                  "$ref": "#/components/schemas/errorEnvelope"
+                }
               }
             }
           }
@@ -910,7 +1115,9 @@
     },
     "/api/v1/conversations/{id}": {
       "get": {
-        "tags": ["conversations"],
+        "tags": [
+          "conversations"
+        ],
         "summary": "Get a conversation with its messages",
         "description": "Returns the conversation and its full message history. Each assistant message may carry an optional `usage` token breakdown. 404 when the id is unknown.",
         "operationId": "getConversation",
@@ -920,7 +1127,9 @@
             "in": "path",
             "required": true,
             "description": "Conversation id",
-            "schema": { "type": "string" }
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -930,12 +1139,19 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "required": ["conversation", "messages"],
+                  "required": [
+                    "conversation",
+                    "messages"
+                  ],
                   "properties": {
-                    "conversation": { "$ref": "#/components/schemas/conversation" },
+                    "conversation": {
+                      "$ref": "#/components/schemas/conversation"
+                    },
                     "messages": {
                       "type": "array",
-                      "items": { "$ref": "#/components/schemas/message" }
+                      "items": {
+                        "$ref": "#/components/schemas/message"
+                      }
                     }
                   }
                 }
@@ -946,22 +1162,28 @@
             "description": "Conversation not found",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/errorEnvelope" }
+                "schema": {
+                  "$ref": "#/components/schemas/errorEnvelope"
+                }
               }
             }
           },
           "500": {
-            "description": "Store failure — generic internal error",
+            "description": "Store failure \u2014 generic internal error",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/errorEnvelope" }
+                "schema": {
+                  "$ref": "#/components/schemas/errorEnvelope"
+                }
               }
             }
           }
         }
       },
       "delete": {
-        "tags": ["conversations"],
+        "tags": [
+          "conversations"
+        ],
         "summary": "Delete a conversation",
         "description": "Removes the conversation and its messages; deleting a missing conversation is a no-op (idempotent).",
         "operationId": "deleteConversation",
@@ -971,7 +1193,9 @@
             "in": "path",
             "required": true,
             "description": "Conversation id",
-            "schema": { "type": "string" }
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -979,146 +1203,19 @@
             "description": "Deletion acknowledged",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ok" }
-              }
-            }
-          },
-          "500": {
-            "description": "Store failure — generic internal error",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/errorEnvelope" }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/github/auth": {
-      "post": {
-        "tags": ["github"],
-        "summary": "Connect a GitHub account",
-        "description": "Validates the token against the GitHub API and stores the connection. The token is never returned. 400 when the token is missing or rejected by GitHub.",
-        "operationId": "connectGitHub",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "required": ["token"],
-                "properties": {
-                  "token": { "type": "string", "description": "GitHub personal access token" }
+                "schema": {
+                  "$ref": "#/components/schemas/ok"
                 }
               }
             }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "The connected identity (token-free)",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/githubIdentity" }
-              }
-            }
-          },
-          "400": {
-            "description": "token is required, or GitHub rejected the token",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/errorEnvelope" }
-              }
-            }
           },
           "500": {
-            "description": "GitHub service failure — generic internal error",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/errorEnvelope" }
-              }
-            }
-          }
-        }
-      },
-      "get": {
-        "tags": ["github"],
-        "summary": "Read the connected identity",
-        "description": "Returns the stored GitHub identity (all fields empty when not connected).",
-        "operationId": "getGitHubAuth",
-        "responses": {
-          "200": {
-            "description": "Identity (empty when not connected)",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/githubIdentity" }
-              }
-            }
-          },
-          "500": {
-            "description": "Store failure — generic internal error",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/errorEnvelope" }
-              }
-            }
-          }
-        }
-      },
-      "delete": {
-        "tags": ["github"],
-        "summary": "Disconnect GitHub",
-        "description": "Clears the stored connection (idempotent).",
-        "operationId": "disconnectGitHub",
-        "responses": {
-          "200": {
-            "description": "Disconnection acknowledged",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/ok" }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/github/repos": {
-      "get": {
-        "tags": ["github"],
-        "summary": "Suggest sync repos",
-        "description": "Returns the connected account's repositories, fetched with the stored token (never echoed). Empty list when not connected; 400 when the token was revoked upstream.",
-        "operationId": "listGitHubRepos",
-        "responses": {
-          "200": {
-            "description": "Repository list",
+            "description": "Store failure \u2014 generic internal error",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "required": ["repos"],
-                  "properties": {
-                    "repos": {
-                      "type": "array",
-                      "items": { "$ref": "#/components/schemas/githubRepository" }
-                    }
-                  }
+                  "$ref": "#/components/schemas/errorEnvelope"
                 }
-              }
-            }
-          },
-          "400": {
-            "description": "GitHub rejected the token",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/errorEnvelope" }
-              }
-            }
-          },
-          "500": {
-            "description": "GitHub service failure — generic internal error",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/errorEnvelope" }
               }
             }
           }
@@ -1127,19 +1224,23 @@
     },
     "/ws/v1": {
       "get": {
-        "tags": ["realtime"],
+        "tags": [
+          "realtime"
+        ],
         "summary": "WebSocket chat channel",
-        "description": "Upgrades to the Thoth chat WebSocket. The full frame protocol and semantics are documented in `docs/api.md` — frames: send/cancel/resume/open/new_chat/presence out, assistant_start/assistant_thinking/assistant_delta/tool_activity/turn_done/wiki_changed/error in. Only localhost origins are accepted on the upgrade.",
+        "description": "Upgrades to the Thoth chat WebSocket. The full frame protocol and semantics are documented in `docs/api.md` \u2014 frames: send/cancel/resume/open/new_chat/presence out, assistant_start/assistant_thinking/assistant_delta/tool_activity/turn_done/wiki_changed/error in. Only localhost origins are accepted on the upgrade.",
         "operationId": "chatWebSocket",
         "responses": {
           "101": {
-            "description": "Switching Protocols — the socket is open"
+            "description": "Switching Protocols \u2014 the socket is open"
           },
           "403": {
             "description": "Non-localhost origin rejected",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/errorEnvelope" }
+                "schema": {
+                  "$ref": "#/components/schemas/errorEnvelope"
+                }
               }
             }
           }
@@ -1148,7 +1249,9 @@
     },
     "/swagger.json": {
       "get": {
-        "tags": ["health"],
+        "tags": [
+          "health"
+        ],
         "summary": "This OpenAPI document",
         "description": "Returns the OpenAPI spec for the REST API. Served only in `--dev` mode (excluded by `--no-api-docs`); the route does not exist in normal serve, so tools must fetch it from a dev server.",
         "operationId": "getOpenAPISpec",
@@ -1157,7 +1260,516 @@
             "description": "The OpenAPI document",
             "content": {
               "application/json": {
-                "schema": { "type": "object" }
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sync/providers": {
+      "get": {
+        "tags": [
+          "sync"
+        ],
+        "summary": "List sync providers",
+        "description": "The sync provider catalog: built-ins (github, gitlab, aws_s3, local) plus user rows, each with the driver's field descriptors.",
+        "operationId": "listSyncProviders",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "500": {
+            "description": "internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/errorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "sync"
+        ],
+        "summary": "Create a sync provider",
+        "description": "Adds a provider type (a known driver with a custom name/base URL). 400 unknown driver.",
+        "operationId": "createSyncProvider",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/syncProvider"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/errorEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "driver"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "driver": {
+                    "type": "string",
+                    "enum": [
+                      "github",
+                      "gitlab",
+                      "s3",
+                      "local"
+                    ]
+                  },
+                  "base_url": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sync/providers/{id}": {
+      "put": {
+        "tags": [
+          "sync"
+        ],
+        "summary": "Update a sync provider",
+        "description": "Edits name/base_url. Protected providers (local) are 403.",
+        "operationId": "updateSyncProvider",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/syncProvider"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/errorEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "name"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "base_url": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "sync"
+        ],
+        "summary": "Delete a sync provider",
+        "description": "409 while connections reference it; protected providers are 403.",
+        "operationId": "deleteSyncProvider",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "500": {
+            "description": "internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/errorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sync/connections": {
+      "get": {
+        "tags": [
+          "sync"
+        ],
+        "summary": "List connections",
+        "description": "Every configured destination with token-free identity and config.",
+        "operationId": "listConnections",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "500": {
+            "description": "internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/errorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "sync"
+        ],
+        "summary": "Connect a provider",
+        "description": "Verifies credentials against the provider and stores the connection. Secrets never echo.",
+        "operationId": "connect",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connection"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/errorEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "provider_id",
+                  "name"
+                ],
+                "properties": {
+                  "provider_id": {
+                    "type": "integer"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "config": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sync/connections/{id}": {
+      "get": {
+        "tags": [
+          "sync"
+        ],
+        "summary": "Get a connection",
+        "description": "One connection with token-free identity and config.",
+        "operationId": "getConnection",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "500": {
+            "description": "internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/errorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "sync"
+        ],
+        "summary": "Update a connection",
+        "description": "Edits name/enabled/config. Secret config values with an empty value keep the stored one.",
+        "operationId": "updateConnection",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connection"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/errorEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "enabled": {
+                    "type": "boolean"
+                  },
+                  "config": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "sync"
+        ],
+        "summary": "Disconnect",
+        "description": "Removes the connection; the protected local backup is 403.",
+        "operationId": "disconnect",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "500": {
+            "description": "internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/errorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sync/connections/{id}/targets": {
+      "get": {
+        "tags": [
+          "sync"
+        ],
+        "summary": "List sync targets",
+        "description": "Selectable destinations for a connected account (repos for git providers; empty otherwise).",
+        "operationId": "listTargets",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "500": {
+            "description": "internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/errorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sync/connections/{id}/push": {
+      "post": {
+        "tags": [
+          "sync"
+        ],
+        "summary": "Push the wiki",
+        "description": "Syncs the wiki through the connection's driver. Transient failures are retried with backoff; returns ok:false with a sanitized message on failure. Records the outcome (last_synced_at/last_error + push history) on the connection row.",
+        "operationId": "pushConnection",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "500": {
+            "description": "internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/errorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sync/connections/{id}/snapshots": {
+      "get": {
+        "tags": [
+          "sync"
+        ],
+        "summary": "List restore snapshots",
+        "description": "Restore points available for a connection (S3 objects / local backup files), newest-first. Git-kind connections return an empty list — they have no stored archives to restore from.",
+        "operationId": "listSnapshots",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "restore is not supported for this destination",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/errorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/errorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sync/connections/{id}/restore": {
+      "post": {
+        "tags": [
+          "sync"
+        ],
+        "summary": "Restore the wiki from a snapshot",
+        "description": "Downloads a stored archive (the latest, or the chosen snapshot key) and imports it onto the wiki via the backup-first merge flow, then reindexes and pushes a wiki_changed frame. The wiki is overwritten by the archive — a sibling backup is taken first, so nothing is lost.",
+        "operationId": "restoreConnection",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "key": {
+                    "type": "string",
+                    "description": "Snapshot key to restore; empty selects the latest."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "restore not supported, a bad/non-wiki archive, or an unknown snapshot key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/errorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/errorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sync/connections/{id}/active": {
+      "post": {
+        "tags": [
+          "sync"
+        ],
+        "summary": "Set active connection",
+        "description": "Marks the connection the agent's git tools default to.",
+        "operationId": "setActiveConnection",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "500": {
+            "description": "internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/errorEnvelope"
+                }
               }
             }
           }
@@ -1169,16 +1781,26 @@
     "schemas": {
       "errorEnvelope": {
         "type": "object",
-        "required": ["error"],
+        "required": [
+          "error"
+        ],
         "properties": {
-          "error": { "type": "string", "description": "Human-readable error message" }
+          "error": {
+            "type": "string",
+            "description": "Human-readable error message"
+          }
         }
       },
       "saveNoteRequest": {
         "type": "object",
-        "required": ["content"],
+        "required": [
+          "content"
+        ],
         "properties": {
-          "content": { "type": "string", "description": "Markdown content to promote into a note" },
+          "content": {
+            "type": "string",
+            "description": "Markdown content to promote into a note"
+          },
           "folder": {
             "type": "string",
             "description": "Target folder, e.g. knowledge. Defaults to the first configured folder.",
@@ -1188,200 +1810,589 @@
       },
       "saveNoteResponse": {
         "type": "object",
-        "required": ["path", "title", "type"],
+        "required": [
+          "path",
+          "title",
+          "type"
+        ],
         "properties": {
-          "path": { "type": "string", "description": "Wiki-relative path of the created note", "example": "knowledge/the-answer.md" },
-          "title": { "type": "string", "description": "Derived note title", "example": "The Answer" },
-          "type": { "type": "string", "description": "The folder's rulebook frontmatter type", "example": "knowledge" }
+          "path": {
+            "type": "string",
+            "description": "Wiki-relative path of the created note",
+            "example": "knowledge/the-answer.md"
+          },
+          "title": {
+            "type": "string",
+            "description": "Derived note title",
+            "example": "The Answer"
+          },
+          "type": {
+            "type": "string",
+            "description": "The folder's rulebook frontmatter type",
+            "example": "knowledge"
+          }
         }
       },
       "ok": {
         "type": "object",
-        "required": ["ok"],
+        "required": [
+          "ok"
+        ],
         "properties": {
-          "ok": { "type": "boolean", "example": true }
+          "ok": {
+            "type": "boolean",
+            "example": true
+          }
         }
       },
       "healthResponse": {
         "type": "object",
-        "required": ["status", "backend", "wiki", "version", "dev", "commit", "default_wiki_path"],
+        "required": [
+          "status",
+          "backend",
+          "wiki",
+          "version",
+          "dev",
+          "commit",
+          "default_wiki_path"
+        ],
         "properties": {
-          "status": { "type": "string", "enum": ["ok"], "example": "ok" },
-          "backend": { "$ref": "#/components/schemas/backendState" },
-          "wiki": { "$ref": "#/components/schemas/wikiState" },
-          "version": { "type": "string", "example": "v1.2.3" },
-          "dev": { "type": "boolean", "description": "true under serve --dev (the UI shows a warning banner)" },
-          "commit": { "type": "string", "description": "Full git commit id the dev server runs from; empty otherwise" },
-          "default_wiki_path": { "type": "string", "description": "The mode's wiki default in tilde form, e.g. ~/.thoth/wiki" }
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok"
+            ],
+            "example": "ok"
+          },
+          "backend": {
+            "$ref": "#/components/schemas/backendState"
+          },
+          "wiki": {
+            "$ref": "#/components/schemas/wikiState"
+          },
+          "version": {
+            "type": "string",
+            "example": "v1.2.3"
+          },
+          "dev": {
+            "type": "boolean",
+            "description": "true under serve --dev (the UI shows a warning banner)"
+          },
+          "commit": {
+            "type": "string",
+            "description": "Full git commit id the dev server runs from; empty otherwise"
+          },
+          "default_wiki_path": {
+            "type": "string",
+            "description": "The mode's wiki default in tilde form, e.g. ~/.thoth/wiki"
+          }
         }
       },
       "backendState": {
         "type": "object",
-        "required": ["name", "api_key_configured", "model", "provider"],
+        "required": [
+          "name",
+          "api_key_configured",
+          "model",
+          "provider"
+        ],
         "properties": {
-          "name": { "type": "string", "enum": ["thoth-agent"] },
-          "api_key_configured": { "type": "boolean", "description": "Whether a per-provider api key is stored — the key itself is never returned" },
-          "model": { "type": "string", "description": "Selected model value" },
-          "provider": { "type": "string", "description": "Provider label of the selected model's llm_models row" }
+          "name": {
+            "type": "string",
+            "enum": [
+              "thoth-agent"
+            ]
+          },
+          "api_key_configured": {
+            "type": "boolean",
+            "description": "Whether a per-provider api key is stored \u2014 the key itself is never returned"
+          },
+          "model": {
+            "type": "string",
+            "description": "Selected model value"
+          },
+          "provider": {
+            "type": "string",
+            "description": "Provider label of the selected model's llm_models row"
+          }
         }
       },
       "wikiState": {
         "type": "object",
-        "required": ["path", "exists"],
+        "required": [
+          "path",
+          "exists"
+        ],
         "properties": {
-          "path": { "type": "string" },
-          "exists": { "type": "boolean" }
+          "path": {
+            "type": "string"
+          },
+          "exists": {
+            "type": "boolean"
+          }
         }
       },
       "doctorCheck": {
         "type": "object",
-        "required": ["name", "ok", "message"],
+        "required": [
+          "name",
+          "ok",
+          "message"
+        ],
         "properties": {
-          "name": { "type": "string", "example": "wiki" },
-          "ok": { "type": "boolean" },
-          "message": { "type": "string" }
+          "name": {
+            "type": "string",
+            "example": "wiki"
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string"
+          }
         }
       },
       "searchResult": {
         "type": "object",
-        "required": ["path", "title", "kind", "snippet"],
+        "required": [
+          "path",
+          "title",
+          "kind",
+          "snippet"
+        ],
         "properties": {
-          "path": { "type": "string" },
-          "title": { "type": "string" },
-          "kind": { "type": "string" },
-          "snippet": { "type": "string", "description": "HTML-escaped with safe <mark> highlights" }
+          "path": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "snippet": {
+            "type": "string",
+            "description": "HTML-escaped with safe <mark> highlights"
+          }
         }
       },
       "wikiNode": {
         "type": "object",
-        "required": ["name", "path", "is_dir", "children"],
+        "required": [
+          "name",
+          "path",
+          "is_dir",
+          "children"
+        ],
         "properties": {
-          "name": { "type": "string" },
-          "path": { "type": "string", "description": "Wiki-relative, slash-separated" },
-          "is_dir": { "type": "boolean" },
+          "name": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string",
+            "description": "Wiki-relative, slash-separated"
+          },
+          "is_dir": {
+            "type": "boolean"
+          },
           "children": {
             "type": "array",
-            "items": { "$ref": "#/components/schemas/wikiNode" }
+            "items": {
+              "$ref": "#/components/schemas/wikiNode"
+            }
           },
-          "error": { "type": "string", "description": "Present when the directory exists but cannot be read (e.g. permissions); children omitted" }
+          "error": {
+            "type": "string",
+            "description": "Present when the directory exists but cannot be read (e.g. permissions); children omitted"
+          }
         }
       },
       "settings": {
         "type": "object",
-        "required": ["wiki_path", "wiki_folders", "model", "repo_url", "sync_enabled"],
+        "required": [
+          "wiki_path",
+          "wiki_folders",
+          "model"
+        ],
         "properties": {
-          "wiki_path": { "type": "string", "example": "~/.thoth/wiki" },
-          "wiki_folders": { "type": "array", "items": { "type": "string" }, "description": "Configured scaffold folder set ([] when unset → defaults)" },
-          "model": { "type": "string", "description": "Selected model value" },
-          "repo_url": { "type": "string" },
-          "sync_enabled": { "type": "boolean" }
+          "wiki_path": {
+            "type": "string",
+            "example": "~/.thoth/wiki"
+          },
+          "wiki_folders": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Configured scaffold folder set ([] when unset \u2192 defaults)"
+          },
+          "model": {
+            "type": "string",
+            "description": "Selected model value"
+          }
         }
       },
       "providerInput": {
         "type": "object",
-        "required": ["name"],
+        "required": [
+          "name"
+        ],
         "properties": {
-          "name": { "type": "string", "description": "Provider display label, unique" },
-          "base_url": { "type": "string", "description": "API base URL override; empty means the provider's default endpoint" },
-          "api_key": { "type": "string", "description": "Write-only: PUT treats an empty value as leave unchanged" }
+          "name": {
+            "type": "string",
+            "description": "Provider display label, unique"
+          },
+          "base_url": {
+            "type": "string",
+            "description": "API base URL override; empty means the provider's default endpoint"
+          },
+          "api_key": {
+            "type": "string",
+            "description": "Write-only: PUT treats an empty value as leave unchanged"
+          }
         }
       },
       "provider": {
         "type": "object",
-        "required": ["id", "name", "base_url", "has_api_key", "model_count"],
+        "required": [
+          "id",
+          "name",
+          "base_url",
+          "has_api_key",
+          "model_count"
+        ],
         "properties": {
-          "id": { "type": "integer", "format": "int64" },
-          "name": { "type": "string" },
-          "base_url": { "type": "string", "description": "Provider base URL override; empty means the provider default" },
-          "has_api_key": { "type": "boolean", "description": "GET reports only whether a key is stored; the key itself is never returned" },
-          "model_count": { "type": "integer", "description": "Number of models registered under this provider" }
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "name": {
+            "type": "string"
+          },
+          "base_url": {
+            "type": "string",
+            "description": "Provider base URL override; empty means the provider default"
+          },
+          "has_api_key": {
+            "type": "boolean",
+            "description": "GET reports only whether a key is stored; the key itself is never returned"
+          },
+          "model_count": {
+            "type": "integer",
+            "description": "Number of models registered under this provider"
+          }
         }
       },
       "modelInput": {
         "type": "object",
-        "required": ["value", "name"],
+        "required": [
+          "value",
+          "name"
+        ],
         "properties": {
-          "value": { "type": "string", "description": "The --model argument" },
-          "name": { "type": "string", "description": "Display name" },
-          "tag": { "type": "string", "description": "Optional display field" },
-          "provider_id": { "type": "integer", "format": "int64", "description": "Owning provider's row id (0/null = the Unassigned catch-all)" }
+          "value": {
+            "type": "string",
+            "description": "The --model argument"
+          },
+          "name": {
+            "type": "string",
+            "description": "Display name"
+          },
+          "tag": {
+            "type": "string",
+            "description": "Optional display field"
+          },
+          "provider_id": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Owning provider's row id (0/null = the Unassigned catch-all)"
+          }
         }
       },
       "llmModel": {
         "type": "object",
-        "required": ["id", "value", "name", "tag", "provider", "provider_id"],
+        "required": [
+          "id",
+          "value",
+          "name",
+          "tag",
+          "provider",
+          "provider_id"
+        ],
         "properties": {
-          "id": { "type": "integer", "format": "int64" },
-          "value": { "type": "string" },
-          "name": { "type": "string" },
-          "tag": { "type": "string" },
-          "provider": { "type": "string", "description": "The owning provider's name (empty for unassigned)" },
-          "provider_id": { "type": "integer", "format": "int64", "description": "The owning provider's row id (0 = unassigned)" }
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "value": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "tag": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string",
+            "description": "The owning provider's name (empty for unassigned)"
+          },
+          "provider_id": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The owning provider's row id (0 = unassigned)"
+          }
         }
       },
       "modelGroup": {
         "type": "object",
-        "required": ["provider", "models"],
+        "required": [
+          "provider",
+          "models"
+        ],
         "properties": {
-          "provider": { "type": "string" },
+          "provider": {
+            "type": "string"
+          },
           "models": {
             "type": "array",
-            "items": { "$ref": "#/components/schemas/llmModel" }
+            "items": {
+              "$ref": "#/components/schemas/llmModel"
+            }
           }
         }
       },
       "conversation": {
         "type": "object",
-        "required": ["id", "title", "created_at"],
+        "required": [
+          "id",
+          "title",
+          "created_at"
+        ],
         "properties": {
-          "id": { "type": "string" },
-          "title": { "type": "string" },
-          "created_at": { "type": "string", "format": "date-time" }
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
         }
       },
       "message": {
         "type": "object",
-        "required": ["id", "conversation_id", "role", "content", "created_at"],
+        "required": [
+          "id",
+          "conversation_id",
+          "role",
+          "content",
+          "created_at"
+        ],
         "properties": {
-          "id": { "type": "integer", "format": "int64" },
-          "conversation_id": { "type": "string" },
-          "role": { "type": "string", "enum": ["user", "assistant", "system"] },
-          "content": { "type": "string" },
-          "created_at": { "type": "string", "format": "date-time" },
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "conversation_id": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "user",
+              "assistant",
+              "system"
+            ]
+          },
+          "content": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
           "usage": {
             "type": "object",
             "description": "Token breakdown on the assistant message that ended a turn; absent on user messages and pre-telemetry rows",
             "properties": {
-              "input_tokens": { "type": "integer" },
-              "output_tokens": { "type": "integer" },
-              "cache_read_tokens": { "type": "integer" },
-              "cache_write_tokens": { "type": "integer" }
+              "input_tokens": {
+                "type": "integer"
+              },
+              "output_tokens": {
+                "type": "integer"
+              },
+              "cache_read_tokens": {
+                "type": "integer"
+              },
+              "cache_write_tokens": {
+                "type": "integer"
+              }
             }
           }
         }
       },
-      "githubIdentity": {
+      "syncProvider": {
         "type": "object",
-        "required": ["username", "display_name", "email", "avatar_url", "profile_url", "scopes", "account_created_at", "account_updated_at"],
         "properties": {
-          "username": { "type": "string" },
-          "display_name": { "type": "string" },
-          "email": { "type": "string" },
-          "avatar_url": { "type": "string" },
-          "profile_url": { "type": "string" },
-          "scopes": { "type": "string" },
-          "account_created_at": { "type": "string" },
-          "account_updated_at": { "type": "string" }
+          "id": {
+            "type": "integer"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "driver": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "git",
+              "s3",
+              "local"
+            ]
+          },
+          "base_url": {
+            "type": "string"
+          },
+          "protected": {
+            "type": "boolean"
+          },
+          "connection_count": {
+            "type": "integer"
+          },
+          "fields": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "key": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string"
+                },
+                "secret": {
+                  "type": "boolean"
+                },
+                "required": {
+                  "type": "boolean"
+                }
+              }
+            }
+          }
         }
       },
-      "githubRepository": {
+      "syncIdentity": {
         "type": "object",
-        "required": ["full_name", "clone_url"],
         "properties": {
-          "full_name": { "type": "string", "example": "shiv-source/thoth" },
-          "clone_url": { "type": "string", "example": "https://github.com/shiv-source/thoth.git" },
-          "private": { "type": "boolean" },
-          "description": { "type": "string" }
+          "username": {
+            "type": "string"
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "avatar_url": {
+            "type": "string"
+          },
+          "profile_url": {
+            "type": "string"
+          },
+          "scopes": {
+            "type": "string"
+          },
+          "account": {
+            "type": "string"
+          }
+        }
+      },
+      "connection": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "provider_id": {
+            "type": "integer"
+          },
+          "provider_slug": {
+            "type": "string"
+          },
+          "provider_name": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "protected": {
+            "type": "boolean"
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "identity": {
+            "$ref": "#/components/schemas/syncIdentity"
+          },
+          "config": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object"
+            },
+            "description": "non-secret fields round-trip; secret fields are has_<key> booleans"
+          },
+          "last_synced_at": {
+            "type": "string"
+          },
+          "last_error": {
+            "type": "string"
+          },
+          "push_history": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "at": {
+                  "type": "string",
+                  "description": "UTC RFC3339 of the attempt"
+                },
+                "ok": {
+                  "type": "boolean"
+                },
+                "error": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Recent sync runs, newest first"
+          }
+        }
+      },
+      "syncTarget": {
+        "type": "object",
+        "properties": {
+          "full_name": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "private": {
+            "type": "boolean"
+          },
+          "description": {
+            "type": "string"
+          }
         }
       }
     }

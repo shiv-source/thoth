@@ -6,6 +6,7 @@ import {
     chatError,
     fetchTree,
     loadChat,
+    notify,
     resetChat,
     selectConversationId,
     selectLastTool,
@@ -77,6 +78,17 @@ export function useChat(socket: ChatSocket | null) {
                     // The watcher saw wiki files change: the tree is stale,
                     // refetch it instead of polling on every turn.
                     void dispatch(fetchTree())
+                    break
+                case ServerEvent.SyncResult:
+                    // A scheduled auto-sync push finished (or failed): surface
+                    // it as a notification so the user knows without polling.
+                    dispatch(
+                        notify({
+                            kind: 'sync',
+                            title: m.sync_result.ok ? 'Wiki synced' : 'Sync failed',
+                            body: m.sync_result.ok ? m.sync_result.name : m.sync_result.error
+                        })
+                    )
                     break
                 case ServerEvent.Error:
                     // Surface cancelled/crash feedback as a visible assistant message so
