@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"slices"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -14,6 +15,7 @@ import (
 	agentlib "github.com/shiv-source/thoth/agent"
 	"github.com/shiv-source/thoth/agent/provider/anthropic"
 	"github.com/shiv-source/thoth/agent/provider/openai"
+	"github.com/shiv-source/thoth/internal/index"
 )
 
 // collect is an EventWriter that records every event of a turn.
@@ -341,5 +343,94 @@ func TestClientStartTurnTimeout(t *testing.T) {
 	}
 	if elapsed := time.Since(start); elapsed > 2*time.Second {
 		t.Fatalf("turn took %v, want it to return promptly after the timeout", elapsed)
+	}
+}
+
+func TestClientStartContextInjection(t *testing.T) {
+	w := newWiki(t, "rb")
+	st := openStore(t)
+	convID, err := st.CreateConversation("ctx")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ix := openIndex(t)
+	if err := ix.Upsert(index.Note{
+		Path: "knowledge/context.md", Title: "Context injection", Kind: "knowledge",
+		Body:      "pre-searched notes let the model answer without tool round-trips",
+		UpdatedAt: time.Now(),
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	tests := []struct {
+		name         string
+		prompt       string
+		enabled      bool
+		wantInjected bool
+	}{
+		{"matches inject into first turn", "how do pre-searched notes work?", true, true},
+		{"no matches keeps the prompt as-is", "completely unrelated topic", true, false},
+		{"setting off never injects", "how do pre-searched notes work?", false, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			prov := &fakeProvider{stream: &fakeStream{deltas: []agentlib.Delta{agentlib.StopDelta("end_turn")}}}
+			c, err := New("claude-test", "key", w, st, ix, WithProvider(prov), WithContextInjection(tt.enabled))
+			if err != nil {
+				t.Fatalf("New: %v", err)
+			}
+			if _, err := c.Start(context.Background(), convID, tt.prompt, &collect{}); err != nil {
+				t.Fatalf("Start: %v", err)
+			}
+			if len(prov.req.Messages) == 0 {
+				t.Fatal("provider recorded no request")
+			}
+			last := prov.req.Messages[len(prov.req.Messages)-1]
+			text := last.Content[0].Text
+			if tt.wantInjected {
+				if !strings.HasPrefix(text, contextInjectionHeader) {
+					t.Fatalf("injected block must precede the question: %q", text)
+				}
+				if !strings.Contains(text, "knowledge/context.md") {
+					t.Fatalf("first-turn prompt missing the note path: %q", text)
+				}
+			} else if text != tt.prompt {
+				t.Fatalf("prompt changed without injection: %q", text)
+			}
+		})
+	}
+}
+
+func TestClientStartContextInjectionFailsOpen(t *testing.T) {
+	w := newWiki(t, "rb")
+	st := openStore(t)
+	convID, err := st.CreateConversation("ctx")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ix := openIndex(t)
+	if err := ix.Upsert(index.Note{
+		Path: "knowledge/context.md", Title: "Context injection", Kind: "knowledge",
+		Body:      "pre-searched notes let the model answer without tool round-trips",
+		UpdatedAt: time.Now(),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := ix.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	prov := &fakeProvider{stream: &fakeStream{deltas: []agentlib.Delta{agentlib.StopDelta("end_turn")}}}
+	c, err := New("claude-test", "key", w, st, ix, WithProvider(prov), WithContextInjection(true))
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	prompt := "pre-searched notes"
+	if _, err := c.Start(context.Background(), convID, prompt, &collect{}); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	last := prov.req.Messages[len(prov.req.Messages)-1]
+	if last.Content[0].Text != prompt {
+		t.Fatalf("prompt changed on search error, want the raw prompt: %q", last.Content[0].Text)
 	}
 }

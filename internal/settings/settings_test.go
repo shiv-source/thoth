@@ -171,6 +171,30 @@ func TestSyncEnabledParsing(t *testing.T) {
 	}
 }
 
+func TestContextInjectionParsing(t *testing.T) {
+	r := openTestRepo(t)
+	// Absent key defaults to off.
+	if on, err := r.ContextInjection(); err != nil || on {
+		t.Fatalf("absent context_injection = %v/%v, want false/nil", on, err)
+	}
+	for _, in := range []string{"true"} {
+		if err := r.SetSetting(KeyContextInjection, in); err != nil {
+			t.Fatal(err)
+		}
+		if on, err := r.ContextInjection(); err != nil || !on {
+			t.Fatalf("context_injection %q = %v/%v, want true/nil", in, on, err)
+		}
+	}
+	for _, in := range []string{"false", "garbage", "TRUE"} {
+		if err := r.SetSetting(KeyContextInjection, in); err != nil {
+			t.Fatal(err)
+		}
+		if on, err := r.ContextInjection(); err != nil || on {
+			t.Fatalf("context_injection %q = %v/%v, want false/nil", in, on, err)
+		}
+	}
+}
+
 func TestFoldersParsing(t *testing.T) {
 	r := openTestRepo(t)
 	// Absent key falls back to nil.

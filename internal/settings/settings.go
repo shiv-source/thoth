@@ -22,6 +22,10 @@ const (
 	KeySyncEnabled  = "github_sync_enabled"
 	KeyLastSyncedAt = "github_last_synced_at"
 	KeySyncError    = "github_sync_error"
+	// KeyContextInjection gates pre-searching the wiki into each chat turn's
+	// first prompt (off by default — it changes answer semantics, so users
+	// opt in).
+	KeyContextInjection = "context_injection"
 )
 
 // providerSlug reduces a provider name to the slug used in its settings
@@ -144,6 +148,17 @@ func (r *Repo) Folders() ([]string, error) {
 // "true" (including an absent key) is false.
 func (r *Repo) SyncEnabled() (bool, error) {
 	value, _, err := r.Setting(KeySyncEnabled)
+	if err != nil {
+		return false, err
+	}
+	return value == "true", nil
+}
+
+// ContextInjection reports the pre-searched context toggle; anything other
+// than the literal "true" (including an absent key) is false, so the feature
+// stays off until the user opts in.
+func (r *Repo) ContextInjection() (bool, error) {
+	value, _, err := r.Setting(KeyContextInjection)
 	if err != nil {
 		return false, err
 	}

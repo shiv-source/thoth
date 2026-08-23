@@ -105,6 +105,18 @@ func (ix *Index) DeletePrefix(prefix string) error {
 }
 
 func (ix *Index) Search(q string, limit int) ([]Result, error) {
+	return ix.search(q, limit, false)
+}
+
+// SearchClean runs the same FTS5 query as Search but returns plain-text
+// snippets for prompt injection: the match markers are stripped and the text
+// is left unescaped, so the result reads as the note actually does instead of
+// carrying <mark> tags or HTML entities.
+func (ix *Index) SearchClean(q string, limit int) ([]Result, error) {
+	return ix.search(q, limit, true)
+}
+
+func (ix *Index) search(q string, limit int, clean bool) ([]Result, error) {
 	// char(1)/char(2) are the match markers: FTS5's snippet returns them
 	// verbatim, so escaping can happen in Go instead of trusting the raw
 	// note text to flow through into HTML.
@@ -126,10 +138,17 @@ func (ix *Index) Search(q string, limit int) ([]Result, error) {
 		if err := rows.Scan(&r.Path, &r.Title, &r.Kind, &r.Snippet); err != nil {
 			return nil, fmt.Errorf("scan search result: %w", err)
 		}
-		// Escape the note text first, then turn the markers into real tags:
-		// any <mark>/</mark> the note itself contains comes back escaped.
-		r.Snippet = strings.ReplaceAll(html.EscapeString(r.Snippet), "\x01", "<mark>")
-		r.Snippet = strings.ReplaceAll(r.Snippet, "\x02", "</mark>")
+		// The non-clean path escapes the note text first, then turns the
+		// markers into real tags: any <mark>/</mark> the note itself contains
+		// comes back escaped. Clean prompt text skips both the escaping and
+		// the tags and just strips the markers.
+		if clean {
+			r.Snippet = strings.ReplaceAll(r.Snippet, "\x01", "")
+			r.Snippet = strings.ReplaceAll(r.Snippet, "\x02", "")
+		} else {
+			r.Snippet = strings.ReplaceAll(html.EscapeString(r.Snippet), "\x01", "<mark>")
+			r.Snippet = strings.ReplaceAll(r.Snippet, "\x02", "</mark>")
+		}
 		out = append(out, r)
 	}
 	return out, rows.Err()

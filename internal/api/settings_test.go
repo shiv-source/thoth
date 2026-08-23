@@ -49,11 +49,11 @@ func TestSettingsRoundTripAndCallback(t *testing.T) {
 
 	// GET returns the migration-seeded defaults.
 	got := getSettingsReq(t, e)
-	if got.WikiPath != "~/.thoth/wiki" || got.Model != "" || got.RepoURL != "" || got.SyncEnabled {
+	if got.WikiPath != "~/.thoth/wiki" || got.Model != "" || got.RepoURL != "" || got.SyncEnabled || got.ContextInjection {
 		t.Fatalf("seeded settings = %+v", got)
 	}
 
-	rec := putSettingsReq(t, e, `{"wiki_path":"/tmp/other/wiki","model":"claude-sonnet-5","repo_url":"https://github.com/x/w.git","sync_enabled":true}`)
+	rec := putSettingsReq(t, e, `{"wiki_path":"/tmp/other/wiki","model":"claude-sonnet-5","repo_url":"https://github.com/x/w.git","sync_enabled":true,"context_injection":true}`)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("PUT status %d: %s", rec.Code, rec.Body.String())
 	}
@@ -62,7 +62,7 @@ func TestSettingsRoundTripAndCallback(t *testing.T) {
 	}
 
 	got = getSettingsReq(t, e)
-	if got.WikiPath != "/tmp/other/wiki" || got.Model != "claude-sonnet-5" || got.RepoURL != "https://github.com/x/w.git" || !got.SyncEnabled {
+	if got.WikiPath != "/tmp/other/wiki" || got.Model != "claude-sonnet-5" || got.RepoURL != "https://github.com/x/w.git" || !got.SyncEnabled || !got.ContextInjection {
 		t.Fatalf("after PUT: %+v", got)
 	}
 	// The values live in the settings table.
@@ -77,6 +77,9 @@ func TestSettingsRoundTripAndCallback(t *testing.T) {
 	}
 	if on, err := d.Settings.SyncEnabled(); err != nil || !on {
 		t.Fatalf("stored sync_enabled = %v/%v, want true/nil", on, err)
+	}
+	if on, err := d.Settings.ContextInjection(); err != nil || !on {
+		t.Fatalf("stored context_injection = %v/%v, want true/nil", on, err)
 	}
 }
 

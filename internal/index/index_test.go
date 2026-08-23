@@ -261,3 +261,44 @@ func TestSearchRejectsInvalidQuery(t *testing.T) {
 		t.Fatal("expected error for malformed FTS5 query")
 	}
 }
+
+func TestSearchCleanStripsMarkers(t *testing.T) {
+	ix := openTest(t)
+	// The body is deliberately messy: markup the escaping path must render
+	// as HTML entities, and a phrase spanning a match so the snippet carries
+	// the FTS5 markers around it.
+	n := Note{Path: "knowledge/context.md", Title: "Context injection",
+		Kind: "knowledge", Body: "the quick brown fox jumps over the lazy dog <b>bold</b>",
+		UpdatedAt: time.Now()}
+	if err := ix.Upsert(n); err != nil {
+		t.Fatal(err)
+	}
+	got, err := ix.SearchClean("quick fox", 10)
+	if err != nil || len(got) != 1 {
+		t.Fatalf("SearchClean: %v %+v", err, got)
+	}
+	s := got[0].Snippet
+	if strings.Contains(s, "<mark>") || strings.Contains(s, "</mark>") {
+		t.Fatalf("clean snippet carries mark tags: %q", s)
+	}
+	if strings.Contains(s, "\x01") || strings.Contains(s, "\x02") {
+		t.Fatalf("clean snippet carries control markers: %q", s)
+	}
+	if strings.Contains(s, "&lt;b&gt;") {
+		t.Fatalf("clean snippet is HTML-escaped: %q", s)
+	}
+	if !strings.Contains(s, "fox") {
+		t.Fatalf("clean snippet lost the match text: %q", s)
+	}
+	// The rendering path still marks matches and escapes markup.
+	marked, err := ix.Search("quick fox", 10)
+	if err != nil || len(marked) != 1 {
+		t.Fatalf("Search: %v %+v", err, marked)
+	}
+	if !strings.Contains(marked[0].Snippet, "<mark>") {
+		t.Fatalf("rendered snippet should mark matches: %q", marked[0].Snippet)
+	}
+	if strings.Contains(marked[0].Snippet, "<b>") {
+		t.Fatalf("rendered snippet should escape markup: %q", marked[0].Snippet)
+	}
+}

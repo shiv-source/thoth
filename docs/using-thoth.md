@@ -41,7 +41,7 @@ Open Settings (gear icon in the header) to configure Thoth.
 
 | Tab | What it does |
 |---|---|
-| **General** | The wiki path (change it here, with a folder browser), the provider and model used for new conversations, and the scaffold folders |
+| **General** | The wiki path (change it here, with a folder browser), the provider and model used for new conversations, the scaffold folders, and the context-injection toggle |
 | **Providers** | One collapsible panel per provider: its credential form (an API key and base URL) plus the models registered under it (add/edit/delete). Keys are stored locally in thoth.db, never read from the environment, and never returned by the API |
 | **Doctor** | The same health checks as `thoth doctor`, in the UI — run them any time, read each row's status |
 | **Git remote** | Connect a GitHub account and push your wiki to a remote repo for sync and backup |
@@ -56,6 +56,10 @@ With the **Git remote** tab you can:
 4. **Initialize & Push** — the server initializes the repo if needed, points `origin` at the URL, commits the current tree, and pushes the branch
 
 The wiki keeps its own local git history regardless — every scaffold initializes a repository (in-process, via the pure-Go `agent/git` backend — no git binary needed).
+
+### Context injection
+
+The **General** tab has a **Context injection** toggle (off by default). When on, every chat turn pre-searches the wiki and feeds the top matches into the first prompt, so the assistant answers from that context instead of spending a turn calling `search`/`read_file`. Results start faster and use fewer tokens; the tradeoff is that answers come from a snippet of the indexed text, so opt in only if you prefer that behavior.
 
 ## The wiki itself
 

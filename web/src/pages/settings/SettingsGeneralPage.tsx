@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Card, Divider, Flex, Form, Select } from 'antd'
+import { Card, Divider, Flex, Form, Select, Switch } from 'antd'
 import { BookOutlined, RocketOutlined, SettingOutlined } from '@ant-design/icons'
 import { fetchModels, selectHealth, selectModelGroups, selectSettings } from '../../store'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
@@ -88,6 +88,14 @@ export function SettingsGeneralPage() {
                             options={defaultFolders.map((f) => ({ value: f }))}
                             tokenSeparators={[',']}
                         />
+                    </Form.Item>
+                    <Form.Item
+                        label="Context injection"
+                        name="context_injection"
+                        valuePropName="checked"
+                        extra="Pre-search the wiki into each turn so answers start faster and skip the search/read round-trips. Off by default — it changes how the assistant answers."
+                    >
+                        <Switch />
                     </Form.Item>
                     <Divider />
                     <SectionHeading icon={RocketOutlined}>Default model</SectionHeading>

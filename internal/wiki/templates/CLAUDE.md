@@ -28,8 +28,8 @@ When asked to save something:
 - When saving a script or config file, also write a companion note in the folder that uses it (e.g. setup/servers/x.md for attachments/x.yaml) describing what it does; the note's body is what search finds.
 
 ## Retrieving
-- Look in the folder the question implies first, then grep across the wiki.
-- Prefer exact file reads over guessing; quote file paths in answers.
+- When relevant notes are provided in the turn, answer from them first; only read files when saving or when the provided notes are insufficient.
+- Quote file paths in answers.
 - If an answer isn't in the wiki, say so plainly and offer to save what you do know.
 
 ## Health rules
