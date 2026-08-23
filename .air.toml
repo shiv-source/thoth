@@ -2,7 +2,7 @@ root = "."
 tmp_dir = "tmp"
 
 [build]
-  cmd = "mkdir -p tmp && go build -o ./tmp/main ./cmd/thoth"
+  cmd = "mkdir -p tmp && go build -buildvcs=false -o ./tmp/main ./cmd/thoth"
   entrypoint = ["./tmp/main", "serve", "--dev"]
   include_ext = ["go", "json", "html"]
   exclude_dir = ["web", "bin", "dist", "tmp", "node_modules", ".git", ".claude", "docs-site"]
