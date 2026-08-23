@@ -85,8 +85,11 @@ cmd_new() {
   git -C "$root" worktree add -b "$branch" "$dir" "$base"
   echo "git-worktree: created $root/$dir (branch $branch, base $base)"
   copy_config "$root" "$root/$dir"
-  if command -v codegraph >/dev/null 2>&1 && [ -f "$root/main/.codegraph/codegraph.db" ]; then
-    echo "git-worktree: run 'codegraph init' inside $root/$dir to index it (CodeGraph MCP is inactive without a .codegraph/ dir)"
+  if command -v codegraph >/dev/null 2>&1; then
+    echo "git-worktree: indexing $dir with CodeGraph (codegraph init)"
+    if ! (cd "$root/$dir" && codegraph init); then
+      echo "git-worktree: warning: codegraph init failed in $root/$dir — indexing is optional, run it manually when convenient" >&2
+    fi
   fi
 }
 
@@ -129,11 +132,12 @@ cmd_rm() {
     git -C "$root" worktree remove --force "$dir"
     git -C "$root" branch -D "$branch"
   else
-    # A freshly created worktree carries the copied opencode.json as an
-    # untracked file; that is our own bookkeeping, not a reason to refuse
-    # removal. Remove with --force only when no other dirty files exist.
+    # A freshly created worktree carries the copied opencode.json and (when
+    # CodeGraph auto-indexed it) a .codegraph/ dir as untracked files; those
+    # are our own bookkeeping, not a reason to refuse removal. Remove with
+    # --force only when no other dirty files exist.
     local other_dirty
-    other_dirty="$(git -C "$dir" status --porcelain | grep -v '^?? opencode.json$' || true)"
+    other_dirty="$(git -C "$dir" status --porcelain | grep -v '^?? opencode.json$' | grep -v '^?? .codegraph/' || true)"
     if [ -z "$other_dirty" ]; then
       git -C "$root" worktree remove --force "$dir"
     else

@@ -28,13 +28,13 @@ description: >-
 ## Workflows
 
 ### 1. Start a change (branch)
-1. **Assigned an issue/feature/bug? Decide where to work first.** When told to work on a specific issue, feature, or bug, do not branch blindly — confirm the target with the user first: work in the current worktree/branch, or create a new one?
+1. **Assigned an issue/feature/bug? Read and analyze it before branching or exploring.** When told to work on a specific issue, feature, or bug, the order is fixed: (1) fetch and read the issue (`gh issue view <n>`), (2) analyze it — understand the problem, scope, and which areas it touches — (3) only then decide where to work (reuse an existing worktree/branch, or create a new one, confirming the target with the user), and (4) start code exploration inside that worktree. Never create a branch or start digging into the codebase before the issue is read and the target is confirmed.
    - A branch/worktree for it already exists? Reuse it — `./scripts/git-worktree.sh list` (bare-clone layout) names the worktree dir to switch into; a standard clone just `git switch <branch>`.
    - Creating new? Use step 2's per-layout commands: `git fetch origin` then `./scripts/git-worktree.sh new <type>/<scope>/<slug>` for the bare-clone layout, or `git switch main && git pull --ff-only && git switch -c <type>/<scope>/<slug>` for a standard clone.
 2. Never commit to main (code-rules skill § Repo rules) — main is always deployable; changes live on `<type>/<scope>/<slug>` branches and land via reviewed PRs. Create the branch per your clone layout:
    - **Bare-clone layout** (this repo's container: a dir holding a hidden `.bare` clone + a `.git` gitfile, one working directory per branch) — `git switch main` is impossible (main is checked out in its sibling worktree), so use `./scripts/git-worktree.sh`:
      - `git fetch origin` first — `./scripts/git-worktree.sh new` bases on `origin/main` and does not fetch for you
-     - `./scripts/git-worktree.sh new <type>/<scope>/<slug>` creates the branch and its flat-hyphen worktree dir (`feat-api-x` for `feat/api/x`), basing on `origin/main` (override with `--base <ref>`), and copies `opencode.json` in
+     - `./scripts/git-worktree.sh new <type>/<scope>/<slug>` creates the branch and its flat-hyphen worktree dir (`feat-api-x` for `feat/api/x`), basing on `origin/main` (override with `--base <ref>`), copies `opencode.json` in, and runs `codegraph init` in the new worktree when CodeGraph is installed (non-fatal — indexing is optional)
      - `./scripts/git-worktree.sh rm <dir-or-branch> [--force]` removes the worktree and deletes its branch
      - `./scripts/git-worktree.sh list` shows all worktrees
      Each worktree is its own checkout, so parallel branches (or agent runs) never collide; `git fetch` in any worktree updates the shared refs for all of them (working trees only change on pull/checkout inside each).
