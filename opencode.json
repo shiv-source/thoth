@@ -1,0 +1,13 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "playwright": {
+      "type": "local",
+      "command": ["npx", "@playwright/mcp@latest"]
+    },
+    "antd": {
+      "type": "local",
+      "command": ["npx", "-y", "@ant-design/cli", "mcp"]
+    }
+  }
+}
