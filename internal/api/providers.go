@@ -12,20 +12,23 @@ import (
 
 // providerInput is the POST/PUT body for /api/providers. The api_key is
 // write-only: an empty value on PUT leaves the stored key untouched.
+// custom_headers is an object of header name → value (empty clears all).
 type providerInput struct {
-	Name    string `json:"name"`
-	BaseURL string `json:"base_url"`
-	APIKey  string `json:"api_key"`
+	Name          string            `json:"name"`
+	BaseURL       string            `json:"base_url"`
+	APIKey        string            `json:"api_key"`
+	CustomHeaders map[string]string `json:"custom_headers"`
 }
 
 // providerDTO is the wire shape of /api/providers. has_api_key reports
 // whether a key is stored — the key itself is never echoed back to the UI.
 type providerDTO struct {
-	ID         int64  `json:"id"`
-	Name       string `json:"name"`
-	BaseURL    string `json:"base_url"`
-	HasAPIKey  bool   `json:"has_api_key"`
-	ModelCount int    `json:"model_count"`
+	ID            int64             `json:"id"`
+	Name          string            `json:"name"`
+	BaseURL       string            `json:"base_url"`
+	CustomHeaders map[string]string `json:"custom_headers"`
+	HasAPIKey     bool              `json:"has_api_key"`
+	ModelCount    int               `json:"model_count"`
 }
 
 // providers returns the providers table A→Z, each with its model count. The
@@ -58,6 +61,10 @@ func createProvider(c echo.Context, d Deps) error {
 	if err != nil {
 		return internalError(c, d, "create provider", err)
 	}
+	if err := d.Store.SetProviderHeaders(p.ID, in.CustomHeaders); err != nil {
+		return internalError(c, d, "set provider headers", err)
+	}
+	p.Headers = in.CustomHeaders
 	return c.JSON(http.StatusOK, providerDTOFromStore(p))
 }
 
@@ -86,6 +93,9 @@ func updateProvider(c echo.Context, d Deps) error {
 	}
 	if err := d.Store.UpdateProvider(id, in.Name, in.BaseURL, apiKey); err != nil {
 		return providerStoreError(c, d, err, "update provider")
+	}
+	if err := d.Store.SetProviderHeaders(id, in.CustomHeaders); err != nil {
+		return internalError(c, d, "set provider headers", err)
 	}
 	updated, err := d.Store.Provider(id)
 	if err != nil {
@@ -134,7 +144,7 @@ func clearSelectedModelOfProvider(d Deps, providerID int64) error {
 func providerDTOFromStore(p store.Provider) providerDTO {
 	return providerDTO{
 		ID: p.ID, Name: p.Name, BaseURL: p.BaseURL,
-		HasAPIKey: p.APIKey != "", ModelCount: p.ModelCount,
+		CustomHeaders: p.Headers, HasAPIKey: p.APIKey != "", ModelCount: p.ModelCount,
 	}
 }
 

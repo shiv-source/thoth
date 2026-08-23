@@ -102,7 +102,7 @@ func TestNewRoutesBaseURL(t *testing.T) {
 		{"DeepSeek", "/v1/chat/completions"},
 	} {
 		t.Run(tt.provider, func(t *testing.T) {
-			prov, err := providerFor("model-x", "key", tt.provider, srv.URL)
+			prov, err := providerFor("model-x", "key", tt.provider, srv.URL, nil)
 			if err != nil {
 				t.Fatalf("providerFor: %v", err)
 			}
@@ -117,6 +117,40 @@ func TestNewRoutesBaseURL(t *testing.T) {
 				t.Fatalf("provider %q did not hit %s (hits=%v)", tt.provider, tt.path, hits)
 			}
 		})
+	}
+}
+
+func TestNewAppliesCustomHeaders(t *testing.T) {
+	// The custom headers configured on the client must land on the wire
+	// request, on top of the provider's own auth headers.
+	var mu sync.Mutex
+	var got http.Header
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		got = r.Header.Clone()
+		mu.Unlock()
+		w.WriteHeader(http.StatusOK)
+		_, _ = io.WriteString(w, "data: [DONE]\n\n")
+	}))
+	defer srv.Close()
+
+	w, st := newWiki(t, "rb"), openStore(t)
+	c, err := New("key", "", w, st, nil,
+		WithProviderConfig("DeepSeek", srv.URL),
+		WithCustomHeaders(map[string]string{"x-portkey-provider": "deepseek", "x-portkey-api-key": "gw"}))
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	stream, err := c.provider.Stream(context.Background(), agentlib.Request{})
+	if err != nil {
+		t.Fatalf("Stream: %v", err)
+	}
+	_ = stream.Close()
+
+	mu.Lock()
+	defer mu.Unlock()
+	if got.Get("x-portkey-provider") != "deepseek" || got.Get("x-portkey-api-key") != "gw" {
+		t.Fatalf("custom headers missing: %v", got)
 	}
 }
 

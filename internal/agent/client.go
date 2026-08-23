@@ -33,6 +33,7 @@ type options struct {
 	provider         agentlib.Provider
 	providerName     string
 	baseURL          string
+	headers          map[string]string
 	logger           *slog.Logger
 	folders          []string
 	historyCap       int
@@ -56,6 +57,13 @@ func WithProvider(p agentlib.Provider) Option { return func(o *options) { o.prov
 // provider's default endpoint.
 func WithProviderConfig(providerName, baseURL string) Option {
 	return func(o *options) { o.providerName = providerName; o.baseURL = baseURL }
+}
+
+// WithCustomHeaders adds extra request headers sent on every provider request
+// (e.g. Portkey's x-portkey-* routing headers). They are applied on top of the
+// provider's own auth headers. nil or an empty map adds nothing.
+func WithCustomHeaders(headers map[string]string) Option {
+	return func(o *options) { o.headers = headers }
 }
 
 // WithLogger sets the logger the agent loop diagnostics go to.
@@ -152,7 +160,7 @@ func New(model, apiKey string, w *wiki.Wiki, st *store.Store, ix *index.Index, o
 	prov := o.provider
 	if prov == nil {
 		var err error
-		prov, err = providerFor(model, apiKey, o.providerName, o.baseURL)
+		prov, err = providerFor(model, apiKey, o.providerName, o.baseURL, o.headers)
 		if err != nil {
 			return nil, err
 		}
@@ -196,29 +204,29 @@ func New(model, apiKey string, w *wiki.Wiki, st *store.Store, ix *index.Index, o
 // id prefixes (claude-* Anthropic, gpt-* OpenAI-compatible) for models
 // outside the registry. A non-empty baseURL overrides the provider's default
 // endpoint.
-func providerFor(model, apiKey, providerName, baseURL string) (agentlib.Provider, error) {
+func providerFor(model, apiKey, providerName, baseURL string, headers map[string]string) (agentlib.Provider, error) {
 	if providerName == "" {
 		switch {
 		case strings.HasPrefix(model, "claude-"):
-			return anthropicClient(model, apiKey, baseURL), nil
+			return anthropicClient(model, apiKey, baseURL, headers), nil
 		case strings.HasPrefix(model, "gpt-"):
-			return openaiClient(model, apiKey, baseURL), nil
+			return openaiClient(model, apiKey, baseURL, headers), nil
 		default:
 			return nil, fmt.Errorf("agent: no provider for model %q", model)
 		}
 	}
 	switch providerName {
 	case "Anthropic":
-		return anthropicClient(model, apiKey, baseURL), nil
+		return anthropicClient(model, apiKey, baseURL, headers), nil
 	default:
-		return openaiClient(model, apiKey, baseURL), nil
+		return openaiClient(model, apiKey, baseURL, headers), nil
 	}
 }
 
 // anthropicClient builds an Anthropic provider for the model, applying the
 // base URL override only when non-empty (an empty one keeps the default).
-func anthropicClient(model, apiKey, baseURL string) agentlib.Provider {
-	opts := []anthropic.Option{anthropic.WithModel(model)}
+func anthropicClient(model, apiKey, baseURL string, headers map[string]string) agentlib.Provider {
+	opts := []anthropic.Option{anthropic.WithModel(model), anthropic.WithHeaders(headers)}
 	if baseURL != "" {
 		opts = append(opts, anthropic.WithBaseURL(baseURL))
 	}
@@ -227,8 +235,8 @@ func anthropicClient(model, apiKey, baseURL string) agentlib.Provider {
 
 // openaiClient builds an OpenAI-compatible provider for the model, applying
 // the base URL override only when non-empty (an empty one keeps the default).
-func openaiClient(model, apiKey, baseURL string) agentlib.Provider {
-	opts := []openai.Option{openai.WithModel(model)}
+func openaiClient(model, apiKey, baseURL string, headers map[string]string) agentlib.Provider {
+	opts := []openai.Option{openai.WithModel(model), openai.WithHeaders(headers)}
 	if baseURL != "" {
 		opts = append(opts, openai.WithBaseURL(baseURL))
 	}

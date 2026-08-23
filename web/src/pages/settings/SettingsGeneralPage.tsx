@@ -97,7 +97,7 @@ export function SettingsGeneralPage() {
     return (
         <SettingsShell active="general">
             <Form form={form} layout="vertical" onFinish={(values) => void save(values)}>
-                <Card size="small" title={<CardTitle icon={SettingOutlined}>General</CardTitle>}>
+                <Card title={<CardTitle icon={SettingOutlined}>General</CardTitle>}>
                     <SectionHeading icon={BookOutlined}>Knowledge base</SectionHeading>
                     <div className="grid gap-4 md:grid-cols-2">
                         <Form.Item

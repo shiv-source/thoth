@@ -8,12 +8,12 @@ import { ChatsList } from './ChatsList'
 // wordmark and health footer live in AppSider.
 export function Sidebar() {
     return (
-        <Layout.Sider width={288} theme="light" className="border-r border-line">
+        <Layout.Sider width={288} theme="light" className="bg-surface">
             <div className="flex h-full flex-col">
-                <div className="shrink-0 px-3 pb-1 pt-3">
-                    <span className="text-[11px] font-semibold uppercase tracking-wider text-subtle">Chats</span>
+                <div className="shrink-0 px-4 pb-1.5 pt-4">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-faint">Chats</span>
                 </div>
-                <div className="shrink-0 px-3 pb-2">
+                <div className="shrink-0 px-4 pb-3">
                     <Button
                         type="primary"
                         block

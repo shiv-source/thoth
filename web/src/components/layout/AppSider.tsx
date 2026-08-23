@@ -7,6 +7,7 @@ import {
     SettingOutlined
 } from '@ant-design/icons'
 import { navigateView, useView, type View } from '../../hooks/useView'
+import { Logo } from '../../shared/Logo'
 import { HealthFooter } from './HealthFooter'
 
 // Icons are decorative — the labels carry the menu's accessible names, so
@@ -27,18 +28,17 @@ export function AppSider() {
     const view = useView()
 
     return (
-        <Layout.Sider width={208} theme="light" className="border-r border-line">
+        <Layout.Sider width={232} theme="light" className="bg-surface">
             <div className="flex h-full flex-col">
-                <div className="flex h-14 shrink-0 items-center gap-2.5 px-4">
-                    <span className="text-xl leading-none">🦉</span>
-                    <span className="font-display text-lg font-semibold tracking-tight text-heading">Thoth</span>
+                <div className="flex h-14 shrink-0 items-center px-4">
+                    <Logo />
                 </div>
                 <Menu
                     mode="inline"
                     items={ITEMS}
                     selectedKeys={[view]}
                     onClick={({ key }) => navigateView(key as View)}
-                    className="min-h-0 flex-1 overflow-y-auto px-2"
+                    className="min-h-0 flex-1 overflow-y-auto px-2 py-1"
                     style={{ borderInlineEnd: 'none' }}
                 />
                 <HealthFooter />

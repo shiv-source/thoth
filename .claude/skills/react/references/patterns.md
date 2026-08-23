@@ -72,16 +72,30 @@
 - canonical: docs/frontend.md §State
 
 ## Design tokens
-- web/src/theme.tsx holds the single antd ThemeConfig — blue primary
-  #1677ff, borderRadius 6, cssVar: {} (antd emits --ant-* variables),
-  hashed: false; LIGHT THEME ONLY — no dark mode, no OS-scheme flipping
+- web/src/theme.tsx holds the single antd ThemeConfig — brand blue
+  #1677ff as the anchor hue over a cool-gray neutral ramp (layout
+  #f5f7fa, border #e3e7ee, text/heading slate), radius 8/12, control
+  height 36, soft 3px blue focus ring, layered shadows, unified motion
+  timings, and component tokens (Layout/Menu/Button/Card/Table/
+  Statistic/Tree/Alert/Input); cssVar: {} (antd emits --ant-*
+  variables scoped under the ConfigProvider class), hashed: false;
+  LIGHT THEME ONLY — no dark mode, but values are centralized so a dark
+  ThemeConfig is a pure flip
 - index.css @theme tokens bridge to the antd variables
-  (--color-accent: var(--ant-color-primary, #1677ff)); neutrals mirror
-  the antd light palette; chart series are the blue family
+  (--color-accent: var(--ant-color-primary, #1677ff)); the semantic set:
+  app/surface/elevated/raised/hover, line/line-soft, subtle/faint/ink/
+  heading, accent + hover/active/soft/border/ink, status success/
+  warning/error + soft/border/ink pairs; neutrals are the cool-gray
+  ramp, chart series are the blue family + one warm outlier
 - Use semantic classes (bg-surface, text-ink, border-line, bg-accent…);
-  no raw hex in components
+  no raw hex in components — theme.tsx/index.css/chartTheme own the
+  literal values
 - Display type: Fraunces (self-hosted via @fontsource-variable — no
-  runtime network), brand wordmark only; body/headings: antd's font stack
+  runtime network) for the brand wordmark and hero/empty headlines;
+  body/headings: antd's font stack
+- Brand mark: LogoMark (SVG owl on a hover→active blue gradient tile,
+  token colors, unique gradient id per mount) + Logo lockup; also the
+  favicon (web/public/favicon.svg)
 - canonical: web/src/theme.tsx · web/src/index.css · docs/frontend.md §Design system
 
 ## Routing

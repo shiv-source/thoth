@@ -38,6 +38,7 @@ import {
     mockTodos
 } from './dashboardMock'
 import { AppHeader } from '../../shared/AppHeader'
+import { SectionHeader } from '../../shared/SectionHeader'
 
 function greeting(): string {
     const h = new Date().getHours()
@@ -70,21 +71,28 @@ export function DashboardPage({ onOpenSettings }: { onOpenSettings: () => void }
     return (
         <div className="flex min-h-0 flex-1 flex-col">
             <AppHeader title="Dashboard" onOpenSettings={onOpenSettings} />
-            <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
-                <div className="mx-auto w-full max-w-5xl space-y-4">
+            <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5">
+                <div className="mx-auto w-full max-w-5xl space-y-5">
                     <header>
-                        <h1 className="font-display text-xl font-semibold text-heading">{greeting()}</h1>
-                        <p className="text-sm text-subtle">{todayLabel()}</p>
+                        <h1 className="font-display text-2xl font-semibold tracking-tight text-heading">
+                            {greeting()}
+                        </h1>
+                        <p className="mt-1 text-sm text-subtle">{todayLabel()}</p>
                     </header>
 
                     <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-                        <StatTile icon={FileTextOutlined} label="Notes" value={String(mockStats.notes)} />
-                        <StatTile icon={InboxOutlined} label="Captures" value={String(mockStats.captures)} />
-                        <StatTile icon={CheckSquareOutlined} label="Open todos" value={String(mockStats.openTodos)} />
+                        <StatTile icon={FileTextOutlined} label="Notes" value={String(mockStats.notes)} delta="+12" />
+                        <StatTile icon={InboxOutlined} label="Captures" value={String(mockStats.captures)} delta="+3" />
+                        <StatTile
+                            icon={CheckSquareOutlined}
+                            label="Open todos"
+                            value={String(mockStats.openTodos)}
+                            delta="-1"
+                        />
                         <StatTile icon={ReloadOutlined} label="Last sync" value={mockStats.lastSync} />
                     </div>
 
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                         <Button
                             type="primary"
                             icon={<PlusSquareOutlined aria-hidden="true" />}
@@ -100,7 +108,7 @@ export function DashboardPage({ onOpenSettings }: { onOpenSettings: () => void }
                         </Button>
                     </div>
 
-                    <h2 className="text-xs font-medium uppercase tracking-wide text-subtle">Overview</h2>
+                    <SectionHeader>Overview</SectionHeader>
                     <div className="grid gap-4 md:grid-cols-2">
                         <InboxCard count={mockInbox.count} files={mockInbox.files} />
                         <MeetingsCard meetings={mockMeetings} />
@@ -110,7 +118,7 @@ export function DashboardPage({ onOpenSettings }: { onOpenSettings: () => void }
                         <TagsCard tags={mockTags} onOpen={() => navigateView('search')} />
                     </div>
 
-                    <h2 className="text-xs font-medium uppercase tracking-wide text-subtle">Insights</h2>
+                    <SectionHeader>Insights</SectionHeader>
                     <div className="grid gap-4 md:grid-cols-2">
                         <ChartCard title="Notes this week" note="mock data — index stats endpoint">
                             <ActivityChart counts={mockActivity} />

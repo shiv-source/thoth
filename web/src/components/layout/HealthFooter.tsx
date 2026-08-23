@@ -27,9 +27,9 @@ export function HealthFooter() {
     }
 
     return (
-        <footer className="flex h-10 shrink-0 items-center justify-between border-t border-line px-3">
-            <Badge status={status} text={<span className="truncate text-[11px] text-subtle">{label}</span>} />
-            <span className="shrink-0 text-[11px] text-subtle">v{health?.version ?? '…'}</span>
+        <footer className="flex h-12 shrink-0 items-center justify-between gap-2 border-t border-line-soft px-4">
+            <Badge status={status} text={<span className="truncate text-xs text-subtle">{label}</span>} />
+            <span className="shrink-0 text-xs text-faint">v{health?.version ?? '…'}</span>
         </footer>
     )
 }

@@ -34,17 +34,24 @@ export type TreeNode = z.infer<typeof TreeNodeSchema>
 
 // Provider is one row of the providers table: name, its base URL override and
 // key presence (the key itself is write-only — GET reports has_api_key only)
-// plus the number of models registered under it. ProviderInput is the
-// create/update body.
+// plus the number of models registered under it. custom_headers are extra
+// request headers (e.g. Portkey's x-portkey-*) sent on every request to this
+// provider. ProviderInput is the create/update body.
 export const Provider = z.object({
     id: z.number(),
     name: z.string(),
     base_url: z.string(),
+    custom_headers: z.record(z.string(), z.string()).default({}),
     has_api_key: z.boolean(),
     model_count: z.number()
 })
 export type Provider = z.infer<typeof Provider>
-export type ProviderInput = { name: string; base_url?: string; api_key?: string }
+export type ProviderInput = {
+    name: string
+    base_url?: string
+    api_key?: string
+    custom_headers?: Record<string, string>
+}
 
 export const Settings = z.object({
     wiki_path: z.string(),

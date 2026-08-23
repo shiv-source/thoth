@@ -115,6 +115,42 @@ func TestProviderConfigResolution(t *testing.T) {
 	})
 }
 
+func TestProviderHeadersResolution(t *testing.T) {
+	t.Run("returns the provider's header map", func(t *testing.T) {
+		r, st := openTestRepos(t)
+		p, err := st.CreateProvider("Anthropic", "", "")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := st.SetProviderHeaders(p.ID, map[string]string{
+			"x-portkey-provider": "anthropic",
+			"x-portkey-api-key":  "gw",
+		}); err != nil {
+			t.Fatal(err)
+		}
+		headers, err := r.ProviderHeaders("Anthropic")
+		if err != nil || headers["x-portkey-provider"] != "anthropic" || headers["x-portkey-api-key"] != "gw" {
+			t.Fatalf("ProviderHeaders(Anthropic) = %v/%v", headers, err)
+		}
+	})
+
+	t.Run("absent provider returns an empty map", func(t *testing.T) {
+		r := openTestRepo(t)
+		headers, err := r.ProviderHeaders("nope")
+		if err != nil || len(headers) != 0 {
+			t.Fatalf("ProviderHeaders(nope) = %v/%v", headers, err)
+		}
+	})
+
+	t.Run("empty provider name returns nil", func(t *testing.T) {
+		r := openTestRepo(t)
+		headers, err := r.ProviderHeaders("")
+		if err != nil || headers != nil {
+			t.Fatalf("ProviderHeaders(\"\") = %v/%v", headers, err)
+		}
+	})
+}
+
 func TestModelSettingRoundTrip(t *testing.T) {
 	r := openTestRepo(t)
 	if _, found, err := r.Setting(settings.KeyModel); err != nil || found {
@@ -231,5 +267,17 @@ func TestRepoClosedErrors(t *testing.T) {
 	}
 	if err := r.SetSetting(settings.KeyWikiPath, "x"); err == nil {
 		t.Fatal("SetSetting on closed repo must error")
+	}
+	if _, _, err := r.ProviderConfig("DeepSeek"); err == nil {
+		t.Fatal("ProviderConfig on closed repo must error")
+	}
+	if _, err := r.ProviderHeaders("DeepSeek"); err == nil {
+		t.Fatal("ProviderHeaders on closed repo must error")
+	}
+	if _, err := r.Folders(); err == nil {
+		t.Fatal("Folders on closed repo must error")
+	}
+	if _, err := r.ContextInjection(); err == nil {
+		t.Fatal("ContextInjection on closed repo must error")
 	}
 }

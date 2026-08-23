@@ -368,3 +368,29 @@ func TestStreamToolArgumentsBeforeToolStart(t *testing.T) {
 		t.Fatalf("got %v", err)
 	}
 }
+
+func TestStreamSendsCustomHeaders(t *testing.T) {
+	var got http.Header
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		got = r.Header.Clone()
+		w.WriteHeader(http.StatusOK)
+		_, _ = io.WriteString(w, "data: [DONE]\n\n")
+	}))
+	defer srv.Close()
+
+	c := openai.New("secret-key",
+		openai.WithBaseURL(srv.URL),
+		openai.WithHeaders(map[string]string{"x-portkey-provider": "deepseek", "x-portkey-api-key": "gw"}))
+	s, err := c.Stream(context.Background(), agent.Request{})
+	if err != nil {
+		t.Fatalf("Stream: %v", err)
+	}
+	_ = s.Close()
+
+	if got.Get("x-portkey-provider") != "deepseek" || got.Get("x-portkey-api-key") != "gw" {
+		t.Fatalf("custom headers missing: %v", got)
+	}
+	if got.Get("authorization") != "Bearer secret-key" {
+		t.Fatalf("authorization %q", got.Get("authorization"))
+	}
+}

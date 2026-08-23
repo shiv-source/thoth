@@ -16,7 +16,7 @@ export function SaveFooter({
     className?: string
 }) {
     return (
-        <div className={`flex items-center justify-between gap-3 ${className}`}>
+        <div className={`flex items-center justify-between gap-3 border-t border-line-soft pt-4 ${className}`}>
             <div className="min-w-0 pr-3">
                 {status === 'saved' && <Alert type="success" showIcon title="Saved ✓" />}
                 {(status === 'error' || hasError) && <Alert type="error" showIcon title="Could not save settings." />}

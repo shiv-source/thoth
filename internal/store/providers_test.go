@@ -169,6 +169,68 @@ func TestDeleteProviderCascadesModels(t *testing.T) {
 	}
 }
 
+func TestProviderHeadersRoundTrip(t *testing.T) {
+	s := openProviders(t)
+	p := mustProvider(t, s, "Anthropic")
+
+	// An empty provider has no headers.
+	got, err := s.Provider(p.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.Headers) != 0 {
+		t.Fatalf("expected no headers, got %+v", got.Headers)
+	}
+
+	// Set a couple, replace with a different set (remove-all semantics).
+	if err := s.SetProviderHeaders(p.ID, map[string]string{
+		"x-portkey-provider": "anthropic",
+		"x-portkey-api-key":  "gateway-secret",
+	}); err != nil {
+		t.Fatalf("SetProviderHeaders: %v", err)
+	}
+	got, err = s.ProviderByName("Anthropic")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Headers["x-portkey-provider"] != "anthropic" || got.Headers["x-portkey-api-key"] != "gateway-secret" {
+		t.Fatalf("headers mismatch: %+v", got.Headers)
+	}
+
+	// Replacing clears the old set and writes only the new one.
+	if err := s.SetProviderHeaders(p.ID, map[string]string{"x-portkey-virtual-key": "vk"}); err != nil {
+		t.Fatalf("SetProviderHeaders replace: %v", err)
+	}
+	got, err = s.Provider(p.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.Headers) != 1 || got.Headers["x-portkey-virtual-key"] != "vk" {
+		t.Fatalf("replace mismatch: %+v", got.Headers)
+	}
+
+	// ListProviders carries the headers too.
+	list, err := s.ListProviders()
+	if err != nil || len(list) != 1 {
+		t.Fatalf("ListProviders: %v %+v", err, list)
+	}
+	if list[0].Headers["x-portkey-virtual-key"] != "vk" {
+		t.Fatalf("list headers mismatch: %+v", list[0].Headers)
+	}
+
+	// Deleting the provider removes its header rows.
+	if err := s.DeleteProvider(p.ID); err != nil {
+		t.Fatal(err)
+	}
+	var n int
+	if err := s.db.QueryRow(`SELECT COUNT(*) FROM provider_headers WHERE provider_id = ?`, p.ID).Scan(&n); err != nil {
+		t.Fatal(err)
+	}
+	if n != 0 {
+		t.Fatalf("provider_headers left after delete: %d", n)
+	}
+}
+
 func mustProvider(t *testing.T, s *Store, name string) Provider {
 	t.Helper()
 	p, err := s.CreateProvider(name, "", "")
@@ -176,4 +238,38 @@ func mustProvider(t *testing.T, s *Store, name string) Provider {
 		t.Fatalf("CreateProvider(%q): %v", name, err)
 	}
 	return p
+}
+
+// TestProviderStoreClosedErrors exercises the store's error-return paths on a
+// closed database: every provider mutation and read surfaces the underlying
+// error instead of panicking, which also keeps the error branches covered.
+func TestProviderStoreClosedErrors(t *testing.T) {
+	s := openProviders(t)
+	if err := s.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.ListProviders(); err == nil {
+		t.Fatal("ListProviders on a closed store must error")
+	}
+	if _, err := s.Provider(1); err == nil {
+		t.Fatal("Provider on a closed store must error")
+	}
+	if _, err := s.ProviderByName("x"); err == nil {
+		t.Fatal("ProviderByName on a closed store must error")
+	}
+	if _, err := s.CreateProvider("x", "", ""); err == nil {
+		t.Fatal("CreateProvider on a closed store must error")
+	}
+	if err := s.UpdateProvider(1, "x", "", ""); err == nil {
+		t.Fatal("UpdateProvider on a closed store must error")
+	}
+	if _, err := s.EnsureProvider("x"); err == nil {
+		t.Fatal("EnsureProvider on a closed store must error")
+	}
+	if err := s.SetProviderHeaders(1, map[string]string{"x": "y"}); err == nil {
+		t.Fatal("SetProviderHeaders on a closed store must error")
+	}
+	if err := s.DeleteProvider(1); err == nil {
+		t.Fatal("DeleteProvider on a closed store must error")
+	}
 }

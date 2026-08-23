@@ -4,11 +4,13 @@ import type { ChartData, ChartOptions, TooltipItem } from 'chart.js'
 import '../../utils/chart'
 import { useThemeColors } from './useThemeColors'
 import { chartDays } from './chartDays'
+import { tooltipStyle, verticalGradient } from './chartTheme'
 
 // ActivityChart is a single-series mini bar chart (Chart.js via
 // react-chartjs-2): notes created per day for the last N days (oldest
-// first). One emerald hue, thin rounded bars, a built-in tooltip, a hidden
-// value axis — the canvas carries the series description for screen readers.
+// first). One blue hue with a vertical gradient, thin rounded bars, a built-in
+// light tooltip, a hidden value axis — the canvas carries the series
+// description for screen readers.
 export function ActivityChart({ counts }: { counts: number[] }) {
     const bars = useMemo(() => chartDays(counts.length), [counts.length])
 
@@ -18,11 +20,11 @@ export function ActivityChart({ counts }: { counts: number[] }) {
         datasets: [
             {
                 data: counts,
-                backgroundColor: colors.accent,
-                hoverBackgroundColor: colors.accentHover,
-                borderRadius: 4,
+                backgroundColor: (context) => verticalGradient(context, colors.accentHover, colors.accent),
+                hoverBackgroundColor: colors.accent,
+                borderRadius: 6,
                 borderSkipped: false,
-                maxBarThickness: 24
+                maxBarThickness: 26
             }
         ]
     }
@@ -41,7 +43,7 @@ export function ActivityChart({ counts }: { counts: number[] }) {
         plugins: {
             legend: { display: false },
             tooltip: {
-                displayColors: false,
+                ...tooltipStyle,
                 callbacks: {
                     title: () => '',
                     label: (item: TooltipItem<'bar'>) => {
@@ -55,7 +57,7 @@ export function ActivityChart({ counts }: { counts: number[] }) {
     }
 
     return (
-        <div className="h-24">
+        <div className="h-28">
             <Bar
                 data={data}
                 options={options}

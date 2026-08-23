@@ -74,7 +74,7 @@ export function SyncConnectionCard({
     const canRestore = provider.kind === 's3' || provider.kind === 'local'
 
     return (
-        <div className="rounded-md border border-line bg-raised p-4">
+        <div className="rounded-lg border border-line bg-surface p-4 shadow-card">
             <Flex align="center" gap={8}>
                 <span className="text-subtle">{icon}</span>
                 <div className="min-w-0 flex-1">
@@ -124,13 +124,16 @@ export function SyncConnectionCard({
                 <div className="mb-3 text-xs text-subtle">
                     <Flex gap={6} align="center" className="mb-1">
                         <HistoryOutlined aria-hidden="true" />
-                        <span>Recent runs</span>
+                        <span className="font-medium text-faint">Recent runs</span>
                     </Flex>
-                    <ul className="space-y-0.5 pl-4">
+                    <ul className="space-y-0.5 pl-1">
                         {connection.push_history.slice(0, 5).map((h, i) => (
-                            <li key={i}>
-                                {h.ok ? '✓' : '✗'} {h.at.slice(0, 16).replace('T', ' ')}
-                                {!h.ok && h.error ? ` — ${h.error}` : ''}
+                            <li key={i} className="flex items-baseline gap-1.5">
+                                <span aria-hidden="true" className={h.ok ? 'text-success' : 'text-error'}>
+                                    {h.ok ? '✓' : '✗'}
+                                </span>
+                                <span className="font-mono">{h.at.slice(0, 16).replace('T', ' ')}</span>
+                                {!h.ok && h.error ? <span className="truncate text-subtle">— {h.error}</span> : null}
                             </li>
                         ))}
                     </ul>

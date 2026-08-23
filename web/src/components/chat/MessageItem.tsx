@@ -25,8 +25,8 @@ export const MessageItem = memo(function MessageItem({
             <div
                 className={
                     isUser
-                        ? 'group relative max-w-[80%] rounded-xl rounded-br-sm bg-accent px-4 py-2.5 text-accent-ink'
-                        : 'group relative max-w-[85%] rounded-xl rounded-bl-sm border border-line bg-surface px-4 py-2.5'
+                        ? 'group relative max-w-[80%] rounded-2xl rounded-br-md bg-accent px-4 py-2.5 text-accent-ink'
+                        : 'group relative max-w-[85%] rounded-2xl rounded-bl-md border border-line bg-surface px-4 py-2.5 shadow-sm'
                 }
             >
                 {!isUser && !streaming && (
