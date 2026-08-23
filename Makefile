@@ -11,7 +11,7 @@ PREFIX      ?= /usr/local/bin
 MODULE      := github.com/shiv-source/thoth
 VERSION     ?= dev
 LDFLAGS     := -s -w -X $(MODULE)/internal/cli.version=$(VERSION)
-GO_BUILD    := go build -trimpath -ldflags "$(LDFLAGS)"
+GO_BUILD    := go build -trimpath -buildvcs=false -ldflags "$(LDFLAGS)"
 
 .DEFAULT_GOAL := help
 
