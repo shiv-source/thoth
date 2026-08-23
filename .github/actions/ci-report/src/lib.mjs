@@ -94,17 +94,20 @@ function shortSha(sha) {
   return sha.slice(0, 8)
 }
 
-// One-line coverage summary for the report: actual % and the area's floor
-// side by side, with a pass/fail marker against the floor. Returns null when
-// no coverage value was provided (area not touched → the line is omitted).
-export function coverageText(coverage, coverageFloor, { emoji = "📊", label = "Backend coverage" } = {}) {
-  const actual = String(coverage ?? "").trim().replace(/%$/, "")
-  if (!actual) return null
-  const floor = String(coverageFloor ?? "").trim().replace(/%$/, "")
-  const head = `${emoji} ${label}: **${actual}%**`
-  if (!floor) return head
-  const ok = Number(actual) >= Number(floor)
-  return `${head} — floor **${floor}%** ${ok ? "✅" : "❌"}`
+// Parse a coverage value: trim, tolerate a trailing %, → number (null when
+// empty/absent).
+function num(v) {
+  const s = String(v ?? "").trim().replace(/%$/, "")
+  return s === "" ? null : Number(s)
+}
+
+// One area's coverage: actual %, its floor, and whether it clears the floor.
+// Returns null when the area didn't run (no value provided).
+export function areaCoverage(coverage, coverageFloor) {
+  const pct = num(coverage)
+  if (pct === null) return null
+  const floor = num(coverageFloor)
+  return { pct, floor, ok: floor === null ? null : pct >= floor }
 }
 
 // Round a percentage for display: one decimal, no trailing ".0".
@@ -113,42 +116,41 @@ function fmtPct(n) {
   return Number.isInteger(v) ? String(v) : String(v.toFixed(1))
 }
 
+// Average coverage across backend + frontend: the simple mean of the two area
+// percentages (each already gated at its own floor), with the mean of the two
+// floors as its own. Returns null until both areas have run.
+export function averageCoverage(coverage, coverageFloor, webCoverage, webCoverageFloor) {
+  const b = areaCoverage(coverage, coverageFloor)
+  const w = areaCoverage(webCoverage, webCoverageFloor)
+  if (!b || !w) return null
+  const pct = (b.pct + w.pct) / 2
+  const floor = b.floor === null || w.floor === null ? null : (b.floor + w.floor) / 2
+  return { pct, floor, ok: floor === null ? null : pct >= floor }
+}
+
 // Overall coverage across backend + frontend, weighted by each side's total
 // statements: (covered_sum / total_sum). The overall floor is the same
 // weighted average of the two area floors, so it stays in sync with both
 // gates. Returns null until both areas have run — with only one area touched,
-// its own line is the whole story.
-export function overallCoverageText({ backendCovered, backendTotal, frontendCovered, frontendTotal, backendFloor, frontendFloor }) {
-  const bt = Number(backendTotal)
-  const ft = Number(frontendTotal)
-  const missing = (v) => v === undefined || v === null || v === ""
-  if (!bt || !ft || missing(backendCovered) || missing(frontendCovered)) return null
-  const pct = ((Number(backendCovered) + Number(frontendCovered)) / (bt + ft)) * 100
-  const floor = (Number(backendFloor) * bt + Number(frontendFloor) * ft) / (bt + ft)
-  const ok = pct >= floor
-  return `🧮 Overall coverage: **${fmtPct(pct)}%** — floor **${fmtPct(floor)}%** ${ok ? "✅" : "❌"}`
+// its own row is the whole story.
+export function overallCoverage({ backendCovered, backendTotal, frontendCovered, frontendTotal, backendFloor, frontendFloor }) {
+  const bt = num(backendTotal)
+  const ft = num(frontendTotal)
+  if (!bt || !ft) return null
+  const bc = num(backendCovered)
+  const fc = num(frontendCovered)
+  if (bc === null || fc === null) return null
+  const pct = ((bc + fc) / (bt + ft)) * 100
+  const bf = num(backendFloor)
+  const ff = num(frontendFloor)
+  const floor = bf === null || ff === null ? null : (bf * bt + ff * ft) / (bt + ft)
+  return { pct, floor, ok: floor === null ? null : pct >= floor }
 }
 
-// Average coverage across backend + frontend: the simple mean of the two area
-// percentages (each already gated at its own floor), with the mean of the two
-// floors as its own. Returns null until both areas have run.
-export function averageCoverageText(coverage, coverageFloor, webCoverage, webCoverageFloor) {
-  const b = String(coverage ?? "").trim().replace(/%$/, "")
-  const w = String(webCoverage ?? "").trim().replace(/%$/, "")
-  if (!b || !w) return null
-  const avg = (Number(b) + Number(w)) / 2
-  const bf = Number(String(coverageFloor ?? "").trim().replace(/%$/, ""))
-  const wf = Number(String(webCoverageFloor ?? "").trim().replace(/%$/, ""))
-  if (!bf || !wf) return `📈 Average coverage: **${fmtPct(avg)}%**`
-  const floor = (bf + wf) / 2
-  const ok = avg >= floor
-  return `📈 Average coverage: **${fmtPct(avg)}%** — floor **${fmtPct(floor)}%** ${ok ? "✅" : "❌"}`
-}
-
-// The coverage lines for a report: backend, frontend, average, then overall.
-// Each is omitted when its inputs are missing, so untouched areas simply
-// disappear (average and overall wait until both areas have run).
-function coverageLines({
+// The coverage table for the report — backend, frontend, average, overall —
+// or null when no area ran. Rows whose inputs are missing are omitted
+// (average and overall wait until both areas have run).
+export function coverageTable({
   coverage,
   coverageFloor,
   webCoverage,
@@ -158,19 +160,20 @@ function coverageLines({
   webCoverageCovered,
   webCoverageTotal,
 }) {
-  return [
-    coverageText(coverage, coverageFloor),
-    coverageText(webCoverage, webCoverageFloor, { emoji: "🖥️", label: "Frontend coverage" }),
-    averageCoverageText(coverage, coverageFloor, webCoverage, webCoverageFloor),
-    overallCoverageText({
-      backendCovered: coverageCovered,
-      backendTotal: coverageTotal,
-      backendFloor: coverageFloor,
-      frontendCovered: webCoverageCovered,
-      frontendTotal: webCoverageTotal,
-      frontendFloor: webCoverageFloor,
-    }),
-  ].filter(Boolean)
+  const rows = [
+    ["📊 Backend (Go)", areaCoverage(coverage, coverageFloor)],
+    ["🖥️ Frontend (React)", areaCoverage(webCoverage, webCoverageFloor)],
+    ["📈 Average", averageCoverage(coverage, coverageFloor, webCoverage, webCoverageFloor)],
+    ["🧮 Overall", overallCoverage({ backendCovered: coverageCovered, backendTotal: coverageTotal, backendFloor: coverageFloor, frontendCovered: webCoverageCovered, frontendTotal: webCoverageTotal, frontendFloor: webCoverageFloor })],
+  ].filter(([, value]) => value !== null)
+  if (rows.length === 0) return null
+  const lines = ["| Area | Coverage | Floor | Gate |", "| --- | --- | --- | --- |"]
+  for (const [area, { pct, floor, ok }] of rows) {
+    const floorCell = floor === null ? "—" : `**${fmtPct(floor)}%**`
+    const gateCell = ok === null ? "" : ok ? "✅" : "❌"
+    lines.push(`| ${area} | **${fmtPct(pct)}%** | ${floorCell} | ${gateCell} |`)
+  }
+  return lines.join("\n")
 }
 
 // The step summary: title line, run/commit links, coverage line when known,
@@ -183,8 +186,8 @@ export function renderStepSummary({ rows, failed, repository, runNumber, serverU
   const lines = [failed > 0 ? `## CI failed ❌ — ${failed} job(s) failed` : "## CI passed ✅"]
   lines.push("")
   lines.push(`Run: [${repository}#${runNumber}](${run}) · commit [\`${shortSha(sha)}\`](${commit})`)
-  const covLines = coverageLines({ coverage, coverageFloor, webCoverage, webCoverageFloor, coverageCovered, coverageTotal, webCoverageCovered, webCoverageTotal })
-  if (covLines.length > 0) lines.push("", ...covLines)
+  const table = coverageTable({ coverage, coverageFloor, webCoverage, webCoverageFloor, coverageCovered, coverageTotal, webCoverageCovered, webCoverageTotal })
+  if (table) lines.push("", table)
   lines.push("", "| Job | Result |", "|---|---|")
   for (const row of rows) lines.push(`| ${row.name} | ${row.text} |`)
   return lines.join("\n")
@@ -198,8 +201,8 @@ export function renderPrBody({ rows, failed, passed, total, repository, serverUr
   const commit = commitUrl({ serverUrl, repository }, sha)
   const workflow = `${serverUrl}/${repository}/actions/workflows/final-gate.yml`
   const lines = [MARKER, "", title, "", `**${passed}/${total} jobs passed** · [Run #${runNumber}](${run}) · commit [\`${shortSha(sha)}\`](${commit})`]
-  const covLines = coverageLines({ coverage, coverageFloor, webCoverage, webCoverageFloor, coverageCovered, coverageTotal, webCoverageCovered, webCoverageTotal })
-  if (covLines.length > 0) lines.push("", ...covLines)
+  const table = coverageTable({ coverage, coverageFloor, webCoverage, webCoverageFloor, coverageCovered, coverageTotal, webCoverageCovered, webCoverageTotal })
+  if (table) lines.push("", table)
   lines.push(
     "",
     "<details>",

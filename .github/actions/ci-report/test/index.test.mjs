@@ -97,10 +97,10 @@ test("coverage values flow into the step summary and the PR comment", async () =
   const stub = stubFetch({ conclusions: ["success", "skipped", "success"], comments: [] })
   try {
     await main()
-    assert.ok(env.summary().includes("📊 Backend coverage: **91.2%** — floor **90%** ✅"))
+    assert.ok(env.summary().includes("| 📊 Backend (Go) | **91.2%** | **90%** | ✅ |"))
     const post = stub.calls.find((call) => call.init?.method === "POST")
     assert.ok(post, "a POST comment call must happen on a PR run")
-    assert.ok(JSON.parse(post.init.body).body.includes("📊 Backend coverage: **91.2%** — floor **90%** ✅"))
+    assert.ok(JSON.parse(post.init.body).body.includes("| 📊 Backend (Go) | **91.2%** | **90%** | ✅ |"))
   } finally {
     env.cleanup()
     stub.restore()
@@ -112,18 +112,18 @@ test("backend and frontend coverage both appear when provided", async () => {
   const stub = stubFetch({ conclusions: ["success", "skipped", "success"], comments: [] })
   try {
     await main()
-    assert.ok(env.summary().includes("📊 Backend coverage: **91.2%** — floor **90%** ✅"))
-    assert.ok(env.summary().includes("🖥️ Frontend coverage: **93.2%** — floor **90%** ✅"))
-    assert.ok(env.summary().includes("📈 Average coverage: **92.2%** — floor **90%** ✅"))
+    assert.ok(env.summary().includes("| 📊 Backend (Go) | **91.2%** | **90%** | ✅ |"))
+    assert.ok(env.summary().includes("| 🖥️ Frontend (React) | **93.2%** | **90%** | ✅ |"))
+    assert.ok(env.summary().includes("| 📈 Average | **92.2%** | **90%** | ✅ |"))
     const post = stub.calls.find((call) => call.init?.method === "POST")
-    assert.ok(JSON.parse(post.init.body).body.includes("🖥️ Frontend coverage: **93.2%** — floor **90%** ✅"))
+    assert.ok(JSON.parse(post.init.body).body.includes("| 🖥️ Frontend (React) | **93.2%** | **90%** | ✅ |"))
   } finally {
     env.cleanup()
     stub.restore()
   }
 })
 
-test("overall coverage line appears when both areas carry statement counts", async () => {
+test("overall coverage row appears when both areas carry statement counts", async () => {
   const env = withEnv(
     { pull_request: { number: 7 } },
     {
@@ -134,9 +134,9 @@ test("overall coverage line appears when both areas carry statement counts", asy
   const stub = stubFetch({ conclusions: ["success", "skipped", "success"], comments: [] })
   try {
     await main()
-    assert.ok(env.summary().includes("🧮 Overall coverage: **92.3%** — floor **90%** ✅"))
+    assert.ok(env.summary().includes("| 🧮 Overall | **92.3%** | **90%** | ✅ |"))
     const post = stub.calls.find((call) => call.init?.method === "POST")
-    assert.ok(JSON.parse(post.init.body).body.includes("🧮 Overall coverage: **92.3%** — floor **90%** ✅"))
+    assert.ok(JSON.parse(post.init.body).body.includes("| 🧮 Overall | **92.3%** | **90%** | ✅ |"))
   } finally {
     env.cleanup()
     stub.restore()
