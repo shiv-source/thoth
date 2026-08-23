@@ -22,6 +22,10 @@ set -euo pipefail
 # shellcheck source=./lib-worktree.sh
 source "$(dirname "$0")/lib-worktree.sh"
 
+# codegraph_init lives in the shared lib (pr.sh uses it too).
+# shellcheck source=./lib-codegraph.sh
+source "$(dirname "$0")/lib-codegraph.sh"
+
 # Conventional-commit prefixes — mirrors git-workflow skill workflow 1.
 VALID_TYPES="feat fix perf ci docs refactor test chore"
 
@@ -69,23 +73,11 @@ copy_config() {
   echo "git-worktree: copied opencode.json into $dir"
 }
 
-# codegraph_index runs `codegraph init` in the fresh worktree so the CodeGraph
-# MCP is active there — indexing is per-worktree (the container root and main
-# worktree are not indexed by default). Best-effort: a missing or failing
-# codegraph must never block creating the worktree.
-codegraph_index() {
-  local dir="$1"
-  if ! command -v codegraph >/dev/null 2>&1; then
-    echo "git-worktree: codegraph not on PATH — new worktree not indexed (run 'codegraph init' in $dir later)"
-    return 0
-  fi
-  echo "git-worktree: indexing $dir with codegraph init — this builds $dir/.codegraph/"
-  if codegraph init "$dir"; then
-    echo "git-worktree: indexed $dir — CodeGraph is active in this worktree"
-  else
-    echo "git-worktree: 'codegraph init' failed for $dir — worktree created but not indexed" >&2
-  fi
-}
+# codegraph_init (lib-codegraph.sh) runs `codegraph init` in the fresh
+# worktree so the CodeGraph MCP is active there — indexing is per-worktree
+# (the container root and main worktree are not indexed by default).
+# Best-effort: a missing or failing codegraph must never block creating the
+# worktree.
 
 cmd_new() {
   local branch="$1" base="origin/main"
@@ -103,7 +95,7 @@ cmd_new() {
   git -C "$root" worktree add -b "$branch" "$dir" "$base"
   echo "git-worktree: created $root/$dir (branch $branch, base $base)"
   copy_config "$root" "$root/$dir"
-  codegraph_index "$root/$dir"
+  codegraph_init "$root/$dir"
 }
 
 cmd_rm() {
