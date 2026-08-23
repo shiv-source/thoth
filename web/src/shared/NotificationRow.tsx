@@ -1,4 +1,4 @@
-import { Badge, Button, List, Typography } from 'antd'
+import { Badge, Button, Typography } from 'antd'
 import { DeleteOutlined } from '@ant-design/icons'
 import type { NotificationKind } from '../store/slices/notificationsSlice'
 import { NotificationIcon } from './notifications'
@@ -19,31 +19,23 @@ export function NotificationRow({
     onDismiss: () => void
 }) {
     return (
-        <List.Item
-            actions={[
-                <Button
-                    key="dismiss"
-                    type="text"
-                    size="small"
-                    aria-label={`Dismiss: ${title}`}
-                    icon={<DeleteOutlined aria-hidden="true" />}
-                    onClick={onDismiss}
-                />
-            ]}
-        >
-            <List.Item.Meta
-                avatar={
-                    <Badge dot={!read} offset={[-2, 4]}>
-                        <NotificationIcon kind={kind} />
-                    </Badge>
-                }
-                title={
-                    <Typography.Text strong={!read} type={read ? 'secondary' : undefined}>
-                        {title}
-                    </Typography.Text>
-                }
-                description={body}
+        <div className="flex items-start px-3 py-2">
+            <Badge dot={!read} offset={[-2, 4]} className="mr-2 shrink-0">
+                <NotificationIcon kind={kind} />
+            </Badge>
+            <div className="min-w-0 flex-1">
+                <Typography.Text strong={!read} type={read ? 'secondary' : undefined} className="block truncate">
+                    {title}
+                </Typography.Text>
+                {body && <div className="truncate text-xs text-subtle">{body}</div>}
+            </div>
+            <Button
+                type="text"
+                size="small"
+                aria-label={`Dismiss: ${title}`}
+                icon={<DeleteOutlined aria-hidden="true" />}
+                onClick={onDismiss}
             />
-        </List.Item>
+        </div>
     )
 }

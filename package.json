@@ -6,6 +6,7 @@
     "dev": "pnpm --filter thoth-web dev",
     "build": "pnpm --filter thoth-web build",
     "test": "pnpm --filter thoth-web test",
+    "test:coverage": "pnpm --filter thoth-web test:coverage",
     "typecheck": "pnpm --filter thoth-web typecheck",
     "lint": "pnpm --filter thoth-web lint",
     "format": "prettier --write .",

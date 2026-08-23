@@ -24,7 +24,7 @@ export function NoteBody({
         return (
             <>
                 {loading && <Skeleton active paragraph={{ rows: 6 }} />}
-                {error && <Alert type="error" showIcon message={error} />}
+                {error && <Alert type="error" showIcon title={error} />}
                 {content && <Markdown>{content}</Markdown>}
             </>
         )

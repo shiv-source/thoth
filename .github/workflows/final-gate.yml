@@ -6,8 +6,49 @@ on:
         description: caller job id — excluded from the report alongside this job
         type: string
         required: true
+      coverage:
+        description: >-
+          Total Go backend test coverage % (from quality.yml's backend-test).
+          Empty when the backend wasn't touched — the report omits the line.
+        type: string
+        required: false
+      coverage-floor:
+        description: >-
+          The repo's coverage floor % (Makefile COVERAGE_FLOOR), paired with
+          `coverage` for the report's threshold line.
+        type: string
+        required: false
+      web-coverage:
+        description: >-
+          Total frontend (vitest) statement coverage % (from quality.yml's
+          frontend-test). Empty when the frontend wasn't touched.
+        type: string
+        required: false
+      web-coverage-floor:
+        description: >-
+          The frontend coverage floor % (web/vite.config.ts thresholds),
+          paired with `web-coverage`.
+        type: string
+        required: false
+      coverage-covered:
+        description: Covered backend statements (coverage.out), for the overall line.
+        type: string
+        required: false
+      coverage-total:
+        description: Total backend statements (coverage.out), for the overall line.
+        type: string
+        required: false
+      web-coverage-covered:
+        description: Covered frontend statements (vitest summary), for the overall line.
+        type: string
+        required: false
+      web-coverage-total:
+        description: Total frontend statements (vitest summary), for the overall line.
+        type: string
+        required: false
 
 permissions:
+  contents: read
   actions: read
   pull-requests: write
 
@@ -16,61 +57,22 @@ jobs:
   # other jobs' outcomes so its step summary always renders the per-job
   # report — then fails unless every other job succeeded or was skipped
   # (skipped = gated off for areas the PR didn't touch, not a failure).
+  # All of the logic lives in the ci-report composite action.
   report:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      - uses: actions/checkout@v7
       - name: summary + gate
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          jobs=$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs" \
-            --jq '[.jobs[] | select((.name | split(" / ") | last) != "${{ github.job }}" and (.name | split(" / ") | last) != "${{ inputs.wrapper }}") | {name: (.name | split(" / ") | last), conclusion: .conclusion}]' \
-            | jq 'sort_by(.conclusion == "success")')
-          failed=$(echo "$jobs" | jq '[.[] | select(.conclusion != "success" and .conclusion != "skipped")] | length')
-          if [ "$failed" -gt 0 ]; then
-            echo "## CI failed ❌ — $failed job(s) failed" >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo "## CI passed ✅" >> "$GITHUB_STEP_SUMMARY"
-          fi
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "Run: [${{ github.repository }}#${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) · commit [\`${GITHUB_SHA:0:8}\`](${{ github.server_url }}/${{ github.repository }}/commit/$GITHUB_SHA)" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Job | Result |" >> "$GITHUB_STEP_SUMMARY"
-          echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
-          rows=$(echo "$jobs" | jq -r '.[] | . as $j | "| \($j.name) | \((if $j.conclusion == "success" then "✅ success" elif $j.conclusion == "failure" then "❌ failure" elif $j.conclusion == "cancelled" then "🚫 cancelled" elif $j.conclusion == "skipped" then "⏭️ skipped" else "⏳ \($j.conclusion // "in progress")" end)) |"')
-          echo "$rows" >> "$GITHUB_STEP_SUMMARY"
-
-          # On PR-triggered runs, mirror a prettier report onto the PR:
-          # status header, pass tally, collapsible job table — creating or
-          # updating the bot's marker-tagged comment instead of stacking a
-          # new comment per run.
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            marker='<!-- thoth-ci-report -->'
-            pr="${{ github.event.pull_request.number }}"
-            passed=$(echo "$jobs" | jq '[.[] | select(.conclusion == "success" or .conclusion == "skipped")] | length')
-            total=$(echo "$jobs" | jq 'length')
-            if [ "$failed" -gt 0 ]; then
-              title="### CI Report ❌"
-            else
-              title="### CI Report ✅"
-            fi
-            printf '%s\n' \
-              "$marker" '' "$title" '' \
-              "**$passed/$total jobs passed** · [Run #${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) · commit [\`${GITHUB_SHA:0:8}\`](${{ github.server_url }}/${{ github.repository }}/commit/$GITHUB_SHA)" \
-              '' '<details>' '<summary>Job results</summary>' '' \
-              '| Job | Result |' '|---|---|' "$rows" \
-              '</details>' '' '---' \
-              '🤖 Updated automatically on every run by [final-gate](${{ github.server_url }}/${{ github.repository }}/actions/workflows/final-gate.yml)' \
-              '⛔ This check must pass before merging' \
-              > "$RUNNER_TEMP/pr-comment.md"
-            pr_body=$(cat "$RUNNER_TEMP/pr-comment.md")
-            existing=$(gh api "repos/${{ github.repository }}/issues/$pr/comments" \
-              --jq '.[] | select(.body | contains("<!-- thoth-ci-report -->")) | .id' | head -1)
-            if [ -n "$existing" ]; then
-              gh api --method PATCH "repos/${{ github.repository }}/issues/comments/$existing" -f body="$pr_body" > /dev/null
-            else
-              gh api "repos/${{ github.repository }}/issues/$pr/comments" -f body="$pr_body" > /dev/null
-            fi
-          fi
-          test "$failed" -eq 0
+        id: report
+        uses: ./.github/actions/ci-report
+        with:
+          wrapper: ${{ inputs.wrapper }}
+          coverage: ${{ inputs.coverage }}
+          coverage-floor: ${{ inputs.coverage-floor }}
+          coverage-covered: ${{ inputs.coverage-covered }}
+          coverage-total: ${{ inputs.coverage-total }}
+          web-coverage: ${{ inputs.web-coverage }}
+          web-coverage-floor: ${{ inputs.web-coverage-floor }}
+          web-coverage-covered: ${{ inputs.web-coverage-covered }}
+          web-coverage-total: ${{ inputs.web-coverage-total }}

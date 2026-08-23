@@ -77,7 +77,7 @@ describe('useSearch', () => {
         vi.useRealTimers()
     })
 
-    it('aborts the superseded request', () => {
+    it('aborts the superseded request', async () => {
         vi.useFakeTimers()
         mocks.get
             .mockImplementationOnce(() => new Promise(() => {}))
@@ -94,6 +94,15 @@ describe('useSearch', () => {
         // The cleanup of the first effect must abort the in-flight request.
         const [, config] = mocks.get.mock.calls[0] as [string, { signal: AbortSignal } | undefined]
         expect(config?.signal.aborted).toBe(true)
+
+        // Let the second query's debounce fire and its response land inside
+        // act, so nothing is left pending when the test ends.
+        act(() => {
+            vi.advanceTimersByTime(300)
+        })
+        await act(async () => {
+            await Promise.resolve()
+        })
         vi.useRealTimers()
     })
 

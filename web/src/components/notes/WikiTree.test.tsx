@@ -131,7 +131,12 @@ describe('WikiTree', () => {
         await screen.findByText('meetings')
         expect(mocks.get).toHaveBeenCalledTimes(1)
 
-        window.dispatchEvent(new Event('focus'))
+        // The focus handler refetches; keep the event and the response's
+        // store update inside act so neither lands after the test body.
+        await act(async () => {
+            window.dispatchEvent(new Event('focus'))
+            await Promise.resolve()
+        })
         await waitFor(() => expect(mocks.get).toHaveBeenCalledTimes(2))
     })
 })

@@ -98,3 +98,11 @@ jobs:
     uses: ./.github/workflows/final-gate.yml
     with:
       wrapper: final-gate
+      coverage: ${{ needs.quality.outputs.coverage }}
+      coverage-floor: ${{ needs.quality.outputs.coverage_floor }}
+      coverage-covered: ${{ needs.quality.outputs.coverage_covered }}
+      coverage-total: ${{ needs.quality.outputs.coverage_total }}
+      web-coverage: ${{ needs.quality.outputs.web_coverage }}
+      web-coverage-floor: ${{ needs.quality.outputs.web_coverage_floor }}
+      web-coverage-covered: ${{ needs.quality.outputs.web_coverage_covered }}
+      web-coverage-total: ${{ needs.quality.outputs.web_coverage_total }}

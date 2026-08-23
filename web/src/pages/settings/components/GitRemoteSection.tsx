@@ -60,7 +60,7 @@ export function GitRemoteSection({
                 <Alert
                     type="error"
                     showIcon
-                    message="Syncing to a public repository is blocked for your security — use a private repository."
+                    title="Syncing to a public repository is blocked for your security — use a private repository."
                 />
             )}
         </>

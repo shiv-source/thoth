@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react'
+import { act, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { fetchHealth } from '../../store'
@@ -35,7 +35,7 @@ describe('AppSider navigation', () => {
         window.history.pushState(null, '', '/')
     })
 
-    it('renders every menu item and selects the active view', () => {
+    it('renders every menu item and selects the active view', async () => {
         window.history.pushState(null, '', '/notes')
         renderWithStore(<AppSider />)
         expect(screen.getByRole('menuitem', { name: 'Chat' })).toBeInTheDocument()
@@ -45,6 +45,11 @@ describe('AppSider navigation', () => {
         expect(screen.getByRole('menuitem', { name: 'Dashboard' })).not.toHaveClass('ant-menu-item-selected')
         expect(screen.getByRole('menuitem', { name: 'Search' })).toBeInTheDocument()
         expect(screen.getByRole('menuitem', { name: 'Settings' })).toBeInTheDocument()
+        // The antd Menu schedules internal sync work on mount; flush it
+        // inside act so it can't land after the test body.
+        await act(async () => {
+            await Promise.resolve()
+        })
     })
 
     it('navigates views through the path on click', async () => {
