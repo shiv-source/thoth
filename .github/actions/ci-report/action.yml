@@ -1,0 +1,45 @@
+name: ci-report
+description: >-
+  Render the per-job CI report for the current run (step summary + the
+  thoth-ci-report PR comment) and gate the run: it fails unless every other
+  job succeeded or was skipped (skipped = gated off for areas the PR didn't
+  touch, not a failure). The job this action runs in, and the caller's
+  wrapper job, are excluded from the report — see final-gate.yml.
+
+inputs:
+  token:
+    description: >-
+      Token with actions: read (jobs API) and, on pull_request runs,
+      pull-requests: write (PR comment). Defaults to the workflow token.
+    required: false
+    default: ${{ github.token }}
+  wrapper:
+    description: >-
+      Caller job id — excluded from the report alongside the job this action
+      runs in, so a caller's own final-gate job never counts against itself.
+    required: true
+
+outputs:
+  result:
+    description: passed when every other job succeeded or was skipped, else failed.
+    value: ${{ steps.report.outputs.result }}
+  failed:
+    description: Number of other jobs that did not succeed or skip.
+    value: ${{ steps.report.outputs.failed }}
+  passed:
+    description: Number of other jobs that succeeded or were skipped.
+    value: ${{ steps.report.outputs.passed }}
+  total:
+    description: Number of other jobs counted in the report.
+    value: ${{ steps.report.outputs.total }}
+
+runs:
+  using: composite
+  steps:
+    - name: Fetch jobs, render report, gate
+      id: report
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        INPUT_WRAPPER: ${{ inputs.wrapper }}
+      run: node "${{ github.action_path }}/src/index.mjs"

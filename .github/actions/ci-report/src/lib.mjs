@@ -1,0 +1,189 @@
+import { readFileSync } from "node:fs"
+
+// Marker that tags the bot's PR report comment so each run updates it in
+// place instead of stacking a new comment. Keep in sync with git-workflow
+// skill "Maintenance" (§ the report marker).
+export const MARKER = "<!-- thoth-ci-report -->"
+
+const API_HEADERS = (token) => ({
+  authorization: `Bearer ${token}`,
+  accept: "application/vnd.github+json",
+  "x-github-api-version": "2022-11-28",
+})
+
+// The runner env mirrors the ${{ github.* }} context the workflow YAML would
+// interpolate; read it through one function so tests can inject any part.
+export function githubContext(env = process.env) {
+  return {
+    repository: env.GITHUB_REPOSITORY ?? "",
+    apiUrl: env.GITHUB_API_URL ?? "https://api.github.com",
+    serverUrl: env.GITHUB_SERVER_URL ?? "https://github.com",
+    runId: env.GITHUB_RUN_ID ?? "",
+    runNumber: env.GITHUB_RUN_NUMBER ?? "",
+    sha: env.GITHUB_SHA ?? "",
+    job: env.GITHUB_JOB ?? "",
+    eventName: env.GITHUB_EVENT_NAME ?? "",
+    eventPath: env.GITHUB_EVENT_PATH,
+  }
+}
+
+// A matrix job's API name is "parent / matrix values…" — the workflow's
+// report keys jobs by the last segment (the part after the last " / ").
+export function displayName(name) {
+  return (name ?? "").split(" / ").at(-1)
+}
+
+const CONCLUSION_EMOJI = {
+  success: "✅",
+  failure: "❌",
+  cancelled: "🚫",
+  skipped: "⏭️",
+}
+
+function conclusionText(conclusion) {
+  const emoji = CONCLUSION_EMOJI[conclusion]
+  return emoji ? `${emoji} ${conclusion}` : `⏳ ${conclusion ?? "in progress"}`
+}
+
+// Fetch every job in the run, pages included. Caller supplies the GitHub
+// context fields (owner/repo via repository, apiUrl) plus a token.
+export async function fetchRunJobs({ repository, apiUrl, runId, token }) {
+  const base = `${apiUrl}/repos/${repository}/actions/runs/${runId}/jobs`
+  const jobs = []
+  for (let page = 1; ; page++) {
+    const response = await fetch(`${base}?per_page=100&page=${page}`, { headers: API_HEADERS(token) })
+    if (!response.ok) {
+      throw new Error(`fetch jobs [${response.status}]: ${await response.text()}`)
+    }
+    const data = await response.json()
+    jobs.push(...(data.jobs ?? []))
+    if (data.total_count == null || jobs.length >= data.total_count) break
+  }
+  return jobs
+}
+
+// Summarize the run's jobs into report rows, mirroring the workflow's rules:
+//   - jobs whose display name matches the job running this action (self) or
+//     the caller's wrapper job are excluded entirely;
+//   - remaining jobs sort with non-successes first (so failures/cancellations
+//     surface before the success tail);
+//   - failed  = any conclusion that is neither success nor skipped;
+//   - passed  = success or skipped (skipped gates count as passing);
+//   - result  = passed unless something failed (includes in-progress runs,
+//     whose jobs have a null conclusion).
+export function reportJobs(jobs, { self, wrapper }) {
+  const excluded = new Set([self, wrapper].filter(Boolean))
+  const rows = jobs
+    .filter((job) => !excluded.has(displayName(job.name)))
+    .sort((a, b) => Number(a.conclusion === "success") - Number(b.conclusion === "success"))
+    .map((job) => ({ name: displayName(job.name), conclusion: job.conclusion, text: conclusionText(job.conclusion) }))
+  const failed = rows.filter((row) => row.conclusion !== "success" && row.conclusion !== "skipped").length
+  const passed = rows.filter((row) => row.conclusion === "success" || row.conclusion === "skipped").length
+  return { rows, failed, passed, total: rows.length, result: failed > 0 ? "failed" : "passed" }
+}
+
+export function runUrl({ serverUrl, repository }, runId) {
+  return `${serverUrl}/${repository}/actions/runs/${runId}`
+}
+
+export function commitUrl({ serverUrl, repository }, sha) {
+  return `${serverUrl}/${repository}/commit/${sha}`
+}
+
+function shortSha(sha) {
+  return sha.slice(0, 8)
+}
+
+// The step summary: title line, run/commit links, then the job table. This is
+// what the human opens the "summary + gate" step for — rendered even when the
+// gate fails, which is why the exit code is decided only after writing it.
+export function renderStepSummary({ rows, failed, repository, runNumber, serverUrl, runId, sha }) {
+  const run = runUrl({ serverUrl, repository }, runId)
+  const commit = commitUrl({ serverUrl, repository }, sha)
+  const lines = [failed > 0 ? `## CI failed ❌ — ${failed} job(s) failed` : "## CI passed ✅"]
+  lines.push("")
+  lines.push(`Run: [${repository}#${runNumber}](${run}) · commit [\`${shortSha(sha)}\`](${commit})`)
+  lines.push("")
+  lines.push("| Job | Result |")
+  lines.push("|---|---|")
+  for (const row of rows) lines.push(`| ${row.name} | ${row.text} |`)
+  return lines.join("\n")
+}
+
+// The prettier report posted (and updated in place) as a PR comment. Same
+// data as the step summary, wrapped for a comment and tagged with the marker.
+export function renderPrBody({ rows, failed, passed, total, repository, serverUrl, runNumber, runId, sha }) {
+  const title = failed > 0 ? "### CI Report ❌" : "### CI Report ✅"
+  const run = runUrl({ serverUrl, repository }, runId)
+  const commit = commitUrl({ serverUrl, repository }, sha)
+  const workflow = `${serverUrl}/${repository}/actions/workflows/final-gate.yml`
+  return [
+    MARKER,
+    "",
+    title,
+    "",
+    `**${passed}/${total} jobs passed** · [Run #${runNumber}](${run}) · commit [\`${shortSha(sha)}\`](${commit})`,
+    "",
+    "<details>",
+    "<summary>Job results</summary>",
+    "",
+    "| Job | Result |",
+    "|---|---|",
+    ...rows.map((row) => `| ${row.name} | ${row.text} |`),
+    "</details>",
+    "",
+    "---",
+    `🤖 Updated automatically on every run by [final-gate](${workflow})`,
+    "⛔ This check must pass before merging",
+  ].join("\n")
+}
+
+// Find the existing marker-tagged comment on a PR (any page), so a re-run
+// patches it instead of posting a fresh one.
+export async function findMarkerComment({ repository, apiUrl, pr, token }) {
+  const base = `${apiUrl}/repos/${repository}/issues/${pr}/comments`
+  for (let page = 1; ; page++) {
+    const response = await fetch(`${base}?per_page=100&page=${page}`, { headers: API_HEADERS(token) })
+    if (!response.ok) {
+      throw new Error(`fetch comments [${response.status}]: ${await response.text()}`)
+    }
+    const comments = await response.json()
+    if (!Array.isArray(comments)) break
+    const match = comments.find((comment) => (comment.body ?? "").includes(MARKER))
+    if (match) return match
+    if (comments.length < 100) break
+  }
+  return null
+}
+
+// Create the report comment or update the existing marker-tagged one. Returns
+// "created" or "updated" for logging.
+export async function upsertReportComment({ repository, apiUrl, pr, token, body }) {
+  const existing = await findMarkerComment({ repository, apiUrl, pr, token })
+  const url = existing
+    ? `${apiUrl}/repos/${repository}/issues/comments/${existing.id}`
+    : `${apiUrl}/repos/${repository}/issues/${pr}/comments`
+  const response = await fetch(url, {
+    method: existing ? "PATCH" : "POST",
+    headers: { ...API_HEADERS(token), "content-type": "application/json" },
+    body: JSON.stringify({ body }),
+  })
+  if (!response.ok) {
+    throw new Error(`update PR comment [${response.status}]: ${await response.text()}`)
+  }
+  return existing ? "updated" : "created"
+}
+
+// The PR number from the triggering event, when the run is pull_request
+// triggered (final-gate is workflow_call, so the event payload is the
+// caller's event). Returns null for non-PR runs and when the payload has no
+// pull_request — the PR comment is a nicety, never a gate.
+export function eventPullRequestNumber(eventPath) {
+  if (!eventPath) return null
+  try {
+    const event = JSON.parse(readFileSync(eventPath, "utf8"))
+    return event.pull_request?.number ?? null
+  } catch {
+    return null
+  }
+}

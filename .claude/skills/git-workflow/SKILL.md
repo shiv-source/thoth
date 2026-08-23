@@ -20,6 +20,7 @@ description: >-
 - .github/pull_request_template.md — the PR body shape (Summary / Related issue / Files changed / How verified / Notes)
 - .github/workflows/ — ci-pr.yml (PR gates on PRs targeting `main`; quality.yml is path-aware — its internal `changes` job diffs the PR and skips the quality gates for areas the PR didn't touch — docs-only PRs skip them all) · quality.yml (the quality gates, each gated on its own `changes` job's area outputs) · final-gate.yml (single required check + PR report comment; skipped gates count as passing) · ci.yml (push to main adds 5 cross-compiles + frontend build) · pr-assignee.yml (auto-assigns PR committers; runs on every PR, never gated) · issue-labels.yml (applies the form-selected labels to new/edited issues)
 - .github/actions/issue-labels/ — reusable composite action: applies the three-tier labels (type, priority, areas) from issue-form answers; JS, add-only
+- .github/actions/ci-report/ — reusable composite action: renders the final-gate per-job report (step summary + marker-tagged PR comment) and gates the run; JS (final-gate.yml is just the caller)
 - .husky/pre-commit — the commit gate: lint-staged autofixes, plus Go vet/lint/test when Go is staged
 - docs/development.md — § Gates (what make check enforces), § CI (workflow mechanics)
 - docs/specs/ — untracked design docs for large or cross-package changes (convention, may be empty)

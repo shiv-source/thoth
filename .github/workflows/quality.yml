@@ -20,6 +20,7 @@ jobs:
       backend: ${{ steps.diff.outputs.backend }}
       frontend: ${{ steps.diff.outputs.frontend }}
       issue_labels: ${{ steps.diff.outputs.issue_labels }}
+      ci_report: ${{ steps.diff.outputs.ci_report }}
       docs: ${{ steps.diff.outputs.docs }}
     steps:
       - uses: actions/checkout@v7
@@ -33,14 +34,15 @@ jobs:
           head="${{ github.event.pull_request.head.sha }}"
 
           # Push and manual runs are not PRs: run every gate.
-          backend=true; frontend=true; issue_labels=true; docs=true
+          backend=true; frontend=true; issue_labels=true; ci_report=true; docs=true
           if [ -n "$base" ] && [ -n "$head" ]; then
             files="$(git diff --name-only "$base...$head")"
-            backend=false; frontend=false; issue_labels=false; docs=false
+            backend=false; frontend=false; issue_labels=false; ci_report=false; docs=false
             if [ -n "$files" ]; then
               # Tooling/config that a gate depends on counts as that area.
               if printf '%s\n' "$files" | grep -Eq '^\.github/(workflows|actions)/' \
-                && ! printf '%s\n' "$files" | grep -Eq '^\.github/actions/issue-labels/'; then
+                && ! printf '%s\n' "$files" | grep -Eq '^\.github/actions/issue-labels/' \
+                && ! printf '%s\n' "$files" | grep -Eq '^\.github/actions/ci-report/'; then
                 backend=true; frontend=true
               fi
               if printf '%s\n' "$files" | grep -Eq '^\.husky/|^scripts/|^Makefile$'; then
@@ -58,13 +60,17 @@ jobs:
               if printf '%s\n' "$files" | grep -Eq '^\.github/actions/issue-labels/'; then
                 issue_labels=true
               fi
+              if printf '%s\n' "$files" | grep -Eq '^\.github/actions/ci-report/'; then
+                ci_report=true
+              fi
             fi
           fi
-          echo "backend=$backend frontend=$frontend issue_labels=$issue_labels docs=$docs"
+          echo "backend=$backend frontend=$frontend issue_labels=$issue_labels ci_report=$ci_report docs=$docs"
           {
             echo "backend=$backend"
             echo "frontend=$frontend"
             echo "issue_labels=$issue_labels"
+            echo "ci_report=$ci_report"
             echo "docs=$docs"
           } >> "$GITHUB_OUTPUT"
 

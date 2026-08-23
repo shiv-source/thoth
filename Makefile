@@ -160,10 +160,11 @@ web-test: ## frontend unit tests
 web-test:
 	pnpm test
 
-tools-test: ## .github/actions/issue-labels JS suite + scripts/ smoke tests
+tools-test: ## .github/actions JS suites + scripts/ smoke tests
 .PHONY: tools-test
 tools-test:
 	node --test .github/actions/issue-labels/test/*.test.mjs
+	node --test .github/actions/ci-report/test/*.test.mjs
 	./scripts/git-worktree_test.sh
 	./scripts/pr_test.sh
 
