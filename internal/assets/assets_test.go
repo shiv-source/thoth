@@ -57,3 +57,31 @@ func TestModelOptionsSplitShape(t *testing.T) {
 		t.Fatalf("provider = %q, want %q", opus.Provider, "Anthropic")
 	}
 }
+
+func TestSyncProviderOptionsParse(t *testing.T) {
+	opts, err := SyncProviderOptions()
+	if err != nil {
+		t.Fatalf("SyncProviderOptions: %v", err)
+	}
+	if len(opts) != 4 {
+		t.Fatalf("expected 4 built-in sync providers, got %+v", opts)
+	}
+	seen := map[string]bool{}
+	protected := 0
+	for _, o := range opts {
+		if o.Slug == "" || o.Name == "" || o.Driver == "" {
+			t.Fatalf("option %+v is incomplete", o)
+		}
+		if seen[o.Slug] {
+			t.Fatalf("duplicate sync provider slug %q", o.Slug)
+		}
+		seen[o.Slug] = true
+		if o.Protected {
+			protected++
+		}
+	}
+	// Exactly one first-class provider: the local backup.
+	if protected != 1 || !opts[3].Protected || opts[3].Slug != "local" {
+		t.Fatalf("protected flag wrong: %+v", opts)
+	}
+}

@@ -19,8 +19,8 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/labstack/echo/v4"
 	agentlib "github.com/shiv-source/thoth/agent"
-	"github.com/shiv-source/thoth/internal/github"
 	"github.com/shiv-source/thoth/internal/settings"
+	syncsvc "github.com/shiv-source/thoth/internal/sync"
 	"github.com/shiv-source/thoth/internal/wiki"
 )
 
@@ -154,18 +154,32 @@ func TestModelsDeleteClearsSelectedSettingError(t *testing.T) {
 
 // ---- git ----
 
-func TestGitSetupInitFailure(t *testing.T) {
-	d := testDeps(t)
-	if err := d.Store.EnsureMetadata(); err != nil {
+// pushGitConn creates a git connection under the github provider targeting
+// repoURL and pushes the wiki through it.
+func pushGitConn(t *testing.T, d Deps, repoURL string) *httptest.ResponseRecorder {
+	t.Helper()
+	p, err := d.Store.SyncProviderBySlug("github")
+	if err != nil {
 		t.Fatal(err)
 	}
+	cfg, _ := syncsvc.EncodeConfig(syncsvc.Config{"token": "t", "repo_url": repoURL})
+	ident, _ := syncsvc.EncodeIdentity(syncsvc.Identity{Username: "octo", DisplayName: "Octo", Email: "octo@example.com"})
+	conn, err := d.Store.CreateConnection(p.ID, "work", cfg, ident, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return apiJSON(New(d), http.MethodPost, "/api/v1/sync/connections/"+itoa(conn.ID)+"/push", nil)
+}
+
+func TestPushGitInitFailure(t *testing.T) {
+	d := testDeps(t)
 	// A file squatting on the wiki root makes repo init fail.
 	root := filepath.Join(t.TempDir(), "blocked")
 	if err := os.WriteFile(root, nil, 0o644); err != nil {
 		t.Fatal(err)
 	}
 	d.Wiki = wiki.New(root)
-	rec := doReq(t, New(d), http.MethodPost, "/api/v1/git/setup", `{"url":"https://example.com/wiki.git"}`)
+	rec := pushGitConn(t, d, "https://example.com/wiki.git")
 	var body struct {
 		OK bool `json:"ok"`
 	}
@@ -174,11 +188,11 @@ func TestGitSetupInitFailure(t *testing.T) {
 	}
 }
 
-func TestGitSetRemoteAddPath(t *testing.T) {
-	// The first sync adds the origin remote (none exists yet) and completes.
-	d, bare := gitTestDeps(t)
-	e := New(d)
-	if rec := gitSetupReq(e, bare); rec.Code != http.StatusOK {
+func TestPushGitAddsRemote(t *testing.T) {
+	// The first push adds the origin remote (none exists yet) and completes.
+	d := testDeps(t)
+	bare := initBare(t)
+	if rec := pushGitConn(t, d, bare); rec.Code != http.StatusOK {
 		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
 	}
 	repo, err := git.PlainOpen(d.Wiki.Root())
@@ -190,15 +204,15 @@ func TestGitSetRemoteAddPath(t *testing.T) {
 	}
 }
 
-func TestGitSetRemoteReplacesURL(t *testing.T) {
-	// A second sync with a different URL replaces the origin (set-url path).
-	d, bare := gitTestDeps(t)
-	e := New(d)
-	if rec := gitSetupReq(e, bare); rec.Code != http.StatusOK {
+func TestPushGitReplacesRemote(t *testing.T) {
+	// A second push with a different URL replaces the origin (set-url path).
+	d := testDeps(t)
+	bare := initBare(t)
+	if rec := pushGitConn(t, d, bare); rec.Code != http.StatusOK {
 		t.Fatalf("first status %d: %s", rec.Code, rec.Body.String())
 	}
 	other := initBare(t)
-	if rec := gitSetupReq(e, other); rec.Code != http.StatusOK {
+	if rec := pushGitConn(t, d, other); rec.Code != http.StatusOK {
 		t.Fatalf("second status %d: %s", rec.Code, rec.Body.String())
 	}
 	repo, err := git.PlainOpen(d.Wiki.Root())
@@ -215,92 +229,43 @@ func TestGitSetRemoteReplacesURL(t *testing.T) {
 	}
 }
 
-// ---- github ----
+// ---- sync ----
 
-func TestConnectGitHubNotConfigured(t *testing.T) {
+func TestSyncStoreErrors(t *testing.T) {
 	d := testDeps(t)
-	d.GitHub = nil
-	if rec := doReq(t, New(d), http.MethodPost, "/api/v1/github/auth", `{"token":"t"}`); rec.Code != http.StatusInternalServerError {
-		t.Fatalf("status %d, want 500", rec.Code)
-	}
-}
-
-func TestConnectGitHubSaveError(t *testing.T) {
-	d := testDeps(t)
-	if err := d.GitHub.Repo.Close(); err != nil {
+	if err := d.Store.Close(); err != nil {
 		t.Fatal(err)
 	}
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_, _ = io.WriteString(w, `{"login":"octo","name":"Octo"}`)
-	}))
-	defer srv.Close()
-	d.GitHub.Client = github.New(http.DefaultClient).WithBaseURL(srv.URL)
-	if rec := doReq(t, New(d), http.MethodPost, "/api/v1/github/auth", `{"token":"t"}`); rec.Code != http.StatusInternalServerError {
-		t.Fatalf("status %d, want 500", rec.Code)
+	e := New(d)
+	for _, tc := range []struct {
+		method, path, body string
+	}{
+		{http.MethodGet, "/api/v1/sync/providers", ""},
+		{http.MethodPost, "/api/v1/sync/providers", `{"name":"X","driver":"github"}`},
+		{http.MethodGet, "/api/v1/sync/connections", ""},
+		{http.MethodPost, "/api/v1/sync/connections", `{"provider_id":1,"name":"x","config":{}}`},
+		{http.MethodGet, "/api/v1/sync/connections/1", ""},
+		{http.MethodGet, "/api/v1/sync/connections/1/targets", ""},
+		{http.MethodPost, "/api/v1/sync/connections/1/push", ""},
+	} {
+		if rec := doReq(t, e, tc.method, tc.path, tc.body); rec.Code != http.StatusInternalServerError {
+			t.Fatalf("%s %s on a closed store = %d, want 500", tc.method, tc.path, rec.Code)
+		}
 	}
 }
 
-func TestGetGitHubAuthError(t *testing.T) {
+func TestConnectSyncNotConfigured(t *testing.T) {
 	d := testDeps(t)
-	if err := d.GitHub.Repo.Close(); err != nil {
-		t.Fatal(err)
-	}
-	if rec := doReq(t, New(d), http.MethodGet, "/api/v1/github/auth", ""); rec.Code != http.StatusInternalServerError {
-		t.Fatalf("status %d, want 500", rec.Code)
+	d.Sync = nil
+	if rec := doReq(t, New(d), http.MethodPost, "/api/v1/sync/connections", `{"provider_id":1,"name":"x","config":{"token":"t"}}`); rec.Code != http.StatusInternalServerError {
+		t.Fatalf("connect without sync service = %d, want 500", rec.Code)
 	}
 }
 
-func TestListGitHubReposNotConfigured(t *testing.T) {
+func TestConnectUnknownDriver(t *testing.T) {
 	d := testDeps(t)
-	d.GitHub = nil
-	if rec := doReq(t, New(d), http.MethodGet, "/api/v1/github/repos", ""); rec.Code != http.StatusInternalServerError {
-		t.Fatalf("status %d, want 500", rec.Code)
-	}
-}
-
-func TestListGitHubReposGetError(t *testing.T) {
-	d := testDeps(t)
-	if err := d.GitHub.Repo.Close(); err != nil {
-		t.Fatal(err)
-	}
-	if rec := doReq(t, New(d), http.MethodGet, "/api/v1/github/repos", ""); rec.Code != http.StatusInternalServerError {
-		t.Fatalf("status %d, want 500", rec.Code)
-	}
-}
-
-func TestListGitHubReposClientNotConfigured(t *testing.T) {
-	d := testDeps(t)
-	if err := d.GitHub.Repo.Save(github.Auth{Token: "t", Username: "octo"}); err != nil {
-		t.Fatal(err)
-	}
-	d.GitHub.Client = nil
-	if rec := doReq(t, New(d), http.MethodGet, "/api/v1/github/repos", ""); rec.Code != http.StatusInternalServerError {
-		t.Fatalf("status %d, want 500", rec.Code)
-	}
-}
-
-func TestListGitHubReposFetchError(t *testing.T) {
-	d := testDeps(t)
-	if err := d.GitHub.Repo.Save(github.Auth{Token: "t", Username: "octo"}); err != nil {
-		t.Fatal(err)
-	}
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusInternalServerError)
-	}))
-	defer srv.Close()
-	d.GitHub.Client = github.New(http.DefaultClient).WithBaseURL(srv.URL)
-	if rec := doReq(t, New(d), http.MethodGet, "/api/v1/github/repos", ""); rec.Code != http.StatusInternalServerError {
-		t.Fatalf("status %d, want 500", rec.Code)
-	}
-}
-
-func TestDisconnectGitHubError(t *testing.T) {
-	d := testDeps(t)
-	if err := d.GitHub.Repo.Close(); err != nil {
-		t.Fatal(err)
-	}
-	if rec := doReq(t, New(d), http.MethodDelete, "/api/v1/github/auth", ""); rec.Code != http.StatusInternalServerError {
-		t.Fatalf("status %d, want 500", rec.Code)
+	if rec := doReq(t, New(d), http.MethodPost, "/api/v1/sync/providers", `{"name":"Bogus","driver":"bogus"}`); rec.Code != http.StatusBadRequest {
+		t.Fatalf("unknown driver = %d, want 400", rec.Code)
 	}
 }
 

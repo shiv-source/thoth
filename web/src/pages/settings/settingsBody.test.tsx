@@ -9,8 +9,6 @@ const current: Settings = {
     wiki_path: '~/.thoth/wiki',
     wiki_folders: ['inbox', 'meetings'],
     model: 'deepseek-v4-flash',
-    repo_url: '',
-    sync_enabled: false,
     context_injection: false
 }
 
@@ -24,13 +22,11 @@ describe('settingsBody', () => {
         expect(body.model).toBe('deepseek-v4-flash')
         expect(body.wiki_folders).toEqual(['inbox', 'meetings'])
         expect(body.context_injection).toBe(true)
-        expect(body.sync_enabled).toBe(false)
     })
 
     it('carries every provided field into the merged body', () => {
-        const body = settingsBody(current, { model: 'claude-sonnet-5', repo_url: 'https://github.com/x/w.git' })
+        const body = settingsBody(current, { model: 'claude-sonnet-5' })
         expect(body.model).toBe('claude-sonnet-5')
-        expect(body.repo_url).toBe('https://github.com/x/w.git')
         expect(body.wiki_path).toBe('~/.thoth/wiki')
     })
 })

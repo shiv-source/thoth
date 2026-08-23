@@ -1,4 +1,4 @@
-import { act, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { SettingsPage } from './SettingsPage'
@@ -63,51 +63,84 @@ const settings = {
     wiki_path: '~/.thoth/wiki',
     wiki_folders: [] as string[],
     model: '',
-    repo_url: '',
-    sync_enabled: false,
     context_injection: false
 }
 
-const emptyGitHub = {
-    username: '',
-    display_name: '',
-    email: '',
-    avatar_url: '',
-    profile_url: '',
-    scopes: '',
-    account_created_at: '',
-    account_updated_at: ''
+const githubProvider = {
+    id: 1,
+    slug: 'github',
+    name: 'GitHub',
+    driver: 'github',
+    kind: 'git' as const,
+    base_url: 'https://github.com',
+    protected: false,
+    fields: [
+        { key: 'token', label: 'GitHub token', secret: true, required: true },
+        { key: 'owner', label: 'Owner', secret: false, required: false }
+    ],
+    connection_count: 1
 }
 
-const connected = {
-    username: 'octo',
-    display_name: 'Octo Cat',
-    email: 'octo@example.com',
-    avatar_url: '',
-    profile_url: 'https://github.com/octo',
-    scopes: 'repo,user',
-    account_created_at: '2018-05-01T10:00:00Z',
-    account_updated_at: '2026-08-01T10:00:00Z'
+const localProvider = {
+    id: 2,
+    slug: 'local-backup',
+    name: 'Local backup',
+    driver: 'local',
+    kind: 'local' as const,
+    base_url: '',
+    protected: true,
+    fields: [{ key: 'path', label: 'Backup folder', secret: false, required: false }],
+    connection_count: 1
 }
+
+const githubConnection = {
+    id: 3,
+    provider_id: 1,
+    provider_slug: 'github',
+    provider_name: 'GitHub',
+    name: 'home',
+    enabled: true,
+    protected: false,
+    active: true,
+    identity: { username: 'octo', display_name: 'Octo Cat', email: 'octo@example.com' },
+    config: { repo_url: 'https://github.com/octo/wiki.git', has_token: true },
+    last_synced_at: '2026-08-23T09:00:00Z',
+    last_error: ''
+}
+
+const localConnection = {
+    id: 4,
+    provider_id: 2,
+    provider_slug: 'local-backup',
+    provider_name: 'Local backup',
+    name: 'Local backup',
+    enabled: true,
+    protected: true,
+    active: false,
+    identity: null,
+    config: { path: '~/.thoth/backups' },
+    last_synced_at: '',
+    last_error: ''
+}
+
+const targets = [
+    {
+        full_name: 'octo/wiki',
+        url: 'https://github.com/octo/wiki.git',
+        private: true,
+        description: 'My personal knowledge base'
+    },
+    {
+        full_name: 'octo/public-wiki',
+        url: 'https://github.com/octo/public-wiki.git',
+        private: false,
+        description: ''
+    }
+]
 
 const getSettings = () => settings
-const getEmptyGitHub = () => emptyGitHub
-const getRepos = () => ({
-    repos: [
-        {
-            full_name: 'octo/wiki',
-            clone_url: 'https://github.com/octo/wiki.git',
-            private: true,
-            description: 'My personal knowledge base'
-        },
-        {
-            full_name: 'octo/public-wiki',
-            clone_url: 'https://github.com/octo/public-wiki.git',
-            private: false,
-            description: ''
-        }
-    ]
-})
+// The git connection's targets are fetched lazily by the page.
+const getTargets = () => ({ targets })
 
 function renderSettings() {
     return renderWithStore(<SettingsPage />)
@@ -136,7 +169,6 @@ describe('SettingsPage', () => {
     it('loads current settings and saves edits', async () => {
         stubAPI({
             'GET /api/v1/settings': getSettings,
-            'GET /api/v1/github/auth': getEmptyGitHub,
             'PUT /api/v1/settings': () => ({ ...settings, wiki_path: '/tmp/other/wiki' })
         })
 
@@ -155,7 +187,6 @@ describe('SettingsPage', () => {
     it('saves a custom scaffold folder set from the General tab', async () => {
         stubAPI({
             'GET /api/v1/settings': () => ({ ...settings, wiki_folders: ['inbox', 'meetings'] }),
-            'GET /api/v1/github/auth': getEmptyGitHub,
             'PUT /api/v1/settings': () => ({ ...settings, wiki_folders: ['inbox', 'meetings', 'journal'] })
         })
 
@@ -173,10 +204,7 @@ describe('SettingsPage', () => {
     })
 
     it('names the dev wiki default in the hint when the server runs in dev mode', async () => {
-        stubAPI({
-            'GET /api/v1/settings': getSettings,
-            'GET /api/v1/github/auth': getEmptyGitHub
-        })
+        stubAPI({ 'GET /api/v1/settings': getSettings })
 
         const { store } = renderSettings()
         // Seed the health slice the way the real API would: the fulfilled
@@ -192,7 +220,6 @@ describe('SettingsPage', () => {
     it('selects a model from the models endpoint and saves it', async () => {
         stubAPI({
             'GET /api/v1/settings': getSettings,
-            'GET /api/v1/github/auth': getEmptyGitHub,
             'GET /api/v1/models': () => ({
                 groups: [
                     {
@@ -237,7 +264,6 @@ describe('SettingsPage', () => {
         let providers: (typeof seeded)[] = []
         stubAPI({
             'GET /api/v1/settings': getSettings,
-            'GET /api/v1/github/auth': getEmptyGitHub,
             'GET /api/v1/models': () => ({ groups: [] }),
             'GET /api/v1/providers': () => ({ providers }),
             'POST /api/v1/providers': () => {
@@ -272,7 +298,6 @@ describe('SettingsPage', () => {
         }
         stubAPI({
             'GET /api/v1/settings': getSettings,
-            'GET /api/v1/github/auth': getEmptyGitHub,
             'GET /api/v1/models': () => ({ groups: [] }),
             'GET /api/v1/providers': () => ({ providers: [seeded] }),
             'PUT /api/v1/providers/1': () => ({ ...seeded, base_url: 'https://api.deepseek.com/v1' })
@@ -296,10 +321,7 @@ describe('SettingsPage', () => {
     })
 
     it('shows the save error when the server rejects', async () => {
-        stubAPI({
-            'GET /api/v1/settings': getSettings,
-            'GET /api/v1/github/auth': getEmptyGitHub
-        })
+        stubAPI({ 'GET /api/v1/settings': getSettings })
         mocks.put.mockRejectedValueOnce(axiosError(500, { error: 'boom' }))
 
         renderSettings()
@@ -315,7 +337,6 @@ describe('SettingsPage', () => {
     it('runs the doctor checks in the Doctor tab', async () => {
         stubAPI({
             'GET /api/v1/settings': getSettings,
-            'GET /api/v1/github/auth': getEmptyGitHub,
             'GET /api/v1/doctor': () => ({
                 checks: [
                     { name: 'wiki', ok: true, message: '/tmp/wiki exists with the 8 scaffold folders and CLAUDE.md' },
@@ -335,89 +356,6 @@ describe('SettingsPage', () => {
             screen.getByText('Anthropic rejected the API key (401) — set a valid one in Settings → Providers')
         ).toBeInTheDocument()
     })
-
-    it('stores the git remote URL and pushes', async () => {
-        stubAPI({
-            'GET /api/v1/settings': getSettings,
-            'GET /api/v1/github/auth': () => connected,
-            'GET /api/v1/github/repos': getRepos,
-            'POST /api/v1/git/setup': () => ({ ok: true })
-        })
-
-        renderSettings()
-        await userEvent.click(await screen.findByRole('menuitem', { name: 'Git remote' }))
-        // The connected account's repos are offered as a dropdown the width of
-        // the input; picking the private repo fills the field.
-        const url = await screen.findByLabelText('Git remote URL')
-        await userEvent.type(url, 'octo')
-        const option = await screen.findByRole('option', { name: /octo\/wiki/ })
-        expect(await screen.findByText('My personal knowledge base')).toBeInTheDocument()
-        await userEvent.click(option)
-        expect(url).toHaveValue('https://github.com/octo/wiki.git')
-        await userEvent.click(screen.getByRole('button', { name: 'Initialize & Push' }))
-        expect(await screen.findByText('Wiki pushed to remote')).toBeInTheDocument()
-        // The setup call carried the URL.
-        const gitBody = lastBody('post', '/api/v1/git/setup')
-        expect(gitBody != null && JSON.stringify(gitBody).includes('https://github.com/octo/wiki.git')).toBe(true)
-    })
-
-    it('connects a GitHub account with a token', async () => {
-        stubAPI({
-            'GET /api/v1/settings': getSettings,
-            'GET /api/v1/github/auth': getEmptyGitHub,
-            'GET /api/v1/github/repos': getRepos,
-            'POST /api/v1/github/auth': () => connected
-        })
-
-        renderSettings()
-        await userEvent.click(await screen.findByRole('menuitem', { name: 'Git remote' }))
-        await userEvent.type(await screen.findByPlaceholderText(/ghp_/), 'ghp_secret123')
-        await userEvent.click(screen.getByRole('button', { name: 'Connect' }))
-
-        expect(await screen.findByText('Octo Cat')).toBeInTheDocument()
-        expect(screen.getByText('GitHub connected')).toBeInTheDocument()
-        // The stored account facts render view-only.
-        expect(screen.getByText(/Member since 2018-05-01/)).toBeInTheDocument()
-        // The remote URL input appears once connected.
-        expect(await screen.findByLabelText('Git remote URL')).toBeInTheDocument()
-        // The POST carried the token.
-        const connectBody = lastBody('post', '/api/v1/github/auth')
-        expect(connectBody != null && JSON.stringify(connectBody).includes('ghp_secret123')).toBe(true)
-    })
-
-    it('shows the connect error', async () => {
-        stubAPI({
-            'GET /api/v1/settings': getSettings,
-            'GET /api/v1/github/auth': getEmptyGitHub
-        })
-        mocks.post.mockRejectedValueOnce(axiosError(400, { error: 'github rejected the token' }))
-
-        renderSettings()
-        await userEvent.click(await screen.findByRole('menuitem', { name: 'Git remote' }))
-        await userEvent.type(await screen.findByPlaceholderText(/ghp_/), 'bad-token')
-        await userEvent.click(screen.getByRole('button', { name: 'Connect' }))
-
-        // The message renders inline and as a toast.
-        expect((await screen.findAllByText('github rejected the token')).length).toBeGreaterThan(0)
-    })
-
-    it('disconnects a GitHub account', async () => {
-        stubAPI({
-            'GET /api/v1/settings': getSettings,
-            'GET /api/v1/github/auth': () => connected,
-            'GET /api/v1/github/repos': getRepos,
-            'DELETE /api/v1/github/auth': () => ({ ok: true })
-        })
-
-        renderSettings()
-        await userEvent.click(await screen.findByRole('menuitem', { name: 'Git remote' }))
-        expect(await screen.findByText('Octo Cat')).toBeInTheDocument()
-        await userEvent.click(screen.getByRole('button', { name: 'Disconnect' }))
-
-        expect(await screen.findByPlaceholderText(/ghp_/)).toBeInTheDocument()
-        expect(await screen.findByText('GitHub disconnected')).toBeInTheDocument()
-        expect(mocks.delete.mock.calls.some(([u]) => u === '/api/v1/github/auth')).toBe(true)
-    })
 })
 
 describe('SettingsPage wiki export/import', () => {
@@ -426,11 +364,7 @@ describe('SettingsPage wiki export/import', () => {
     })
 
     it('exports the wiki as a zip', async () => {
-        stubAPI({
-            'GET /api/v1/settings': getSettings,
-            'GET /api/v1/github/auth': getEmptyGitHub,
-            'GET /api/v1/wiki/export': () => new Blob(['zip'])
-        })
+        stubAPI({ 'GET /api/v1/settings': getSettings, 'GET /api/v1/wiki/export': () => new Blob(['zip']) })
         // jsdom has no createObjectURL; the export only needs the call to
         // resolve and build an anchor download.
         vi.stubGlobal('URL', { ...URL, createObjectURL: vi.fn(() => 'blob:mock'), revokeObjectURL: vi.fn() })
@@ -443,11 +377,7 @@ describe('SettingsPage wiki export/import', () => {
     })
 
     it('exports with history when requested', async () => {
-        stubAPI({
-            'GET /api/v1/settings': getSettings,
-            'GET /api/v1/github/auth': getEmptyGitHub,
-            'GET /api/v1/wiki/export': () => new Blob(['zip'])
-        })
+        stubAPI({ 'GET /api/v1/settings': getSettings, 'GET /api/v1/wiki/export': () => new Blob(['zip']) })
         vi.stubGlobal('URL', { ...URL, createObjectURL: vi.fn(() => 'blob:mock'), revokeObjectURL: vi.fn() })
 
         renderSettings()
@@ -462,7 +392,6 @@ describe('SettingsPage wiki export/import', () => {
     it('imports a wiki zip and reports the merged count', async () => {
         stubAPI({
             'GET /api/v1/settings': getSettings,
-            'GET /api/v1/github/auth': getEmptyGitHub,
             'POST /api/v1/wiki/import': () => ({ files: 7, backup: '/tmp/wiki-backup-20260823-093000' })
         })
 
@@ -475,10 +404,7 @@ describe('SettingsPage wiki export/import', () => {
     })
 
     it('surfaces an import error from the server', async () => {
-        stubAPI({
-            'GET /api/v1/settings': getSettings,
-            'GET /api/v1/github/auth': getEmptyGitHub
-        })
+        stubAPI({ 'GET /api/v1/settings': getSettings })
         mocks.post.mockRejectedValueOnce(axiosError(400, { error: 'archive is not a wiki' }))
 
         renderSettings()
@@ -499,7 +425,6 @@ describe('SettingsPage Providers tab', () => {
         let list = [seeded]
         stubAPI({
             'GET /api/v1/settings': getSettings,
-            'GET /api/v1/github/auth': getEmptyGitHub,
             'GET /api/v1/models': () => ({ groups: [{ provider: 'Vendor', models: list }] }),
             'GET /api/v1/providers': () => ({ providers: [vendor] }),
             'POST /api/v1/models': () => {
@@ -543,7 +468,6 @@ describe('SettingsPage Providers tab', () => {
         let list = [seeded]
         stubAPI({
             'GET /api/v1/settings': getSettings,
-            'GET /api/v1/github/auth': getEmptyGitHub,
             'GET /api/v1/models': () => ({ groups: [{ provider: 'Vendor', models: list }] }),
             'GET /api/v1/providers': () => ({ providers: [vendor] }),
             'PUT /api/v1/models/1': () => {
@@ -570,7 +494,6 @@ describe('SettingsPage Providers tab', () => {
         let list = [seeded]
         stubAPI({
             'GET /api/v1/settings': getSettings,
-            'GET /api/v1/github/auth': getEmptyGitHub,
             'GET /api/v1/models': () => ({ groups: [{ provider: 'Vendor', models: list }] }),
             'GET /api/v1/providers': () => ({ providers: [vendor] }),
             'DELETE /api/v1/models/1': () => {
@@ -592,7 +515,6 @@ describe('SettingsPage Providers tab', () => {
     it('shows an empty state with a call to action', async () => {
         stubAPI({
             'GET /api/v1/settings': getSettings,
-            'GET /api/v1/github/auth': getEmptyGitHub,
             'GET /api/v1/models': () => ({ groups: [] }),
             'GET /api/v1/providers': () => ({ providers: [] })
         })
@@ -609,7 +531,6 @@ describe('SettingsPage Providers tab', () => {
         let providers = [{ id: 7, name: 'Doomed', base_url: '', has_api_key: false, model_count: 1 }]
         stubAPI({
             'GET /api/v1/settings': getSettings,
-            'GET /api/v1/github/auth': getEmptyGitHub,
             'GET /api/v1/models': () => ({ groups: [] }),
             'GET /api/v1/providers': () => ({ providers }),
             'DELETE /api/v1/providers/7': () => {
@@ -629,43 +550,211 @@ describe('SettingsPage Providers tab', () => {
     })
 })
 
-describe('SettingsPage auto-sync', () => {
-    it('toggles sync_enabled in the Git tab and saves it', async () => {
-        stubAPI({
-            'GET /api/v1/settings': getSettings,
-            'GET /api/v1/github/auth': () => connected,
-            'GET /api/v1/github/repos': getRepos,
-            'PUT /api/v1/settings': () => ({ ...settings, sync_enabled: true })
-        })
-
-        renderSettings()
-        await userEvent.click(await screen.findByRole('menuitem', { name: 'Git remote' }))
-        await userEvent.click(await screen.findByRole('switch'))
-        await userEvent.click(screen.getByRole('button', { name: 'Save' }))
-
-        expect(await screen.findByText('Settings saved')).toBeInTheDocument()
-        const put = lastBody('put', '/api/v1/settings')
-        expect(put != null && JSON.stringify(put).includes('"sync_enabled":true')).toBe(true)
+describe('SettingsPage Sync tab', () => {
+    afterEach(() => {
+        window.history.pushState(null, '', '/')
     })
-})
 
-describe('SettingsPage public repo guard', () => {
-    it('warns and blocks push when a public repo is picked', async () => {
+    it('lists connected destinations with their identity and last sync', async () => {
         stubAPI({
             'GET /api/v1/settings': getSettings,
-            'GET /api/v1/github/auth': () => connected,
-            'GET /api/v1/github/repos': getRepos
+            'GET /api/v1/sync/providers': () => ({ providers: [githubProvider, localProvider] }),
+            'GET /api/v1/sync/connections': () => ({ connections: [githubConnection, localConnection] }),
+            'GET /api/v1/sync/connections/3/targets': getTargets
         })
 
         renderSettings()
-        await userEvent.click(await screen.findByRole('menuitem', { name: 'Git remote' }))
-        const url = await screen.findByLabelText('Git remote URL')
-        await userEvent.type(url, 'octo/public')
-        await userEvent.click(await screen.findByRole('option', { name: /octo\/public-wiki/ }))
+        await userEvent.click(await screen.findByRole('menuitem', { name: 'Sync' }))
+        // The GitHub connection shows its identity and the chosen repository;
+        // the local backup is tagged protected.
+        expect(await screen.findByText('Octo Cat')).toBeInTheDocument()
+        expect(await screen.findByText('octo/wiki')).toBeInTheDocument()
+        expect(screen.getByText('Last synced 2026-08-23')).toBeInTheDocument()
+        expect(screen.getByText('Local backup')).toBeInTheDocument()
+        expect(screen.getAllByText('Protected').length).toBeGreaterThan(0)
+    })
 
-        expect(url).toHaveValue('https://github.com/octo/public-wiki.git')
-        expect(await screen.findByText(/public repository is blocked/)).toBeInTheDocument()
-        expect(screen.getByRole('button', { name: 'Initialize & Push' })).toBeDisabled()
+    it('connects a GitHub destination through the provider-driven form', async () => {
+        stubAPI({
+            'GET /api/v1/settings': getSettings,
+            'GET /api/v1/sync/providers': () => ({ providers: [githubProvider] }),
+            'GET /api/v1/sync/connections': () => ({ connections: [] }),
+            'POST /api/v1/sync/connections': () => githubConnection,
+            'GET /api/v1/sync/connections/3/targets': getTargets
+        })
+
+        renderSettings()
+        await userEvent.click(await screen.findByRole('menuitem', { name: 'Sync' }))
+        expect(await screen.findByText('No destinations connected yet — connect one below')).toBeInTheDocument()
+
+        // The provider select drives the credential fields.
+        await userEvent.click(screen.getByRole('combobox', { name: 'Provider' }))
+        await userEvent.click(await screen.findByRole('option', { name: 'GitHub' }))
+        await userEvent.type(await screen.findByLabelText('Name'), 'home')
+        await userEvent.type(screen.getByLabelText('GitHub token'), 'ghp_secret')
+        await userEvent.click(screen.getByRole('button', { name: 'Connect' }))
+
+        // The connection card appears with the identity the server verified.
+        expect(await screen.findByText('Octo Cat')).toBeInTheDocument()
+        expect(await screen.findByText('Destination connected')).toBeInTheDocument()
+        const body = JSON.stringify(lastBody('post', '/api/v1/sync/connections'))
+        expect(body).toContain('"provider_id":1')
+        expect(body).toContain('"name":"home"')
+        expect(body).toContain('ghp_secret')
+    })
+
+    it('shows the connect error from the server', async () => {
+        stubAPI({
+            'GET /api/v1/settings': getSettings,
+            'GET /api/v1/sync/providers': () => ({ providers: [githubProvider] }),
+            'GET /api/v1/sync/connections': () => ({ connections: [] })
+        })
+        mocks.post.mockRejectedValueOnce(axiosError(400, { error: 'github rejected the token' }))
+
+        renderSettings()
+        await userEvent.click(await screen.findByRole('menuitem', { name: 'Sync' }))
+        await userEvent.click(await screen.findByRole('combobox', { name: 'Provider' }))
+        await userEvent.click(await screen.findByRole('option', { name: 'GitHub' }))
+        await userEvent.type(await screen.findByLabelText('Name'), 'home')
+        await userEvent.type(screen.getByLabelText('GitHub token'), 'bad-token')
+        await userEvent.click(screen.getByRole('button', { name: 'Connect' }))
+
+        // The message renders inline and as a toast.
+        expect((await screen.findAllByText('github rejected the token')).length).toBeGreaterThan(0)
+    })
+
+    it('pushes a connection to its destination', async () => {
+        stubAPI({
+            'GET /api/v1/settings': getSettings,
+            'GET /api/v1/sync/providers': () => ({ providers: [githubProvider, localProvider] }),
+            'GET /api/v1/sync/connections': () => ({ connections: [githubConnection] }),
+            'GET /api/v1/sync/connections/3/targets': getTargets,
+            'POST /api/v1/sync/connections/3/push': () => ({ ok: true })
+        })
+
+        renderSettings()
+        await userEvent.click(await screen.findByRole('menuitem', { name: 'Sync' }))
+        await userEvent.click(await screen.findByRole('button', { name: 'Push now' }))
+
+        expect(await screen.findByText('Wiki pushed')).toBeInTheDocument()
+        expect(mocks.post.mock.calls.some(([u]) => u === '/api/v1/sync/connections/3/push')).toBe(true)
+    })
+
+    it('surfaces a push failure from the destination', async () => {
+        stubAPI({
+            'GET /api/v1/settings': getSettings,
+            'GET /api/v1/sync/providers': () => ({ providers: [githubProvider, localProvider] }),
+            'GET /api/v1/sync/connections': () => ({ connections: [githubConnection] }),
+            'GET /api/v1/sync/connections/3/targets': getTargets,
+            'POST /api/v1/sync/connections/3/push': () => ({ ok: false, error: 'remote rejected the branch' })
+        })
+
+        renderSettings()
+        await userEvent.click(await screen.findByRole('menuitem', { name: 'Sync' }))
+        await userEvent.click(await screen.findByRole('button', { name: 'Push now' }))
+
+        // The destination error surfaces as a toast and in the page alert.
+        expect((await screen.findAllByText('remote rejected the branch')).length).toBeGreaterThan(0)
+    })
+
+    it('disconnects a destination and drops its card', async () => {
+        stubAPI({
+            'GET /api/v1/settings': getSettings,
+            'GET /api/v1/sync/providers': () => ({ providers: [githubProvider, localProvider] }),
+            'GET /api/v1/sync/connections': () => ({ connections: [githubConnection, localConnection] }),
+            'GET /api/v1/sync/connections/3/targets': getTargets,
+            'DELETE /api/v1/sync/connections/3': () => ({ ok: true })
+        })
+
+        renderSettings()
+        await userEvent.click(await screen.findByRole('menuitem', { name: 'Sync' }))
+        // Only the unprotected GitHub card offers Disconnect.
+        expect(await screen.findByRole('button', { name: 'Disconnect' })).toBeInTheDocument()
+        await userEvent.click(screen.getByRole('button', { name: 'Disconnect' }))
+
+        expect(await screen.findByText('Disconnected')).toBeInTheDocument()
+        await waitFor(() => expect(screen.queryByText('Octo Cat')).not.toBeInTheDocument())
+        expect(mocks.delete.mock.calls.some(([u]) => u === '/api/v1/sync/connections/3')).toBe(true)
+    })
+
+    it('sets the active connection', async () => {
+        stubAPI({
+            'GET /api/v1/settings': getSettings,
+            'GET /api/v1/sync/providers': () => ({ providers: [githubProvider, localProvider] }),
+            'GET /api/v1/sync/connections': () => ({ connections: [githubConnection, localConnection] }),
+            'GET /api/v1/sync/connections/3/targets': getTargets,
+            'POST /api/v1/sync/connections/4/active': () => ({ ok: true })
+        })
+
+        renderSettings()
+        await userEvent.click(await screen.findByRole('menuitem', { name: 'Sync' }))
+        // The active GitHub connection has no Set-active button; the local
+        // backup does. Promoting it moves active to the local connection.
+        expect(await screen.findByRole('button', { name: 'Set active' })).toBeInTheDocument()
+        await userEvent.click(screen.getByRole('button', { name: 'Set active' }))
+
+        await waitFor(() => expect(mocks.post).toHaveBeenCalledWith('/api/v1/sync/connections/4/active'))
+    })
+
+    it('adds a custom sync provider and deletes a disposable one', async () => {
+        const enterprise = {
+            id: 9,
+            slug: 'custom-1',
+            name: 'GitHub Enterprise',
+            driver: 'github',
+            kind: 'git' as const,
+            base_url: 'https://ghe.example.com',
+            protected: false,
+            fields: githubProvider.fields,
+            connection_count: 0
+        }
+        let providers = [githubProvider, localProvider]
+        stubAPI({
+            'GET /api/v1/settings': getSettings,
+            'GET /api/v1/sync/providers': () => ({ providers }),
+            'GET /api/v1/sync/connections': () => ({ connections: [] }),
+            'POST /api/v1/sync/providers': () => {
+                providers = [...providers, enterprise]
+                return enterprise
+            },
+            'DELETE /api/v1/sync/providers/9': () => {
+                providers = providers.filter((p) => p.id !== 9)
+                return { ok: true }
+            }
+        })
+
+        renderSettings()
+        await userEvent.click(await screen.findByRole('menuitem', { name: 'Sync' }))
+        await userEvent.click(
+            await screen.findByText('Manage the provider catalog (built-ins + your custom providers)')
+        )
+
+        // The local backup is locked; add a new provider via the inline form.
+        const deleteLocal = screen.getByRole('button', { name: 'Delete Local backup' })
+        expect(deleteLocal).toBeDisabled()
+        await userEvent.type(await screen.findByLabelText('Provider name'), 'GitHub Enterprise')
+        await userEvent.click(screen.getByRole('combobox', { name: 'Driver' }))
+        // antd's dropdown leave motion never completes under jsdom, so the
+        // closed popup stays mounted over the inline form and swallows
+        // hit-tested clicks. fireEvent dispatches directly, so the option's
+        // onClick and the form submit both run.
+        fireEvent.click(await screen.findByRole('option', { name: 'GitHub' }))
+        await userEvent.type(screen.getByLabelText('Base URL'), 'https://ghe.example.com')
+        fireEvent.click(screen.getByRole('button', { name: 'Add provider' }))
+
+        expect(await screen.findByText('GitHub Enterprise')).toBeInTheDocument()
+
+        expect(await screen.findByText('GitHub Enterprise')).toBeInTheDocument()
+
+        expect(await screen.findByText('GitHub Enterprise')).toBeInTheDocument()
+        const addBody = JSON.stringify(lastBody('post', '/api/v1/sync/providers'))
+        expect(addBody).toContain('"name":"GitHub Enterprise"')
+        expect(addBody).toContain('"driver":"github"')
+
+        // The custom provider is disposable.
+        await userEvent.click(screen.getByRole('button', { name: 'Delete GitHub Enterprise' }))
+        await waitFor(() => expect(screen.queryByText('GitHub Enterprise')).not.toBeInTheDocument())
+        expect(mocks.delete.mock.calls.some(([u]) => u === '/api/v1/sync/providers/9')).toBe(true)
     })
 })
 
@@ -676,24 +765,39 @@ describe('SettingsPage tab routing', () => {
 
     it('restores the active tab from the hash', async () => {
         window.history.pushState(null, '', '/settings/doctor')
-        stubAPI({ 'GET /api/v1/settings': getSettings, 'GET /api/v1/github/auth': getEmptyGitHub })
+        stubAPI({ 'GET /api/v1/settings': getSettings })
         renderSettings()
         expect(await screen.findByRole('menuitem', { name: 'Doctor' })).toHaveClass('ant-menu-item-selected')
     })
 
     it('restores the Providers tab from the hash', async () => {
         window.history.pushState(null, '', '/settings/providers')
-        stubAPI({ 'GET /api/v1/settings': getSettings, 'GET /api/v1/github/auth': getEmptyGitHub })
+        stubAPI({ 'GET /api/v1/settings': getSettings })
         renderSettings()
         expect(await screen.findByRole('menuitem', { name: 'Providers' })).toHaveClass('ant-menu-item-selected')
     })
 
+    it('restores the Sync tab from the hash', async () => {
+        window.history.pushState(null, '', '/settings/sync')
+        stubAPI({
+            'GET /api/v1/settings': getSettings,
+            'GET /api/v1/sync/providers': () => ({ providers: [githubProvider, localProvider] }),
+            'GET /api/v1/sync/connections': () => ({ connections: [] })
+        })
+        renderSettings()
+        expect(await screen.findByRole('menuitem', { name: 'Sync' })).toHaveClass('ant-menu-item-selected')
+    })
+
     it('writes the clicked tab into the hash', async () => {
         window.history.pushState(null, '', '/settings')
-        stubAPI({ 'GET /api/v1/settings': getSettings, 'GET /api/v1/github/auth': getEmptyGitHub })
+        stubAPI({
+            'GET /api/v1/settings': getSettings,
+            'GET /api/v1/sync/providers': () => ({ providers: [githubProvider, localProvider] }),
+            'GET /api/v1/sync/connections': () => ({ connections: [] })
+        })
         renderSettings()
-        await userEvent.click(await screen.findByRole('menuitem', { name: 'Git remote' }))
-        expect(window.location.pathname).toBe('/settings/git')
+        await userEvent.click(await screen.findByRole('menuitem', { name: 'Sync' }))
+        expect(window.location.pathname).toBe('/settings/sync')
     })
 })
 
@@ -704,7 +808,7 @@ describe('SettingsPage default tab route', () => {
 
     it('writes the General default into the URL when arriving at bare #/settings', async () => {
         window.history.pushState(null, '', '/settings')
-        stubAPI({ 'GET /api/v1/settings': getSettings, 'GET /api/v1/github/auth': getEmptyGitHub })
+        stubAPI({ 'GET /api/v1/settings': getSettings })
         renderSettings()
         expect(await screen.findByRole('menuitem', { name: 'General' })).toHaveClass('ant-menu-item-selected')
         await waitFor(() => expect(window.location.pathname).toBe('/settings/general'))

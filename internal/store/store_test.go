@@ -242,22 +242,32 @@ func TestFreshOpenRunsAllMigrations(t *testing.T) {
 	if err := s.db.QueryRow(`PRAGMA user_version`).Scan(&v); err != nil {
 		t.Fatal(err)
 	}
-	if v != 11 {
-		t.Fatalf("user_version = %d, want 11 (one migration per table)", v)
+	if v != 12 {
+		t.Fatalf("user_version = %d, want 12 (one migration per table)", v)
 	}
 	// The settings seed lands with the migrations.
-	var wikiPath, repoURL, syncEnabled string
+	var wikiPath string
 	if err := s.db.QueryRow(`SELECT value FROM settings WHERE key = 'wiki_path'`).Scan(&wikiPath); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.db.QueryRow(`SELECT value FROM settings WHERE key = 'github_sync_repo'`).Scan(&repoURL); err != nil {
+	if wikiPath != "~/.thoth/wiki" {
+		t.Fatalf("seeded wiki_path = %q", wikiPath)
+	}
+	// The sync_providers seed lands with migration 0012, including the
+	// protected local backup.
+	var syncProviders int
+	if err := s.db.QueryRow(`SELECT COUNT(*) FROM sync_providers`).Scan(&syncProviders); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.db.QueryRow(`SELECT value FROM settings WHERE key = 'github_sync_enabled'`).Scan(&syncEnabled); err != nil {
+	if syncProviders != 4 {
+		t.Fatalf("seeded sync_providers = %d, want 4 built-ins", syncProviders)
+	}
+	var localProtected int
+	if err := s.db.QueryRow(`SELECT protected FROM sync_providers WHERE slug = 'local'`).Scan(&localProtected); err != nil {
 		t.Fatal(err)
 	}
-	if wikiPath != "~/.thoth/wiki" || repoURL != "" || syncEnabled != "false" {
-		t.Fatalf("seeded settings = %q/%q/%q", wikiPath, repoURL, syncEnabled)
+	if localProtected != 1 {
+		t.Fatalf("local sync provider protected = %d, want 1", localProtected)
 	}
 }
 

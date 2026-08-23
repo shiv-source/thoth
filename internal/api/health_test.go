@@ -9,10 +9,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/shiv-source/thoth/internal/github"
 	"github.com/shiv-source/thoth/internal/index"
 	"github.com/shiv-source/thoth/internal/settings"
 	"github.com/shiv-source/thoth/internal/store"
+	syncsvc "github.com/shiv-source/thoth/internal/sync"
 	"github.com/shiv-source/thoth/internal/wiki"
 )
 
@@ -31,11 +31,6 @@ func testDeps(t *testing.T) Deps {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = ix.Close() })
-	gh, err := github.OpenRepo(dbPath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = gh.Close() })
 	stg, err := settings.OpenRepo(dbPath)
 	if err != nil {
 		t.Fatal(err)
@@ -45,7 +40,7 @@ func testDeps(t *testing.T) Deps {
 		Log:      slog.New(slog.NewTextHandler(io.Discard, nil)),
 		Store:    st,
 		Claude:   &FakeClient{},
-		GitHub:   &github.Service{Repo: gh},
+		Sync:     syncsvc.NewService(st, nil),
 		Settings: stg,
 		DataDir:  t.TempDir(),
 		Version:  "test-version",

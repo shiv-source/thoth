@@ -5,24 +5,21 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"time"
 
 	_ "modernc.org/sqlite"
 )
 
 // Key constants for the settings table — one place for the wire keys.
-// GitHub/sync keys carry the github_ prefix. The per-provider keys below are
-// retired: migration 0011 moved credentials into the providers table, so
-// ProviderAPIKeyKey/ProviderBaseURLKey survive only as the read keys of the
-// one-time credential backfill in store.Open.
+// The per-provider keys below are retired: migration 0011 moved credentials
+// into the providers table, so ProviderAPIKeyKey/ProviderBaseURLKey survive
+// only as the read keys of the one-time credential backfill in store.Open.
+// Sync state (target, enabled, last sync, errors) lives on sync_connections
+// rows now (migration 0012), not here.
 const (
-	KeyWikiPath     = "wiki_path"
-	KeyWikiFolders  = "wiki_folders"
-	KeyModel        = "model"
-	KeyRepoURL      = "github_sync_repo"
-	KeySyncEnabled  = "github_sync_enabled"
-	KeyLastSyncedAt = "github_last_synced_at"
-	KeySyncError    = "github_sync_error"
+	KeyWikiPath         = "wiki_path"
+	KeyWikiFolders      = "wiki_folders"
+	KeyModel            = "model"
+	KeyActiveConnection = "sync_active_connection"
 	// KeyContextInjection gates pre-searching the wiki into each chat turn's
 	// first prompt (off by default — it changes answer semantics, so users
 	// opt in).
@@ -146,16 +143,6 @@ func (r *Repo) Folders() ([]string, error) {
 	return out, nil
 }
 
-// SyncEnabled reports the auto-sync switch; anything other than the literal
-// "true" (including an absent key) is false.
-func (r *Repo) SyncEnabled() (bool, error) {
-	value, _, err := r.Setting(KeySyncEnabled)
-	if err != nil {
-		return false, err
-	}
-	return value == "true", nil
-}
-
 // ContextInjection reports the pre-searched context toggle; anything other
 // than the literal "true" (including an absent key) is false, so the feature
 // stays off until the user opts in.
@@ -165,31 +152,4 @@ func (r *Repo) ContextInjection() (bool, error) {
 		return false, err
 	}
 	return value == "true", nil
-}
-
-// SyncState returns the recorded git sync outcome: the last successful sync
-// (empty when never) and the last error (empty when none).
-func (r *Repo) SyncState() (lastSyncedAt, syncError string, err error) {
-	lastSyncedAt, _, err = r.Setting(KeyLastSyncedAt)
-	if err != nil {
-		return "", "", err
-	}
-	syncError, _, err = r.Setting(KeySyncError)
-	if err != nil {
-		return "", "", err
-	}
-	return lastSyncedAt, syncError, nil
-}
-
-// SetSyncResult records the outcome of a git sync: success stamps
-// last_synced_at and clears sync_error; failure records the error and keeps
-// last_synced_at at the last successful sync.
-func (r *Repo) SetSyncResult(ok bool, detail string) error {
-	if ok {
-		if err := r.SetSetting(KeyLastSyncedAt, time.Now().UTC().Format(time.RFC3339)); err != nil {
-			return err
-		}
-		return r.SetSetting(KeySyncError, "")
-	}
-	return r.SetSetting(KeySyncError, detail)
 }

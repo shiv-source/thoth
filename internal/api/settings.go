@@ -10,14 +10,13 @@ import (
 
 // settingsDTO is the wire shape of GET/PUT /api/settings. Every field lives
 // in the settings table in thoth.db. Provider credentials are managed through
-// their own /api/providers endpoints (the key is write-only there), so this
-// payload carries no per-provider state.
+// their own /api/providers endpoints (the key is write-only there), and sync
+// destinations through /api/sync/connections — neither carries per-provider
+// state here.
 type settingsDTO struct {
 	WikiPath         string   `json:"wiki_path"`
 	WikiFolders      []string `json:"wiki_folders"`
 	Model            string   `json:"model"`
-	RepoURL          string   `json:"repo_url"`
-	SyncEnabled      bool     `json:"sync_enabled"`
 	ContextInjection bool     `json:"context_injection"`
 }
 
@@ -37,21 +36,12 @@ func getSettings(c echo.Context, d Deps) error {
 	if err != nil {
 		return internalError(c, d, "read model", err)
 	}
-	repoURL, _, err := d.Settings.Setting(settings.KeyRepoURL)
-	if err != nil {
-		return internalError(c, d, "read repo_url", err)
-	}
-	syncEnabled, err := d.Settings.SyncEnabled()
-	if err != nil {
-		return internalError(c, d, "read sync_enabled", err)
-	}
 	contextInjection, err := d.Settings.ContextInjection()
 	if err != nil {
 		return internalError(c, d, "read context_injection", err)
 	}
 	return c.JSON(http.StatusOK, settingsDTO{
 		WikiPath: wikiPath, WikiFolders: wikiFolders, Model: model,
-		RepoURL: repoURL, SyncEnabled: syncEnabled,
 		ContextInjection: contextInjection,
 	})
 }
@@ -81,12 +71,6 @@ func putSettings(c echo.Context, d Deps) error {
 	}
 	if err := d.Settings.SetSetting(settings.KeyModel, next.Model); err != nil {
 		return internalError(c, d, "set model", err)
-	}
-	if err := d.Settings.SetSetting(settings.KeyRepoURL, next.RepoURL); err != nil {
-		return internalError(c, d, "set repo_url", err)
-	}
-	if err := d.Settings.SetSetting(settings.KeySyncEnabled, boolString(next.SyncEnabled)); err != nil {
-		return internalError(c, d, "set sync_enabled", err)
 	}
 	if err := d.Settings.SetSetting(settings.KeyContextInjection, boolString(next.ContextInjection)); err != nil {
 		return internalError(c, d, "set context_injection", err)

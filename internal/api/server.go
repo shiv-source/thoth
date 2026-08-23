@@ -8,10 +8,10 @@ import (
 
 	"github.com/go-warehouse/events"
 	"github.com/labstack/echo/v4"
-	"github.com/shiv-source/thoth/internal/github"
 	"github.com/shiv-source/thoth/internal/index"
 	"github.com/shiv-source/thoth/internal/settings"
 	"github.com/shiv-source/thoth/internal/store"
+	"github.com/shiv-source/thoth/internal/sync"
 	"github.com/shiv-source/thoth/internal/webui"
 	"github.com/shiv-source/thoth/internal/wiki"
 )
@@ -29,7 +29,7 @@ type Deps struct {
 	Log             *slog.Logger
 	Store           *store.Store
 	Claude          Client
-	GitHub          *github.Service
+	Sync            *sync.Service
 	Settings        *settings.Repo
 	DataDir         string       // thoth dir (~/.thoth) — the doctor handler probes it
 	DoctorAddr      string       // host:port for the doctor's api/websocket probes ("" → 127.0.0.1:8333); tests point it at a free port
@@ -76,7 +76,6 @@ func newServer(d Deps) (*echo.Echo, *Hub) {
 
 	e.GET("/api"+APIVersion+"/health", func(c echo.Context) error { return health(c, d) })
 	e.GET("/api"+APIVersion+"/doctor", func(c echo.Context) error { return doctorHandler(c, d) })
-	e.POST("/api"+APIVersion+"/git/setup", func(c echo.Context) error { return gitSetup(c, d) })
 	e.GET("/api"+APIVersion+"/search", func(c echo.Context) error { return search(c, d) })
 	e.GET("/api"+APIVersion+"/notes", func(c echo.Context) error { return note(c, d) })
 	e.POST("/api"+APIVersion+"/notes", func(c echo.Context) error { return createNote(c, d) })
@@ -98,10 +97,18 @@ func newServer(d Deps) (*echo.Echo, *Hub) {
 	e.POST("/api"+APIVersion+"/conversations", func(c echo.Context) error { return createConversation(c, d) })
 	e.GET("/api"+APIVersion+"/conversations/:id", func(c echo.Context) error { return getConversation(c, d) })
 	e.DELETE("/api"+APIVersion+"/conversations/:id", func(c echo.Context) error { return deleteConversation(c, d) })
-	e.POST("/api"+APIVersion+"/github/auth", func(c echo.Context) error { return connectGitHub(c, d) })
-	e.GET("/api"+APIVersion+"/github/auth", func(c echo.Context) error { return getGitHubAuth(c, d) })
-	e.DELETE("/api"+APIVersion+"/github/auth", func(c echo.Context) error { return disconnectGitHub(c, d) })
-	e.GET("/api"+APIVersion+"/github/repos", func(c echo.Context) error { return listGitHubRepos(c, d) })
+	e.GET("/api"+APIVersion+"/sync/providers", func(c echo.Context) error { return listSyncProviders(c, d) })
+	e.POST("/api"+APIVersion+"/sync/providers", func(c echo.Context) error { return createSyncProvider(c, d) })
+	e.PUT("/api"+APIVersion+"/sync/providers/:id", func(c echo.Context) error { return updateSyncProvider(c, d) })
+	e.DELETE("/api"+APIVersion+"/sync/providers/:id", func(c echo.Context) error { return deleteSyncProvider(c, d) })
+	e.GET("/api"+APIVersion+"/sync/connections", func(c echo.Context) error { return listConnections(c, d) })
+	e.POST("/api"+APIVersion+"/sync/connections", func(c echo.Context) error { return connect(c, d) })
+	e.GET("/api"+APIVersion+"/sync/connections/:id", func(c echo.Context) error { return getConnection(c, d) })
+	e.PUT("/api"+APIVersion+"/sync/connections/:id", func(c echo.Context) error { return updateConnection(c, d) })
+	e.DELETE("/api"+APIVersion+"/sync/connections/:id", func(c echo.Context) error { return disconnect(c, d) })
+	e.GET("/api"+APIVersion+"/sync/connections/:id/targets", func(c echo.Context) error { return listTargets(c, d) })
+	e.POST("/api"+APIVersion+"/sync/connections/:id/push", func(c echo.Context) error { return pushConnection(c, d) })
+	e.POST("/api"+APIVersion+"/sync/connections/:id/active", func(c echo.Context) error { return setActiveConnection(c, d) })
 
 	// The API reference page is a dev-only convenience: serve --dev exposes
 	// it (/api/docs, its assets, and /swagger.json), --dev --no-api-docs (and

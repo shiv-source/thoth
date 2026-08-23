@@ -1,6 +1,7 @@
 // Package assets holds static data files served by the API. models.json is
 // the single source for the llm_models seed (first boot) — edit it (no code
-// change) to adjust the offered models.
+// change) to adjust the offered models. sync-providers.json is the matching
+// seed for the sync_providers catalog.
 package assets
 
 import (
@@ -11,6 +12,9 @@ import (
 
 //go:embed models.json
 var modelsJSON []byte
+
+//go:embed sync-providers.json
+var syncProvidersJSON []byte
 
 // Option is one selectable model for the CLI's --model flag. Name and Tag
 // are separate fields: the UI renders the tag as secondary text, and the
@@ -32,4 +36,27 @@ func ModelOptions() ([]Option, error) {
 		return nil, fmt.Errorf("parse models.json: %w", err)
 	}
 	return payload.Models, nil
+}
+
+// SyncProviderOption is one built-in sync provider for the sync_providers
+// seed. Driver selects the sync implementation; Protected marks first-class
+// providers the user can neither edit nor delete (the local backup).
+type SyncProviderOption struct {
+	Slug      string `json:"slug"`
+	Name      string `json:"name"`
+	Driver    string `json:"driver"`
+	BaseURL   string `json:"base_url"`
+	Protected bool   `json:"protected"`
+}
+
+// SyncProviderOptions parses the embedded sync-providers.json — the built-in
+// sync_providers seed, mirrored by migration 0012.
+func SyncProviderOptions() ([]SyncProviderOption, error) {
+	var payload struct {
+		Providers []SyncProviderOption `json:"providers"`
+	}
+	if err := json.Unmarshal(syncProvidersJSON, &payload); err != nil {
+		return nil, fmt.Errorf("parse sync-providers.json: %w", err)
+	}
+	return payload.Providers, nil
 }

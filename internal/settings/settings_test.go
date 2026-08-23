@@ -2,7 +2,6 @@ package settings_test
 
 import (
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/shiv-source/thoth/internal/settings"
@@ -50,11 +49,7 @@ func openTestRepos(t *testing.T) (*settings.Repo, *store.Store) {
 func TestOpenSeedsDefaults(t *testing.T) {
 	r := openTestRepo(t)
 	for key, want := range map[string]string{
-		settings.KeyWikiPath:     "~/.thoth/wiki",
-		settings.KeyRepoURL:      "",
-		settings.KeySyncEnabled:  "false",
-		settings.KeyLastSyncedAt: "",
-		settings.KeySyncError:    "",
+		settings.KeyWikiPath: "~/.thoth/wiki",
 	} {
 		got, found, err := r.Setting(key)
 		if err != nil || !found || got != want {
@@ -136,18 +131,18 @@ func TestModelSettingRoundTrip(t *testing.T) {
 
 func TestSettingRoundTrip(t *testing.T) {
 	r := openTestRepo(t)
-	if err := r.SetSetting(settings.KeyRepoURL, "https://github.com/octo/wiki.git"); err != nil {
+	if err := r.SetSetting(settings.KeyActiveConnection, "7"); err != nil {
 		t.Fatal(err)
 	}
-	got, found, err := r.Setting(settings.KeyRepoURL)
-	if err != nil || !found || got != "https://github.com/octo/wiki.git" {
+	got, found, err := r.Setting(settings.KeyActiveConnection)
+	if err != nil || !found || got != "7" {
 		t.Fatalf("after set: %q/%v/%v", got, found, err)
 	}
 	// Upsert semantics: a second write replaces the value.
-	if err := r.SetSetting(settings.KeyRepoURL, ""); err != nil {
+	if err := r.SetSetting(settings.KeyActiveConnection, ""); err != nil {
 		t.Fatal(err)
 	}
-	if got, found, err = r.Setting(settings.KeyRepoURL); err != nil || !found || got != "" {
+	if got, found, err = r.Setting(settings.KeyActiveConnection); err != nil || !found || got != "" {
 		t.Fatalf("after clear: %q/%v/%v", got, found, err)
 	}
 }
@@ -162,25 +157,9 @@ func TestSettingAbsent(t *testing.T) {
 
 func TestSyncEnabledParsing(t *testing.T) {
 	r := openTestRepo(t)
-	// Seeded default is false.
-	if on, err := r.SyncEnabled(); err != nil || on {
-		t.Fatalf("seeded sync_enabled = %v/%v, want false/nil", on, err)
-	}
-	for _, in := range []string{"true"} {
-		if err := r.SetSetting(settings.KeySyncEnabled, in); err != nil {
-			t.Fatal(err)
-		}
-		if on, err := r.SyncEnabled(); err != nil || !on {
-			t.Fatalf("sync_enabled %q = %v/%v, want true/nil", in, on, err)
-		}
-	}
-	for _, in := range []string{"false", "garbage", "TRUE"} {
-		if err := r.SetSetting(settings.KeySyncEnabled, in); err != nil {
-			t.Fatal(err)
-		}
-		if on, err := r.SyncEnabled(); err != nil || on {
-			t.Fatalf("sync_enabled %q = %v/%v, want false/nil", in, on, err)
-		}
+	// The active-connection key is absent by default and round-trips.
+	if on, found, err := r.Setting(settings.KeyActiveConnection); err != nil || found || on != "" {
+		t.Fatalf("absent sync_active_connection = %q/%v/%v, want empty/false/nil", on, found, err)
 	}
 }
 
@@ -252,40 +231,5 @@ func TestRepoClosedErrors(t *testing.T) {
 	}
 	if err := r.SetSetting(settings.KeyWikiPath, "x"); err == nil {
 		t.Fatal("SetSetting on closed repo must error")
-	}
-}
-
-func TestSyncStateRoundTrip(t *testing.T) {
-	r := openTestRepo(t)
-	// Seeded state is empty.
-	last, syncErr, err := r.SyncState()
-	if err != nil || last != "" || syncErr != "" {
-		t.Fatalf("seeded sync state = %q/%q/%v", last, syncErr, err)
-	}
-
-	// Failure records the error and keeps last_synced_at empty.
-	if err := r.SetSyncResult(false, "push rejected"); err != nil {
-		t.Fatal(err)
-	}
-	if last, syncErr, err = r.SyncState(); err != nil || last != "" || syncErr != "push rejected" {
-		t.Fatalf("after failure: %q/%q/%v", last, syncErr, err)
-	}
-
-	// Success stamps last_synced_at and clears the error.
-	if err := r.SetSyncResult(true, ""); err != nil {
-		t.Fatal(err)
-	}
-	last, syncErr, err = r.SyncState()
-	if err != nil || last == "" || !strings.HasSuffix(last, "Z") || syncErr != "" {
-		t.Fatalf("after success: %q/%q/%v", last, syncErr, err)
-	}
-
-	// A later failure keeps the last successful timestamp.
-	first := last
-	if err := r.SetSyncResult(false, "offline"); err != nil {
-		t.Fatal(err)
-	}
-	if last, syncErr, err = r.SyncState(); err != nil || last != first || syncErr != "offline" {
-		t.Fatalf("after later failure: %q/%q/%v", last, syncErr, err)
 	}
 }

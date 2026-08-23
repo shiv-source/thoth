@@ -1,0 +1,32 @@
+{
+  "providers": [
+    {
+      "slug": "github",
+      "name": "GitHub",
+      "driver": "github",
+      "base_url": "",
+      "protected": false
+    },
+    {
+      "slug": "gitlab",
+      "name": "GitLab",
+      "driver": "gitlab",
+      "base_url": "",
+      "protected": false
+    },
+    {
+      "slug": "aws_s3",
+      "name": "AWS S3",
+      "driver": "s3",
+      "base_url": "",
+      "protected": false
+    },
+    {
+      "slug": "local",
+      "name": "Local backup",
+      "driver": "local",
+      "base_url": "",
+      "protected": true
+    }
+  ]
+}
