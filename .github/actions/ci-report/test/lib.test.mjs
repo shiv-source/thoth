@@ -122,26 +122,49 @@ test("renderPrBody carries the marker, tally, table, and footer", () => {
 })
 
 test("coverageText shows actual and floor with a pass/fail marker", () => {
-  assert.equal(coverageText("91.2", "90"), "📊 Coverage: **91.2%** — floor **90%** ✅")
-  assert.equal(coverageText("87.3", "90"), "📊 Coverage: **87.3%** — floor **90%** ❌")
-  assert.equal(coverageText("90", "90"), "📊 Coverage: **90%** — floor **90%** ✅")
-  assert.equal(coverageText("91.2%", "90%"), "📊 Coverage: **91.2%** — floor **90%** ✅", "trailing % on inputs is tolerated")
-  assert.equal(coverageText("91.2"), "📊 Coverage: **91.2%**", "without a floor the marker is omitted")
+  assert.equal(coverageText("91.2", "90"), "📊 Backend coverage: **91.2%** — floor **90%** ✅")
+  assert.equal(coverageText("87.3", "90"), "📊 Backend coverage: **87.3%** — floor **90%** ❌")
+  assert.equal(coverageText("90", "90"), "📊 Backend coverage: **90%** — floor **90%** ✅")
+  assert.equal(coverageText("91.2%", "90%"), "📊 Backend coverage: **91.2%** — floor **90%** ✅", "trailing % on inputs is tolerated")
+  assert.equal(coverageText("91.2"), "📊 Backend coverage: **91.2%**", "without a floor the marker is omitted")
   assert.equal(coverageText("", "90"), null)
   assert.equal(coverageText(undefined, "90"), null)
   assert.equal(coverageText("  ", "90"), null)
 })
 
-test("renderStepSummary inserts the coverage line between the run and the table", () => {
+test("coverageText labels the frontend line and renders it with its own floor", () => {
+  const frontend = (c, f) => coverageText(c, f, { emoji: "🖥️", label: "Frontend coverage" })
+  assert.equal(frontend("93.2", "90"), "🖥️ Frontend coverage: **93.2%** — floor **90%** ✅")
+  assert.equal(frontend("88.1", "90"), "🖥️ Frontend coverage: **88.1%** — floor **90%** ❌")
+  assert.equal(frontend("", "90"), null)
+})
+
+test("renderStepSummary inserts the coverage lines between the run and the table", () => {
   const report = reportJobs(jobs, { self: "report", wrapper: "final-gate" })
   const summary = renderStepSummary({ ...report, ...ctx, coverage: "91.2", coverageFloor: "90" })
-  assert.ok(summary.includes("\n\n📊 Coverage: **91.2%** — floor **90%** ✅\n\n| Job | Result |"))
+  assert.ok(summary.includes("\n\n📊 Backend coverage: **91.2%** — floor **90%** ✅\n\n| Job | Result |"))
+})
+
+test("renderStepSummary renders backend and frontend coverage lines together", () => {
+  const report = reportJobs(jobs, { self: "report", wrapper: "final-gate" })
+  const summary = renderStepSummary({ ...report, ...ctx, coverage: "91.2", coverageFloor: "90", webCoverage: "93.2", webCoverageFloor: "90" })
+  assert.ok(
+    summary.includes("\n\n📊 Backend coverage: **91.2%** — floor **90%** ✅\n🖥️ Frontend coverage: **93.2%** — floor **90%** ✅\n\n| Job | Result |"),
+  )
 })
 
 test("renderPrBody inserts the coverage line after the tally", () => {
   const report = reportJobs(jobs, { self: "report", wrapper: "final-gate" })
   const body = renderPrBody({ ...report, ...ctx, coverage: "91.2", coverageFloor: "90" })
-  assert.ok(body.includes("\n\n📊 Coverage: **91.2%** — floor **90%** ✅\n\n<details>"))
+  assert.ok(body.includes("\n\n📊 Backend coverage: **91.2%** — floor **90%** ✅\n\n<details>"))
+})
+
+test("renderPrBody renders backend and frontend coverage lines together", () => {
+  const report = reportJobs(jobs, { self: "report", wrapper: "final-gate" })
+  const body = renderPrBody({ ...report, ...ctx, coverage: "91.2", coverageFloor: "90", webCoverage: "93.2", webCoverageFloor: "90" })
+  assert.ok(
+    body.includes("\n\n📊 Backend coverage: **91.2%** — floor **90%** ✅\n🖥️ Frontend coverage: **93.2%** — floor **90%** ✅\n\n<details>"),
+  )
 })
 
 test("githubContext maps runner env into the github context", () => {

@@ -12,6 +12,16 @@ on:
           The repo's coverage floor %, sourced from Makefile (COVERAGE_FLOOR),
           so the final-gate report and the gate can never drift apart.
         value: ${{ jobs.backend-test.outputs.coverage_floor }}
+      web_coverage:
+        description: >-
+          Total frontend (vitest) statement coverage % from frontend-test,
+          when the frontend was touched ("" when the job is skipped).
+        value: ${{ jobs.frontend-test.outputs.web_coverage }}
+      web_coverage_floor:
+        description: >-
+          The frontend coverage floor %, sourced from web/vite.config.ts
+          (vitest thresholds), so the report and the gate stay in sync.
+        value: ${{ jobs.frontend-test.outputs.web_coverage_floor }}
 
 permissions:
   contents: read
@@ -145,13 +155,27 @@ jobs:
     if: needs.changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    outputs:
+      web_coverage: ${{ steps.cover.outputs.web_coverage }}
+      web_coverage_floor: ${{ steps.cover.outputs.web_coverage_floor }}
     defaults:
       run:
         working-directory: web
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-web
-      - run: pnpm exec vitest run
+      # Gate on the vitest thresholds (vite.config.ts), then lift the actual
+      # statements % and the floor up to the report — both from the config so
+      # they stay in sync with the gate itself.
+      - name: frontend tests with coverage gate
+        id: cover
+        run: |
+          pnpm exec vitest run --coverage
+          pct=$(node -p "require('./coverage/coverage-summary.json').total.statements.pct")
+          floor=$(grep -oE 'statements: [0-9]+' vite.config.ts | grep -oE '[0-9]+')
+          echo "web_coverage=$pct" >> "$GITHUB_OUTPUT"
+          echo "web_coverage_floor=$floor" >> "$GITHUB_OUTPUT"
+          echo "web coverage=$pct% floor=$floor%"
 
   frontend-lint:
     needs: [changes]

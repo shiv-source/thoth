@@ -94,47 +94,55 @@ function shortSha(sha) {
   return sha.slice(0, 8)
 }
 
-// One-line coverage summary for the report: actual % and the repo floor side
-// by side, with a pass/fail marker against the floor. Returns null when no
-// coverage value was provided (backend not touched → the line is omitted).
-export function coverageText(coverage, coverageFloor) {
+// One-line coverage summary for the report: actual % and the area's floor
+// side by side, with a pass/fail marker against the floor. Returns null when
+// no coverage value was provided (area not touched → the line is omitted).
+export function coverageText(coverage, coverageFloor, { emoji = "📊", label = "Backend coverage" } = {}) {
   const actual = String(coverage ?? "").trim().replace(/%$/, "")
   if (!actual) return null
   const floor = String(coverageFloor ?? "").trim().replace(/%$/, "")
-  if (!floor) return `📊 Coverage: **${actual}%**`
+  const head = `${emoji} ${label}: **${actual}%**`
+  if (!floor) return head
   const ok = Number(actual) >= Number(floor)
-  return `📊 Coverage: **${actual}%** — floor **${floor}%** ${ok ? "✅" : "❌"}`
+  return `${head} — floor **${floor}%** ${ok ? "✅" : "❌"}`
+}
+
+// The coverage lines for a report: backend first, then frontend. Empty when
+// neither area was touched, so both lines simply disappear.
+function coverageLines({ coverage, coverageFloor, webCoverage, webCoverageFloor }) {
+  return [
+    coverageText(coverage, coverageFloor),
+    coverageText(webCoverage, webCoverageFloor, { emoji: "🖥️", label: "Frontend coverage" }),
+  ].filter(Boolean)
 }
 
 // The step summary: title line, run/commit links, coverage line when known,
 // then the job table. This is what the human opens the "summary + gate" step
 // for — rendered even when the gate fails, which is why the exit code is
 // decided only after writing it.
-export function renderStepSummary({ rows, failed, repository, runNumber, serverUrl, runId, sha, coverage, coverageFloor }) {
+export function renderStepSummary({ rows, failed, repository, runNumber, serverUrl, runId, sha, coverage, coverageFloor, webCoverage, webCoverageFloor }) {
   const run = runUrl({ serverUrl, repository }, runId)
   const commit = commitUrl({ serverUrl, repository }, sha)
   const lines = [failed > 0 ? `## CI failed ❌ — ${failed} job(s) failed` : "## CI passed ✅"]
   lines.push("")
   lines.push(`Run: [${repository}#${runNumber}](${run}) · commit [\`${shortSha(sha)}\`](${commit})`)
-  lines.push("")
-  const coverageLine = coverageText(coverage, coverageFloor)
-  if (coverageLine) lines.push(coverageLine, "")
-  lines.push("| Job | Result |")
-  lines.push("|---|---|")
+  const covLines = coverageLines({ coverage, coverageFloor, webCoverage, webCoverageFloor })
+  if (covLines.length > 0) lines.push("", ...covLines)
+  lines.push("", "| Job | Result |", "|---|---|")
   for (const row of rows) lines.push(`| ${row.name} | ${row.text} |`)
   return lines.join("\n")
 }
 
 // The prettier report posted (and updated in place) as a PR comment. Same
 // data as the step summary, wrapped for a comment and tagged with the marker.
-export function renderPrBody({ rows, failed, passed, total, repository, serverUrl, runNumber, runId, sha, coverage, coverageFloor }) {
+export function renderPrBody({ rows, failed, passed, total, repository, serverUrl, runNumber, runId, sha, coverage, coverageFloor, webCoverage, webCoverageFloor }) {
   const title = failed > 0 ? "### CI Report ❌" : "### CI Report ✅"
   const run = runUrl({ serverUrl, repository }, runId)
   const commit = commitUrl({ serverUrl, repository }, sha)
   const workflow = `${serverUrl}/${repository}/actions/workflows/final-gate.yml`
   const lines = [MARKER, "", title, "", `**${passed}/${total} jobs passed** · [Run #${runNumber}](${run}) · commit [\`${shortSha(sha)}\`](${commit})`]
-  const coverageLine = coverageText(coverage, coverageFloor)
-  if (coverageLine) lines.push("", coverageLine)
+  const covLines = coverageLines({ coverage, coverageFloor, webCoverage, webCoverageFloor })
+  if (covLines.length > 0) lines.push("", ...covLines)
   lines.push(
     "",
     "<details>",

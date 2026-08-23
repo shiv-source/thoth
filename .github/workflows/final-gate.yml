@@ -18,6 +18,18 @@ on:
           `coverage` for the report's threshold line.
         type: string
         required: false
+      web-coverage:
+        description: >-
+          Total frontend (vitest) statement coverage % (from quality.yml's
+          frontend-test). Empty when the frontend wasn't touched.
+        type: string
+        required: false
+      web-coverage-floor:
+        description: >-
+          The frontend coverage floor % (web/vite.config.ts thresholds),
+          paired with `web-coverage`.
+        type: string
+        required: false
 
 permissions:
   contents: read
@@ -42,3 +54,5 @@ jobs:
           wrapper: ${{ inputs.wrapper }}
           coverage: ${{ inputs.coverage }}
           coverage-floor: ${{ inputs.coverage-floor }}
+          web-coverage: ${{ inputs.web-coverage }}
+          web-coverage-floor: ${{ inputs.web-coverage-floor }}

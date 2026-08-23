@@ -33,3 +33,5 @@ jobs:
       wrapper: final-gate
       coverage: ${{ needs.quality.outputs.coverage }}
       coverage-floor: ${{ needs.quality.outputs.coverage_floor }}
+      web-coverage: ${{ needs.quality.outputs.web_coverage }}
+      web-coverage-floor: ${{ needs.quality.outputs.web_coverage_floor }}

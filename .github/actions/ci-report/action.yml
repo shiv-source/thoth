@@ -30,6 +30,19 @@ inputs:
       actual % so the report and the gate stay visibly in sync.
     required: false
     default: ""
+  web-coverage:
+    description: >-
+      Total frontend (vitest) statement coverage % to render in the report.
+      Empty (e.g. the frontend wasn't touched) → the web coverage line is
+      omitted.
+    required: false
+    default: ""
+  web-coverage-floor:
+    description: >-
+      The frontend coverage floor % (web/vite.config.ts thresholds), shown
+      next to the actual web %.
+    required: false
+    default: ""
 
 outputs:
   result:
@@ -56,4 +69,6 @@ runs:
         INPUT_WRAPPER: ${{ inputs.wrapper }}
         INPUT_COVERAGE: ${{ inputs.coverage }}
         INPUT_COVERAGE_FLOOR: ${{ inputs.coverage-floor }}
+        INPUT_WEB_COVERAGE: ${{ inputs.web-coverage }}
+        INPUT_WEB_COVERAGE_FLOOR: ${{ inputs.web-coverage-floor }}
       run: node "${{ github.action_path }}/src/index.mjs"

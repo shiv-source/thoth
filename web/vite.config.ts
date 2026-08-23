@@ -18,5 +18,19 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: './src/test/setup.tsx',
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'json-summary'],
+      // Coverage floors — single source of truth for the frontend gate (the
+      // vitest run fails below them) and for the final-gate report's floor
+      // line (frontend-test greps the statements threshold here). Keep in
+      // sync with the Makefile web-cover target and COVERAGE_FLOOR.
+      thresholds: {
+        lines: 90,
+        functions: 90,
+        branches: 80,
+        statements: 90,
+      },
+    },
   },
 })

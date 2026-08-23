@@ -168,6 +168,11 @@ web-test: ## frontend unit tests
 web-test:
 	pnpm test
 
+web-cover: ## frontend coverage with the CI gate (thresholds in web/vite.config.ts)
+.PHONY: web-cover
+web-cover:
+	pnpm test:coverage
+
 tools-test: ## .github/actions JS suites + scripts/ smoke tests
 .PHONY: tools-test
 tools-test:
@@ -176,7 +181,7 @@ tools-test:
 	./scripts/git-worktree_test.sh
 	./scripts/pr_test.sh
 
-check: fmt lint race cover web-test tools-test build ## everything CI runs, locally
+check: fmt lint race cover web-test web-cover tools-test build ## everything CI runs, locally
 .PHONY: check
 
 # -----------------------------------------------------------------------------
