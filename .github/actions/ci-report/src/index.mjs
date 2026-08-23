@@ -23,6 +23,10 @@ export async function main() {
   const coverageFloor = process.env.INPUT_COVERAGE_FLOOR?.trim() ?? ""
   const webCoverage = process.env.INPUT_WEB_COVERAGE?.trim() ?? ""
   const webCoverageFloor = process.env.INPUT_WEB_COVERAGE_FLOOR?.trim() ?? ""
+  const coverageCovered = process.env.INPUT_COVERAGE_COVERED?.trim() ?? ""
+  const coverageTotal = process.env.INPUT_COVERAGE_TOTAL?.trim() ?? ""
+  const webCoverageCovered = process.env.INPUT_WEB_COVERAGE_COVERED?.trim() ?? ""
+  const webCoverageTotal = process.env.INPUT_WEB_COVERAGE_TOTAL?.trim() ?? ""
 
   if (!ctx.repository || !ctx.runId || !token) {
     console.error("ci-report: GITHUB_REPOSITORY, GITHUB_RUN_ID and GH_TOKEN are required")
@@ -37,7 +41,7 @@ export async function main() {
   writeStepOutput("passed", String(report.passed))
   writeStepOutput("total", String(report.total))
 
-  const summary = renderStepSummary({ ...report, ...ctx, runId: ctx.runId, runNumber: ctx.runNumber, sha: ctx.sha, coverage, coverageFloor, webCoverage, webCoverageFloor })
+  const summary = renderStepSummary({ ...report, ...ctx, runId: ctx.runId, runNumber: ctx.runNumber, sha: ctx.sha, coverage, coverageFloor, webCoverage, webCoverageFloor, coverageCovered, coverageTotal, webCoverageCovered, webCoverageTotal })
   if (process.env.GITHUB_STEP_SUMMARY) {
     appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${summary}\n`)
   }
@@ -45,7 +49,7 @@ export async function main() {
   if (ctx.eventName === "pull_request") {
     const pr = eventPullRequestNumber(ctx.eventPath)
     if (pr) {
-      const body = renderPrBody({ ...report, ...ctx, runId: ctx.runId, runNumber: ctx.runNumber, sha: ctx.sha, coverage, coverageFloor, webCoverage, webCoverageFloor })
+      const body = renderPrBody({ ...report, ...ctx, runId: ctx.runId, runNumber: ctx.runNumber, sha: ctx.sha, coverage, coverageFloor, webCoverage, webCoverageFloor, coverageCovered, coverageTotal, webCoverageCovered, webCoverageTotal })
       const action = await upsertReportComment({ repository: ctx.repository, apiUrl: ctx.apiUrl, pr, token, body })
       console.log(`ci-report: ${action} report comment on PR #${pr}`)
     }

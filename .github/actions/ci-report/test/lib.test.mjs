@@ -12,6 +12,7 @@ import {
   fetchRunJobs,
   findMarkerComment,
   githubContext,
+  overallCoverageText,
   renderPrBody,
   renderStepSummary,
   reportJobs,
@@ -150,6 +151,55 @@ test("renderStepSummary renders backend and frontend coverage lines together", (
   const summary = renderStepSummary({ ...report, ...ctx, coverage: "91.2", coverageFloor: "90", webCoverage: "93.2", webCoverageFloor: "90" })
   assert.ok(
     summary.includes("\n\n📊 Backend coverage: **91.2%** — floor **90%** ✅\n🖥️ Frontend coverage: **93.2%** — floor **90%** ✅\n\n| Job | Result |"),
+  )
+})
+
+test("overallCoverageText weights both areas by their statement totals", () => {
+  assert.equal(
+    overallCoverageText({ backendCovered: 95, backendTotal: 100, frontendCovered: 95, frontendTotal: 100, backendFloor: 90, frontendFloor: 90 }),
+    "🧮 Overall coverage: **95%** — floor **90%** ✅",
+  )
+  assert.equal(
+    overallCoverageText({ backendCovered: 912, backendTotal: 1000, frontendCovered: 900, frontendTotal: 1000, backendFloor: 90, frontendFloor: 90 }),
+    "🧮 Overall coverage: **90.6%** — floor **90%** ✅",
+  )
+  assert.equal(
+    overallCoverageText({ backendCovered: 90, backendTotal: 100, frontendCovered: 80, frontendTotal: 100, backendFloor: 90, frontendFloor: 80 }),
+    "🧮 Overall coverage: **85%** — floor **85%** ✅",
+  )
+  assert.equal(
+    overallCoverageText({ backendCovered: 60, backendTotal: 100, frontendCovered: 95, frontendTotal: 100, backendFloor: 90, frontendFloor: 90 }),
+    "🧮 Overall coverage: **77.5%** — floor **90%** ❌",
+  )
+})
+
+test("overallCoverageText is null until both areas have run", () => {
+  const base = { backendCovered: 90, backendTotal: 100, frontendCovered: 80, frontendTotal: 100, backendFloor: 90, frontendFloor: 90 }
+  assert.equal(overallCoverageText({ ...base, frontendTotal: 0 }), null)
+  assert.equal(overallCoverageText({ ...base, frontendCovered: "" }), null)
+  assert.equal(overallCoverageText({ ...base, frontendCovered: undefined }), null)
+  assert.equal(overallCoverageText({ ...base, backendTotal: "" }), null)
+})
+
+test("renderStepSummary and renderPrBody render the overall line after both areas", () => {
+  const report = reportJobs(jobs, { self: "report", wrapper: "final-gate" })
+  const args = {
+    ...report,
+    ...ctx,
+    coverage: "91.2", coverageFloor: "90", coverageCovered: 1330, coverageTotal: 1458,
+    webCoverage: "93.2", webCoverageFloor: "90", webCoverageCovered: 1449, webCoverageTotal: 1554,
+  }
+  const summary = renderStepSummary(args)
+  assert.ok(
+    summary.includes(
+      "\n\n📊 Backend coverage: **91.2%** — floor **90%** ✅\n🖥️ Frontend coverage: **93.2%** — floor **90%** ✅\n🧮 Overall coverage: **92.3%** — floor **90%** ✅\n\n| Job | Result |",
+    ),
+  )
+  const body = renderPrBody(args)
+  assert.ok(
+    body.includes(
+      "\n\n📊 Backend coverage: **91.2%** — floor **90%** ✅\n🖥️ Frontend coverage: **93.2%** — floor **90%** ✅\n🧮 Overall coverage: **92.3%** — floor **90%** ✅\n\n<details>",
+    ),
   )
 })
 

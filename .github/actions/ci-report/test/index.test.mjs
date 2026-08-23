@@ -39,7 +39,10 @@ function stubFetch({ conclusions, comments }) {
   }
 }
 
-function withEnv(event, { wrapper = "final-gate", coverage = "", coverageFloor = "", webCoverage = "", webCoverageFloor = "" } = {}) {
+function withEnv(
+  event,
+  { wrapper = "final-gate", coverage = "", coverageFloor = "", webCoverage = "", webCoverageFloor = "", coverageCovered = "", coverageTotal = "", webCoverageCovered = "", webCoverageTotal = "" } = {},
+) {
   const dir = mkdtempSync(join(tmpdir(), "ci-report-"))
   const eventFile = join(dir, "event.json")
   const outputFile = join(dir, "out.txt")
@@ -61,6 +64,10 @@ function withEnv(event, { wrapper = "final-gate", coverage = "", coverageFloor =
     INPUT_COVERAGE_FLOOR: coverageFloor,
     INPUT_WEB_COVERAGE: webCoverage,
     INPUT_WEB_COVERAGE_FLOOR: webCoverageFloor,
+    INPUT_COVERAGE_COVERED: coverageCovered,
+    INPUT_COVERAGE_TOTAL: coverageTotal,
+    INPUT_WEB_COVERAGE_COVERED: webCoverageCovered,
+    INPUT_WEB_COVERAGE_TOTAL: webCoverageTotal,
     GITHUB_OUTPUT: outputFile,
     GITHUB_STEP_SUMMARY: summaryFile,
   })
@@ -109,6 +116,26 @@ test("backend and frontend coverage both appear when provided", async () => {
     assert.ok(env.summary().includes("🖥️ Frontend coverage: **93.2%** — floor **90%** ✅"))
     const post = stub.calls.find((call) => call.init?.method === "POST")
     assert.ok(JSON.parse(post.init.body).body.includes("🖥️ Frontend coverage: **93.2%** — floor **90%** ✅"))
+  } finally {
+    env.cleanup()
+    stub.restore()
+  }
+})
+
+test("overall coverage line appears when both areas carry statement counts", async () => {
+  const env = withEnv(
+    { pull_request: { number: 7 } },
+    {
+      coverage: "91.2", coverageFloor: "90", coverageCovered: "1330", coverageTotal: "1458",
+      webCoverage: "93.2", webCoverageFloor: "90", webCoverageCovered: "1449", webCoverageTotal: "1554",
+    },
+  )
+  const stub = stubFetch({ conclusions: ["success", "skipped", "success"], comments: [] })
+  try {
+    await main()
+    assert.ok(env.summary().includes("🧮 Overall coverage: **92.3%** — floor **90%** ✅"))
+    const post = stub.calls.find((call) => call.init?.method === "POST")
+    assert.ok(JSON.parse(post.init.body).body.includes("🧮 Overall coverage: **92.3%** — floor **90%** ✅"))
   } finally {
     env.cleanup()
     stub.restore()

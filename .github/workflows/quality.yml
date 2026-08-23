@@ -12,6 +12,12 @@ on:
           The repo's coverage floor %, sourced from Makefile (COVERAGE_FLOOR),
           so the final-gate report and the gate can never drift apart.
         value: ${{ jobs.backend-test.outputs.coverage_floor }}
+      coverage_covered:
+        description: Covered backend statements (coverage.out), for the overall line.
+        value: ${{ jobs.backend-test.outputs.coverage_covered }}
+      coverage_total:
+        description: Total backend statements (coverage.out), for the overall line.
+        value: ${{ jobs.backend-test.outputs.coverage_total }}
       web_coverage:
         description: >-
           Total frontend (vitest) statement coverage % from frontend-test,
@@ -22,6 +28,12 @@ on:
           The frontend coverage floor %, sourced from web/vite.config.ts
           (vitest thresholds), so the report and the gate stay in sync.
         value: ${{ jobs.frontend-test.outputs.web_coverage_floor }}
+      web_coverage_covered:
+        description: Covered frontend statements (vitest summary), for the overall line.
+        value: ${{ jobs.frontend-test.outputs.web_coverage_covered }}
+      web_coverage_total:
+        description: Total frontend statements (vitest summary), for the overall line.
+        value: ${{ jobs.frontend-test.outputs.web_coverage_total }}
 
 permissions:
   contents: read
@@ -103,6 +115,8 @@ jobs:
     outputs:
       coverage: ${{ steps.cover.outputs.coverage }}
       coverage_floor: ${{ steps.cover.outputs.coverage_floor }}
+      coverage_covered: ${{ steps.cover.outputs.coverage_covered }}
+      coverage_total: ${{ steps.cover.outputs.coverage_total }}
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-go-web
@@ -116,9 +130,12 @@ jobs:
           make cover
           total=$(go tool cover -func=coverage.out | awk -F'\t' '/^total:/ { gsub(/%/, "", $NF); print $NF }')
           floor=$(make -s coverage-floor)
+          read -r covered stmts < <(awk '!/^mode:/ { t += $2; if ($3 > 0) c += $2 } END { print c, t }' coverage.out)
           echo "coverage=$total" >> "$GITHUB_OUTPUT"
           echo "coverage_floor=$floor" >> "$GITHUB_OUTPUT"
-          echo "coverage=$total% floor=$floor%"
+          echo "coverage_covered=$covered" >> "$GITHUB_OUTPUT"
+          echo "coverage_total=$stmts" >> "$GITHUB_OUTPUT"
+          echo "coverage=$total% floor=$floor% statements=$covered/$stmts"
 
   backend-lint:
     needs: [changes]
@@ -158,6 +175,8 @@ jobs:
     outputs:
       web_coverage: ${{ steps.cover.outputs.web_coverage }}
       web_coverage_floor: ${{ steps.cover.outputs.web_coverage_floor }}
+      web_coverage_covered: ${{ steps.cover.outputs.web_coverage_covered }}
+      web_coverage_total: ${{ steps.cover.outputs.web_coverage_total }}
     defaults:
       run:
         working-directory: web
@@ -165,17 +184,20 @@ jobs:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-web
       # Gate on the vitest thresholds (vite.config.ts), then lift the actual
-      # statements % and the floor up to the report — both from the config so
-      # they stay in sync with the gate itself.
+      # statements % + counts and the floor up to the report — all from the
+      # config/summary so they stay in sync with the gate itself.
       - name: frontend tests with coverage gate
         id: cover
         run: |
           pnpm exec vitest run --coverage
           pct=$(node -p "require('./coverage/coverage-summary.json').total.statements.pct")
           floor=$(grep -oE 'statements: [0-9]+' vite.config.ts | grep -oE '[0-9]+')
+          read -r covered stmts < <(node -p "const t=require('./coverage/coverage-summary.json').total.statements; process.stdout.write(t.covered+' '+t.total)")
           echo "web_coverage=$pct" >> "$GITHUB_OUTPUT"
           echo "web_coverage_floor=$floor" >> "$GITHUB_OUTPUT"
-          echo "web coverage=$pct% floor=$floor%"
+          echo "web_coverage_covered=$covered" >> "$GITHUB_OUTPUT"
+          echo "web_coverage_total=$stmts" >> "$GITHUB_OUTPUT"
+          echo "web coverage=$pct% floor=$floor% statements=$covered/$stmts"
 
   frontend-lint:
     needs: [changes]

@@ -43,6 +43,26 @@ inputs:
       next to the actual web %.
     required: false
     default: ""
+  coverage-covered:
+    description: >-
+      Covered backend statements (from coverage.out), paired with
+      coverage-total to weight the overall coverage line.
+    required: false
+    default: ""
+  coverage-total:
+    description: Total backend statements (from coverage.out).
+    required: false
+    default: ""
+  web-coverage-covered:
+    description: >-
+      Covered frontend statements (vitest coverage-summary.json), paired with
+      web-coverage-total for the overall line.
+    required: false
+    default: ""
+  web-coverage-total:
+    description: Total frontend statements (vitest coverage-summary.json).
+    required: false
+    default: ""
 
 outputs:
   result:
@@ -71,4 +91,8 @@ runs:
         INPUT_COVERAGE_FLOOR: ${{ inputs.coverage-floor }}
         INPUT_WEB_COVERAGE: ${{ inputs.web-coverage }}
         INPUT_WEB_COVERAGE_FLOOR: ${{ inputs.web-coverage-floor }}
+        INPUT_COVERAGE_COVERED: ${{ inputs.coverage-covered }}
+        INPUT_COVERAGE_TOTAL: ${{ inputs.coverage-total }}
+        INPUT_WEB_COVERAGE_COVERED: ${{ inputs.web-coverage-covered }}
+        INPUT_WEB_COVERAGE_TOTAL: ${{ inputs.web-coverage-total }}
       run: node "${{ github.action_path }}/src/index.mjs"

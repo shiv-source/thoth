@@ -30,6 +30,22 @@ on:
           paired with `web-coverage`.
         type: string
         required: false
+      coverage-covered:
+        description: Covered backend statements (coverage.out), for the overall line.
+        type: string
+        required: false
+      coverage-total:
+        description: Total backend statements (coverage.out), for the overall line.
+        type: string
+        required: false
+      web-coverage-covered:
+        description: Covered frontend statements (vitest summary), for the overall line.
+        type: string
+        required: false
+      web-coverage-total:
+        description: Total frontend statements (vitest summary), for the overall line.
+        type: string
+        required: false
 
 permissions:
   contents: read
@@ -54,5 +70,9 @@ jobs:
           wrapper: ${{ inputs.wrapper }}
           coverage: ${{ inputs.coverage }}
           coverage-floor: ${{ inputs.coverage-floor }}
+          coverage-covered: ${{ inputs.coverage-covered }}
+          coverage-total: ${{ inputs.coverage-total }}
           web-coverage: ${{ inputs.web-coverage }}
           web-coverage-floor: ${{ inputs.web-coverage-floor }}
+          web-coverage-covered: ${{ inputs.web-coverage-covered }}
+          web-coverage-total: ${{ inputs.web-coverage-total }}

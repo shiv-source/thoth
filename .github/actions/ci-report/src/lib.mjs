@@ -107,12 +107,51 @@ export function coverageText(coverage, coverageFloor, { emoji = "📊", label = 
   return `${head} — floor **${floor}%** ${ok ? "✅" : "❌"}`
 }
 
-// The coverage lines for a report: backend first, then frontend. Empty when
-// neither area was touched, so both lines simply disappear.
-function coverageLines({ coverage, coverageFloor, webCoverage, webCoverageFloor }) {
+// Round a percentage for display: one decimal, no trailing ".0".
+function fmtPct(n) {
+  const v = Math.round(n * 10) / 10
+  return Number.isInteger(v) ? String(v) : String(v.toFixed(1))
+}
+
+// Overall coverage across backend + frontend, weighted by each side's total
+// statements: (covered_sum / total_sum). The overall floor is the same
+// weighted average of the two area floors, so it stays in sync with both
+// gates. Returns null until both areas have run — with only one area touched,
+// its own line is the whole story.
+export function overallCoverageText({ backendCovered, backendTotal, frontendCovered, frontendTotal, backendFloor, frontendFloor }) {
+  const bt = Number(backendTotal)
+  const ft = Number(frontendTotal)
+  const missing = (v) => v === undefined || v === null || v === ""
+  if (!bt || !ft || missing(backendCovered) || missing(frontendCovered)) return null
+  const pct = ((Number(backendCovered) + Number(frontendCovered)) / (bt + ft)) * 100
+  const floor = (Number(backendFloor) * bt + Number(frontendFloor) * ft) / (bt + ft)
+  const ok = pct >= floor
+  return `🧮 Overall coverage: **${fmtPct(pct)}%** — floor **${fmtPct(floor)}%** ${ok ? "✅" : "❌"}`
+}
+
+// The coverage lines for a report: backend, frontend, then overall. Each is
+// omitted when its inputs are missing, so untouched areas simply disappear.
+function coverageLines({
+  coverage,
+  coverageFloor,
+  webCoverage,
+  webCoverageFloor,
+  coverageCovered,
+  coverageTotal,
+  webCoverageCovered,
+  webCoverageTotal,
+}) {
   return [
     coverageText(coverage, coverageFloor),
     coverageText(webCoverage, webCoverageFloor, { emoji: "🖥️", label: "Frontend coverage" }),
+    overallCoverageText({
+      backendCovered: coverageCovered,
+      backendTotal: coverageTotal,
+      backendFloor: coverageFloor,
+      frontendCovered: webCoverageCovered,
+      frontendTotal: webCoverageTotal,
+      frontendFloor: webCoverageFloor,
+    }),
   ].filter(Boolean)
 }
 
@@ -120,13 +159,13 @@ function coverageLines({ coverage, coverageFloor, webCoverage, webCoverageFloor 
 // then the job table. This is what the human opens the "summary + gate" step
 // for — rendered even when the gate fails, which is why the exit code is
 // decided only after writing it.
-export function renderStepSummary({ rows, failed, repository, runNumber, serverUrl, runId, sha, coverage, coverageFloor, webCoverage, webCoverageFloor }) {
+export function renderStepSummary({ rows, failed, repository, runNumber, serverUrl, runId, sha, coverage, coverageFloor, webCoverage, webCoverageFloor, coverageCovered, coverageTotal, webCoverageCovered, webCoverageTotal }) {
   const run = runUrl({ serverUrl, repository }, runId)
   const commit = commitUrl({ serverUrl, repository }, sha)
   const lines = [failed > 0 ? `## CI failed ❌ — ${failed} job(s) failed` : "## CI passed ✅"]
   lines.push("")
   lines.push(`Run: [${repository}#${runNumber}](${run}) · commit [\`${shortSha(sha)}\`](${commit})`)
-  const covLines = coverageLines({ coverage, coverageFloor, webCoverage, webCoverageFloor })
+  const covLines = coverageLines({ coverage, coverageFloor, webCoverage, webCoverageFloor, coverageCovered, coverageTotal, webCoverageCovered, webCoverageTotal })
   if (covLines.length > 0) lines.push("", ...covLines)
   lines.push("", "| Job | Result |", "|---|---|")
   for (const row of rows) lines.push(`| ${row.name} | ${row.text} |`)
@@ -135,13 +174,13 @@ export function renderStepSummary({ rows, failed, repository, runNumber, serverU
 
 // The prettier report posted (and updated in place) as a PR comment. Same
 // data as the step summary, wrapped for a comment and tagged with the marker.
-export function renderPrBody({ rows, failed, passed, total, repository, serverUrl, runNumber, runId, sha, coverage, coverageFloor, webCoverage, webCoverageFloor }) {
+export function renderPrBody({ rows, failed, passed, total, repository, serverUrl, runNumber, runId, sha, coverage, coverageFloor, webCoverage, webCoverageFloor, coverageCovered, coverageTotal, webCoverageCovered, webCoverageTotal }) {
   const title = failed > 0 ? "### CI Report ❌" : "### CI Report ✅"
   const run = runUrl({ serverUrl, repository }, runId)
   const commit = commitUrl({ serverUrl, repository }, sha)
   const workflow = `${serverUrl}/${repository}/actions/workflows/final-gate.yml`
   const lines = [MARKER, "", title, "", `**${passed}/${total} jobs passed** · [Run #${runNumber}](${run}) · commit [\`${shortSha(sha)}\`](${commit})`]
-  const covLines = coverageLines({ coverage, coverageFloor, webCoverage, webCoverageFloor })
+  const covLines = coverageLines({ coverage, coverageFloor, webCoverage, webCoverageFloor, coverageCovered, coverageTotal, webCoverageCovered, webCoverageTotal })
   if (covLines.length > 0) lines.push("", ...covLines)
   lines.push(
     "",
