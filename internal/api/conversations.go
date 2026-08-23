@@ -12,6 +12,9 @@ func listConversations(c echo.Context, d Deps) error {
 	if err != nil {
 		return internalError(c, d, "list conversations", err)
 	}
+	if convs == nil {
+		convs = []store.Conversation{} // empty list serializes as [], never null — the client types it as an array
+	}
 	return c.JSON(http.StatusOK, map[string]any{"conversations": convs})
 }
 
