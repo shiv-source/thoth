@@ -9,10 +9,12 @@ import { Markdown } from '../../shared/Markdown'
 // only the row whose props actually changed re-renders during streaming.
 export const MessageItem = memo(function MessageItem({
     message,
-    streaming
+    streaming,
+    onOpenNote
 }: {
     message: ChatMessage
     streaming?: boolean
+    onOpenNote?: (path: string) => void
 }) {
     const isUser = message.role === 'user'
 
@@ -42,6 +44,7 @@ export const MessageItem = memo(function MessageItem({
                 ) : (
                     <Markdown
                         className="pr-6"
+                        onOpenNote={onOpenNote}
                         trailing={
                             streaming ? (
                                 <span className="ml-0.5 inline-block h-4 w-1.5 animate-pulse rounded bg-accent align-text-bottom" />

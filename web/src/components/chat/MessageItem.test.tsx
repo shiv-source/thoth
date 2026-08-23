@@ -43,3 +43,48 @@ describe('MessageItem copy', () => {
         expect(screen.queryByRole('button', { name: 'Copy message' })).not.toBeInTheDocument()
     })
 })
+
+describe('MessageItem note chips', () => {
+    it('renders cited note paths as clickable chips and plain code unchanged', () => {
+        const onOpenNote = vi.fn()
+        renderWithStore(
+            <MessageItem
+                message={{ role: 'assistant', content: 'See `links/bookmarks.md` or run `npm install`' }}
+                onOpenNote={onOpenNote}
+            />
+        )
+
+        expect(screen.getByRole('button', { name: 'links/bookmarks.md' })).toBeInTheDocument()
+        const plain = screen.getByText('npm install')
+        expect(plain.tagName).toBe('CODE')
+        expect(screen.queryByRole('button', { name: 'npm install' })).not.toBeInTheDocument()
+    })
+
+    it('opens the note when a chip is clicked', () => {
+        const onOpenNote = vi.fn()
+        renderWithStore(
+            <MessageItem
+                message={{ role: 'assistant', content: 'Ref: `projects/foo/project.md`' }}
+                onOpenNote={onOpenNote}
+            />
+        )
+
+        fireEvent.click(screen.getByRole('button', { name: 'projects/foo/project.md' }))
+        expect(onOpenNote).toHaveBeenCalledWith('projects/foo/project.md')
+    })
+
+    it('keeps backticks and HTML inside the path text inert', () => {
+        renderWithStore(
+            <MessageItem
+                message={{ role: 'assistant', content: '``<img src=x onerror=alert(1)>`` and ``a`b.md``' }}
+                onOpenNote={vi.fn()}
+            />
+        )
+
+        // HTML inside the code span stays escaped text, never a live element.
+        expect(document.querySelector('img[src]')).toBeNull()
+        expect(screen.getByText('<img src=x onerror=alert(1)>')).toBeInTheDocument()
+        // A path carrying a backtick is not a note path: plain code, no chip.
+        expect(screen.queryByRole('button', { name: 'a`b.md' })).not.toBeInTheDocument()
+    })
+})

@@ -16,7 +16,13 @@ function createSocket(): ChatSocket {
     return socket
 }
 
-export function ChatPage({ onOpenSettings }: { onOpenSettings: () => void }) {
+export function ChatPage({
+    onOpenSettings,
+    onOpenNote
+}: {
+    onOpenSettings: () => void
+    onOpenNote: (path: string) => void
+}) {
     const dispatch = useAppDispatch()
     const [socket, setSocket] = useState<ChatSocket | null>(null)
     // The connection status lives in the store so the whole app can react to
@@ -127,7 +133,12 @@ export function ChatPage({ onOpenSettings }: { onOpenSettings: () => void }) {
                         </div>
                     )}
                     {messages.map((m, i) => (
-                        <MessageItem key={i} message={m} streaming={streaming && i === messages.length - 1} />
+                        <MessageItem
+                            key={i}
+                            message={m}
+                            streaming={streaming && i === messages.length - 1}
+                            onOpenNote={onOpenNote}
+                        />
                     ))}
                     {lastUsage !== null && <UsageLine usage={lastUsage} />}
                     <div ref={endRef} />
