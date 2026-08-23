@@ -25,10 +25,14 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json-summary'],
+      // Keep reportOnFailure false: the frontend-test coverage gate in
+      // quality.yml depends on a missing coverage-summary.json meaning a
+      // failed run (vitest writes no coverage files when tests fail).
+      reportOnFailure: false,
       // Coverage floors — single source of truth for the frontend gate (the
       // vitest run fails below them) and for the final-gate report's floor
-      // line (frontend-test greps the statements threshold here). Keep in
-      // sync with the Makefile web-cover target and COVERAGE_FLOOR.
+      // line (the coverage gate reads all thresholds here). Keep in sync
+      // with the Makefile web-cover target and COVERAGE_FLOOR.
       thresholds: {
         lines: 90,
         functions: 90,

@@ -183,21 +183,59 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-web
-      # Gate on the vitest thresholds (vite.config.ts), then lift the actual
-      # statements % + counts and the floor up to the report — all from the
-      # config/summary so they stay in sync with the gate itself.
-      - name: frontend tests with coverage gate
+      # Split the run from the gate on purpose: vitest 4.1.x's v8 coverage
+      # provider has an intermittent teardown race that exits 1 right after a
+      # fully-green run on shared CI runners (issue #166). The run step records
+      # vitest's exit code but never gates on it — the coverage gate below
+      # decides from the summary, so a spurious exit can never flip a good run
+      # red while a genuine failure still fails loudly.
+      - name: frontend tests
+        continue-on-error: true
+        run: pnpm exec vitest run --coverage
+
+      # The real gate. The summary exists iff the report fully generated: the
+      # v8 reporters run synchronously in array order (text, then json-summary)
+      # and vitest writes no coverage files when tests failed (reportOnFailure
+      # defaults to false — keep it that way, the gate depends on it). So a
+      # missing summary means the run genuinely failed or died early. When it
+      # exists, compare every metric against the thresholds in vite.config.ts
+      # (the same numbers the run itself enforces) and fail only when genuinely
+      # below. Outputs are written here so the final-gate report gets values
+      # even when the run step exited spuriously.
+      - name: frontend coverage gate
         id: cover
+        if: always()
         run: |
-          pnpm exec vitest run --coverage
-          pct=$(node -p "require('./coverage/coverage-summary.json').total.statements.pct")
-          floor=$(grep -oE 'statements: [0-9]+' vite.config.ts | grep -oE '[0-9]+')
-          read -r covered stmts < <(node -e "const t=require('./coverage/coverage-summary.json').total.statements; process.stdout.write(t.covered+' '+t.total)")
-          echo "web_coverage=$pct" >> "$GITHUB_OUTPUT"
-          echo "web_coverage_floor=$floor" >> "$GITHUB_OUTPUT"
-          echo "web_coverage_covered=$covered" >> "$GITHUB_OUTPUT"
-          echo "web_coverage_total=$stmts" >> "$GITHUB_OUTPUT"
-          echo "web coverage=$pct% floor=$floor% statements=$covered/$stmts"
+          if [ ! -f coverage/coverage-summary.json ]; then
+            echo "ERROR: coverage/coverage-summary.json is missing — the vitest run failed or died before writing it (see the 'frontend tests' step)." >&2
+            exit 1
+          fi
+          out=$(
+            node -e '
+              const t = require("./coverage/coverage-summary.json").total
+              const config = require("fs").readFileSync("vite.config.ts", "utf8")
+              const floor = {}
+              for (const key of ["lines", "functions", "branches", "statements"]) {
+                const m = config.match(new RegExp(`${key}:\\s*([0-9]+)`))
+                if (!m) throw new Error(`threshold for ${key} not found in vite.config.ts`)
+                floor[key] = Number(m[1])
+              }
+              const below = ["lines", "functions", "branches", "statements"]
+                .filter((key) => t[key].pct < floor[key])
+                .map((key) => `${key} ${t[key].pct}% < ${floor[key]}%`)
+              if (below.length) {
+                console.error(`ERROR: coverage below threshold: ${below.join(", ")}`)
+                process.exit(1)
+              }
+              console.log(`web coverage=${t.statements.pct}% floor=${floor.statements}% statements=${t.statements.covered}/${t.statements.total}`)
+              console.log(`web_coverage=${t.statements.pct}`)
+              console.log(`web_coverage_floor=${floor.statements}`)
+              console.log(`web_coverage_covered=${t.statements.covered}`)
+              console.log(`web_coverage_total=${t.statements.total}`)
+            '
+          )
+          echo "$out" | head -n 1
+          echo "$out" | tail -n +2 >> "$GITHUB_OUTPUT"
 
   frontend-lint:
     needs: [changes]
