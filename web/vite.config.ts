@@ -18,6 +18,10 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: './src/test/setup.tsx',
+    // Async UI tests (fakeWS-backed settings/chat flows) run slower under the
+    // v8 coverage instrumentation on shared CI runners; give them headroom
+    // past vitest's 5s default so the cap doesn't flake.
+    testTimeout: 15000,
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json-summary'],
