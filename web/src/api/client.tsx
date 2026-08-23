@@ -32,38 +32,45 @@ const TreeNodeSchema: z.ZodType<TreeNodeShape> = z.lazy(() =>
 )
 export type TreeNode = z.infer<typeof TreeNodeSchema>
 
-export const ProviderConfig = z.object({
-    api_key: z.string().optional(),
+// Provider is one row of the providers table: name, its base URL override and
+// key presence (the key itself is write-only — GET reports has_api_key only)
+// plus the number of models registered under it. ProviderInput is the
+// create/update body.
+export const Provider = z.object({
+    id: z.number(),
+    name: z.string(),
+    base_url: z.string(),
     has_api_key: z.boolean(),
-    base_url: z.string()
+    model_count: z.number()
 })
-export type ProviderConfig = z.infer<typeof ProviderConfig>
+export type Provider = z.infer<typeof Provider>
+export type ProviderInput = { name: string; base_url?: string; api_key?: string }
 
 export const Settings = z.object({
     wiki_path: z.string(),
     wiki_folders: z.array(z.string()),
     model: z.string(),
-    providers: z.record(z.string(), ProviderConfig),
     repo_url: z.string(),
     sync_enabled: z.boolean(),
     context_injection: z.boolean()
 })
 export type Settings = z.infer<typeof Settings>
 
-// LLMModel is one row of the llm_models table; ModelInput is the create/
-// update body (tag and provider are optional display fields). ModelGroup is
-// the GET shape: models grouped by provider, providers sorted A→Z.
+// LLMModel is one row of the llm_models table (provider is the owning
+// providers row's name via a join; provider_id is its id, 0 for the
+// Unassigned catch-all). ModelInput is the create/update body.
 export const LLMModel = z.object({
     id: z.number(),
     value: z.string(),
     name: z.string(),
     tag: z.string(),
-    provider: z.string()
+    provider: z.string(),
+    provider_id: z.number()
 })
 export type LLMModel = z.infer<typeof LLMModel>
 export const ModelGroup = z.object({ provider: z.string(), models: z.array(LLMModel) })
 export type ModelGroup = z.infer<typeof ModelGroup>
-export type ModelInput = { value: string; name: string; tag?: string; provider?: string }
+export type ModelInput = { value: string; name: string; tag?: string; provider_id?: number | null }
 
 export const GitHubIdentity = z.object({
     username: z.string(),
@@ -174,6 +181,18 @@ export const api = {
     },
     deleteModel: async (id: number): Promise<void> => {
         await http.delete(`/api/v1/models/${id}`)
+    },
+    providers: () => get('/api/v1/providers', z.object({ providers: z.array(Provider) })),
+    createProvider: async (input: ProviderInput): Promise<Provider> => {
+        const res = await http.post('/api/v1/providers', input)
+        return parseBody(res, Provider)
+    },
+    updateProvider: async (id: number, input: ProviderInput): Promise<Provider> => {
+        const res = await http.put(`/api/v1/providers/${id}`, input)
+        return parseBody(res, Provider)
+    },
+    deleteProvider: async (id: number): Promise<void> => {
+        await http.delete(`/api/v1/providers/${id}`)
     },
     saveSettings: async (s: Settings): Promise<Settings> => {
         const res = await http.put('/api/v1/settings', s)

@@ -54,7 +54,7 @@ description: >-
 5. Stage only what the change needs: no secrets, no generated dirs (bin/, web/dist/, internal/webui/dist/, node_modules/, *.db)
 
 ### 3. Open a PR
-1. **Preferred — deliver with `./scripts/pr.sh`** from the feature branch: it is the single guarded command for the whole flow — syncs main, validates the branch name, derives labels from the branch (validated against references/labels.md), runs `make check` (`--no-check` skips), pushes, and creates the PR with the template. `--title` overrides the derived title; repeat `--area <label>` to add areas. Run it on every PR delivery so the guarded flow runs end-to-end. In the bare-clone layout `./scripts/pr.sh` detects the container and syncs via `git fetch origin` instead of `git switch main` (workflow 1 step 2).
+1. **Preferred — deliver with `./scripts/pr.sh`** from the feature branch: it is the single guarded command for the whole flow — syncs main, validates the branch name, derives labels from the branch (validated against references/labels.md), runs `make check` (`--no-check` skips), refreshes the CodeGraph index (`scripts/lib-codegraph.sh` `codegraph_sync`, only when `.codegraph/codegraph.db` exists — best-effort, never blocks), pushes, and creates the PR with the template. `--title` overrides the derived title; repeat `--area <label>` to add areas. Run it on every PR delivery so the guarded flow runs end-to-end. In the bare-clone layout `./scripts/pr.sh` detects the container and syncs via `git fetch origin` instead of `git switch main` (workflow 1 step 2).
 2. Manual fallback — push the branch, then create the PR with the `gh` CLI (not the web UI):
    `gh pr create --title "<type>(<scope>): <summary>" --label <type> --label <area>… --template .github/pull_request_template.md`
    — one type label plus every area label the change touches (workflow 4); the web UI auto-fills the PR template, the CLI does not — pass it explicitly with `--template` (verify flags against `gh pr create --help`)
@@ -108,7 +108,7 @@ or .husky/pre-commit behavior changes. Stale if:
 the branch or PR commands in CONTRIBUTING.md differ from these steps, the label
 set changes, a workflow file changes gate names, order, or the report marker,
 `gh pr create --help` no longer shows the `--template` flag, scripts/pr.sh,
-scripts/git-worktree.sh, or scripts/lib-worktree.sh
+scripts/git-worktree.sh, scripts/lib-worktree.sh, or scripts/lib-codegraph.sh
 change the steps they automate, or the label tables in references/labels.md
 change shape
 (scripts/pr.sh parses `| label |` rows under `## Types` / `## Areas`).

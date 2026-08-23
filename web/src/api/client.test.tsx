@@ -42,7 +42,7 @@ describe('api.models CRUD', () => {
         vi.clearAllMocks()
     })
 
-    const model = { id: 3, value: 'my-model', name: 'My Model', tag: 'test', provider: 'Vendor' }
+    const model = { id: 3, value: 'my-model', name: 'My Model', tag: 'test', provider: 'Vendor', provider_id: 1 }
 
     it('parses models grouped by provider through zod', async () => {
         mocks.get.mockResolvedValue({ data: { groups: [{ provider: 'Vendor', models: [model] }] } })

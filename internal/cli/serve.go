@@ -303,7 +303,14 @@ func ensureModels(st *store.Store) error {
 		return err
 	}
 	for _, o := range opts {
-		if _, err := st.CreateModel(o.Value, o.Name, o.Tag, o.Provider); err != nil {
+		// Providers are first-class rows now: ensure the model's provider
+		// exists (creating it with empty credentials), then attach the model
+		// to it.
+		p, err := st.EnsureProvider(o.Provider)
+		if err != nil {
+			return fmt.Errorf("seed provider %s: %w", o.Provider, err)
+		}
+		if _, err := st.CreateModel(o.Value, o.Name, o.Tag, p.ID); err != nil {
 			return fmt.Errorf("seed model %s: %w", o.Value, err)
 		}
 	}

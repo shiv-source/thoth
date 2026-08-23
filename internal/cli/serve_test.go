@@ -83,7 +83,7 @@ func TestEnsureModelsReseedsEmptyTable(t *testing.T) {
 
 func TestEnsureModelsKeepsUserRows(t *testing.T) {
 	st, _ := openTestRepos(t)
-	if _, err := st.CreateModel("custom", "Custom", "", ""); err != nil {
+	if _, err := st.CreateModel("custom", "Custom", "", 0); err != nil {
 		t.Fatal(err)
 	}
 	if err := ensureModels(st); err != nil {
@@ -610,8 +610,8 @@ func TestModelProvider(t *testing.T) {
 }
 
 // TestServeProviderConfigResolution covers the boot chain model → provider →
-// config: the model's registry row names the provider, whose per-provider
-// settings resolve from it (own key/base URL; no shared fallback).
+// config: the model's registry row names the provider, whose providers-table
+// row resolves its own key/base URL from it (no shared fallback).
 func TestServeProviderConfigResolution(t *testing.T) {
 	st, stg := openTestRepos(t)
 	if err := ensureModels(st); err != nil {
@@ -619,10 +619,13 @@ func TestServeProviderConfigResolution(t *testing.T) {
 	}
 
 	// A model with a configured provider: per-provider key + base URL win.
-	if err := stg.SetSetting(settings.ProviderAPIKeyKey("DeepSeek"), "ds-key"); err != nil {
+	// ensureModels already seeded the DeepSeek provider row, so configure it
+	// in place.
+	dp, err := st.ProviderByName("DeepSeek")
+	if err != nil {
 		t.Fatal(err)
 	}
-	if err := stg.SetSetting(settings.ProviderBaseURLKey("DeepSeek"), "https://api.deepseek.com"); err != nil {
+	if err := st.UpdateProvider(dp.ID, "DeepSeek", "https://api.deepseek.com", "ds-key"); err != nil {
 		t.Fatal(err)
 	}
 	provider, err := modelProvider(st, "deepseek-v4-flash")
@@ -637,8 +640,8 @@ func TestServeProviderConfigResolution(t *testing.T) {
 		t.Fatalf("configured: provider=%q key=%q base=%q", provider, apiKey, baseURL)
 	}
 
-	// A provider without per-provider config resolves to an empty key and
-	// the default endpoint (empty base URL).
+	// A provider without a configured key resolves to an empty key and the
+	// default endpoint (empty base URL).
 	provider, err = modelProvider(st, "claude-opus-4-8")
 	if err != nil {
 		t.Fatal(err)

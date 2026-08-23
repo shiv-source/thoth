@@ -13,17 +13,28 @@ import (
 
 // modelBody decodes a model JSON body (group item or create/update response).
 type modelBody struct {
-	ID       int64  `json:"id"`
-	Value    string `json:"value"`
-	Name     string `json:"name"`
-	Tag      string `json:"tag"`
-	Provider string `json:"provider"`
+	ID         int64  `json:"id"`
+	Value      string `json:"value"`
+	Name       string `json:"name"`
+	Tag        string `json:"tag"`
+	Provider   string `json:"provider"`
+	ProviderID int64  `json:"provider_id"`
 }
 
 // groupBody decodes one provider group of GET /api/v1/models.
 type groupBody struct {
 	Provider string      `json:"provider"`
 	Models   []modelBody `json:"models"`
+}
+
+// seedProvider creates a provider row and returns its id.
+func seedProvider(t *testing.T, d Deps, name string) int64 {
+	t.Helper()
+	p, err := d.Store.EnsureProvider(name)
+	if err != nil {
+		t.Fatalf("EnsureProvider(%q): %v", name, err)
+	}
+	return p.ID
 }
 
 func doModelsRequest(t *testing.T, e http.Handler, method, path string, body any) *httptest.ResponseRecorder {
@@ -54,7 +65,8 @@ func decodeGroups(t *testing.T, rec *httptest.ResponseRecorder) []groupBody {
 
 func TestModelsListFromDB(t *testing.T) {
 	d := testDeps(t)
-	if _, err := d.Store.CreateModel("my-model", "My Model", "strongest", "Vendor"); err != nil {
+	pid := seedProvider(t, d, "Vendor")
+	if _, err := d.Store.CreateModel("my-model", "My Model", "strongest", pid); err != nil {
 		t.Fatal(err)
 	}
 	e := New(d)
@@ -68,7 +80,7 @@ func TestModelsListFromDB(t *testing.T) {
 	}
 	got := groups[0].Models[0]
 	if got.ID == 0 || got.Value != "my-model" || got.Name != "My Model" ||
-		got.Tag != "strongest" || got.Provider != "Vendor" {
+		got.Tag != "strongest" || got.Provider != "Vendor" || got.ProviderID != pid {
 		t.Fatalf("model mismatch: %+v", got)
 	}
 }
@@ -76,13 +88,17 @@ func TestModelsListFromDB(t *testing.T) {
 func TestModelsGroupsSortedByProvider(t *testing.T) {
 	d := testDeps(t)
 	// Insert out of order, with mixed case, so sorting is observable.
+	ids := map[string]int64{}
+	for _, name := range []string{"DeepSeek", "anthropic", "Google"} {
+		ids[name] = seedProvider(t, d, name)
+	}
 	for _, m := range []struct{ value, provider string }{
 		{"a", "DeepSeek"},
 		{"b", "anthropic"},
 		{"c", "Google"},
 		{"d", "anthropic"},
 	} {
-		if _, err := d.Store.CreateModel(m.value, m.value, "", m.provider); err != nil {
+		if _, err := d.Store.CreateModel(m.value, m.value, "", ids[m.provider]); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -102,9 +118,11 @@ func TestModelsGroupsSortedByProvider(t *testing.T) {
 }
 
 func TestModelsCreate(t *testing.T) {
-	e := New(testDeps(t))
-	rec := doModelsRequest(t, e, http.MethodPost, "/api/v1/models", map[string]string{
-		"value": "new-model", "name": "New Model", "tag": "test", "provider": "Vendor",
+	d := testDeps(t)
+	pid := seedProvider(t, d, "Vendor")
+	e := New(d)
+	rec := doModelsRequest(t, e, http.MethodPost, "/api/v1/models", map[string]any{
+		"value": "new-model", "name": "New Model", "tag": "test", "provider_id": pid,
 	})
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
@@ -113,14 +131,15 @@ func TestModelsCreate(t *testing.T) {
 	if err := json.Unmarshal(rec.Body.Bytes(), &created); err != nil {
 		t.Fatalf("decode: %v", err)
 	}
-	if created.ID == 0 || created.Value != "new-model" || created.Name != "New Model" || created.Tag != "test" {
+	if created.ID == 0 || created.Value != "new-model" || created.Name != "New Model" || created.Tag != "test" ||
+		created.Provider != "Vendor" || created.ProviderID != pid {
 		t.Fatalf("created mismatch: %+v", created)
 	}
 }
 
 func TestModelsCreateValidation(t *testing.T) {
 	e := New(testDeps(t))
-	for _, body := range []map[string]string{
+	for _, body := range []map[string]any{
 		{},
 		{"value": "only-value"},
 		{"name": "only-name"},
@@ -134,7 +153,7 @@ func TestModelsCreateValidation(t *testing.T) {
 
 func TestModelsCreateDuplicate(t *testing.T) {
 	d := testDeps(t)
-	if _, err := d.Store.CreateModel("dup", "First", "", ""); err != nil {
+	if _, err := d.Store.CreateModel("dup", "First", "", 0); err != nil {
 		t.Fatal(err)
 	}
 	e := New(d)
@@ -148,13 +167,15 @@ func TestModelsCreateDuplicate(t *testing.T) {
 
 func TestModelsUpdate(t *testing.T) {
 	d := testDeps(t)
-	m, err := d.Store.CreateModel("old-value", "Old", "before", "Vendor")
+	vendorID := seedProvider(t, d, "Vendor")
+	otherID := seedProvider(t, d, "Other")
+	m, err := d.Store.CreateModel("old-value", "Old", "before", vendorID)
 	if err != nil {
 		t.Fatal(err)
 	}
 	e := New(d)
-	rec := doModelsRequest(t, e, http.MethodPut, "/api/v1/models/"+strconv.FormatInt(m.ID, 10), map[string]string{
-		"value": "new-value", "name": "New", "tag": "after", "provider": "Other",
+	rec := doModelsRequest(t, e, http.MethodPut, "/api/v1/models/"+strconv.FormatInt(m.ID, 10), map[string]any{
+		"value": "new-value", "name": "New", "tag": "after", "provider_id": otherID,
 	})
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
@@ -164,7 +185,8 @@ func TestModelsUpdate(t *testing.T) {
 		t.Fatalf("update mismatch: %+v", groups)
 	}
 	got := groups[0].Models[0]
-	if got.Value != "new-value" || got.Name != "New" || got.Tag != "after" || got.Provider != "Other" {
+	if got.Value != "new-value" || got.Name != "New" || got.Tag != "after" ||
+		got.Provider != "Other" || got.ProviderID != otherID {
 		t.Fatalf("update mismatch: %+v", got)
 	}
 }
@@ -181,10 +203,10 @@ func TestModelsUpdateNotFound(t *testing.T) {
 
 func TestModelsUpdateDuplicate(t *testing.T) {
 	d := testDeps(t)
-	if _, err := d.Store.CreateModel("taken", "Taken", "", ""); err != nil {
+	if _, err := d.Store.CreateModel("taken", "Taken", "", 0); err != nil {
 		t.Fatal(err)
 	}
-	m, err := d.Store.CreateModel("free", "Free", "", "")
+	m, err := d.Store.CreateModel("free", "Free", "", 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -199,7 +221,7 @@ func TestModelsUpdateDuplicate(t *testing.T) {
 
 func TestModelsUpdateRenamesSelectedModel(t *testing.T) {
 	d := testDeps(t)
-	m, err := d.Store.CreateModel("old-value", "Old", "", "")
+	m, err := d.Store.CreateModel("old-value", "Old", "", 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -221,7 +243,7 @@ func TestModelsUpdateRenamesSelectedModel(t *testing.T) {
 
 func TestModelsDelete(t *testing.T) {
 	d := testDeps(t)
-	m, err := d.Store.CreateModel("doomed", "Doomed", "", "")
+	m, err := d.Store.CreateModel("doomed", "Doomed", "", 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -245,7 +267,7 @@ func TestModelsDeleteNotFound(t *testing.T) {
 
 func TestModelsDeleteClearsSelectedModel(t *testing.T) {
 	d := testDeps(t)
-	m, err := d.Store.CreateModel("doomed", "Doomed", "", "")
+	m, err := d.Store.CreateModel("doomed", "Doomed", "", 0)
 	if err != nil {
 		t.Fatal(err)
 	}

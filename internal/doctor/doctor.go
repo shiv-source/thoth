@@ -300,9 +300,9 @@ func selectedModel(dbPath string) (string, error) {
 	return model, err
 }
 
-// modelProvider returns the llm_models row's provider label for a model
-// value, or "" when the model is absent (an empty value, an unreadable
-// registry, or no matching row) — the same fallback serve's boot uses.
+// modelProvider returns the providers row's name for a model value, or ""
+// when the model is absent (an empty value, an unreadable registry, or no
+// matching row) — the same fallback serve's boot uses.
 func modelProvider(dbPath, value string) string {
 	if value == "" || !fileExists(dbPath) {
 		return ""
@@ -313,7 +313,10 @@ func modelProvider(dbPath, value string) string {
 	}
 	defer func() { _ = db.Close() }()
 	var provider string
-	if err := db.QueryRow(`SELECT provider FROM llm_models WHERE value = ?`, value).Scan(&provider); err != nil {
+	if err := db.QueryRow(`
+		SELECT p.name FROM llm_models m
+		LEFT JOIN providers p ON p.id = m.provider_id
+		WHERE m.value = ?`, value).Scan(&provider); err != nil {
 		return ""
 	}
 	return provider

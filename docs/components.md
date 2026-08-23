@@ -93,9 +93,9 @@ Full mechanics: [Indexing & search](indexing.md).
 
 ## internal/store
 
-Conversations, messages, and the llm_models registry in the same `thoth.db` (separate `*sql.DB`, WAL makes sharing safe). The whole schema lives in embedded `.sql` migrations in `migrations/`, applied in filename order and gated on `PRAGMA user_version`; a single-row `app_metadata` table (enforced by `CHECK (id = 1)`) holds install facts (`installation_id`, `created_at`, seeded by `EnsureMetadata` on boot) and git sync state (`last_synced_at`, `sync_error`, written by `SetSyncResult`). IDs are valid RFC 4122 v4 UUIDs (`google/uuid`); the conversation id is the chat history key passed to the agent as `sessionID`. Timestamps are stored UTC so ordering is chronological.
+Conversations, messages, the `providers` table, and the llm_models registry in the same `thoth.db` (separate `*sql.DB`, WAL makes sharing safe). The whole schema lives in embedded `.sql` migrations in `migrations/`, applied in filename order and gated on `PRAGMA user_version`; a single-row `app_metadata` table (enforced by `CHECK (id = 1)`) holds install facts (`installation_id`, `created_at`, seeded by `EnsureMetadata` on boot) and git sync state (`last_synced_at`, `sync_error`, written by `SetSyncResult`). IDs are valid RFC 4122 v4 UUIDs (`google/uuid`); the conversation id is the chat history key passed to the agent as `sessionID`. Timestamps are stored UTC so ordering is chronological.
 
-`models.go` owns the `llm_models` CRUD (`ListModels`, `Model`, `CreateModel`, `UpdateModel`, `DeleteModel`); duplicate `value`s surface as the `ErrModelExists` sentinel (typed SQLite constraint code, not string matching), missing ids as `ErrModelNotFound`. Seeding is not a store method — `ensureModels` in `internal/cli` seeds from `assets.ModelOptions()` whenever the table is empty, so every startup self-heals an empty registry.
+`models.go` owns the `llm_models` CRUD (`ListModels`, `Model`, `CreateModel`, `UpdateModel`, `DeleteModel`) with the provider name resolved through a `providers` join; duplicate `value`s surface as the `ErrModelExists` sentinel (typed SQLite constraint code, not string matching), missing ids as `ErrModelNotFound`. `providers.go` owns the providers CRUD (`ListProviders` with per-provider model counts, `CreateProvider`, `UpdateProvider`, `DeleteProvider` — which cascades the provider's models, `EnsureProvider`, `Provider`/`ProviderByName`) with `ErrProviderExists`/`ErrProviderNotFound` sentinels; `store.Open` also runs the one-time `0011` credential backfill that copies the legacy `provider_<slug>_*` settings keys into the providers rows. Seeding is not a store method — `ensureModels` in `internal/cli` seeds providers and models from `assets.ModelOptions()` whenever the table is empty, so every startup self-heals an empty registry.
 
 ## internal/cli
 
@@ -111,7 +111,7 @@ Conversations, messages, and the llm_models registry in the same `thoth.db` (sep
 
 ## internal/settings
 
-`Repo` (`OpenRepo(path)`) owns the `settings` KV table — `wiki_path`, `wiki_folders`, `github_sync_*` keys and the per-provider `provider_<slug>_api_key`/`provider_<slug>_base_url` keys (helpers `ProviderAPIKeyKey`/`ProviderBaseURLKey`) — with sync-state conveniences and `ProviderConfig(provider)`, the model→provider→credential resolution `serve` uses at boot. It deliberately runs no migrations and no WAL pragma: the doctor must never mutate a database it only reads. Details: [Schema](schema.md).
+`Repo` (`OpenRepo(path)`) owns the `settings` KV table — `wiki_path`, `wiki_folders`, `github_sync_*` keys — with sync-state conveniences and `ProviderConfig(provider)`, the model→provider→credential resolution `serve` uses at boot, which reads the `providers` table by name. The legacy per-provider key helpers (`ProviderAPIKeyKey`/`ProviderBaseURLKey`) survive only as the read keys of the `0011` credential backfill. It deliberately runs no migrations and no WAL pragma: the doctor must never mutate a database it only reads. Details: [Schema](schema.md).
 
 ## internal/api — git sync
 

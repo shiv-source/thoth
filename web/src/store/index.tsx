@@ -46,9 +46,14 @@ export {
     createModel,
     updateModel,
     deleteModel,
+    fetchProviders,
+    createProvider,
+    updateProvider,
+    deleteProvider,
     selectSettings,
     selectModelGroups,
-    selectModelList
+    selectModelList,
+    selectProviders
 } from './slices/settingsSlice'
 export {
     fetchConversations,

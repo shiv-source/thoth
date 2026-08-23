@@ -229,7 +229,7 @@ func TestRunServeFailsWhenNoClaudeModel(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := st.CreateModel("custom-model", "Custom", "", "Vendor"); err != nil {
+	if _, err := st.CreateModel("custom-model", "Custom", "", 0); err != nil {
 		t.Fatal(err)
 	}
 	if err := st.Close(); err != nil {

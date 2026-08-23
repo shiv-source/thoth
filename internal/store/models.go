@@ -9,13 +9,16 @@ import (
 	sqlite3 "modernc.org/sqlite/lib"
 )
 
-// LLMModel is one row of the user-editable model registry.
+// LLMModel is one row of the user-editable model registry. Provider is the
+// owning providers row's name (via a join; empty for the Unassigned
+// catch-all) and ProviderID is that row's id (0 when unassigned).
 type LLMModel struct {
-	ID       int64  `json:"id"`
-	Value    string `json:"value"`
-	Name     string `json:"name"`
-	Tag      string `json:"tag"`
-	Provider string `json:"provider"`
+	ID         int64  `json:"id"`
+	Value      string `json:"value"`
+	Name       string `json:"name"`
+	Tag        string `json:"tag"`
+	Provider   string `json:"provider"`
+	ProviderID int64  `json:"provider_id"`
 }
 
 // ErrModelExists is returned when a create/update collides with another
@@ -26,11 +29,17 @@ var ErrModelExists = errors.New("a model with this value already exists")
 // row; the API layer maps it to 404.
 var ErrModelNotFound = errors.New("model not found")
 
+// modelSelect is the column list shared by the list and single-row reads; the
+// LEFT JOIN keeps unassigned models (provider_id NULL) present as empty names.
+const modelSelect = `
+	SELECT m.id, m.value, m.name, m.tag, COALESCE(p.name, ''), m.provider_id
+	FROM llm_models m
+	LEFT JOIN providers p ON p.id = m.provider_id`
+
 // ListModels returns every model in insertion (id) order, which keeps the
 // seeded models.json order stable in the picker.
 func (s *Store) ListModels() ([]LLMModel, error) {
-	rows, err := s.db.Query(
-		`SELECT id, value, name, tag, provider FROM llm_models ORDER BY id ASC`)
+	rows, err := s.db.Query(modelSelect + ` ORDER BY m.id ASC`)
 	if err != nil {
 		return nil, fmt.Errorf("list models: %w", err)
 	}
@@ -38,7 +47,7 @@ func (s *Store) ListModels() ([]LLMModel, error) {
 	var out []LLMModel
 	for rows.Next() {
 		var m LLMModel
-		if err := rows.Scan(&m.ID, &m.Value, &m.Name, &m.Tag, &m.Provider); err != nil {
+		if err := scanModel(&m, rows.Scan); err != nil {
 			return nil, fmt.Errorf("scan model: %w", err)
 		}
 		out = append(out, m)
@@ -49,9 +58,7 @@ func (s *Store) ListModels() ([]LLMModel, error) {
 // Model returns one model by id.
 func (s *Store) Model(id int64) (LLMModel, error) {
 	var m LLMModel
-	err := s.db.QueryRow(
-		`SELECT id, value, name, tag, provider FROM llm_models WHERE id = ?`, id).
-		Scan(&m.ID, &m.Value, &m.Name, &m.Tag, &m.Provider)
+	err := scanModel(&m, s.db.QueryRow(modelSelect+` WHERE m.id = ?`, id).Scan)
 	if errors.Is(err, sql.ErrNoRows) {
 		return LLMModel{}, ErrModelNotFound
 	}
@@ -61,11 +68,27 @@ func (s *Store) Model(id int64) (LLMModel, error) {
 	return m, nil
 }
 
-// CreateModel inserts a model and returns it with its id.
-func (s *Store) CreateModel(value, name, tag, provider string) (LLMModel, error) {
+// scanModel fills m from the shared modelSelect columns, mapping a NULL
+// provider_id (the Unassigned catch-all) to 0. scan is the caller's Rows.Scan
+// or Row.Scan.
+func scanModel(m *LLMModel, scan func(...any) error) error {
+	var providerID sql.NullInt64
+	if err := scan(&m.ID, &m.Value, &m.Name, &m.Tag, &m.Provider, &providerID); err != nil {
+		return err
+	}
+	if providerID.Valid {
+		m.ProviderID = providerID.Int64
+	}
+	return nil
+}
+
+// CreateModel inserts a model and returns it with its id. providerID 0 means
+// the Unassigned catch-all (provider_id NULL).
+func (s *Store) CreateModel(value, name, tag string, providerID int64) (LLMModel, error) {
+	pid := nullableID(providerID)
 	res, err := s.db.Exec(
-		`INSERT INTO llm_models(value, name, tag, provider) VALUES (?, ?, ?, ?)`,
-		value, name, tag, provider)
+		`INSERT INTO llm_models(value, name, tag, provider_id) VALUES (?, ?, ?, ?)`,
+		value, name, tag, pid)
 	if err != nil {
 		if isUniqueViolation(err) {
 			return LLMModel{}, ErrModelExists
@@ -76,14 +99,20 @@ func (s *Store) CreateModel(value, name, tag, provider string) (LLMModel, error)
 	if err != nil {
 		return LLMModel{}, fmt.Errorf("create model id: %w", err)
 	}
-	return LLMModel{ID: id, Value: value, Name: name, Tag: tag, Provider: provider}, nil
+	provider := ""
+	if providerID != 0 {
+		if p, err := s.Provider(providerID); err == nil {
+			provider = p.Name
+		}
+	}
+	return LLMModel{ID: id, Value: value, Name: name, Tag: tag, Provider: provider, ProviderID: providerID}, nil
 }
 
 // UpdateModel replaces every editable field of the model.
-func (s *Store) UpdateModel(id int64, value, name, tag, provider string) error {
+func (s *Store) UpdateModel(id int64, value, name, tag string, providerID int64) error {
 	res, err := s.db.Exec(
-		`UPDATE llm_models SET value = ?, name = ?, tag = ?, provider = ? WHERE id = ?`,
-		value, name, tag, provider, id)
+		`UPDATE llm_models SET value = ?, name = ?, tag = ?, provider_id = ? WHERE id = ?`,
+		value, name, tag, nullableID(providerID), id)
 	if err != nil {
 		if isUniqueViolation(err) {
 			return ErrModelExists
@@ -100,6 +129,14 @@ func (s *Store) DeleteModel(id int64) error {
 		return fmt.Errorf("delete model: %w", err)
 	}
 	return rowsAffectedOrNotFound(res, "delete model")
+}
+
+// nullableID maps a 0 id to NULL so unassigned rows store provider_id NULL.
+func nullableID(id int64) any {
+	if id == 0 {
+		return nil
+	}
+	return id
 }
 
 // isUniqueViolation reports whether err is a SQLite UNIQUE constraint
