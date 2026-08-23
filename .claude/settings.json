@@ -2,24 +2,6 @@
   "hooks": {
     "PreToolUse": [
       {
-        "matcher": "Bash|Grep",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "/Users/shivkumar/.local/bin/graphify hook-guard search"
-          }
-        ]
-      },
-      {
-        "matcher": "Read|Glob",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "/Users/shivkumar/.local/bin/graphify hook-guard read"
-          }
-        ]
-      },
-      {
         "matcher": "Read",
         "hooks": [
           {

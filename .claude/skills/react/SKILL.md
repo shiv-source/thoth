@@ -129,7 +129,7 @@ tokens with `@theme inline`, never `:root`), and antd 6.6 deprecates
 
 ## Maintenance
 Derived view — after a behavior change, update this skill + docs/ in the
-same commit, then run `graphify update .`. Stale if: a workflow's file
+same commit. Stale if: a workflow's file
 paths stop resolving, docs/frontend.md gains a component this skill's
 workflow list doesn't mention, or the file-structure/naming rules (1a)
 stop matching how pages/components are laid out.

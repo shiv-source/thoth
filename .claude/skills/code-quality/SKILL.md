@@ -63,6 +63,6 @@ Details and floors: .claude/skills/go/references/quality.md
 ## Maintenance
 Derived view — update this skill in the same commit as any change to
 docs/development.md § Gates, .golangci.yml, quality.yml, or the go quality
-reference; then run `graphify update .`. Stale if: a gate command above no
+reference. Stale if: a gate command above no
 longer matches `make check`, the coverage floor changes, or the checklist
 diverges from CLAUDE.md § Code Rules.

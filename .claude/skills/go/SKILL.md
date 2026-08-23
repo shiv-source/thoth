@@ -133,7 +133,7 @@ description: >-
 
 ## Maintenance
 Derived view — after a behavior change, update this skill + docs/ in the
-same commit, then run `graphify update .`. When the Claude CLI upgrades,
+same commit. When the Claude CLI upgrades,
 verify the flags against `claude --help` (blast wall). Stale if: a
 workflow's file paths stop resolving, or docs/ gains a workflow this
 file lacks.
