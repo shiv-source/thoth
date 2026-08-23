@@ -23,6 +23,7 @@ vi.mock('chart.js', () => {
         BarElement: vi.fn(),
         CategoryScale: vi.fn(),
         DoughnutController: vi.fn(),
+        Filler: vi.fn(),
         LinearScale: vi.fn(),
         LineController: vi.fn(),
         LineElement: vi.fn(),

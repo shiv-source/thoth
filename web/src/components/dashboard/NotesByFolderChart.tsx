@@ -2,10 +2,11 @@ import { Bar } from 'react-chartjs-2'
 import type { ChartData, ChartOptions, TooltipItem } from 'chart.js'
 import '../../utils/chart'
 import { useThemeColors } from './useThemeColors'
+import { tooltipStyle, verticalGradient } from './chartTheme'
 
 // NotesByFolderChart compares note counts per top-level wiki folder
-// (magnitude). Single emerald series, thin horizontal bars, folder names on
-// the category axis, a hidden value axis.
+// (magnitude). Single blue series with a vertical gradient, thin horizontal
+// bars, folder names on the category axis, a hidden value axis.
 export function NotesByFolderChart({ rows }: { rows: { folder: string; count: number }[] }) {
     const colors = useThemeColors()
     const data: ChartData<'bar'> = {
@@ -13,11 +14,11 @@ export function NotesByFolderChart({ rows }: { rows: { folder: string; count: nu
         datasets: [
             {
                 data: rows.map((r) => r.count),
-                backgroundColor: colors.accent,
-                hoverBackgroundColor: colors.accentHover,
-                borderRadius: 4,
+                backgroundColor: (context) => verticalGradient(context, colors.accentHover, colors.accent),
+                hoverBackgroundColor: colors.accent,
+                borderRadius: 6,
                 borderSkipped: false,
-                maxBarThickness: 12
+                maxBarThickness: 14
             }
         ]
     }
@@ -37,7 +38,7 @@ export function NotesByFolderChart({ rows }: { rows: { folder: string; count: nu
         plugins: {
             legend: { display: false },
             tooltip: {
-                displayColors: false,
+                ...tooltipStyle,
                 callbacks: {
                     title: () => '',
                     label: (item: TooltipItem<'bar'>) => {
@@ -50,7 +51,7 @@ export function NotesByFolderChart({ rows }: { rows: { folder: string; count: nu
     }
 
     return (
-        <div className="h-28">
+        <div className="h-32">
             <Bar
                 data={data}
                 options={options}

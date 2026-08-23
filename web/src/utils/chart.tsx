@@ -5,6 +5,7 @@ import {
     CategoryScale,
     Chart,
     DoughnutController,
+    Filler,
     LinearScale,
     LineController,
     LineElement,
@@ -24,5 +25,6 @@ Chart.register(
     LineElement,
     PointElement,
     ArcElement,
-    DoughnutController
+    DoughnutController,
+    Filler
 )

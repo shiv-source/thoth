@@ -2,6 +2,7 @@ import { Doughnut } from 'react-chartjs-2'
 import type { ChartData, ChartOptions, TooltipItem } from 'chart.js'
 import '../../utils/chart'
 import { useThemeColors } from './useThemeColors'
+import { tooltipStyle } from './chartTheme'
 
 // NotesByKindChart is a doughnut of note counts by kind (part-to-whole).
 // The categorical hues come from the validated series palette; a 2px
@@ -18,7 +19,7 @@ export function NotesByKindChart({ slices }: { slices: { kind: string; count: nu
                 backgroundColor: colors.series.slice(0, slices.length),
                 borderColor: colors.surface,
                 borderWidth: 2,
-                hoverOffset: 2
+                hoverOffset: 4
             }
         ]
     }
@@ -30,6 +31,7 @@ export function NotesByKindChart({ slices }: { slices: { kind: string; count: nu
         plugins: {
             legend: { display: false },
             tooltip: {
+                ...tooltipStyle,
                 callbacks: {
                     label: (item: TooltipItem<'doughnut'>) => `${item.label} · ${item.parsed} notes`
                 }
@@ -39,7 +41,7 @@ export function NotesByKindChart({ slices }: { slices: { kind: string; count: nu
 
     return (
         <div>
-            <div className="h-28">
+            <div className="h-32">
                 <Doughnut
                     data={data}
                     options={options}

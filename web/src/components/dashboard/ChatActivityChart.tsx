@@ -4,10 +4,11 @@ import type { ChartData, ChartOptions, TooltipItem } from 'chart.js'
 import '../../utils/chart'
 import { useThemeColors } from './useThemeColors'
 import { chartDays } from './chartDays'
+import { tooltipStyle, verticalGradient } from './chartTheme'
 
 // ChatActivityChart is a single-series line chart: chat messages per day for
-// the last N days (oldest first). One emerald hue, a thin line with
-// hover-only points, a hidden value axis.
+// the last N days (oldest first). One blue hue with a soft area fill,
+// hover-only points, a light tooltip, a hidden value axis.
 export function ChatActivityChart({ counts }: { counts: number[] }) {
     const days = useMemo(() => chartDays(counts.length), [counts.length])
 
@@ -18,7 +19,9 @@ export function ChatActivityChart({ counts }: { counts: number[] }) {
             {
                 data: counts,
                 borderColor: colors.accent,
-                backgroundColor: colors.accent,
+                backgroundColor: (context) =>
+                    verticalGradient(context, 'rgba(22, 119, 255, 0.16)', 'rgba(22, 119, 255, 0)'),
+                fill: true,
                 borderWidth: 2,
                 pointRadius: 0,
                 pointHoverRadius: 4,
@@ -43,7 +46,7 @@ export function ChatActivityChart({ counts }: { counts: number[] }) {
         plugins: {
             legend: { display: false },
             tooltip: {
-                displayColors: false,
+                ...tooltipStyle,
                 callbacks: {
                     title: () => '',
                     label: (item: TooltipItem<'line'>) => {
@@ -58,7 +61,7 @@ export function ChatActivityChart({ counts }: { counts: number[] }) {
     }
 
     return (
-        <div className="h-24">
+        <div className="h-28">
             <Line
                 data={data}
                 options={options}
