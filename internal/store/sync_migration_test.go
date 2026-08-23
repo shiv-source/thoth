@@ -9,6 +9,77 @@ import (
 	"testing"
 )
 
+// TestMigration0014BackfillsAttemptAt upgrades a v13 database (a user on the
+// previous schema) and verifies migration 0014 adds last_attempt_at and
+// backfills it from last_synced_at — a synced connection keeps its cooldown
+// instead of re-firing right after the upgrade, while a never-synced one stays
+// due (empty attempt).
+func TestMigration0014BackfillsAttemptAt(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "test.db")
+	db, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	names, err := fs.Glob(migrationFS, "migrations/*.sql")
+	if err != nil {
+		t.Fatal(err)
+	}
+	sort.Strings(names)
+	// Apply everything through 0013 — the pre-0014 state.
+	for i, name := range names[:13] {
+		raw, err := fs.ReadFile(migrationFS, name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := applyMigration(db, i+1, splitStatements(string(raw))); err != nil {
+			t.Fatalf("apply %s: %v", name, err)
+		}
+	}
+	var localID int64
+	if err := db.QueryRow(`SELECT id FROM sync_providers WHERE slug = 'local'`).Scan(&localID); err != nil {
+		t.Fatal(err)
+	}
+	// One synced connection (last_synced_at set) and one never-synced.
+	lastSynced := "2026-01-02T03:04:05Z"
+	if _, err := db.Exec(
+		`INSERT INTO sync_connections(provider_id, name, config, identity, enabled, protected, last_synced_at, last_error, created_at, updated_at)
+		 VALUES (?, 'synced', '{}', NULL, 1, 0, ?, '', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')`,
+		localID, lastSynced); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(
+		`INSERT INTO sync_connections(provider_id, name, config, identity, enabled, protected, created_at, updated_at)
+		 VALUES (?, 'never', '{}', NULL, 1, 0, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')`,
+		localID); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	s, err := Open(path) // runs migration 0014
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	defer func() { _ = s.Close() }()
+	conns, err := s.ListConnections()
+	if err != nil {
+		t.Fatalf("ListConnections: %v", err)
+	}
+	for _, c := range conns {
+		switch c.Name {
+		case "synced":
+			if c.LastAttemptAt != lastSynced {
+				t.Fatalf("synced connection attempt not backfilled: %+v", c)
+			}
+		case "never":
+			if c.LastAttemptAt != "" {
+				t.Fatalf("never-synced connection must keep an empty attempt: %+v", c)
+			}
+		}
+	}
+}
+
 // TestSyncMigration0012 reproduces a pre-0012 database — the single github_auth
 // row plus the four github_sync_* settings keys — and verifies migration 0012
 // promotes it: a connection under the github provider carrying the token, sync

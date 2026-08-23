@@ -26,9 +26,13 @@ type Connection struct {
 	// backup) that cannot be deleted — only their config edited.
 	Protected    bool
 	LastSyncedAt string // UTC RFC3339 of the last successful sync; "" when never
-	LastError    string // sanitized error of the last failed sync; "" when none
-	CreatedAt    string
-	UpdatedAt    string
+	// LastAttemptAt is UTC RFC3339 of the last sync attempt (success or
+	// failure). The auto-sync scheduler schedules off it, so a failing
+	// connection cools down between retries rather than re-firing every tick.
+	LastAttemptAt string
+	LastError     string // sanitized error of the last failed sync; "" when none
+	CreatedAt     string
+	UpdatedAt     string
 	// ProviderSlug / ProviderName / ProviderDriver are the joined provider
 	// fields, populated by reads; zero elsewhere.
 	ProviderSlug   string
@@ -48,21 +52,22 @@ var ErrConnectionProtected = errors.New("sync connection is protected and cannot
 // the single read shape for every Connection scan.
 const connectionJoinColumns = `
 	c.id, c.provider_id, c.name, c.config, c.identity, c.enabled, c.protected,
-	c.last_synced_at, c.last_error, c.created_at, c.updated_at,
+	c.last_synced_at, c.last_attempt_at, c.last_error, c.created_at, c.updated_at,
 	p.slug, p.name, p.driver`
 
 // scanConnection reads the connectionJoinColumns order into c. Nullable
 // columns and integer flags are normalized for the wire shape.
 func scanConnection(s scanner, c *Connection) error {
-	var identity, lastSyncedAt, lastError sql.NullString
+	var identity, lastSyncedAt, lastAttemptAt, lastError sql.NullString
 	var enabled, protected int
 	if err := s.Scan(&c.ID, &c.ProviderID, &c.Name, &c.Config, &identity, &enabled, &protected,
-		&lastSyncedAt, &lastError, &c.CreatedAt, &c.UpdatedAt,
+		&lastSyncedAt, &lastAttemptAt, &lastError, &c.CreatedAt, &c.UpdatedAt,
 		&c.ProviderSlug, &c.ProviderName, &c.ProviderDriver); err != nil {
 		return err
 	}
 	c.Identity = identity.String
 	c.LastSyncedAt = lastSyncedAt.String
+	c.LastAttemptAt = lastAttemptAt.String
 	c.LastError = lastError.String
 	c.Enabled = enabled != 0
 	c.Protected = protected != 0
@@ -150,9 +155,11 @@ func (s *Store) UpdateConnection(id int64, name, config string, enabled bool) er
 
 // SetConnectionSyncResult records the outcome of a sync: success stamps
 // last_synced_at and clears last_error; failure records the error and keeps
-// last_synced_at at the last successful sync. Every outcome is also appended
-// to the connection's push history (capped), so the Settings page can render
-// recent runs.
+// last_synced_at at the last successful sync. Either way last_attempt_at is
+// stamped, so the scheduler schedules off the attempt (not just the last
+// success) and a failing connection cools down between retries. Every outcome
+// is also appended to the connection's push history (capped), so the Settings
+// page can render recent runs.
 func (s *Store) SetConnectionSyncResult(id int64, ok bool, detail string) error {
 	lastSyncedAt := ""
 	if ok {
@@ -170,8 +177,8 @@ func (s *Store) SetConnectionSyncResult(id int64, ok bool, detail string) error 
 		lastError = detail
 	}
 	_, err := s.db.Exec(
-		`UPDATE sync_connections SET last_synced_at = ?, last_error = ?, updated_at = ? WHERE id = ?`,
-		lastSyncedAt, nullString(lastError), time.Now().UTC().Format(time.RFC3339), id)
+		`UPDATE sync_connections SET last_synced_at = ?, last_attempt_at = ?, last_error = ?, updated_at = ? WHERE id = ?`,
+		lastSyncedAt, time.Now().UTC().Format(time.RFC3339), nullString(lastError), time.Now().UTC().Format(time.RFC3339), id)
 	if err != nil {
 		return fmt.Errorf("set connection sync result: %w", err)
 	}

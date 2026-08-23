@@ -110,6 +110,12 @@ func (d *localDriver) Restore(_ context.Context, cfg Config, key string) (io.Rea
 		}
 		key = snaps[0].Key
 	}
+	// key comes from the API body; require a plain basename that resolves
+	// inside the configured backup folder so a path like "../../other/wiki.zip"
+	// (or "..") cannot read outside it.
+	if key == "" || filepath.Base(key) != key || !pathContains(dir, filepath.Join(dir, key)) {
+		return nil, 0, errors.New("could not read the backup file")
+	}
 	f, err := os.Open(filepath.Join(dir, key))
 	if err != nil {
 		return nil, 0, errors.New("could not read the backup file")

@@ -141,6 +141,83 @@ func TestSchedulerSweepConcurrencyCap(t *testing.T) {
 	}
 }
 
+// TestSchedulerSweepSkipsInFlight verifies the documented per-connection
+// skip: a connection whose push is still running (longer than the tick) is
+// not re-fired on the next sweep, and is schedulable again once it finishes.
+// The local driver is replaced with one that blocks until released, so the
+// in-flight push is observable rather than racing the test.
+func TestSchedulerSweepSkipsInFlight(t *testing.T) {
+	st := testStore(t)
+	local, err := st.SyncProviderBySlug("local")
+	if err != nil {
+		t.Fatal(err)
+	}
+	conn, err := st.CreateConnection(local.ID, "backup", `{"path":"x","interval":"60"}`, "", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	started := make(chan struct{}, 1)
+	release := make(chan struct{})
+	svc := &Service{Store: st, drivers: map[string]func(string) Driver{
+		"local": func(string) Driver { return &blockingPushDriver{started: started, release: release} },
+	}}
+	results := make(chan Result, 2)
+	s := NewScheduler(svc, t.TempDir(), nil, func(r Result) { results <- r })
+
+	// Mark the connection in flight, as a long push would be across ticks:
+	// the next sweep must not fire a second push for it.
+	s.mu.Lock()
+	s.pushing[conn.ID] = struct{}{}
+	s.mu.Unlock()
+	s.sweep(context.Background())
+	select {
+	case <-started:
+		t.Fatal("in-flight connection must not re-fire")
+	case <-time.After(500 * time.Millisecond):
+	}
+
+	// Once the push finishes the connection is schedulable again.
+	s.mu.Lock()
+	delete(s.pushing, conn.ID)
+	s.mu.Unlock()
+	s.sweep(context.Background())
+	select {
+	case <-started:
+	case <-time.After(5 * time.Second):
+		t.Fatal("cleared in-flight connection was never pushed")
+	}
+	close(release)
+	select {
+	case r := <-results:
+		if !r.OK {
+			t.Fatalf("push result wrong: %v", r.Error)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("no push result for the cleared connection")
+	}
+}
+
+// blockingPushDriver is a Driver whose Push signals started then blocks until
+// release, so a test can hold a push observably in flight.
+type blockingPushDriver struct {
+	started chan struct{}
+	release chan struct{}
+}
+
+func (d *blockingPushDriver) Kind() Kind { return KindLocal }
+func (d *blockingPushDriver) Fields() []Field {
+	return []Field{{Key: "path", Label: "Backup folder", Required: true}, IntervalField}
+}
+func (d *blockingPushDriver) Verify(context.Context, Config) (Identity, error) {
+	return Identity{}, nil
+}
+func (d *blockingPushDriver) Targets(context.Context, Config) ([]Target, error) { return nil, nil }
+func (d *blockingPushDriver) Push(context.Context, Config, string, Identity) error {
+	d.started <- struct{}{}
+	<-d.release
+	return nil
+}
+
 // TestSchedulerReportsFailure verifies a failed scheduled push surfaces in the
 // Result with its error (the onPush error branch).
 func TestSchedulerReportsFailure(t *testing.T) {

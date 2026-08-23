@@ -242,8 +242,8 @@ func TestFreshOpenRunsAllMigrations(t *testing.T) {
 	if err := s.db.QueryRow(`PRAGMA user_version`).Scan(&v); err != nil {
 		t.Fatal(err)
 	}
-	if v != 13 {
-		t.Fatalf("user_version = %d, want 13 (one migration per table)", v)
+	if v != 14 {
+		t.Fatalf("user_version = %d, want 14 (one migration per table, plus the last_attempt_at column)", v)
 	}
 	// The settings seed lands with the migrations.
 	var wikiPath string

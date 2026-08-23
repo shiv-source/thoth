@@ -136,10 +136,20 @@ func snapshotKey(ts time.Time) string {
 	return snapshotPrefix + ts.UTC().Format(SnapshotTimeFormat) + ".zip"
 }
 
-// isHistoryKey reports whether a base key is a timestamped snapshot (vs the
-// stable wiki.zip pointer).
+// isHistoryKey reports whether a key is a timestamped snapshot (vs the stable
+// wiki.zip pointer). It matches the basename so prefixed keys
+// (<prefix>/thoth-wiki-<ts>.zip) count as history too, mirroring
+// snapshotTimeFromKey.
+// isHistoryKey reports whether a key is a timestamped snapshot (vs the stable
+// wiki.zip pointer). It matches the basename so prefixed keys
+// (<prefix>/thoth-wiki-<ts>.zip) count as history too, mirroring
+// snapshotTimeFromKey.
 func isHistoryKey(key string) bool {
-	return strings.HasPrefix(key, snapshotPrefix) && strings.HasSuffix(key, ".zip")
+	name := key
+	if i := strings.LastIndex(name, "/"); i >= 0 {
+		name = name[i+1:]
+	}
+	return strings.HasPrefix(name, snapshotPrefix) && strings.HasSuffix(key, ".zip")
 }
 
 // snapshotMode returns the connection's configured mode, defaulting to stable.

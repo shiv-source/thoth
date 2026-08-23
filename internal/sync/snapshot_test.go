@@ -191,6 +191,78 @@ func TestS3RetentionPrunesOldest(t *testing.T) {
 	}
 }
 
+// TestS3PrefixedHistory verifies the history path works when the connection
+// sets a key prefix: seeded prefixed snapshots are listed and pruned, and
+// Restore("") resolves to the newest. isHistoryKey matches the basename, so a
+// prefix must not hide the history (the retention, list, and latest-restore
+// all regressed together before the fix).
+func TestS3PrefixedHistory(t *testing.T) {
+	stub := &s3Stub{objects: map[string][]byte{
+		"backups/thoth-wiki-20260101-000000.zip": []byte("oldest"),
+		"backups/thoth-wiki-20260102-000000.zip": []byte("middle"),
+		"backups/thoth-wiki-20260103-000000.zip": []byte("newest-seed"),
+	}}
+	d, _ := newS3Driver(t, stub)
+	cfg := cloneConfig(Config{
+		"access_key_id": "AK", "secret_access_key": "SK", "region": "us-east-1", "bucket": "bucket",
+	}, "snapshot", SnapshotHistory)
+	cfg["prefix"] = "backups"
+	cfg["retention"] = "2"
+
+	if err := d.Push(context.Background(), cfg, testWikiRoot(t), Identity{}); err != nil {
+		t.Fatalf("Push: %v", err)
+	}
+	// Retention keeps the newest 2 prefixed keys (the seeded 20260101/02 are
+	// the oldest after the new push) and deletes the rest.
+	historyKeys := 0
+	for k := range stub.objects {
+		if isHistoryKey(k) {
+			historyKeys++
+		}
+	}
+	if historyKeys != 2 {
+		t.Fatalf("retention=2 must keep exactly 2 prefixed snapshots, got %d: %+v", historyKeys, stub.objects)
+	}
+	if _, ok := stub.objects["backups/thoth-wiki-20260101-000000.zip"]; ok {
+		t.Fatalf("oldest prefixed snapshot not pruned: %+v", stub.objects)
+	}
+	if _, ok := stub.objects["backups/thoth-wiki-20260103-000000.zip"]; !ok {
+		t.Fatalf("newest seeded prefixed snapshot must survive: %+v", stub.objects)
+	}
+
+	// Snapshots lists only the prefixed history keys, newest-first.
+	restorer := d.(Restorer)
+	snaps, err := restorer.Snapshots(context.Background(), cfg)
+	if err != nil {
+		t.Fatalf("Snapshots: %v", err)
+	}
+	if len(snaps) != 2 {
+		t.Fatalf("prefixed snapshots wrong: %+v", snaps)
+	}
+	for _, s := range snaps {
+		if !isHistoryKey(s.Key) || !strings.HasPrefix(s.Key, "backups/") {
+			t.Fatalf("prefixed snapshot key wrong: %+v", snaps)
+		}
+	}
+	if snaps[0].Key < snaps[1].Key {
+		t.Fatalf("prefixed snapshots must be newest-first: %+v", snaps)
+	}
+
+	// Restore("") resolves to the newest prefixed history key (the pushed wiki)
+	// instead of erroring "no snapshots in the bucket to restore".
+	ra, size, err := restorer.Restore(context.Background(), cfg, "")
+	if err != nil {
+		t.Fatalf("Restore(latest): %v", err)
+	}
+	got := make([]byte, size)
+	if _, err := ra.ReadAt(got, 0); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(got), "note.md") {
+		t.Fatalf("restored latest must be the pushed wiki: %.500s", got)
+	}
+}
+
 // TestS3RestoreRoundTrip pushes a snapshot then restores it, verifying the
 // bytes round-trip and that the latest resolves to the newest key.
 func TestS3RestoreRoundTrip(t *testing.T) {
@@ -737,6 +809,47 @@ func TestLocalRestoreByKey(t *testing.T) {
 	}
 }
 
+// TestLocalRestoreRejectsTraversal covers the path-traversal guard: a restore
+// key that is not a plain basename resolving inside the configured backup
+// folder is rejected, even when the traversal target is a real readable file
+// (a wiki-shaped zip in the parent, or the parent directory itself).
+func TestLocalRestoreRejectsTraversal(t *testing.T) {
+	parent := t.TempDir()
+	dir := filepath.Join(parent, "backup")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	d := &localDriver{}
+	restorer := any(d).(Restorer)
+	// A wiki-shaped zip in the parent folder: readable on disk, but it must be
+	// unreachable through a traversal key from the backup folder.
+	outside := filepath.Join(parent, "thoth-wiki-20260101-000000.zip")
+	if err := os.WriteFile(outside, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for _, key := range []string{"../thoth-wiki-20260101-000000.zip", "../../etc/passwd", "sub/dir/wiki.zip", ".."} {
+		if _, _, err := restorer.Restore(context.Background(), Config{"path": dir}, key); err == nil {
+			t.Fatalf("restore key %q must be rejected", key)
+		}
+	}
+	// A plain basename inside the folder still restores.
+	inside := filepath.Join(dir, "thoth-wiki-20260102-000000.zip")
+	if err := os.WriteFile(inside, []byte("y"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	ra, size, err := restorer.Restore(context.Background(), Config{"path": dir}, "thoth-wiki-20260102-000000.zip")
+	if err != nil || size == 0 {
+		t.Fatalf("legit restore must succeed: %v / %d", err, size)
+	}
+	got := make([]byte, size)
+	if _, err := ra.ReadAt(got, 0); err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != "y" {
+		t.Fatalf("restored = %q, want y", got)
+	}
+}
+
 // TestLocalPushFolderError covers the local push guards: an uncreatable
 // backup folder path.
 func TestLocalPushFolderError(t *testing.T) {
@@ -847,20 +960,31 @@ func TestConnectionInterval(t *testing.T) {
 	}
 }
 
-// TestSchedulerDue verifies the never-synced and elapsed-time scheduling rules.
+// TestSchedulerDue verifies the never-attempted and elapsed-time scheduling
+// rules. Scheduling off the last attempt (success or failure) means a failing
+// connection cools down for a full interval instead of re-firing every tick.
 func TestSchedulerDue(t *testing.T) {
 	s := NewScheduler(nil, "", nil, nil)
 	now := time.Now().UTC()
-	if !s.due(store.Connection{LastSyncedAt: ""}, time.Hour, now) {
-		t.Fatal("never-synced connection must be due")
+	if !s.due(store.Connection{LastAttemptAt: ""}, time.Hour, now) {
+		t.Fatal("never-attempted connection must be due")
 	}
-	if !s.due(store.Connection{LastSyncedAt: now.Add(-2 * time.Hour).Format(time.RFC3339)}, time.Hour, now) {
+	if !s.due(store.Connection{LastAttemptAt: now.Add(-2 * time.Hour).Format(time.RFC3339)}, time.Hour, now) {
 		t.Fatal("elapsed interval must be due")
 	}
-	if s.due(store.Connection{LastSyncedAt: now.Format(time.RFC3339)}, time.Hour, now) {
-		t.Fatal("recent sync must not be due")
+	if s.due(store.Connection{LastAttemptAt: now.Format(time.RFC3339)}, time.Hour, now) {
+		t.Fatal("recent attempt must not be due")
 	}
-	if !s.due(store.Connection{LastSyncedAt: "garbage"}, time.Hour, now) {
+	// A just-failed attempt (last_attempt_at stamped, last_synced_at stale)
+	// is not due again until its interval elapses.
+	failed := store.Connection{
+		LastAttemptAt: now.Format(time.RFC3339),
+		LastSyncedAt:  now.Add(-2 * time.Hour).Format(time.RFC3339),
+	}
+	if s.due(failed, time.Hour, now) {
+		t.Fatal("a connection that just failed must not re-fire before its interval")
+	}
+	if !s.due(store.Connection{LastAttemptAt: "garbage"}, time.Hour, now) {
 		t.Fatal("unparseable timestamp must be treated as due")
 	}
 }

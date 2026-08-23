@@ -55,6 +55,7 @@ erDiagram
         integer enabled
         integer protected
         text last_synced_at
+        text last_attempt_at
         text last_error
     }
     sync_push_history {
@@ -177,6 +178,7 @@ One row per configured sync destination — the credentials + target + sync stat
 | `enabled` | INTEGER NOT NULL DEFAULT 1 | Per-connection sync switch |
 | `protected` | INTEGER NOT NULL DEFAULT 0 | First-class connection (the auto-created local backup) that cannot be deleted — only its config edited |
 | `last_synced_at` | TEXT | UTC RFC3339 of the last successful sync |
+| `last_attempt_at` | TEXT | UTC RFC3339 of the last sync attempt (success or failure); added by `0014`. The auto-sync scheduler schedules off this so a failing connection cools down between retries instead of re-firing every tick |
 | `last_error` | TEXT | Sanitized error of the last failed sync |
 | `created_at` / `updated_at` | TEXT NOT NULL | UTC RFC3339 |
 

@@ -36,17 +36,18 @@ func TestConnectionRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Connection: %v", err)
 	}
-	if got.Name != "renamed" || got.Enabled || got.LastSyncedAt == "" || got.LastError != "" {
+	if got.Name != "renamed" || got.Enabled || got.LastSyncedAt == "" || got.LastError != "" || got.LastAttemptAt == "" {
 		t.Fatalf("connection after update+sync: %+v", got)
 	}
 	lastSynced := got.LastSyncedAt
 
-	// A failure preserves the last success and records the error.
+	// A failure preserves the last success, records the error, and stamps the
+	// attempt (the scheduler cools down between attempts off this).
 	if err := s.SetConnectionSyncResult(c.ID, false, "upstream rejected"); err != nil {
 		t.Fatalf("SetConnectionSyncResult(fail): %v", err)
 	}
 	got, _ = s.Connection(c.ID)
-	if got.LastSyncedAt != lastSynced || got.LastError != "upstream rejected" {
+	if got.LastSyncedAt != lastSynced || got.LastError != "upstream rejected" || got.LastAttemptAt == "" {
 		t.Fatalf("sync failure state wrong: %+v", got)
 	}
 
