@@ -144,7 +144,10 @@ export const Connection = z.object({
     config: z.record(z.string(), z.any()),
     last_synced_at: z.string(),
     last_error: z.string(),
-    push_history: z.array(PushEntry).default([])
+    // push_history defaults to [] when absent AND on any parse failure (e.g.
+    // a null from an older server) — the settings sync page renders it as an
+    // array, so a null must never reject the whole connection fetch.
+    push_history: z.array(PushEntry).default([]).catch([])
 })
 export type Connection = z.infer<typeof Connection>
 export type ConnectInput = { provider_id: number; name: string; config: Record<string, string> }

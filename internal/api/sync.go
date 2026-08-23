@@ -445,7 +445,9 @@ func restoreConnection(c echo.Context, d Deps) error {
 	}
 	ra, size, err := restorer.Restore(c.Request().Context(), cfg, in.Key)
 	if err != nil {
-		return internalError(c, d, "fetch snapshot", err)
+		// A bad/missing snapshot key is a client error (sanitized fixed
+		// messages — no credentials or key names leak).
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
 	}
 	imported, err := d.Wiki.ImportFrom(ra, size, d.Log)
 	if err != nil {
@@ -505,6 +507,9 @@ func connectionDTOFromStore(d Deps, c store.Connection, activeID string) connect
 		Protected: c.Protected, LastSyncedAt: c.LastSyncedAt, LastError: c.LastError,
 		Active: activeID != "" && strconv.FormatInt(c.ID, 10) == activeID,
 		Config: map[string]any{},
+		// Non-nil so the wire shape is always [] (never null) even when the
+		// history read fails — the client types it as an array.
+		PushHistory: []store.PushEntry{},
 	}
 	if id, err := syncsvc.DecodeIdentity(c.Identity); err == nil && id != (syncsvc.Identity{}) {
 		dto.Identity = &id

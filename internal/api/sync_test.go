@@ -622,7 +622,8 @@ func TestRestoreBadBody(t *testing.T) {
 }
 
 // TestRestoreDriverError covers the restore handler's driver-error branch: a
-// local connection whose folder has no backups surfaces a 500 (fetch failed).
+// local connection whose folder has no backups surfaces a 400 (no snapshot to
+// restore — a client error, not a server fault).
 func TestRestoreDriverError(t *testing.T) {
 	d := testDeps(t)
 	local, err := d.Store.EnsureLocalBackup()
@@ -639,8 +640,8 @@ func TestRestoreDriverError(t *testing.T) {
 		t.Fatalf("update status %d: %s", rec.Code, rec.Body.String())
 	}
 	rec := apiJSON(e, http.MethodPost, "/api/v1/sync/connections/"+itoa(local.ID)+"/restore", map[string]string{"key": ""})
-	if rec.Code != http.StatusInternalServerError {
-		t.Fatalf("restore from an empty folder = %d, want 500: %s", rec.Code, rec.Body.String())
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("restore from an empty folder = %d, want 400: %s", rec.Code, rec.Body.String())
 	}
 }
 
@@ -672,5 +673,37 @@ func TestPushHistoryInDTO(t *testing.T) {
 	}
 	if len(conn.PushHistory) != 1 || !conn.PushHistory[0].OK {
 		t.Fatalf("push_history wrong: %+v", conn.PushHistory)
+	}
+}
+
+// TestPushHistoryEmptyIsArray verifies a connection with no sync attempts
+// serializes push_history as [] — never null — so the client's array schema
+// (and the Settings sync page) does not reject the response.
+func TestPushHistoryEmptyIsArray(t *testing.T) {
+	d := testDeps(t)
+	local, err := d.Store.EnsureLocalBackup()
+	if err != nil {
+		t.Fatal(err)
+	}
+	e := New(d)
+	rec := apiJSON(e, http.MethodGet, "/api/v1/sync/connections/"+itoa(local.ID), nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("get status %d: %s", rec.Code, rec.Body.String())
+	}
+	var body struct {
+		PushHistory json.RawMessage `json:"push_history"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+	if string(body.PushHistory) != "[]" {
+		t.Fatalf("push_history = %s, want []", body.PushHistory)
+	}
+	var conn connectionDTO
+	if err := json.Unmarshal(rec.Body.Bytes(), &conn); err != nil {
+		t.Fatal(err)
+	}
+	if conn.PushHistory == nil {
+		t.Fatal("push_history decoded as nil, want empty slice")
 	}
 }

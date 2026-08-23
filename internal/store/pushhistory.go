@@ -50,7 +50,9 @@ func (s *Store) ListPushHistory(connectionID int64) ([]PushEntry, error) {
 		return nil, fmt.Errorf("list push history: %w", err)
 	}
 	defer func() { _ = rows.Close() }()
-	var out []PushEntry
+	// Non-nil so an empty history serializes as [] on the connection DTO,
+	// never null — the client types it as an array.
+	out := make([]PushEntry, 0)
 	for rows.Next() {
 		var at string
 		var ok int

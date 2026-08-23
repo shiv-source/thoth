@@ -1729,7 +1729,7 @@
             "description": "OK"
           },
           "400": {
-            "description": "restore not supported or a bad/non-wiki archive",
+            "description": "restore not supported, a bad/non-wiki archive, or an unknown snapshot key",
             "content": {
               "application/json": {
                 "schema": {
