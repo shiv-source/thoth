@@ -1,5 +1,6 @@
 import { Alert, Button, Result } from 'antd'
 import type { Health } from '../../api/client'
+import { LogoMark } from '../../shared/LogoMark'
 
 interface Problem {
     title: string
@@ -44,11 +45,7 @@ export function SetupPage({
         <div className="flex flex-1 items-center justify-center p-6">
             <Result
                 className="animate-[fade-in_150ms_ease-out]"
-                icon={
-                    <span className="text-3xl" aria-hidden="true">
-                        🦉
-                    </span>
-                }
+                icon={<LogoMark size={44} />}
                 title="Thoth needs your attention"
                 subTitle={
                     <div className="mx-auto max-w-md text-left">
