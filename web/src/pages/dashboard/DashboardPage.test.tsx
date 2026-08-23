@@ -81,16 +81,19 @@ describe('DashboardPage', () => {
         await waitFor(() => expect(mocks.get).toHaveBeenCalled()) // flush the conversations fetch
     })
 
-    it('renders the stat tiles from mock data', () => {
+    it('renders the stat tiles from mock data', async () => {
         renderDashboard()
         expect(screen.getByText('128')).toBeInTheDocument()
         expect(screen.getByText('2h ago')).toBeInTheDocument()
         expect(screen.getByText('Last sync')).toBeInTheDocument()
         // "Open todos" appears twice: the stat tile label and the card title.
         expect(screen.getAllByText('Open todos').length).toBeGreaterThanOrEqual(2)
+        // Flush the conversations fetch resolution inside act, so its store
+        // update can't land after the test body (act() warning).
+        await waitFor(() => expect(mocks.get).toHaveBeenCalled())
     })
 
-    it('renders the chart canvases with aria-labels', () => {
+    it('renders the chart canvases with aria-labels', async () => {
         renderDashboard()
         // System time is Aug 15 2026, so the weekly series spans Aug 9–15.
         expect(screen.getByRole('img', { name: /Notes created per day.*Aug 9 to Aug 15/ })).toBeInTheDocument()
@@ -101,22 +104,25 @@ describe('DashboardPage', () => {
         expect(
             screen.getByRole('img', { name: /Notes per wiki folder: knowledge 63, links 23, meetings 24, capture 18/ })
         ).toBeInTheDocument()
+        await waitFor(() => expect(mocks.get).toHaveBeenCalled()) // flush the conversations fetch
     })
 
-    it('renders the notes-by-kind legend with the series labels', () => {
+    it('renders the notes-by-kind legend with the series labels', async () => {
         renderDashboard()
         expect(screen.getByText('Meetings')).toBeInTheDocument()
         expect(screen.getByText('Knowledge')).toBeInTheDocument()
         expect(screen.getByText('Links')).toBeInTheDocument()
         // "Captures" appears twice: the KPI tile label and the legend item.
         expect(screen.getAllByText('Captures').length).toBeGreaterThanOrEqual(2)
+        await waitFor(() => expect(mocks.get).toHaveBeenCalled()) // flush the conversations fetch
     })
 
-    it('routes a tag chip to the search view', () => {
+    it('routes a tag chip to the search view', async () => {
         renderDashboard()
         window.history.pushState(null, '', '/dashboard')
         fireEvent.click(screen.getByRole('button', { name: '#go' }))
         expect(window.location.pathname).toBe('/search')
+        await waitFor(() => expect(mocks.get).toHaveBeenCalled()) // flush the conversations fetch
     })
 
     it('shows real recent chats and navigates to the chat view on click', async () => {
