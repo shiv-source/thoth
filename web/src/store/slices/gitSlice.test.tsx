@@ -27,7 +27,7 @@ const identity = {
 
 describe('gitSlice', () => {
     it('loads the connected identity', async () => {
-        stubAPI(mocks, { '/api/github/auth': () => identity })
+        stubAPI(mocks, { '/api/v1/github/auth': () => identity })
         const store = makeStore()
         await store.dispatch(fetchGitAuth())
         expect(selectGitAuth(store.getState())).toEqual(identity)
@@ -43,7 +43,7 @@ describe('gitSlice', () => {
 
     it('loads the repo list', async () => {
         stubAPI(mocks, {
-            '/api/github/repos': () => ({
+            '/api/v1/github/repos': () => ({
                 repos: [{ full_name: 'shiv/thoth', clone_url: 'x', private: false, description: '' }]
             })
         })
@@ -55,7 +55,7 @@ describe('gitSlice', () => {
     })
 
     it('connects with a token and stores the identity', async () => {
-        stubAPI(mocks, { 'POST /api/github/auth': () => identity })
+        stubAPI(mocks, { 'POST /api/v1/github/auth': () => identity })
         const store = makeStore()
         await store.dispatch(connectGit('token'))
         expect(selectGitConnecting(store.getState())).toBe(false)

@@ -20,7 +20,7 @@ const original = globalThis.WebSocket
 globalThis.WebSocket = FakeWS as unknown as typeof WebSocket
 
 function freshSocket(): ChatSocket {
-    const socket = new ChatSocket('ws://x/ws')
+    const socket = new ChatSocket('ws://x/ws/v1')
     socket.connect()
     FakeWS.instances[0]!.open() // handshake completes so sends do not throw
     return socket
@@ -197,7 +197,7 @@ describe('useChat', () => {
     })
 
     it('refetches the wiki tree when a wiki_changed frame arrives', async () => {
-        stubAPI(mocks, { '/api/wiki/tree': () => ({ nodes: [] }) })
+        stubAPI(mocks, { '/api/v1/wiki/tree': () => ({ nodes: [] }) })
         const socket = freshSocket()
         renderChatHook(socket)
 
@@ -208,7 +208,7 @@ describe('useChat', () => {
             })
         )
 
-        await waitFor(() => expect(mocks.get).toHaveBeenCalledWith('/api/wiki/tree'))
+        await waitFor(() => expect(mocks.get).toHaveBeenCalledWith('/api/v1/wiki/tree'))
         expect(mocks.get).toHaveBeenCalledTimes(1)
     })
 

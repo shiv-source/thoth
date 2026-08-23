@@ -549,7 +549,7 @@ func checkAPI(addr string) (Check, bool) {
 	_ = conn.Close()
 
 	client := &http.Client{Timeout: apiCheckTimeout}
-	resp, err := client.Get("http://" + addr + "/api/health")
+	resp, err := client.Get("http://" + addr + "/api/v1/health")
 	if err != nil {
 		return Check{Name: "api", OK: false, Message: fmt.Sprintf("port %s is occupied by a non-thoth process", addr)}, false
 	}
@@ -591,7 +591,7 @@ func defaultAddr() string {
 // succeeds. The connection is closed immediately — no frames are sent.
 func wsUpgradeOK(addr string) bool {
 	dialer := websocket.Dialer{HandshakeTimeout: apiCheckTimeout}
-	conn, _, err := dialer.Dial("ws://"+addr+"/ws", nil)
+	conn, _, err := dialer.Dial("ws://"+addr+"/ws/v1", nil)
 	if err != nil {
 		return false
 	}

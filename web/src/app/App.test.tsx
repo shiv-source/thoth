@@ -81,10 +81,10 @@ describe('App setup gating', () => {
 
     it('lets the user open Settings while no API key is configured', async () => {
         stubAPI({
-            'GET /api/health': () => notConfigured,
-            'GET /api/settings': () => settings,
-            'GET /api/github/auth': () => emptyGitHub,
-            'GET /api/models': () => ({ groups: [] })
+            'GET /api/v1/health': () => notConfigured,
+            'GET /api/v1/settings': () => settings,
+            'GET /api/v1/github/auth': () => emptyGitHub,
+            'GET /api/v1/models': () => ({ groups: [] })
         })
 
         // main.tsx dispatches fetchHealth on boot; the test replicates that.

@@ -13,7 +13,7 @@ func TestGetConversationFound(t *testing.T) {
 	e := New(d)
 
 	// seed one conversation with a message
-	req := httptest.NewRequest(http.MethodPost, "/api/conversations", bytes.NewReader([]byte(`{"title":"hello world"}`)))
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/conversations", bytes.NewReader([]byte(`{"title":"hello world"}`)))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
@@ -34,7 +34,7 @@ func TestGetConversationFound(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	req = httptest.NewRequest(http.MethodGet, "/api/conversations/"+id, nil)
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/conversations/"+id, nil)
 	rec = httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
@@ -64,7 +64,7 @@ func TestGetConversationFound(t *testing.T) {
 func TestGetConversationNotFound(t *testing.T) {
 	d := testDeps(t)
 	e := New(d)
-	req := httptest.NewRequest(http.MethodGet, "/api/conversations/nope", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/conversations/nope", nil)
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
 	if rec.Code != http.StatusNotFound {
@@ -75,7 +75,7 @@ func TestGetConversationNotFound(t *testing.T) {
 func TestCreateConversationRejectsEmptyTitle(t *testing.T) {
 	d := testDeps(t)
 	e := New(d)
-	req := httptest.NewRequest(http.MethodPost, "/api/conversations", bytes.NewReader([]byte(`{"title":""}`)))
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/conversations", bytes.NewReader([]byte(`{"title":""}`)))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
@@ -91,14 +91,14 @@ func TestConversationsStoreError(t *testing.T) {
 	}
 	e := New(d)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/conversations", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/conversations", nil)
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
 	if rec.Code != http.StatusInternalServerError {
 		t.Fatalf("list on closed store: expected 500, got %d", rec.Code)
 	}
 
-	req = httptest.NewRequest(http.MethodPost, "/api/conversations", bytes.NewReader([]byte(`{"title":"x"}`)))
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/conversations", bytes.NewReader([]byte(`{"title":"x"}`)))
 	req.Header.Set("Content-Type", "application/json")
 	rec = httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
@@ -106,7 +106,7 @@ func TestConversationsStoreError(t *testing.T) {
 		t.Fatalf("create on closed store: expected 500, got %d", rec.Code)
 	}
 
-	req = httptest.NewRequest(http.MethodGet, "/api/conversations/abc", nil)
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/conversations/abc", nil)
 	rec = httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
 	if rec.Code != http.StatusInternalServerError {

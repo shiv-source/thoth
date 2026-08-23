@@ -28,7 +28,7 @@ describe('conversationsSlice', () => {
     })
 
     it('loads the conversation list', async () => {
-        stubAPI(mocks, { 'GET /api/conversations': () => ({ conversations: convs }) })
+        stubAPI(mocks, { 'GET /api/v1/conversations': () => ({ conversations: convs }) })
         const store = makeStore()
         await store.dispatch(fetchConversations())
         expect(selectConversations(store.getState()).list).toEqual(convs)
@@ -62,8 +62,8 @@ describe('conversationsSlice', () => {
 
     it('removes a deleted conversation from the list', async () => {
         stubAPI(mocks, {
-            'GET /api/conversations': () => ({ conversations: convs }),
-            'DELETE /api/conversations/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1': () => undefined
+            'GET /api/v1/conversations': () => ({ conversations: convs }),
+            'DELETE /api/v1/conversations/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1': () => undefined
         })
         const store = makeStore()
         await store.dispatch(fetchConversations())
@@ -72,7 +72,7 @@ describe('conversationsSlice', () => {
     })
 
     it('keeps the list when the delete fails', async () => {
-        stubAPI(mocks, { 'GET /api/conversations': () => ({ conversations: convs }) })
+        stubAPI(mocks, { 'GET /api/v1/conversations': () => ({ conversations: convs }) })
         mocks.delete.mockRejectedValueOnce(axiosError(500, { error: 'boom' }))
         const store = makeStore()
         await store.dispatch(fetchConversations())

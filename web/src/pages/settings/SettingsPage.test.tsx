@@ -135,9 +135,9 @@ describe('SettingsPage', () => {
 
     it('loads current settings and saves edits', async () => {
         stubAPI({
-            'GET /api/settings': getSettings,
-            'GET /api/github/auth': getEmptyGitHub,
-            'PUT /api/settings': () => ({ ...settings, wiki_path: '/tmp/other/wiki' })
+            'GET /api/v1/settings': getSettings,
+            'GET /api/v1/github/auth': getEmptyGitHub,
+            'PUT /api/v1/settings': () => ({ ...settings, wiki_path: '/tmp/other/wiki' })
         })
 
         renderSettings()
@@ -154,9 +154,9 @@ describe('SettingsPage', () => {
 
     it('saves a custom scaffold folder set from the General tab', async () => {
         stubAPI({
-            'GET /api/settings': () => ({ ...settings, wiki_folders: ['inbox', 'meetings'] }),
-            'GET /api/github/auth': getEmptyGitHub,
-            'PUT /api/settings': () => ({ ...settings, wiki_folders: ['inbox', 'meetings', 'journal'] })
+            'GET /api/v1/settings': () => ({ ...settings, wiki_folders: ['inbox', 'meetings'] }),
+            'GET /api/v1/github/auth': getEmptyGitHub,
+            'PUT /api/v1/settings': () => ({ ...settings, wiki_folders: ['inbox', 'meetings', 'journal'] })
         })
 
         renderSettings()
@@ -168,14 +168,14 @@ describe('SettingsPage', () => {
         await userEvent.type(folderInput, 'journal{Enter}')
         await userEvent.click(screen.getByRole('button', { name: /Save/ }))
         await waitFor(() => expect(screen.getByText(/Saved ✓/)).toBeInTheDocument())
-        const put = lastBody('put', '/api/settings')
+        const put = lastBody('put', '/api/v1/settings')
         expect(put != null && JSON.stringify(put).includes('"journal"')).toBe(true)
     })
 
     it('names the dev wiki default in the hint when the server runs in dev mode', async () => {
         stubAPI({
-            'GET /api/settings': getSettings,
-            'GET /api/github/auth': getEmptyGitHub
+            'GET /api/v1/settings': getSettings,
+            'GET /api/v1/github/auth': getEmptyGitHub
         })
 
         const { store } = renderSettings()
@@ -187,9 +187,9 @@ describe('SettingsPage', () => {
 
     it('selects a model from the models endpoint and saves it', async () => {
         stubAPI({
-            'GET /api/settings': getSettings,
-            'GET /api/github/auth': getEmptyGitHub,
-            'GET /api/models': () => ({
+            'GET /api/v1/settings': getSettings,
+            'GET /api/v1/github/auth': getEmptyGitHub,
+            'GET /api/v1/models': () => ({
                 groups: [
                     {
                         provider: 'DeepSeek',
@@ -205,7 +205,7 @@ describe('SettingsPage', () => {
                     }
                 ]
             }),
-            'PUT /api/settings': () => ({ ...settings })
+            'PUT /api/v1/settings': () => ({ ...settings })
         })
 
         renderSettings()
@@ -218,17 +218,17 @@ describe('SettingsPage', () => {
         await userEvent.click(await screen.findByRole('option', { name: /V4 Flash/ }))
         await userEvent.click(screen.getByRole('button', { name: /Save/ }))
         await waitFor(() => expect(screen.getByText(/Saved ✓/)).toBeInTheDocument())
-        expect(lastBody('put', '/api/settings')).toMatchObject({ model: 'deepseek-v4-flash' })
+        expect(lastBody('put', '/api/v1/settings')).toMatchObject({ model: 'deepseek-v4-flash' })
     })
 
     it('renders and saves per-provider credentials', async () => {
         stubAPI({
-            'GET /api/settings': () => ({
+            'GET /api/v1/settings': () => ({
                 ...settings,
                 providers: { DeepSeek: { api_key: '', has_api_key: true, base_url: 'https://api.deepseek.com' } }
             }),
-            'GET /api/github/auth': getEmptyGitHub,
-            'GET /api/models': () => ({
+            'GET /api/v1/github/auth': getEmptyGitHub,
+            'GET /api/v1/models': () => ({
                 groups: [
                     {
                         provider: 'DeepSeek',
@@ -244,7 +244,7 @@ describe('SettingsPage', () => {
                     }
                 ]
             }),
-            'PUT /api/settings': () => ({ ...settings })
+            'PUT /api/v1/settings': () => ({ ...settings })
         })
 
         renderSettings()
@@ -261,19 +261,19 @@ describe('SettingsPage', () => {
         await userEvent.click(screen.getByRole('button', { name: /Save/ }))
         expect(await screen.findByText('Settings saved')).toBeInTheDocument()
 
-        const body = JSON.stringify(lastBody('put', '/api/settings'))
+        const body = JSON.stringify(lastBody('put', '/api/v1/settings'))
         expect(body).toContain('https://api.deepseek.com/v1')
         expect(body).toContain('ds-new-key')
     })
 
     it('saves a provider base URL without touching an existing key', async () => {
         stubAPI({
-            'GET /api/settings': () => ({
+            'GET /api/v1/settings': () => ({
                 ...settings,
                 providers: { OpenAI: { api_key: '', has_api_key: true, base_url: '' } }
             }),
-            'GET /api/github/auth': getEmptyGitHub,
-            'GET /api/models': () => ({
+            'GET /api/v1/github/auth': getEmptyGitHub,
+            'GET /api/v1/models': () => ({
                 groups: [
                     {
                         provider: 'OpenAI',
@@ -281,7 +281,7 @@ describe('SettingsPage', () => {
                     }
                 ]
             }),
-            'PUT /api/settings': () => ({ ...settings })
+            'PUT /api/v1/settings': () => ({ ...settings })
         })
 
         renderSettings()
@@ -293,14 +293,14 @@ describe('SettingsPage', () => {
 
         // The per-provider api key stays empty in the PUT body (write-only
         // leave-unchanged semantics are the server's), the base URL goes.
-        const put = lastBody('put', '/api/settings') as { providers?: Record<string, unknown> }
+        const put = lastBody('put', '/api/v1/settings') as { providers?: Record<string, unknown> }
         expect(put.providers?.['OpenAI']).toMatchObject({ base_url: 'https://api.openai.com/v1' })
     })
 
     it('shows the save error when the server rejects', async () => {
         stubAPI({
-            'GET /api/settings': getSettings,
-            'GET /api/github/auth': getEmptyGitHub
+            'GET /api/v1/settings': getSettings,
+            'GET /api/v1/github/auth': getEmptyGitHub
         })
         mocks.put.mockRejectedValueOnce(axiosError(500, { error: 'boom' }))
 
@@ -316,9 +316,9 @@ describe('SettingsPage', () => {
 
     it('runs the doctor checks in the Doctor tab', async () => {
         stubAPI({
-            'GET /api/settings': getSettings,
-            'GET /api/github/auth': getEmptyGitHub,
-            'GET /api/doctor': () => ({
+            'GET /api/v1/settings': getSettings,
+            'GET /api/v1/github/auth': getEmptyGitHub,
+            'GET /api/v1/doctor': () => ({
                 checks: [
                     { name: 'wiki', ok: true, message: '/tmp/wiki exists with the 8 scaffold folders and CLAUDE.md' },
                     {
@@ -340,10 +340,10 @@ describe('SettingsPage', () => {
 
     it('stores the git remote URL and pushes', async () => {
         stubAPI({
-            'GET /api/settings': getSettings,
-            'GET /api/github/auth': () => connected,
-            'GET /api/github/repos': getRepos,
-            'POST /api/git/setup': () => ({ ok: true })
+            'GET /api/v1/settings': getSettings,
+            'GET /api/v1/github/auth': () => connected,
+            'GET /api/v1/github/repos': getRepos,
+            'POST /api/v1/git/setup': () => ({ ok: true })
         })
 
         renderSettings()
@@ -359,16 +359,16 @@ describe('SettingsPage', () => {
         await userEvent.click(screen.getByRole('button', { name: 'Initialize & Push' }))
         expect(await screen.findByText('Wiki pushed to remote')).toBeInTheDocument()
         // The setup call carried the URL.
-        const gitBody = lastBody('post', '/api/git/setup')
+        const gitBody = lastBody('post', '/api/v1/git/setup')
         expect(gitBody != null && JSON.stringify(gitBody).includes('https://github.com/octo/wiki.git')).toBe(true)
     })
 
     it('connects a GitHub account with a token', async () => {
         stubAPI({
-            'GET /api/settings': getSettings,
-            'GET /api/github/auth': getEmptyGitHub,
-            'GET /api/github/repos': getRepos,
-            'POST /api/github/auth': () => connected
+            'GET /api/v1/settings': getSettings,
+            'GET /api/v1/github/auth': getEmptyGitHub,
+            'GET /api/v1/github/repos': getRepos,
+            'POST /api/v1/github/auth': () => connected
         })
 
         renderSettings()
@@ -383,14 +383,14 @@ describe('SettingsPage', () => {
         // The remote URL input appears once connected.
         expect(await screen.findByLabelText('Git remote URL')).toBeInTheDocument()
         // The POST carried the token.
-        const connectBody = lastBody('post', '/api/github/auth')
+        const connectBody = lastBody('post', '/api/v1/github/auth')
         expect(connectBody != null && JSON.stringify(connectBody).includes('ghp_secret123')).toBe(true)
     })
 
     it('shows the connect error', async () => {
         stubAPI({
-            'GET /api/settings': getSettings,
-            'GET /api/github/auth': getEmptyGitHub
+            'GET /api/v1/settings': getSettings,
+            'GET /api/v1/github/auth': getEmptyGitHub
         })
         mocks.post.mockRejectedValueOnce(axiosError(400, { error: 'github rejected the token' }))
 
@@ -405,10 +405,10 @@ describe('SettingsPage', () => {
 
     it('disconnects a GitHub account', async () => {
         stubAPI({
-            'GET /api/settings': getSettings,
-            'GET /api/github/auth': () => connected,
-            'GET /api/github/repos': getRepos,
-            'DELETE /api/github/auth': () => ({ ok: true })
+            'GET /api/v1/settings': getSettings,
+            'GET /api/v1/github/auth': () => connected,
+            'GET /api/v1/github/repos': getRepos,
+            'DELETE /api/v1/github/auth': () => ({ ok: true })
         })
 
         renderSettings()
@@ -418,7 +418,7 @@ describe('SettingsPage', () => {
 
         expect(await screen.findByPlaceholderText(/ghp_/)).toBeInTheDocument()
         expect(await screen.findByText('GitHub disconnected')).toBeInTheDocument()
-        expect(mocks.delete.mock.calls.some(([u]) => u === '/api/github/auth')).toBe(true)
+        expect(mocks.delete.mock.calls.some(([u]) => u === '/api/v1/github/auth')).toBe(true)
     })
 })
 
@@ -430,10 +430,10 @@ describe('SettingsPage Providers tab', () => {
         // must return the updated list after the POST.
         let list = [seeded]
         stubAPI({
-            'GET /api/settings': getSettings,
-            'GET /api/github/auth': getEmptyGitHub,
-            'GET /api/models': () => ({ groups: [{ provider: 'Vendor', models: list }] }),
-            'POST /api/models': () => {
+            'GET /api/v1/settings': getSettings,
+            'GET /api/v1/github/auth': getEmptyGitHub,
+            'GET /api/v1/models': () => ({ groups: [{ provider: 'Vendor', models: list }] }),
+            'POST /api/v1/models': () => {
                 const created = { id: 2, value: 'new-model', name: 'New Model', tag: '', provider: 'Vendor' }
                 list = [...list, created]
                 return created
@@ -460,16 +460,16 @@ describe('SettingsPage Providers tab', () => {
         await userEvent.click(screen.getByRole('button', { name: 'OK' }))
 
         expect(await screen.findByText('New Model')).toBeInTheDocument()
-        expect(JSON.stringify(lastBody('post', '/api/models'))).toContain('new-model')
+        expect(JSON.stringify(lastBody('post', '/api/v1/models'))).toContain('new-model')
     })
 
     it('edits a model', async () => {
         let list = [seeded]
         stubAPI({
-            'GET /api/settings': getSettings,
-            'GET /api/github/auth': getEmptyGitHub,
-            'GET /api/models': () => ({ groups: [{ provider: 'Vendor', models: list }] }),
-            'PUT /api/models/1': () => {
+            'GET /api/v1/settings': getSettings,
+            'GET /api/v1/github/auth': getEmptyGitHub,
+            'GET /api/v1/models': () => ({ groups: [{ provider: 'Vendor', models: list }] }),
+            'PUT /api/v1/models/1': () => {
                 list = [{ ...seeded, name: 'Renamed' }]
                 return list[0]!
             }
@@ -486,16 +486,16 @@ describe('SettingsPage Providers tab', () => {
         await userEvent.click(screen.getByRole('button', { name: 'OK' }))
 
         expect(await screen.findByText('Renamed')).toBeInTheDocument()
-        expect(JSON.stringify(lastBody('put', '/api/models/1'))).toContain('Renamed')
+        expect(JSON.stringify(lastBody('put', '/api/v1/models/1'))).toContain('Renamed')
     })
 
     it('deletes a model', async () => {
         let list = [seeded]
         stubAPI({
-            'GET /api/settings': getSettings,
-            'GET /api/github/auth': getEmptyGitHub,
-            'GET /api/models': () => ({ groups: [{ provider: 'Vendor', models: list }] }),
-            'DELETE /api/models/1': () => {
+            'GET /api/v1/settings': getSettings,
+            'GET /api/v1/github/auth': getEmptyGitHub,
+            'GET /api/v1/models': () => ({ groups: [{ provider: 'Vendor', models: list }] }),
+            'DELETE /api/v1/models/1': () => {
                 list = []
                 return { ok: true }
             }
@@ -508,14 +508,14 @@ describe('SettingsPage Providers tab', () => {
         await userEvent.click(await screen.findByText('OK'))
 
         await waitFor(() => expect(screen.queryByText('My Model')).not.toBeInTheDocument())
-        expect(mocks.delete.mock.calls.some(([u]) => u === '/api/models/1')).toBe(true)
+        expect(mocks.delete.mock.calls.some(([u]) => u === '/api/v1/models/1')).toBe(true)
     })
 
     it('shows an empty state with a call to action', async () => {
         stubAPI({
-            'GET /api/settings': getSettings,
-            'GET /api/github/auth': getEmptyGitHub,
-            'GET /api/models': () => ({ groups: [] })
+            'GET /api/v1/settings': getSettings,
+            'GET /api/v1/github/auth': getEmptyGitHub,
+            'GET /api/v1/models': () => ({ groups: [] })
         })
 
         renderSettings()
@@ -530,10 +530,10 @@ describe('SettingsPage Providers tab', () => {
 describe('SettingsPage auto-sync', () => {
     it('toggles sync_enabled in the Git tab and saves it', async () => {
         stubAPI({
-            'GET /api/settings': getSettings,
-            'GET /api/github/auth': () => connected,
-            'GET /api/github/repos': getRepos,
-            'PUT /api/settings': () => ({ ...settings, sync_enabled: true })
+            'GET /api/v1/settings': getSettings,
+            'GET /api/v1/github/auth': () => connected,
+            'GET /api/v1/github/repos': getRepos,
+            'PUT /api/v1/settings': () => ({ ...settings, sync_enabled: true })
         })
 
         renderSettings()
@@ -542,7 +542,7 @@ describe('SettingsPage auto-sync', () => {
         await userEvent.click(screen.getByRole('button', { name: 'Save' }))
 
         expect(await screen.findByText('Settings saved')).toBeInTheDocument()
-        const put = lastBody('put', '/api/settings')
+        const put = lastBody('put', '/api/v1/settings')
         expect(put != null && JSON.stringify(put).includes('"sync_enabled":true')).toBe(true)
     })
 })
@@ -550,9 +550,9 @@ describe('SettingsPage auto-sync', () => {
 describe('SettingsPage public repo guard', () => {
     it('warns and blocks push when a public repo is picked', async () => {
         stubAPI({
-            'GET /api/settings': getSettings,
-            'GET /api/github/auth': () => connected,
-            'GET /api/github/repos': getRepos
+            'GET /api/v1/settings': getSettings,
+            'GET /api/v1/github/auth': () => connected,
+            'GET /api/v1/github/repos': getRepos
         })
 
         renderSettings()
@@ -574,21 +574,21 @@ describe('SettingsPage tab routing', () => {
 
     it('restores the active tab from the hash', async () => {
         window.history.pushState(null, '', '/settings/doctor')
-        stubAPI({ 'GET /api/settings': getSettings, 'GET /api/github/auth': getEmptyGitHub })
+        stubAPI({ 'GET /api/v1/settings': getSettings, 'GET /api/v1/github/auth': getEmptyGitHub })
         renderSettings()
         expect(await screen.findByRole('menuitem', { name: 'Doctor' })).toHaveClass('ant-menu-item-selected')
     })
 
     it('restores the Providers tab from the hash', async () => {
         window.history.pushState(null, '', '/settings/providers')
-        stubAPI({ 'GET /api/settings': getSettings, 'GET /api/github/auth': getEmptyGitHub })
+        stubAPI({ 'GET /api/v1/settings': getSettings, 'GET /api/v1/github/auth': getEmptyGitHub })
         renderSettings()
         expect(await screen.findByRole('menuitem', { name: 'Providers' })).toHaveClass('ant-menu-item-selected')
     })
 
     it('writes the clicked tab into the hash', async () => {
         window.history.pushState(null, '', '/settings')
-        stubAPI({ 'GET /api/settings': getSettings, 'GET /api/github/auth': getEmptyGitHub })
+        stubAPI({ 'GET /api/v1/settings': getSettings, 'GET /api/v1/github/auth': getEmptyGitHub })
         renderSettings()
         await userEvent.click(await screen.findByRole('menuitem', { name: 'Git remote' }))
         expect(window.location.pathname).toBe('/settings/git')
@@ -602,7 +602,7 @@ describe('SettingsPage default tab route', () => {
 
     it('writes the General default into the URL when arriving at bare #/settings', async () => {
         window.history.pushState(null, '', '/settings')
-        stubAPI({ 'GET /api/settings': getSettings, 'GET /api/github/auth': getEmptyGitHub })
+        stubAPI({ 'GET /api/v1/settings': getSettings, 'GET /api/v1/github/auth': getEmptyGitHub })
         renderSettings()
         expect(await screen.findByRole('menuitem', { name: 'General' })).toHaveClass('ant-menu-item-selected')
         await waitFor(() => expect(window.location.pathname).toBe('/settings/general'))

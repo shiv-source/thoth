@@ -33,7 +33,7 @@ describe('api.listDirs', () => {
         mocks.get.mockResolvedValue({ data: { dirs: ['/a/b', '/a/c'] } })
         const { dirs } = await api.listDirs('/a')
         expect(dirs).toEqual(['/a/b', '/a/c'])
-        expect(mocks.get).toHaveBeenCalledWith('/api/fs/dirs?path=%2Fa')
+        expect(mocks.get).toHaveBeenCalledWith('/api/v1/fs/dirs?path=%2Fa')
     })
 })
 
@@ -48,7 +48,7 @@ describe('api.models CRUD', () => {
         mocks.get.mockResolvedValue({ data: { groups: [{ provider: 'Vendor', models: [model] }] } })
         const { groups } = await api.models()
         expect(groups[0]).toEqual({ provider: 'Vendor', models: [model] })
-        expect(mocks.get).toHaveBeenCalledWith('/api/models')
+        expect(mocks.get).toHaveBeenCalledWith('/api/v1/models')
     })
 
     it('rejects models missing the new fields', async () => {
@@ -62,20 +62,20 @@ describe('api.models CRUD', () => {
         mocks.post.mockResolvedValue({ data: model })
         const created = await api.createModel({ value: 'my-model', name: 'My Model' })
         expect(created).toEqual(model)
-        expect(mocks.post).toHaveBeenCalledWith('/api/models', { value: 'my-model', name: 'My Model' })
+        expect(mocks.post).toHaveBeenCalledWith('/api/v1/models', { value: 'my-model', name: 'My Model' })
     })
 
     it('updates a model', async () => {
         mocks.put.mockResolvedValue({ data: { ...model, name: 'Renamed' } })
         const updated = await api.updateModel(3, { value: 'my-model', name: 'Renamed' })
         expect(updated.name).toBe('Renamed')
-        expect(mocks.put).toHaveBeenCalledWith('/api/models/3', { value: 'my-model', name: 'Renamed' })
+        expect(mocks.put).toHaveBeenCalledWith('/api/v1/models/3', { value: 'my-model', name: 'Renamed' })
     })
 
     it('deletes a model', async () => {
         mocks.delete.mockResolvedValue({ data: { ok: true } })
         await api.deleteModel(3)
-        expect(mocks.delete).toHaveBeenCalledWith('/api/models/3')
+        expect(mocks.delete).toHaveBeenCalledWith('/api/v1/models/3')
     })
 })
 
@@ -96,7 +96,7 @@ describe('api.getConversation and health', () => {
         const { messages, conversation } = await api.getConversation('c1')
         expect(conversation.id).toBe('c1')
         expect(messages[0]?.content).toBe('hi')
-        expect(mocks.get).toHaveBeenCalledWith('/api/conversations/c1')
+        expect(mocks.get).toHaveBeenCalledWith('/api/v1/conversations/c1')
     })
 
     it('parses message token usage through zod', async () => {

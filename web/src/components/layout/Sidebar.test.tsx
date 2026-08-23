@@ -77,7 +77,7 @@ describe('Sidebar chats section', () => {
 
     it('groups the conversation history by day with dates on hover', async () => {
         stubAPI({
-            '/api/conversations': () => conversations
+            '/api/v1/conversations': () => conversations
         })
         renderSidebar()
 
@@ -90,7 +90,7 @@ describe('Sidebar chats section', () => {
 
     it('navigates to a conversation when its row is clicked', async () => {
         stubAPI({
-            '/api/conversations': () => conversations
+            '/api/v1/conversations': () => conversations
         })
         renderSidebar()
         window.history.pushState(null, '', '/notes')
@@ -100,20 +100,20 @@ describe('Sidebar chats section', () => {
 
     it('deletes a conversation via the API and removes it from the list', async () => {
         stubAPI({
-            '/api/conversations': () => conversations,
-            [`DELETE /api/conversations/${conversations.conversations[0]?.id}`]: () => ({ ok: true })
+            '/api/v1/conversations': () => conversations,
+            [`DELETE /api/v1/conversations/${conversations.conversations[0]?.id}`]: () => ({ ok: true })
         })
         renderSidebar()
         await userEvent.click(await screen.findByRole('button', { name: 'Delete Today chat' }))
         expect(await screen.findByText('Conversation deleted')).toBeInTheDocument()
         await waitFor(() => expect(screen.queryByText('Today chat')).not.toBeInTheDocument())
-        const deleted = mocks.delete.mock.calls.find(([u]) => String(u).includes('/api/conversations/'))
+        const deleted = mocks.delete.mock.calls.find(([u]) => String(u).includes('/api/v1/conversations/'))
         expect(deleted).toBeDefined()
     })
 
     it('keeps the conversation and toasts when the delete fails', async () => {
         stubAPI({
-            '/api/conversations': () => conversations
+            '/api/v1/conversations': () => conversations
         })
         renderSidebar()
         await screen.findByText('Today chat')
@@ -125,7 +125,7 @@ describe('Sidebar chats section', () => {
 
     it('navigates to the root when New chat is clicked', async () => {
         stubAPI({
-            '/api/conversations': () => conversations
+            '/api/v1/conversations': () => conversations
         })
         renderSidebar()
         window.history.pushState(null, '', '/dashboard')
@@ -135,7 +135,7 @@ describe('Sidebar chats section', () => {
 
     it('shows empty and error states', async () => {
         stubAPI({
-            '/api/conversations': () => ({ conversations: [] })
+            '/api/v1/conversations': () => ({ conversations: [] })
         })
         const { unmount } = renderSidebar()
         expect(await screen.findByText(/No conversations yet/)).toBeInTheDocument()

@@ -46,7 +46,7 @@ func TestConnectGitHub(t *testing.T) {
 	d.GitHub.Client = base(github.New(ts.Client()))
 	e := New(d)
 
-	rec := doJSON(t, e, http.MethodPost, "/api/github/auth", `{"token":"ghp_secret123"}`)
+	rec := doJSON(t, e, http.MethodPost, "/api/v1/github/auth", `{"token":"ghp_secret123"}`)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
 	}
@@ -79,7 +79,7 @@ func TestConnectGitHubRequiresToken(t *testing.T) {
 	d := testDeps(t)
 	e := New(d)
 	for _, body := range []string{`{}`, `{"token":""}`} {
-		if rec := doJSON(t, e, http.MethodPost, "/api/github/auth", body); rec.Code != http.StatusBadRequest {
+		if rec := doJSON(t, e, http.MethodPost, "/api/v1/github/auth", body); rec.Code != http.StatusBadRequest {
 			t.Fatalf("body %s: status %d, want 400", body, rec.Code)
 		}
 	}
@@ -94,7 +94,7 @@ func TestConnectGitHubRejectedToken(t *testing.T) {
 	d.GitHub.Client = github.New(ts.Client()).WithBaseURL(ts.URL)
 	e := New(d)
 
-	rec := doJSON(t, e, http.MethodPost, "/api/github/auth", `{"token":"bad"}`)
+	rec := doJSON(t, e, http.MethodPost, "/api/v1/github/auth", `{"token":"bad"}`)
 	if rec.Code != http.StatusBadRequest || !strings.Contains(rec.Body.String(), "github rejected the token") {
 		t.Fatalf("status %d body %s", rec.Code, rec.Body.String())
 	}
@@ -109,7 +109,7 @@ func TestConnectGitHubUpstreamError(t *testing.T) {
 	d.GitHub.Client = github.New(ts.Client()).WithBaseURL(ts.URL)
 	e := New(d)
 
-	rec := doJSON(t, e, http.MethodPost, "/api/github/auth", `{"token":"t"}`)
+	rec := doJSON(t, e, http.MethodPost, "/api/v1/github/auth", `{"token":"t"}`)
 	if rec.Code != http.StatusInternalServerError || !strings.Contains(rec.Body.String(), "internal error") {
 		t.Fatalf("status %d body %s, want a generic 500", rec.Code, rec.Body.String())
 	}
@@ -120,7 +120,7 @@ func TestGetGitHubAuth(t *testing.T) {
 	e := New(d)
 
 	// Not connected: 200 with empty strings.
-	rec := doJSON(t, e, http.MethodGet, "/api/github/auth", "")
+	rec := doJSON(t, e, http.MethodGet, "/api/v1/github/auth", "")
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status %d", rec.Code)
 	}
@@ -136,7 +136,7 @@ func TestGetGitHubAuth(t *testing.T) {
 	if err := d.GitHub.Repo.Save(github.Auth{Token: "ghp_x", Username: "octo"}); err != nil {
 		t.Fatal(err)
 	}
-	rec = doJSON(t, e, http.MethodGet, "/api/github/auth", "")
+	rec = doJSON(t, e, http.MethodGet, "/api/v1/github/auth", "")
 	if err := json.Unmarshal(rec.Body.Bytes(), &id); err != nil {
 		t.Fatal(err)
 	}
@@ -152,14 +152,14 @@ func TestDisconnectGitHub(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if rec := doJSON(t, e, http.MethodDelete, "/api/github/auth", ""); rec.Code != http.StatusOK {
+	if rec := doJSON(t, e, http.MethodDelete, "/api/v1/github/auth", ""); rec.Code != http.StatusOK {
 		t.Fatalf("status %d", rec.Code)
 	}
 	if _, ok, err := d.GitHub.Repo.Get(); err != nil || ok {
 		t.Fatalf("auth still present after disconnect: %v %v", ok, err)
 	}
 	// Disconnecting again is fine.
-	if rec := doJSON(t, e, http.MethodDelete, "/api/github/auth", ""); rec.Code != http.StatusOK {
+	if rec := doJSON(t, e, http.MethodDelete, "/api/v1/github/auth", ""); rec.Code != http.StatusOK {
 		t.Fatalf("second disconnect status %d", rec.Code)
 	}
 }
@@ -169,7 +169,7 @@ func TestListGitHubRepos(t *testing.T) {
 	e := New(d)
 
 	// Not connected: an empty list.
-	rec := doJSON(t, e, http.MethodGet, "/api/github/repos", "")
+	rec := doJSON(t, e, http.MethodGet, "/api/v1/github/repos", "")
 	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"repos":[]`) {
 		t.Fatalf("not connected: status %d body %s", rec.Code, rec.Body.String())
 	}
@@ -191,7 +191,7 @@ func TestListGitHubRepos(t *testing.T) {
 	t.Cleanup(ts.Close)
 	d.GitHub.Client = github.New(ts.Client()).WithBaseURL(ts.URL)
 
-	rec = doJSON(t, e, http.MethodGet, "/api/github/repos", "")
+	rec = doJSON(t, e, http.MethodGet, "/api/v1/github/repos", "")
 	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "octo/wiki") ||
 		strings.Contains(rec.Body.String(), "ghp_x") {
 		t.Fatalf("connected: status %d body %s", rec.Code, rec.Body.String())
@@ -210,7 +210,7 @@ func TestListGitHubReposRejectedToken(t *testing.T) {
 	d.GitHub.Client = github.New(ts.Client()).WithBaseURL(ts.URL)
 	e := New(d)
 
-	rec := doJSON(t, e, http.MethodGet, "/api/github/repos", "")
+	rec := doJSON(t, e, http.MethodGet, "/api/v1/github/repos", "")
 	if rec.Code != http.StatusBadRequest || !strings.Contains(rec.Body.String(), "github rejected the token") {
 		t.Fatalf("status %d body %s", rec.Code, rec.Body.String())
 	}

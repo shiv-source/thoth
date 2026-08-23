@@ -17,7 +17,7 @@ The big one: the assistant stopped being a spawned `claude` CLI process and beca
 **Under the hood:**
 
 - The reusable `agent/` module: the tool-use loop, the `Provider` wire seam, the tool registry, and normalized events/model — with Anthropic and OpenAI-compatible providers and a shared SSE transport.
-- The `internal/agent` host glue wires the library to the wiki, store, and index; the chat server and `/api/health` now report the native backend (`thoth-agent`).
+- The `internal/agent` host glue wires the library to the wiki, store, and index; the chat server and `/api/v1/health` now report the native backend (`thoth-agent`).
 - `internal/claude` — flags, stream parsing, the process pool, and the process-kill files — was deleted.
 - The UI gates setup on the native backend status instead of the CLI: the setup screen tells you when a provider API key or wiki is missing.
 - `thoth doctor`'s old `claude` check became **provider** + **api key** checks: the provider check probes the selected model's provider endpoint with the resolved credential (401/429/timeout/5xx all named).

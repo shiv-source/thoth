@@ -30,7 +30,7 @@ describe('NotesPage', () => {
     beforeEach(() => {
         vi.clearAllMocks()
         mocks.get.mockImplementation((url: string) => {
-            if (url === '/api/wiki/tree') return Promise.resolve({ data: tree() })
+            if (url === '/api/v1/wiki/tree') return Promise.resolve({ data: tree() })
             return Promise.reject(new Error(`unhandled ${url}`))
         })
     })
@@ -52,7 +52,7 @@ describe('NotesPage', () => {
 
     it('expands the open note’s ancestor folders automatically', async () => {
         mocks.get.mockImplementation((url: string) => {
-            if (url === '/api/wiki/tree') {
+            if (url === '/api/v1/wiki/tree') {
                 return Promise.resolve({
                     data: {
                         nodes: [
@@ -73,7 +73,7 @@ describe('NotesPage', () => {
                     }
                 })
             }
-            if (url === '/api/notes?path=meetings%2Fstandup.md') {
+            if (url === '/api/v1/notes?path=meetings%2Fstandup.md') {
                 return Promise.resolve({ data: { path: 'meetings/standup.md', content: '# Standup' } })
             }
             return Promise.reject(new Error(`unhandled ${url}`))
@@ -85,8 +85,8 @@ describe('NotesPage', () => {
 
     it('opens the selected note inline and closes back to the empty state', async () => {
         mocks.get.mockImplementation((url: string) => {
-            if (url === '/api/wiki/tree') return Promise.resolve({ data: tree() })
-            if (url === '/api/notes?path=meetings%2Fstandup.md') {
+            if (url === '/api/v1/wiki/tree') return Promise.resolve({ data: tree() })
+            if (url === '/api/v1/notes?path=meetings%2Fstandup.md') {
                 return Promise.resolve({ data: { path: 'meetings/standup.md', content: '# Standup\n\nnotes here' } })
             }
             return Promise.reject(new Error(`unhandled ${url}`))

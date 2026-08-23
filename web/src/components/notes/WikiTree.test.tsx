@@ -40,7 +40,7 @@ describe('WikiTree', () => {
     })
 
     it('renders the nested wiki structure', async () => {
-        stubAPI(mocks, { '/api/wiki/tree': () => treeResponse })
+        stubAPI(mocks, { '/api/v1/wiki/tree': () => treeResponse })
         renderWikiTree()
 
         expect(screen.getByText('Loading…')).toBeInTheDocument()
@@ -51,7 +51,7 @@ describe('WikiTree', () => {
     })
 
     it('opens the clicked note and marks it selected', async () => {
-        stubAPI(mocks, { '/api/wiki/tree': () => treeResponse })
+        stubAPI(mocks, { '/api/v1/wiki/tree': () => treeResponse })
         const { onOpenNote } = renderWikiTree()
 
         await userEvent.click(await screen.findByText('meetings'))
@@ -60,7 +60,7 @@ describe('WikiTree', () => {
     })
 
     it('collapsing a folder hides its files', async () => {
-        stubAPI(mocks, { '/api/wiki/tree': () => treeResponse })
+        stubAPI(mocks, { '/api/v1/wiki/tree': () => treeResponse })
         renderWikiTree()
 
         await userEvent.click(await screen.findByText('meetings'))
@@ -70,7 +70,7 @@ describe('WikiTree', () => {
     })
 
     it('shows the file count in a hover tooltip', async () => {
-        stubAPI(mocks, { '/api/wiki/tree': () => treeResponse })
+        stubAPI(mocks, { '/api/v1/wiki/tree': () => treeResponse })
         renderWikiTree()
         await userEvent.hover(await screen.findByText('meetings'))
         expect(await screen.findByRole('tooltip')).toHaveTextContent('1 file')
@@ -78,7 +78,7 @@ describe('WikiTree', () => {
 
     it('keeps an unreadable directory visible with a warning tooltip', async () => {
         stubAPI(mocks, {
-            '/api/wiki/tree': () => ({
+            '/api/v1/wiki/tree': () => ({
                 nodes: [
                     {
                         name: 'locked',
@@ -107,7 +107,7 @@ describe('WikiTree', () => {
     })
 
     it('refetches when the connection reconnects', async () => {
-        stubAPI(mocks, { '/api/wiki/tree': () => treeResponse })
+        stubAPI(mocks, { '/api/v1/wiki/tree': () => treeResponse })
         const { store } = renderWikiTree()
         await screen.findByText('meetings')
         expect(mocks.get).toHaveBeenCalledTimes(1)
@@ -126,7 +126,7 @@ describe('WikiTree', () => {
     })
 
     it('refetches the tree when the window regains focus', async () => {
-        stubAPI(mocks, { '/api/wiki/tree': () => treeResponse })
+        stubAPI(mocks, { '/api/v1/wiki/tree': () => treeResponse })
         renderWikiTree()
         await screen.findByText('meetings')
         expect(mocks.get).toHaveBeenCalledTimes(1)
