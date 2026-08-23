@@ -102,7 +102,7 @@ func TestNewRoutesBaseURL(t *testing.T) {
 		{"DeepSeek", "/v1/chat/completions"},
 	} {
 		t.Run(tt.provider, func(t *testing.T) {
-			prov, err := providerFor("model-x", "key", tt.provider, srv.URL)
+			prov, err := providerFor("model-x", "key", tt.provider, srv.URL, nil)
 			if err != nil {
 				t.Fatalf("providerFor: %v", err)
 			}

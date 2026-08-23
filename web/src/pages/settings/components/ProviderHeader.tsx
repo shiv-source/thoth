@@ -10,6 +10,7 @@ export function ProviderHeader({
     modelCount,
     hasKey,
     baseURL,
+    hasCustomHeaders = false,
     onEdit,
     onDelete
 }: {
@@ -17,6 +18,7 @@ export function ProviderHeader({
     modelCount: number
     hasKey: boolean
     baseURL: string
+    hasCustomHeaders?: boolean
     onEdit?: () => void
     onDelete?: () => void
 }) {
@@ -40,6 +42,7 @@ export function ProviderHeader({
                 >
                     {baseURL !== '' ? 'custom endpoint' : 'default endpoint'}
                 </Tag>
+                {hasCustomHeaders && <Tag color="purple">custom headers</Tag>}
                 {onEdit && onDelete && (
                     <Flex align="center" gap={0} onClick={(e) => e.stopPropagation()}>
                         <Button

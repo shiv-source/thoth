@@ -117,6 +117,13 @@ func runServe(cmd *cobra.Command, dev bool, noAPIDocs bool) error {
 	if err != nil {
 		return err
 	}
+	// The provider's custom request headers (e.g. Portkey's x-portkey-*
+	// routing headers) are read at boot like the key and base URL, and sent
+	// on every request the agent makes through that provider.
+	customHeaders, err := stg.ProviderHeaders(providerName)
+	if err != nil {
+		return err
+	}
 	w, err := ensureWiki(wikiPath, stg, log)
 	if err != nil {
 		return err
@@ -189,6 +196,7 @@ func runServe(cmd *cobra.Command, dev bool, noAPIDocs bool) error {
 	}
 	ac, err := agent.New(model, apiKey, w, st, ix,
 		agent.WithProviderConfig(providerName, baseURL),
+		agent.WithCustomHeaders(customHeaders),
 		agent.WithLogger(log),
 		agent.WithFolders(scaffoldFolders(stg, log)),
 		agent.WithGitOptions(gitToolOptions(w, stg, syncSvc)),

@@ -37,7 +37,14 @@ const llmModel: LLMModel = {
     provider: 'Vendor',
     provider_id: 1
 }
-const provider = { id: 1, name: 'Vendor', base_url: 'https://api.vendor.example', has_api_key: false, model_count: 1 }
+const provider = {
+    id: 1,
+    name: 'Vendor',
+    base_url: 'https://api.vendor.example',
+    custom_headers: {},
+    has_api_key: false,
+    model_count: 1
+}
 
 describe('settingsSlice', () => {
     beforeEach(() => {

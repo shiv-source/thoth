@@ -389,3 +389,30 @@ func TestStreamToolUseWithEmptyInput(t *testing.T) {
 		t.Fatalf("got %+v, want %+v", resp.Message, want)
 	}
 }
+
+func TestStreamSendsCustomHeaders(t *testing.T) {
+	var got http.Header
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		got = r.Header.Clone()
+		w.WriteHeader(http.StatusOK)
+		_, _ = io.WriteString(w, "data: [DONE]\n\n")
+	}))
+	defer srv.Close()
+
+	c := anthropic.New("secret-key",
+		anthropic.WithBaseURL(srv.URL),
+		anthropic.WithHeaders(map[string]string{"x-portkey-provider": "anthropic", "x-portkey-api-key": "gw"}))
+	s, err := c.Stream(context.Background(), agent.Request{})
+	if err != nil {
+		t.Fatalf("Stream: %v", err)
+	}
+	_ = s.Close()
+
+	if got.Get("x-portkey-provider") != "anthropic" || got.Get("x-portkey-api-key") != "gw" {
+		t.Fatalf("custom headers missing: %v", got)
+	}
+	// The provider's own auth headers are still sent.
+	if got.Get("x-api-key") != "secret-key" {
+		t.Fatalf("x-api-key %q", got.Get("x-api-key"))
+	}
+}

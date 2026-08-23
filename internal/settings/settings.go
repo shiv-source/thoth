@@ -122,6 +122,33 @@ func (r *Repo) ProviderConfig(provider string) (apiKey, baseURL string, err erro
 	return apiKey, baseURL, nil
 }
 
+// ProviderHeaders resolves the custom request headers for a provider name from
+// the provider_headers table (migration 0015). An empty provider name (or one
+// with no rows) returns an empty map.
+func (r *Repo) ProviderHeaders(provider string) (map[string]string, error) {
+	if provider == "" {
+		return nil, nil
+	}
+	rows, err := r.db.Query(
+		`SELECT ph.name, ph.value
+		 FROM provider_headers ph
+		 JOIN providers p ON p.id = ph.provider_id
+		 WHERE p.name = ?`, provider)
+	if err != nil {
+		return nil, fmt.Errorf("read provider headers %q: %w", provider, err)
+	}
+	defer func() { _ = rows.Close() }()
+	headers := make(map[string]string)
+	for rows.Next() {
+		var name, value string
+		if err := rows.Scan(&name, &value); err != nil {
+			return nil, fmt.Errorf("scan provider header %q: %w", provider, err)
+		}
+		headers[name] = value
+	}
+	return headers, rows.Err()
+}
+
 // Folders returns the configured scaffold folder names, split on commas and
 // trimmed; nil when the key is absent or empty, so callers fall back to the
 // default set.

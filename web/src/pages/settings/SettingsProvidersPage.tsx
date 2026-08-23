@@ -21,7 +21,7 @@ import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import { CardTitle } from './components/CardTitle'
 import { ModelModal } from './components/ModelModal'
 import { ProviderHeader } from './components/ProviderHeader'
-import { ProviderModal } from './components/ProviderModal'
+import { ProviderModal, type ProviderFormValues } from './components/ProviderModal'
 import { ProviderPanel } from './components/ProviderPanel'
 import { tagColor } from './components/tagColor'
 import { SettingsShell } from './SettingsShell'
@@ -42,7 +42,7 @@ export function SettingsProvidersPage() {
 
     const [providerOpen, setProviderOpen] = useState(false)
     const [editingProvider, setEditingProvider] = useState<Provider | null>(null)
-    const [providerForm] = Form.useForm<ProviderInput>()
+    const [providerForm] = Form.useForm<ProviderFormValues>()
 
     const [modelOpen, setModelOpen] = useState(false)
     const [editing, setEditing] = useState<LLMModel | null>(null)
@@ -72,17 +72,32 @@ export function SettingsProvidersPage() {
     const openEditProvider = (p: Provider) => {
         setEditingProvider(p)
         providerForm.resetFields()
-        providerForm.setFieldsValue({ name: p.name, base_url: p.base_url })
+        providerForm.setFieldsValue({
+            name: p.name,
+            base_url: p.base_url,
+            custom_headers: Object.entries(p.custom_headers).map(([name, value]) => ({ name, value }))
+        })
         setProviderOpen(true)
     }
 
     const submitProvider = async () => {
         const values = await providerForm.validateFields()
+        const input: ProviderInput = {
+            name: values.name,
+            base_url: values.base_url,
+            api_key: values.api_key
+        }
+        // The key/value rows become the custom_headers object (empty rows are
+        // dropped); an empty set clears the provider's headers on the server.
+        const headers = Object.fromEntries(
+            (values.custom_headers ?? []).filter((h) => h.name.trim() !== '').map((h) => [h.name.trim(), h.value])
+        )
+        if (Object.keys(headers).length > 0) input.custom_headers = headers
         try {
             if (editingProvider) {
-                await dispatch(updateProvider({ id: editingProvider.id, input: values })).unwrap()
+                await dispatch(updateProvider({ id: editingProvider.id, input })).unwrap()
             } else {
-                await dispatch(createProvider(values)).unwrap()
+                await dispatch(createProvider(input)).unwrap()
             }
             void dispatch(fetchProviders())
             void dispatch(fetchModels())
@@ -196,6 +211,7 @@ export function SettingsProvidersPage() {
                     modelCount={p.model_count}
                     hasKey={p.has_api_key}
                     baseURL={p.base_url}
+                    hasCustomHeaders={Object.keys(p.custom_headers).length > 0}
                     onEdit={() => openEditProvider(p)}
                     onDelete={() => void removeProvider(p)}
                 />

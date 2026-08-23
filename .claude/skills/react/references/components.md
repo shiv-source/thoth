@@ -175,6 +175,18 @@ chrome renders through antd v6 components; icons come from @ant-design/icons
 - props/api: `SaveFooter({ status, saving, hasError, className? })`
 - canonical: SaveFooter.tsx:7
 
+## ProviderModal
+- path: web/src/pages/settings/components/ProviderModal.tsx
+- purpose: Add/edit provider form — name, base URL override, write-only API key, and custom request headers as key/value rows (Form.List) for gateways like Portkey; on edit a blank key keeps the stored one
+- props/api: `ProviderModal({ open, editing, form: FormInstance<ProviderFormValues>, onCancel, onOk })`; exports `ProviderFormValues`
+- canonical: ProviderModal.tsx:22
+
+## ProviderHeader
+- path: web/src/pages/settings/components/ProviderHeader.tsx
+- purpose: Collapse panel title for one provider — status chips (model count, key set, custom endpoint, custom headers) and edit/delete actions
+- props/api: `ProviderHeader({ name, modelCount, hasKey, baseURL, hasCustomHeaders?, onEdit?, onDelete? })`
+- canonical: ProviderHeader.tsx:9
+
 ## GitConnectSection
 - path: web/src/pages/settings/components/GitConnectSection.tsx
 - purpose: The not-yet-connected Git page card — PAT `Input.Password` (local state owned by the page) + Connect button; the token is stored server-side in the github_auth row

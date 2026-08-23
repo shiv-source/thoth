@@ -1,6 +1,6 @@
 # Database schema
 
-Everything lives in one SQLite file, `~/.thoth/thoth.db` (WAL mode). The schema is defined entirely by SQL migrations in `internal/store/migrations/` — one file per table, applied in filename order, gated on `PRAGMA user_version` (currently 13). Go code issues no DDL of its own.
+Everything lives in one SQLite file, `~/.thoth/thoth.db` (WAL mode). The schema is defined entirely by SQL migrations in `internal/store/migrations/` — one file per table, applied in filename order, gated on `PRAGMA user_version` (currently 15). Go code issues no DDL of its own.
 
 ```mermaid
 erDiagram
@@ -66,12 +66,19 @@ erDiagram
         text error
     }
     providers ||--o{ llm_models : "owns"
+    providers ||--o{ provider_headers : "owns"
     providers {
         integer id PK
         text name "UNIQUE"
         text base_url
         text api_key
         text created_at
+    }
+    provider_headers {
+        integer id PK
+        integer provider_id FK
+        text name "UNIQUE per provider"
+        text value
     }
     llm_models {
         integer id PK
@@ -208,6 +215,19 @@ The model providers, one row per provider the user configures. Providers are fir
 | `created_at` | TEXT NOT NULL | UTC RFC3339 |
 
 The table is seeded from the distinct `llm_models` labels by migration `0011` (credentials copied from the legacy `provider_<slug>_*` settings keys by a one-time backfill in `store.Open`), and `ensureModels` creates any missing provider row for a model option on boot.
+
+### `provider_headers` (migration `0015_provider_headers.sql`)
+
+The per-provider custom request headers — e.g. gateway routing headers for Portkey (`x-portkey-provider`, `x-portkey-api-key`, `x-portkey-virtual-key`, …). One row per header so a provider can carry many and the UI edits them individually; a provider with no rows sends no extra headers. The wire providers send every row on each request, on top of the provider's own auth headers.
+
+| Column | Type | Meaning |
+|---|---|---|
+| `id` | INTEGER PK AUTOINCREMENT | |
+| `provider_id` | INTEGER NOT NULL | → `providers.id`; deleted with the provider (`DeleteProvider` removes them explicitly — the FK pragma is off) |
+| `name` | TEXT NOT NULL | Header name (e.g. `x-portkey-provider`) |
+| `value` | TEXT NOT NULL | Header value (e.g. `anthropic`) |
+
+`UNIQUE(provider_id, name)` — saving the same header name replaces its value. The API replaces the whole set on every provider create/update (`SetProviderHeaders`), so a PUT without `custom_headers` clears them.
 
 ### `llm_models` (migrations `0008_llm_models.sql` + `0009_llm_models_tag.sql` + `0011_providers.sql`)
 

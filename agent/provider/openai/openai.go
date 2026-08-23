@@ -34,6 +34,7 @@ type options struct {
 	model      string
 	maxTokens  int
 	httpClient *http.Client
+	headers    map[string]string
 }
 
 // WithBaseURL overrides the API base URL (default https://api.openai.com).
@@ -59,6 +60,12 @@ func WithHTTPClient(c *http.Client) Option {
 	return func(o *options) { o.httpClient = c }
 }
 
+// WithHeaders adds extra request headers sent on every request (e.g. Portkey's
+// x-portkey-* routing headers). nil or an empty map adds nothing.
+func WithHeaders(headers map[string]string) Option {
+	return func(o *options) { o.headers = headers }
+}
+
 // Client is an OpenAI-compatible provider. Create one with New; it is safe for
 // concurrent use.
 type Client struct {
@@ -67,6 +74,7 @@ type Client struct {
 	model     string
 	maxTokens int
 	http      *http.Client
+	headers   map[string]string
 }
 
 // New returns an OpenAI-compatible client for apiKey. Configure it with the
@@ -81,7 +89,9 @@ func New(apiKey string, opts ...Option) *Client {
 	for _, opt := range opts {
 		opt(&o)
 	}
-	return &Client{apiKey: apiKey, baseURL: o.baseURL, model: o.model, maxTokens: o.maxTokens, http: o.httpClient}
+	return &Client{
+		apiKey: apiKey, baseURL: o.baseURL, model: o.model, maxTokens: o.maxTokens, http: o.httpClient, headers: o.headers,
+	}
 }
 
 var _ agent.Provider = (*Client)(nil)
@@ -103,6 +113,9 @@ func (c *Client) Stream(ctx context.Context, req agent.Request) (agent.Stream, e
 	}
 	httpReq.Header.Set("authorization", "Bearer "+c.apiKey)
 	httpReq.Header.Set("content-type", "application/json")
+	for name, value := range c.headers {
+		httpReq.Header.Set(name, value)
+	}
 
 	resp, err := c.http.Do(httpReq)
 	if err != nil {

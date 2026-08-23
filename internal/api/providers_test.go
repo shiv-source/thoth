@@ -13,12 +13,13 @@ import (
 
 // providerBody decodes a provider JSON body.
 type providerBody struct {
-	ID         int64  `json:"id"`
-	Name       string `json:"name"`
-	BaseURL    string `json:"base_url"`
-	HasAPIKey  bool   `json:"has_api_key"`
-	APIKey     string `json:"api_key"`
-	ModelCount int    `json:"model_count"`
+	ID            int64             `json:"id"`
+	Name          string            `json:"name"`
+	BaseURL       string            `json:"base_url"`
+	CustomHeaders map[string]string `json:"custom_headers"`
+	HasAPIKey     bool              `json:"has_api_key"`
+	APIKey        string            `json:"api_key"`
+	ModelCount    int               `json:"model_count"`
 }
 
 func decodeProviders(t *testing.T, rec *httptest.ResponseRecorder) []providerBody {
@@ -139,6 +140,63 @@ func TestProvidersUpdate(t *testing.T) {
 	got, err := d.Store.Provider(p.ID)
 	if err != nil || got.APIKey != "ds-secret" {
 		t.Fatalf("stored key lost on empty PUT: %+v / %v", got, err)
+	}
+}
+
+func TestProvidersCustomHeaders(t *testing.T) {
+	d := testDeps(t)
+	e := New(d)
+
+	// Create with headers; the DTO echoes them and the store persists them.
+	rec := doProvidersReq(t, e, http.MethodPost, "/api/v1/providers",
+		`{"name":"Anthropic","api_key":"sk-secret","custom_headers":{"x-portkey-provider":"anthropic","x-portkey-api-key":"gw"}}`)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("create status %d: %s", rec.Code, rec.Body.String())
+	}
+	var created providerBody
+	if err := json.Unmarshal(rec.Body.Bytes(), &created); err != nil {
+		t.Fatal(err)
+	}
+	if created.CustomHeaders["x-portkey-provider"] != "anthropic" || created.CustomHeaders["x-portkey-api-key"] != "gw" {
+		t.Fatalf("created headers mismatch: %+v", created.CustomHeaders)
+	}
+
+	// Update replaces the whole set; omitting custom_headers clears it.
+	rec = doProvidersReq(t, e, http.MethodPut, "/api/v1/providers/"+strconv.FormatInt(created.ID, 10),
+		`{"name":"Anthropic","custom_headers":{"x-portkey-virtual-key":"vk-1"}}`)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("update status %d: %s", rec.Code, rec.Body.String())
+	}
+	var updated providerBody
+	if err := json.Unmarshal(rec.Body.Bytes(), &updated); err != nil {
+		t.Fatal(err)
+	}
+	if len(updated.CustomHeaders) != 1 || updated.CustomHeaders["x-portkey-virtual-key"] != "vk-1" {
+		t.Fatalf("update headers mismatch: %+v", updated.CustomHeaders)
+	}
+
+	// The list endpoint carries headers too.
+	rec = doProvidersReq(t, e, http.MethodGet, "/api/v1/providers", "")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("list status %d: %s", rec.Code, rec.Body.String())
+	}
+	list := decodeProviders(t, rec)
+	if len(list) != 1 || list[0].CustomHeaders["x-portkey-virtual-key"] != "vk-1" {
+		t.Fatalf("list headers mismatch: %+v", list)
+	}
+
+	// A PUT with no custom_headers clears them all.
+	rec = doProvidersReq(t, e, http.MethodPut, "/api/v1/providers/"+strconv.FormatInt(created.ID, 10),
+		`{"name":"Anthropic"}`)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("clear status %d: %s", rec.Code, rec.Body.String())
+	}
+	var cleared providerBody
+	if err := json.Unmarshal(rec.Body.Bytes(), &cleared); err != nil {
+		t.Fatal(err)
+	}
+	if len(cleared.CustomHeaders) != 0 {
+		t.Fatalf("clear headers mismatch: %+v", cleared.CustomHeaders)
 	}
 }
 

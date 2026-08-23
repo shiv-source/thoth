@@ -17,6 +17,10 @@ type Provider struct {
 	BaseURL   string
 	APIKey    string
 	CreatedAt string
+	// Headers is the provider's custom request headers (provider_headers
+	// rows), populated on reads; nil when the provider has none. The wire
+	// providers send each of these on every request.
+	Headers map[string]string
 	// ModelCount is the number of models registered under this provider;
 	// populated by ListProviders, zero elsewhere.
 	ModelCount int
@@ -33,7 +37,7 @@ var ErrProviderNotFound = errors.New("provider not found")
 const providerColumns = "id, name, base_url, api_key, created_at"
 
 // ListProviders returns every provider, case-insensitive A→Z, each carrying
-// the number of models registered under it.
+// the number of models registered under it and its custom headers.
 func (s *Store) ListProviders() ([]Provider, error) {
 	rows, err := s.db.Query(`
 		SELECT p.id, p.name, p.base_url, p.api_key, p.created_at,
@@ -52,10 +56,22 @@ func (s *Store) ListProviders() ([]Provider, error) {
 		}
 		out = append(out, p)
 	}
-	return out, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	headers, err := s.allProviderHeaders()
+	if err != nil {
+		return nil, err
+	}
+	for i := range out {
+		if hs, ok := headers[out[i].ID]; ok {
+			out[i].Headers = hs
+		}
+	}
+	return out, nil
 }
 
-// Provider returns one provider by id.
+// Provider returns one provider by id, with its custom headers.
 func (s *Store) Provider(id int64) (Provider, error) {
 	var p Provider
 	err := s.db.QueryRow(
@@ -67,10 +83,14 @@ func (s *Store) Provider(id int64) (Provider, error) {
 	if err != nil {
 		return Provider{}, fmt.Errorf("read provider: %w", err)
 	}
+	p.Headers, err = s.providerHeaders(id)
+	if err != nil {
+		return Provider{}, err
+	}
 	return p, nil
 }
 
-// ProviderByName returns one provider by its exact name.
+// ProviderByName returns one provider by its exact name, with its headers.
 func (s *Store) ProviderByName(name string) (Provider, error) {
 	var p Provider
 	err := s.db.QueryRow(
@@ -82,10 +102,15 @@ func (s *Store) ProviderByName(name string) (Provider, error) {
 	if err != nil {
 		return Provider{}, fmt.Errorf("read provider %q: %w", name, err)
 	}
+	p.Headers, err = s.providerHeaders(p.ID)
+	if err != nil {
+		return Provider{}, err
+	}
 	return p, nil
 }
 
-// CreateProvider inserts a provider and returns it with its id.
+// CreateProvider inserts a provider and returns it with its id. The provider's
+// custom headers are added with SetProviderHeaders.
 func (s *Store) CreateProvider(name, baseURL, apiKey string) (Provider, error) {
 	created := time.Now().UTC().Format(time.RFC3339)
 	res, err := s.db.Exec(
@@ -119,7 +144,8 @@ func (s *Store) EnsureProvider(name string) (Provider, error) {
 	return s.ProviderByName(name)
 }
 
-// UpdateProvider replaces every editable field of the provider.
+// UpdateProvider replaces every editable field of the provider. The provider's
+// custom headers are replaced with SetProviderHeaders.
 func (s *Store) UpdateProvider(id int64, name, baseURL, apiKey string) error {
 	res, err := s.db.Exec(
 		`UPDATE providers SET name = ?, base_url = ?, api_key = ? WHERE id = ?`,
@@ -133,8 +159,70 @@ func (s *Store) UpdateProvider(id int64, name, baseURL, apiKey string) error {
 	return providerRowsAffectedOrNotFound(res, "update provider")
 }
 
-// DeleteProvider removes the provider and its models in one transaction;
-// deleting a missing row is ErrProviderNotFound.
+// SetProviderHeaders replaces the provider's custom request headers with the
+// given set (nil or an empty map clears them all), in one transaction.
+func (s *Store) SetProviderHeaders(id int64, headers map[string]string) error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return fmt.Errorf("begin set provider headers: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }() // no-op after Commit
+	if _, err := tx.Exec(`DELETE FROM provider_headers WHERE provider_id = ?`, id); err != nil {
+		return fmt.Errorf("clear provider headers: %w", err)
+	}
+	for name, value := range headers {
+		if _, err := tx.Exec(
+			`INSERT INTO provider_headers(provider_id, name, value) VALUES (?, ?, ?)`,
+			id, name, value); err != nil {
+			return fmt.Errorf("set provider header %q: %w", name, err)
+		}
+	}
+	return tx.Commit()
+}
+
+// providerHeaders returns one provider's custom headers as a name→value map.
+func (s *Store) providerHeaders(id int64) (map[string]string, error) {
+	rows, err := s.db.Query(`SELECT name, value FROM provider_headers WHERE provider_id = ?`, id)
+	if err != nil {
+		return nil, fmt.Errorf("list provider headers: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	headers := make(map[string]string)
+	for rows.Next() {
+		var name, value string
+		if err := rows.Scan(&name, &value); err != nil {
+			return nil, fmt.Errorf("scan provider header: %w", err)
+		}
+		headers[name] = value
+	}
+	return headers, rows.Err()
+}
+
+// allProviderHeaders loads every provider's custom headers grouped by provider
+// id, for ListProviders to attach in one pass.
+func (s *Store) allProviderHeaders() (map[int64]map[string]string, error) {
+	rows, err := s.db.Query(`SELECT provider_id, name, value FROM provider_headers`)
+	if err != nil {
+		return nil, fmt.Errorf("list all provider headers: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	out := make(map[int64]map[string]string)
+	for rows.Next() {
+		var providerID int64
+		var name, value string
+		if err := rows.Scan(&providerID, &name, &value); err != nil {
+			return nil, fmt.Errorf("scan provider header: %w", err)
+		}
+		if out[providerID] == nil {
+			out[providerID] = make(map[string]string)
+		}
+		out[providerID][name] = value
+	}
+	return out, rows.Err()
+}
+
+// DeleteProvider removes the provider, its models, and its custom headers in
+// one transaction; deleting a missing row is ErrProviderNotFound.
 func (s *Store) DeleteProvider(id int64) error {
 	tx, err := s.db.Begin()
 	if err != nil {
@@ -143,6 +231,9 @@ func (s *Store) DeleteProvider(id int64) error {
 	defer func() { _ = tx.Rollback() }() // no-op after Commit
 	if _, err := tx.Exec(`DELETE FROM llm_models WHERE provider_id = ?`, id); err != nil {
 		return fmt.Errorf("delete provider models: %w", err)
+	}
+	if _, err := tx.Exec(`DELETE FROM provider_headers WHERE provider_id = ?`, id); err != nil {
+		return fmt.Errorf("delete provider headers: %w", err)
 	}
 	res, err := tx.Exec(`DELETE FROM providers WHERE id = ?`, id)
 	if err != nil {

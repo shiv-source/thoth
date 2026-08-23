@@ -288,6 +288,38 @@ describe('SettingsPage', () => {
         expect(body).toContain('"api_key":"ds-secret"')
     })
 
+    it('adds a provider with custom headers (Portkey)', async () => {
+        const seeded = { id: 1, name: 'Anthropic', base_url: '', has_api_key: true, model_count: 0 }
+        let providers: (typeof seeded)[] = []
+        stubAPI({
+            'GET /api/v1/settings': getSettings,
+            'GET /api/v1/models': () => ({ groups: [] }),
+            'GET /api/v1/providers': () => ({ providers }),
+            'POST /api/v1/providers': () => {
+                providers = [seeded]
+                return seeded
+            }
+        })
+
+        renderSettings()
+        await userEvent.click(await screen.findByRole('menuitem', { name: 'Providers' }))
+        await userEvent.click(await screen.findByRole('button', { name: /Add provider/ }))
+        await userEvent.type(await screen.findByLabelText('Name'), 'Anthropic')
+        await userEvent.click(screen.getByRole('button', { name: 'Add header' }))
+        await userEvent.type(screen.getByPlaceholderText('x-portkey-provider'), 'x-portkey-provider')
+        await userEvent.type(screen.getByPlaceholderText('anthropic'), 'anthropic')
+        await userEvent.click(screen.getByRole('button', { name: 'Add header' }))
+        await userEvent.type(screen.getAllByPlaceholderText('x-portkey-provider')[1]!, 'x-portkey-api-key')
+        await userEvent.type(screen.getAllByPlaceholderText('anthropic')[1]!, 'gateway-secret')
+        await userEvent.click(screen.getByRole('button', { name: 'OK' }))
+
+        expect(await screen.findByText('Provider added')).toBeInTheDocument()
+        const body = JSON.stringify(lastBody('post', '/api/v1/providers'))
+        expect(body).toContain('"custom_headers"')
+        expect(body).toContain('"x-portkey-provider":"anthropic"')
+        expect(body).toContain('"x-portkey-api-key":"gateway-secret"')
+    })
+
     it('edits a provider and leaves a blank key untouched', async () => {
         const seeded = {
             id: 1,
