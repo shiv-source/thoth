@@ -12,6 +12,7 @@ import {
   fetchRunJobs,
   findMarkerComment,
   githubContext,
+  averageCoverageText,
   overallCoverageText,
   renderPrBody,
   renderStepSummary,
@@ -150,8 +151,17 @@ test("renderStepSummary renders backend and frontend coverage lines together", (
   const report = reportJobs(jobs, { self: "report", wrapper: "final-gate" })
   const summary = renderStepSummary({ ...report, ...ctx, coverage: "91.2", coverageFloor: "90", webCoverage: "93.2", webCoverageFloor: "90" })
   assert.ok(
-    summary.includes("\n\n📊 Backend coverage: **91.2%** — floor **90%** ✅\n🖥️ Frontend coverage: **93.2%** — floor **90%** ✅\n\n| Job | Result |"),
+    summary.includes("\n\n📊 Backend coverage: **91.2%** — floor **90%** ✅\n🖥️ Frontend coverage: **93.2%** — floor **90%** ✅\n📈 Average coverage: **92.2%** — floor **90%** ✅\n\n| Job | Result |"),
   )
+})
+
+test("averageCoverageText is the simple mean of both areas", () => {
+  assert.equal(averageCoverageText("91.2", "90", "93.2", "90"), "📈 Average coverage: **92.2%** — floor **90%** ✅")
+  assert.equal(averageCoverageText("90.2", "90", "93.24", "90"), "📈 Average coverage: **91.7%** — floor **90%** ✅")
+  assert.equal(averageCoverageText("90.2", "90", "85.1", "80"), "📈 Average coverage: **87.7%** — floor **85%** ✅")
+  assert.equal(averageCoverageText("91.2", "90", "93.2"), "📈 Average coverage: **92.2%**", "without floors the marker is omitted")
+  assert.equal(averageCoverageText("", "90", "93.2", "90"), null)
+  assert.equal(averageCoverageText("91.2", "90", "", "90"), null)
 })
 
 test("overallCoverageText weights both areas by their statement totals", () => {
@@ -192,13 +202,13 @@ test("renderStepSummary and renderPrBody render the overall line after both area
   const summary = renderStepSummary(args)
   assert.ok(
     summary.includes(
-      "\n\n📊 Backend coverage: **91.2%** — floor **90%** ✅\n🖥️ Frontend coverage: **93.2%** — floor **90%** ✅\n🧮 Overall coverage: **92.3%** — floor **90%** ✅\n\n| Job | Result |",
+      "\n\n📊 Backend coverage: **91.2%** — floor **90%** ✅\n🖥️ Frontend coverage: **93.2%** — floor **90%** ✅\n📈 Average coverage: **92.2%** — floor **90%** ✅\n🧮 Overall coverage: **92.3%** — floor **90%** ✅\n\n| Job | Result |",
     ),
   )
   const body = renderPrBody(args)
   assert.ok(
     body.includes(
-      "\n\n📊 Backend coverage: **91.2%** — floor **90%** ✅\n🖥️ Frontend coverage: **93.2%** — floor **90%** ✅\n🧮 Overall coverage: **92.3%** — floor **90%** ✅\n\n<details>",
+      "\n\n📊 Backend coverage: **91.2%** — floor **90%** ✅\n🖥️ Frontend coverage: **93.2%** — floor **90%** ✅\n📈 Average coverage: **92.2%** — floor **90%** ✅\n🧮 Overall coverage: **92.3%** — floor **90%** ✅\n\n<details>",
     ),
   )
 })
@@ -213,7 +223,7 @@ test("renderPrBody renders backend and frontend coverage lines together", () => 
   const report = reportJobs(jobs, { self: "report", wrapper: "final-gate" })
   const body = renderPrBody({ ...report, ...ctx, coverage: "91.2", coverageFloor: "90", webCoverage: "93.2", webCoverageFloor: "90" })
   assert.ok(
-    body.includes("\n\n📊 Backend coverage: **91.2%** — floor **90%** ✅\n🖥️ Frontend coverage: **93.2%** — floor **90%** ✅\n\n<details>"),
+    body.includes("\n\n📊 Backend coverage: **91.2%** — floor **90%** ✅\n🖥️ Frontend coverage: **93.2%** — floor **90%** ✅\n📈 Average coverage: **92.2%** — floor **90%** ✅\n\n<details>"),
   )
 })
 

@@ -114,6 +114,7 @@ test("backend and frontend coverage both appear when provided", async () => {
     await main()
     assert.ok(env.summary().includes("📊 Backend coverage: **91.2%** — floor **90%** ✅"))
     assert.ok(env.summary().includes("🖥️ Frontend coverage: **93.2%** — floor **90%** ✅"))
+    assert.ok(env.summary().includes("📈 Average coverage: **92.2%** — floor **90%** ✅"))
     const post = stub.calls.find((call) => call.init?.method === "POST")
     assert.ok(JSON.parse(post.init.body).body.includes("🖥️ Frontend coverage: **93.2%** — floor **90%** ✅"))
   } finally {

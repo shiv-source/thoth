@@ -129,8 +129,25 @@ export function overallCoverageText({ backendCovered, backendTotal, frontendCove
   return `🧮 Overall coverage: **${fmtPct(pct)}%** — floor **${fmtPct(floor)}%** ${ok ? "✅" : "❌"}`
 }
 
-// The coverage lines for a report: backend, frontend, then overall. Each is
-// omitted when its inputs are missing, so untouched areas simply disappear.
+// Average coverage across backend + frontend: the simple mean of the two area
+// percentages (each already gated at its own floor), with the mean of the two
+// floors as its own. Returns null until both areas have run.
+export function averageCoverageText(coverage, coverageFloor, webCoverage, webCoverageFloor) {
+  const b = String(coverage ?? "").trim().replace(/%$/, "")
+  const w = String(webCoverage ?? "").trim().replace(/%$/, "")
+  if (!b || !w) return null
+  const avg = (Number(b) + Number(w)) / 2
+  const bf = Number(String(coverageFloor ?? "").trim().replace(/%$/, ""))
+  const wf = Number(String(webCoverageFloor ?? "").trim().replace(/%$/, ""))
+  if (!bf || !wf) return `📈 Average coverage: **${fmtPct(avg)}%**`
+  const floor = (bf + wf) / 2
+  const ok = avg >= floor
+  return `📈 Average coverage: **${fmtPct(avg)}%** — floor **${fmtPct(floor)}%** ${ok ? "✅" : "❌"}`
+}
+
+// The coverage lines for a report: backend, frontend, average, then overall.
+// Each is omitted when its inputs are missing, so untouched areas simply
+// disappear (average and overall wait until both areas have run).
 function coverageLines({
   coverage,
   coverageFloor,
@@ -144,6 +161,7 @@ function coverageLines({
   return [
     coverageText(coverage, coverageFloor),
     coverageText(webCoverage, webCoverageFloor, { emoji: "🖥️", label: "Frontend coverage" }),
+    averageCoverageText(coverage, coverageFloor, webCoverage, webCoverageFloor),
     overallCoverageText({
       backendCovered: coverageCovered,
       backendTotal: coverageTotal,
