@@ -15,22 +15,15 @@ const ITEMS: { key: SettingsSection; label: string; icon: ReactNode }[] = [
     { key: 'doctor', label: 'Doctor', icon: <MedicineBoxOutlined aria-hidden="true" /> }
 ]
 
-// SettingsShell is the shared settings layout: the header, a one-line
-// description, a left rail navigating between the four /settings/<section>
-// routes, and the section page as content. The rail stays put while the
-// content scrolls; every section shares the same centered column width so
-// the pages read as one system.
+// SettingsShell is the shared settings layout: the header, a left rail
+// navigating between the four /settings/<section> routes, and the section page
+// as content. The rail stays put while the content scrolls; every section
+// shares the same centered column width so the pages read as one system.
 export function SettingsShell({ active, children }: { active: SettingsSection; children: ReactNode }) {
     return (
         <div className="flex min-h-0 flex-1 flex-col">
             <AppHeader title="Settings" />
             <div className="flex min-h-0 w-full flex-1 flex-col px-6 py-6">
-                <div className="mb-6">
-                    <p className="text-sm leading-relaxed text-subtle">
-                        Configure your knowledge base, model providers, and wiki sync destinations — or run the
-                        installation health checks.
-                    </p>
-                </div>
                 <div className="flex min-h-0 flex-1 gap-8">
                     <nav className="w-56 shrink-0" aria-label="Settings sections">
                         <div className="rounded-xl border border-line bg-surface p-2 shadow-card">
