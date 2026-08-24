@@ -158,11 +158,9 @@ export function DashboardPage({ onOpenSettings }: { onOpenSettings: () => void }
                         <ChartCard title="Notes this week" note="mock data — index stats endpoint">
                             <ActivityChart counts={mockActivity} />
                         </ChartCard>
-                        <div className="md:col-span-2">
-                            <ChartCard title="Chat activity" note="mock data — messages endpoint">
-                                <ChatActivityChart counts={mockChatActivity} />
-                            </ChartCard>
-                        </div>
+                        <ChartCard title="Chat activity" note="mock data — messages endpoint">
+                            <ChatActivityChart counts={mockChatActivity} />
+                        </ChartCard>
                         <ChartCard title="Notes by kind" note="mock data — kind counts">
                             <NotesByKindChart slices={mockNotesByKind} />
                         </ChartCard>
