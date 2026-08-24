@@ -104,28 +104,32 @@ export function SettingsGeneralPage() {
                         title="Knowledge base"
                         description="Where your notes live on disk and the folders a new wiki is scaffolded with."
                     >
-                        <Form.Item
-                            label="Wiki path"
-                            name="wiki_path"
-                            extra={`Defaults to ${defaultWiki}.`}
-                            className="max-w-lg"
-                        >
-                            <WikiPathInput />
-                        </Form.Item>
-                        <Form.Item
-                            label="Scaffold folders"
-                            name="wiki_folders"
-                            extra="Type your own set or keep the defaults."
-                            className="max-w-lg"
-                        >
-                            <Select
-                                virtual={false}
-                                mode="tags"
-                                placeholder="inbox, meetings, projects, …"
-                                options={DEFAULT_WIKI_FOLDERS.map((f) => ({ value: f }))}
-                                tokenSeparators={[',']}
-                            />
-                        </Form.Item>
+                        <div className="rounded-lg border border-line bg-raised p-5">
+                            <div className="grid gap-4 md:grid-cols-2">
+                                <Form.Item
+                                    label="Wiki path"
+                                    name="wiki_path"
+                                    extra={`Defaults to ${defaultWiki}.`}
+                                    className="min-w-0"
+                                >
+                                    <WikiPathInput />
+                                </Form.Item>
+                                <Form.Item
+                                    label="Scaffold folders"
+                                    name="wiki_folders"
+                                    extra="Type your own set or keep the defaults."
+                                    className="min-w-0"
+                                >
+                                    <Select
+                                        virtual={false}
+                                        mode="tags"
+                                        placeholder="inbox, meetings, projects, …"
+                                        options={DEFAULT_WIKI_FOLDERS.map((f) => ({ value: f }))}
+                                        tokenSeparators={[',']}
+                                    />
+                                </Form.Item>
+                            </div>
+                        </div>
                     </FormSection>
 
                     <Divider className="my-8" />
@@ -135,57 +139,59 @@ export function SettingsGeneralPage() {
                         title="Default model & context"
                         description="The model used for new chats and how the assistant prepares each turn."
                     >
-                        <div className="grid gap-4 md:grid-cols-2">
+                        <div className="rounded-lg border border-line bg-raised p-5">
+                            <div className="grid gap-4 md:grid-cols-2">
+                                <Form.Item
+                                    label="Provider"
+                                    htmlFor="settings-provider"
+                                    extra="The provider your selected model comes from."
+                                    className="min-w-0"
+                                >
+                                    <Select
+                                        id="settings-provider"
+                                        virtual={false}
+                                        placeholder="Select a provider"
+                                        options={providerOptions}
+                                        notFoundContent="No models — add a provider model in the Providers tab"
+                                        value={provider ?? undefined}
+                                        onChange={onProviderChange}
+                                    />
+                                </Form.Item>
+                                <Form.Item
+                                    label="Model"
+                                    name="model"
+                                    extra="Applied to all chats after the app restarts."
+                                    className="min-w-0"
+                                >
+                                    <Select
+                                        virtual={false}
+                                        options={modelOptions}
+                                        notFoundContent="Select a provider first"
+                                        optionRender={(option) => (
+                                            <Flex align="center" gap={8}>
+                                                <span className="min-w-0 flex-1 truncate">{option.label}</span>
+                                                {typeof option.data === 'object' &&
+                                                    option.data !== null &&
+                                                    (option.data as { tag?: string }).tag !== '' && (
+                                                        <span className="shrink-0 text-xs text-subtle">
+                                                            {(option.data as { tag?: string }).tag}
+                                                        </span>
+                                                    )}
+                                            </Flex>
+                                        )}
+                                    />
+                                </Form.Item>
+                            </div>
                             <Form.Item
-                                label="Provider"
-                                htmlFor="settings-provider"
-                                extra="The provider your selected model comes from."
-                                className="min-w-0"
+                                label="Context injection"
+                                name="context_injection"
+                                valuePropName="checked"
+                                extra="Pre-search the wiki into each turn so answers start faster. Off by default — it changes how the assistant answers."
+                                className="max-w-lg"
                             >
-                                <Select
-                                    id="settings-provider"
-                                    virtual={false}
-                                    placeholder="Select a provider"
-                                    options={providerOptions}
-                                    notFoundContent="No models — add a provider model in the Providers tab"
-                                    value={provider ?? undefined}
-                                    onChange={onProviderChange}
-                                />
-                            </Form.Item>
-                            <Form.Item
-                                label="Model"
-                                name="model"
-                                extra="Applied to all chats after the app restarts."
-                                className="min-w-0"
-                            >
-                                <Select
-                                    virtual={false}
-                                    options={modelOptions}
-                                    notFoundContent="Select a provider first"
-                                    optionRender={(option) => (
-                                        <Flex align="center" gap={8}>
-                                            <span className="min-w-0 flex-1 truncate">{option.label}</span>
-                                            {typeof option.data === 'object' &&
-                                                option.data !== null &&
-                                                (option.data as { tag?: string }).tag !== '' && (
-                                                    <span className="shrink-0 text-xs text-subtle">
-                                                        {(option.data as { tag?: string }).tag}
-                                                    </span>
-                                                )}
-                                        </Flex>
-                                    )}
-                                />
+                                <Switch />
                             </Form.Item>
                         </div>
-                        <Form.Item
-                            label="Context injection"
-                            name="context_injection"
-                            valuePropName="checked"
-                            extra="Pre-search the wiki into each turn so answers start faster. Off by default — it changes how the assistant answers."
-                            className="max-w-lg"
-                        >
-                            <Switch />
-                        </Form.Item>
                     </FormSection>
 
                     <Divider className="my-8" />
@@ -195,42 +201,44 @@ export function SettingsGeneralPage() {
                         title="Backup & transfer"
                         description="Export downloads the wiki as a zip; Import merges a zip back in, backing up the current wiki first."
                     >
-                        <div className="max-w-lg">
-                            <Flex gap={8} wrap="wrap">
-                                <Button
-                                    icon={<DownloadOutlined aria-hidden="true" />}
-                                    loading={exporting}
-                                    onClick={() => void exportWiki(false)}
-                                >
-                                    Export
-                                </Button>
-                                <Button
-                                    icon={<DownloadOutlined aria-hidden="true" />}
-                                    loading={exporting}
-                                    onClick={() => void exportWiki(true)}
-                                >
-                                    Export with history
-                                </Button>
-                                <Upload
-                                    accept=".zip,application/zip"
-                                    showUploadList={false}
-                                    beforeUpload={(file) => {
-                                        void doImport(file)
-                                        return false
-                                    }}
-                                >
+                        <div className="rounded-lg border border-line bg-raised p-5">
+                            <div className="max-w-lg">
+                                <Flex gap={8} wrap="wrap">
                                     <Button
-                                        icon={<UploadOutlined aria-hidden="true" />}
-                                        loading={importing}
-                                        disabled={exporting}
+                                        icon={<DownloadOutlined aria-hidden="true" />}
+                                        loading={exporting}
+                                        onClick={() => void exportWiki(false)}
                                     >
-                                        Import
+                                        Export
                                     </Button>
-                                </Upload>
-                            </Flex>
-                            {importing && (
-                                <Progress className="mt-3" percent={importProgress} status="active" size="small" />
-                            )}
+                                    <Button
+                                        icon={<DownloadOutlined aria-hidden="true" />}
+                                        loading={exporting}
+                                        onClick={() => void exportWiki(true)}
+                                    >
+                                        Export with history
+                                    </Button>
+                                    <Upload
+                                        accept=".zip,application/zip"
+                                        showUploadList={false}
+                                        beforeUpload={(file) => {
+                                            void doImport(file)
+                                            return false
+                                        }}
+                                    >
+                                        <Button
+                                            icon={<UploadOutlined aria-hidden="true" />}
+                                            loading={importing}
+                                            disabled={exporting}
+                                        >
+                                            Import
+                                        </Button>
+                                    </Upload>
+                                </Flex>
+                                {importing && (
+                                    <Progress className="mt-3" percent={importProgress} status="active" size="small" />
+                                )}
+                            </div>
                         </div>
                     </FormSection>
 
