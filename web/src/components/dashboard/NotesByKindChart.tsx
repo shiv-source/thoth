@@ -49,7 +49,7 @@ export function NotesByKindChart({ slices }: { slices: { kind: string; count: nu
                     aria-label={`Notes by kind: ${slices.map((s) => `${s.kind} ${s.count}`).join(', ')}`}
                 />
             </div>
-            <ul className="mt-3 space-y-1.5">
+            <ul className="mt-3 flex flex-col gap-1.5">
                 {slices.map((s, i) => (
                     <li key={s.kind} className="flex items-center gap-2 text-sm text-ink">
                         <span

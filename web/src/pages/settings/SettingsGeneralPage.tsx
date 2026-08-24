@@ -132,7 +132,7 @@ export function SettingsGeneralPage() {
                         </div>
                     </FormSection>
 
-                    <Divider className="my-8" />
+                    <Divider className="my-8!" />
 
                     <FormSection
                         icon={RobotOutlined}
@@ -193,7 +193,7 @@ export function SettingsGeneralPage() {
                         </div>
                     </FormSection>
 
-                    <Divider className="my-8" />
+                    <Divider className="my-8!" />
 
                     <FormSection
                         icon={UploadOutlined}
@@ -235,13 +235,13 @@ export function SettingsGeneralPage() {
                                     </Upload>
                                 </Flex>
                                 {importing && (
-                                    <Progress className="mt-3" percent={importProgress} status="active" size="small" />
+                                    <Progress className="mt-3!" percent={importProgress} status="active" size="small" />
                                 )}
                             </div>
                         </div>
                     </FormSection>
 
-                    <Divider className="my-8" />
+                    <Divider className="my-8!" />
                     <SaveFooter status={status} saving={saving} hasError={hasError} />
                 </Card>
             </Form>

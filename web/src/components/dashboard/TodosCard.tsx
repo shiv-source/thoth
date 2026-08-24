@@ -22,7 +22,7 @@ export function TodosCard({ todos }: { todos: Todo[] }) {
             {items.length === 0 ? (
                 <p className="py-2 text-sm text-subtle">Nothing on the list — nice.</p>
             ) : (
-                <ul className="space-y-1">
+                <ul className="flex flex-col gap-1">
                     {items.map((t, i) => (
                         <li key={t.text}>
                             <Checkbox checked={t.done} onChange={() => toggle(i)} className="w-full">

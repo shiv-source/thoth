@@ -194,7 +194,7 @@ export function SettingsSyncPage() {
                     )}
                 </FormSection>
 
-                <Divider className="my-8" />
+                <Divider className="my-8!" />
                 <FormSection
                     icon={ApiOutlined}
                     title="Connect a destination"
@@ -208,7 +208,7 @@ export function SettingsSyncPage() {
                     />
                 </FormSection>
 
-                <Divider className="my-8" />
+                <Divider className="my-8!" />
                 <FormSection icon={ApiOutlined} title="Sync providers">
                     <SyncProviderEditor
                         providers={providers}
@@ -221,7 +221,7 @@ export function SettingsSyncPage() {
                     />
                 </FormSection>
 
-                {error && <Alert type="error" showIcon title={error} className="mt-4" />}
+                {error && <Alert type="error" showIcon title={error} className="mt-4!" />}
             </Card>
         </SettingsShell>
     )

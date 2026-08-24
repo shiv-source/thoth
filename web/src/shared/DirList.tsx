@@ -28,7 +28,7 @@ export function DirList({
                     Up
                 </Button>
             </div>
-            {error !== null && <Alert type="error" showIcon title={error} className="mb-2" />}
+            {error !== null && <Alert type="error" showIcon title={error} className="mb-2!" />}
             <div className="max-h-72 overflow-y-auto">
                 {dirs.map((d) => {
                     const name = d.split('/').pop() ?? d

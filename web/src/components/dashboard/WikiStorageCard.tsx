@@ -23,7 +23,7 @@ export function WikiStorageCard({ storage }: { storage: WikiStorage }) {
                 />
                 <Statistic title="Attachments" value={storage.attachments} styles={{ content: { fontSize: 22 } }} />
             </div>
-            <Progress percent={storage.percent} size="small" className="mt-4" strokeColor="var(--ant-color-primary)" />
+            <Progress percent={storage.percent} size="small" className="mt-4!" strokeColor="var(--ant-color-primary)" />
             <p className="mt-3 text-xs text-subtle">mock data — wiki size on disk</p>
         </Card>
     )

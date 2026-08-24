@@ -39,7 +39,7 @@ export function ProviderModal({
             width={600}
             okText="Save"
         >
-            <Form form={form} layout="vertical" className="mt-4">
+            <Form form={form} layout="vertical" className="mt-4!">
                 <Form.Item label="Name" name="name" rules={[{ required: true, message: 'Name is required' }]}>
                     <Input placeholder="Anthropic" autoComplete="off" />
                 </Form.Item>
@@ -79,7 +79,7 @@ export function ProviderModal({
                                         <span aria-hidden="true" />
                                     </div>
                                 )}
-                                <div className="space-y-2">
+                                <div className="flex flex-col gap-2">
                                     {fields.map((field) => (
                                         <div
                                             key={field.key}

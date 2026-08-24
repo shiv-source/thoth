@@ -22,7 +22,7 @@ export function FormSection({
         <section>
             <SectionHeading icon={icon}>{title}</SectionHeading>
             {description && <p className="mb-4 mt-1 text-sm leading-relaxed text-subtle">{description}</p>}
-            <div className="space-y-5">{children}</div>
+            <div className="flex flex-col gap-5">{children}</div>
         </section>
     )
 }

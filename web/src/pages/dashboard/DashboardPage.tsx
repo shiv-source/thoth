@@ -96,7 +96,7 @@ export function DashboardPage({ onOpenSettings }: { onOpenSettings: () => void }
         <div className="flex min-h-0 flex-1 flex-col">
             <AppHeader title="Dashboard" onOpenSettings={onOpenSettings} />
             <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5">
-                <div className="mx-auto w-full max-w-5xl space-y-5">
+                <div className="mx-auto flex w-full max-w-5xl flex-col gap-5">
                     <header>
                         <h1 className="font-display text-2xl font-semibold tracking-tight text-heading">
                             {greeting()}
@@ -133,7 +133,7 @@ export function DashboardPage({ onOpenSettings }: { onOpenSettings: () => void }
                     </div>
 
                     <SectionHeader>Overview</SectionHeader>
-                    <div className="space-y-5">
+                    <div className="flex flex-col gap-5">
                         <QuickCaptureCard onCapture={capture} />
                         <ContinueCard
                             chats={recentChats}

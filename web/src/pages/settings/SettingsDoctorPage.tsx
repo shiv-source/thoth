@@ -39,7 +39,7 @@ export function SettingsDoctorPage() {
                     </Button>
                 }
             >
-                {error && <Alert type="error" showIcon title={error} className="mb-4" />}
+                {error && <Alert type="error" showIcon title={error} className="mb-4!" />}
                 {checks === null ? (
                     <div className="flex justify-center py-10">
                         <Spin />
@@ -69,7 +69,7 @@ export function SettingsDoctorPage() {
                                     strokeColor={healthy ? undefined : 'var(--ant-color-warning)'}
                                 />
                             </Flex>
-                            <Divider className="my-5" />
+                            <Divider className="my-5!" />
                             <div className="grid gap-3 md:grid-cols-2">
                                 {checks.map((c) => (
                                     <CheckRow key={c.name} {...c} />

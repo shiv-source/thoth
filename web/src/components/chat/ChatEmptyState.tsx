@@ -17,7 +17,7 @@ export function ChatEmptyState({ onSend }: { onSend: (text: string) => void }) {
     return (
         <div className="flex h-full flex-col items-center justify-center gap-6 text-center">
             <Logo size={52} />
-            <div className="space-y-2">
+            <div className="flex flex-col gap-2">
                 <h2 className="font-display text-2xl font-semibold tracking-tight text-heading">Ask anything</h2>
                 <p className="mx-auto max-w-md text-sm leading-relaxed text-subtle">
                     Thoth reads your wiki and answers from your notes — no need to switch tools.

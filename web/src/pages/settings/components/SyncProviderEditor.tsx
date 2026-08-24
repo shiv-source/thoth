@@ -110,7 +110,7 @@ export function SyncProviderEditor({
                     </div>
                 </Form>
             </div>
-            {error && <Alert type="error" showIcon title={error} className="mt-3" />}
+            {error && <Alert type="error" showIcon title={error} className="mt-3!" />}
         </div>
     )
 }

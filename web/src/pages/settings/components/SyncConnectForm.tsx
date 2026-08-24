@@ -80,7 +80,7 @@ export function SyncConnectForm({
                         ))}
                     </div>
                 )}
-                {error && <Alert type="error" showIcon title={error} className="mb-4" />}
+                {error && <Alert type="error" showIcon title={error} className="mb-4!" />}
                 <div className="flex justify-end">
                     <Button
                         type="primary"

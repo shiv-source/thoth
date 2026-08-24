@@ -62,7 +62,7 @@ export function SetupPage({
                                         </code>
                                     )
                                 }
-                                className="mb-2"
+                                className="mb-2!"
                             />
                         ))}
                     </div>

@@ -19,7 +19,7 @@ export function ProviderPanel({
 }) {
     return (
         <div className="grid gap-4">
-            <Flex align="center" justify="space-between" className="mb-3">
+            <Flex align="center" justify="space-between" className="mb-3!">
                 <SectionHeading icon={ApiOutlined}>Models</SectionHeading>
                 <Button size="small" icon={<ApiOutlined aria-hidden="true" />} onClick={onAdd}>
                     Add model
