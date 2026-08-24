@@ -187,7 +187,6 @@ export function SettingsGeneralPage() {
                                 name="context_injection"
                                 valuePropName="checked"
                                 extra="Pre-search the wiki into each turn so answers start faster. Off by default — it changes how the assistant answers."
-                                className="max-w-lg"
                             >
                                 <Switch />
                             </Form.Item>
