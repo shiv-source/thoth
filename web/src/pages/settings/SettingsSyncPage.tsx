@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { App, Alert, Card, Divider, Flex, Spin } from 'antd'
+import { App, Alert, Card, Divider, Spin } from 'antd'
 import { ApiOutlined, CloudServerOutlined } from '@ant-design/icons'
 import type { Connection, SyncProvider } from '../../api/client'
 import { EmptyState } from '../../shared/EmptyState'
@@ -158,9 +158,9 @@ export function SettingsSyncPage() {
                     description="The destinations the wiki is pushed to. Each card owns its target fields and actions."
                 >
                     {loading ? (
-                        <Flex justify="center" className="py-10">
+                        <div className="flex justify-center py-10">
                             <Spin />
-                        </Flex>
+                        </div>
                     ) : connections.length === 0 ? (
                         <EmptyState
                             icon={<CloudServerOutlined aria-hidden="true" />}

@@ -41,9 +41,9 @@ export function SettingsDoctorPage() {
             >
                 {error && <Alert type="error" showIcon title={error} className="mb-4" />}
                 {checks === null ? (
-                    <Flex justify="center" className="py-10">
+                    <div className="flex justify-center py-10">
                         <Spin />
-                    </Flex>
+                    </div>
                 ) : (
                     <FormSection
                         icon={CheckCircleOutlined}

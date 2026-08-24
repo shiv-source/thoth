@@ -23,7 +23,7 @@ export function ProviderHeader({
     onDelete?: () => void
 }) {
     return (
-        <Flex align="center" justify="space-between" gap={8} className="pr-2">
+        <div className="flex items-center justify-between gap-2 pr-2">
             <Flex align="center" gap={8} className="min-w-0">
                 <span
                     className={`h-2 w-2 shrink-0 rounded-full ${hasKey ? 'bg-accent' : 'bg-line'}`}
@@ -69,6 +69,6 @@ export function ProviderHeader({
                     </Flex>
                 )}
             </Flex>
-        </Flex>
+        </div>
     )
 }
