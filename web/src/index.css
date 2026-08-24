@@ -96,10 +96,18 @@
 }
 
 /* Providers catalog — the ghost Collapse drops antd's container/panel
-   borders, so re-add a hairline between provider rows so the list keeps
-   its scanability inside the section panel. */
-.settings-provider-collapse .ant-collapse-item + .ant-collapse-item {
-    border-top: 1px solid var(--ant-color-border-secondary);
+   borders, so each provider renders as its own card: bordered, rounded,
+   with breathing room between rows so the list reads as separate units. */
+.settings-provider-collapse .ant-collapse-item {
+    border: 1px solid var(--ant-color-border);
+    border-radius: 10px;
+    margin-bottom: 10px;
+    overflow: hidden;
+    background: var(--ant-color-bg-container);
+    box-shadow: var(--ant-box-shadow-tertiary);
+}
+.settings-provider-collapse .ant-collapse-item:last-child {
+    margin-bottom: 0;
 }
 
 @keyframes slide-in-right {
