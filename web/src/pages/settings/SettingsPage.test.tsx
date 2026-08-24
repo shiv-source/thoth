@@ -278,7 +278,7 @@ describe('SettingsPage', () => {
         await userEvent.type(await screen.findByLabelText('Name'), 'DeepSeek')
         await userEvent.type(screen.getByLabelText('Base URL'), 'https://api.deepseek.com')
         await userEvent.type(screen.getByLabelText('API key'), 'ds-secret')
-        await userEvent.click(screen.getByRole('button', { name: 'OK' }))
+        await userEvent.click(screen.getByRole('button', { name: 'Save' }))
 
         expect(await screen.findByText('Provider added')).toBeInTheDocument()
         expect(await screen.findByText('DeepSeek')).toBeInTheDocument()
@@ -311,7 +311,7 @@ describe('SettingsPage', () => {
         await userEvent.click(screen.getByRole('button', { name: 'Add header' }))
         await userEvent.type(screen.getAllByPlaceholderText('x-portkey-provider')[1]!, 'x-portkey-api-key')
         await userEvent.type(screen.getAllByPlaceholderText('anthropic')[1]!, 'gateway-secret')
-        await userEvent.click(screen.getByRole('button', { name: 'OK' }))
+        await userEvent.click(screen.getByRole('button', { name: 'Save' }))
 
         expect(await screen.findByText('Provider added')).toBeInTheDocument()
         const body = JSON.stringify(lastBody('post', '/api/v1/providers'))
@@ -342,7 +342,7 @@ describe('SettingsPage', () => {
         const baseURL = await screen.findByLabelText('Base URL')
         await userEvent.clear(baseURL)
         await userEvent.type(baseURL, 'https://api.deepseek.com/v1')
-        await userEvent.click(screen.getByRole('button', { name: 'OK' }))
+        await userEvent.click(screen.getByRole('button', { name: 'Save' }))
 
         expect(await screen.findByText('Provider updated')).toBeInTheDocument()
         // The api key is write-only: a blank edit sends no key and the base
@@ -488,7 +488,7 @@ describe('SettingsPage Providers tab', () => {
         await userEvent.type(screen.getByLabelText('Name'), 'New Model')
         // Adding from a provider panel pre-fills the provider select, so the
         // POST carries that provider's id.
-        await userEvent.click(screen.getByRole('button', { name: 'OK' }))
+        await userEvent.click(screen.getByRole('button', { name: 'Save' }))
 
         expect(await screen.findByText('New Model')).toBeInTheDocument()
         const body = JSON.stringify(lastBody('post', '/api/v1/models'))
@@ -516,7 +516,7 @@ describe('SettingsPage Providers tab', () => {
         const name = await screen.findByLabelText('Name')
         await userEvent.clear(name)
         await userEvent.type(name, 'Renamed')
-        await userEvent.click(screen.getByRole('button', { name: 'OK' }))
+        await userEvent.click(screen.getByRole('button', { name: 'Save' }))
 
         expect(await screen.findByText('Renamed')).toBeInTheDocument()
         expect(JSON.stringify(lastBody('put', '/api/v1/models/1'))).toContain('Renamed')
