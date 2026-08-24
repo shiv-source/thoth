@@ -36,7 +36,7 @@ internal/ plus cmd/thoth — a missing package means this index is stale.
 
 ## internal/assets
 - path: internal/assets/
-- purpose: Embedded static data — models.json → ModelOptions (Settings model picker)
+- purpose: Embedded static data — llm-providers.json → ModelOptions (Settings model picker)
 - api: ModelOptions
 - canonical: docs/components.md package table · internal/assets/assets.go
 

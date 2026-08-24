@@ -45,7 +45,7 @@ func TestModelOptionsSplitShape(t *testing.T) {
 	}
 	opus, ok := byValue["claude-opus-4-8"]
 	if !ok {
-		t.Fatal("expected claude-opus-4-8 in models.json")
+		t.Fatal("expected claude-opus-4-8 in llm-providers.json")
 	}
 	if opus.Name != "Claude Opus 4.8" {
 		t.Fatalf("name = %q, want %q", opus.Name, "Claude Opus 4.8")

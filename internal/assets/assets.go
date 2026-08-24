@@ -1,5 +1,5 @@
-// Package assets holds static data files served by the API. models.json is
-// the single source for the llm_models seed (first boot) — edit it (no code
+// Package assets holds static data files served by the API. llm-providers.json
+// is the single source for the llm_models seed (first boot) — edit it (no code
 // change) to adjust the offered models. sync-providers.json is the matching
 // seed for the sync_providers catalog.
 package assets
@@ -10,7 +10,7 @@ import (
 	"fmt"
 )
 
-//go:embed models.json
+//go:embed llm-providers.json
 var modelsJSON []byte
 
 //go:embed sync-providers.json
@@ -27,13 +27,13 @@ type Option struct {
 	Provider string `json:"provider"`
 }
 
-// ModelOptions parses the embedded models.json.
+// ModelOptions parses the embedded llm-providers.json.
 func ModelOptions() ([]Option, error) {
 	var payload struct {
 		Models []Option `json:"models"`
 	}
 	if err := json.Unmarshal(modelsJSON, &payload); err != nil {
-		return nil, fmt.Errorf("parse models.json: %w", err)
+		return nil, fmt.Errorf("parse llm-providers.json: %w", err)
 	}
 	return payload.Models, nil
 }

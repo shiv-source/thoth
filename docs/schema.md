@@ -231,7 +231,7 @@ The per-provider custom request headers — e.g. gateway routing headers for Por
 
 ### `llm_models` (migrations `0008_llm_models.sql` + `0009_llm_models_tag.sql` + `0011_providers.sql`)
 
-The user-editable model registry. Every startup seeds it from `internal/assets/models.json` (the single source for the built-in list) when the table is empty; afterwards the table is authoritative — rows are added/edited/deleted from the Settings → Providers tab.
+The user-editable model registry. Every startup seeds it from `internal/assets/llm-providers.json` (the single source for the built-in list) when the table is empty; afterwards the table is authoritative — rows are added/edited/deleted from the Settings → Providers tab.
 
 | Column | Meaning |
 |---|---|
