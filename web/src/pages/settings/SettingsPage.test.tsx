@@ -602,7 +602,9 @@ describe('SettingsPage Sync tab', () => {
         expect(await screen.findByText('Octo Cat')).toBeInTheDocument()
         expect(await screen.findByText('octo/wiki')).toBeInTheDocument()
         expect(screen.getByText('Last synced 2026-08-23')).toBeInTheDocument()
-        expect(screen.getByText('Local backup')).toBeInTheDocument()
+        // The provider's name appears on its destination card and in the
+        // always-visible sync provider catalog.
+        expect(screen.getAllByText('Local backup').length).toBeGreaterThan(0)
         expect(screen.getAllByText('Protected').length).toBeGreaterThan(0)
     })
 

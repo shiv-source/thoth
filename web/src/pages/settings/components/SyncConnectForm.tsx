@@ -6,7 +6,8 @@ import type { SyncProvider } from '../../../api/client'
 // SyncConnectForm is the "connect a destination" card: pick a provider, fill
 // its credential/target fields (driven by the provider's field descriptors —
 // secrets render as password inputs), name the connection, and connect. The
-// server verifies credentials before storing.
+// server verifies credentials before storing. Fields fill the panel width in
+// pairs so the form reads as a whole, with the action tucked at the end.
 export function SyncConnectForm({
     providers,
     connecting,
@@ -30,7 +31,7 @@ export function SyncConnectForm({
     }, [provider, form])
 
     return (
-        <div className="rounded-md border border-line bg-raised p-4">
+        <div className="rounded-lg border border-line bg-raised p-5">
             <Form
                 form={form}
                 name="sync-connect"
@@ -41,31 +42,44 @@ export function SyncConnectForm({
                     onConnect({ provider_id: values.provider_id, name: values.name, config })
                 }}
             >
-                <Form.Item
-                    label="Provider"
-                    name="provider_id"
-                    rules={[{ required: true, message: 'Choose a provider' }]}
-                >
-                    <Select
-                        virtual={false}
-                        placeholder="Choose a destination provider"
-                        options={providers.map((p) => ({ value: p.id, label: p.name }))}
-                        onChange={(v: number) => setProviderId(v)}
-                    />
-                </Form.Item>
-                <Form.Item label="Name" name="name" rules={[{ required: true, message: 'Name the connection' }]}>
-                    <Input placeholder="home wiki, work, …" />
-                </Form.Item>
-                {provider?.fields.map((f) => (
+                <div className="grid gap-4 md:grid-cols-2">
                     <Form.Item
-                        key={f.key}
-                        label={f.label}
-                        name={f.key}
-                        rules={f.required ? [{ required: true, message: `${f.label} is required` }] : []}
+                        label="Provider"
+                        name="provider_id"
+                        rules={[{ required: true, message: 'Choose a provider' }]}
+                        className="min-w-0"
                     >
-                        {f.secret ? <Input.Password placeholder={f.label} /> : <Input placeholder={f.label} />}
+                        <Select
+                            virtual={false}
+                            placeholder="Choose a destination provider"
+                            options={providers.map((p) => ({ value: p.id, label: p.name }))}
+                            onChange={(v: number) => setProviderId(v)}
+                        />
                     </Form.Item>
-                ))}
+                    <Form.Item
+                        label="Name"
+                        name="name"
+                        rules={[{ required: true, message: 'Name the connection' }]}
+                        className="min-w-0"
+                    >
+                        <Input placeholder="home wiki, work, …" />
+                    </Form.Item>
+                </div>
+                {provider && provider.fields.length > 0 && (
+                    <div className="grid gap-4 md:grid-cols-2">
+                        {provider.fields.map((f) => (
+                            <Form.Item
+                                key={f.key}
+                                label={f.label}
+                                name={f.key}
+                                rules={f.required ? [{ required: true, message: `${f.label} is required` }] : []}
+                                className="min-w-0"
+                            >
+                                {f.secret ? <Input.Password placeholder={f.label} /> : <Input placeholder={f.label} />}
+                            </Form.Item>
+                        ))}
+                    </div>
+                )}
                 {error && <Alert type="error" showIcon title={error} className="mb-4" />}
                 <div className="flex justify-end">
                     <Button

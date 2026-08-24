@@ -254,6 +254,10 @@ export function SettingsProvidersPage() {
                     </Button>
                 }
             >
+                <p className="mb-5 max-w-xl text-sm leading-relaxed text-subtle">
+                    Register the model providers the assistant can talk to, then add their models. Pick the default on
+                    the General tab.
+                </p>
                 {panelItems.length === 0 ? (
                     <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No providers yet">
                         <Button type="primary" onClick={openAddProvider}>

@@ -70,6 +70,16 @@
     box-shadow: var(--ant-box-shadow-tertiary);
 }
 
+/* Settings cards — a roomier header separates the title from the body,
+   and form labels carry the enterprise label weight. */
+.ant-card-head {
+    padding-block: 14px;
+}
+.ant-form-item .ant-form-item-label > label {
+    font-weight: 500;
+    color: var(--ant-color-text-heading);
+}
+
 /* Settings rail — the sub-page menu in SettingsShell. antd v6 Menu tokens
    (theme.ts) cover item colors but not the active pill's background/weight,
    so it's scoped here. */

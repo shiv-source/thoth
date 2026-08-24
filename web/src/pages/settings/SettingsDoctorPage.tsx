@@ -27,10 +27,11 @@ export function SettingsDoctorPage() {
         <SettingsShell active="doctor">
             <Card title={<CardTitle icon={MedicineBoxOutlined}>Checks</CardTitle>}>
                 {error && <Alert type="error" showIcon title={error} className="mb-4" />}
-                <div className="flex items-center justify-between gap-3">
-                    <p className="text-sm text-subtle">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                    <p className="max-w-xl text-sm leading-relaxed text-subtle">
                         Installation health, using the same checks as{' '}
-                        <code className="font-mono text-xs">thoth doctor</code>.
+                        <code className="font-mono text-xs">thoth doctor</code>. Run them any time after changing
+                        providers or the wiki.
                     </p>
                     <Button
                         icon={<ReloadOutlined aria-hidden="true" />}
@@ -42,7 +43,7 @@ export function SettingsDoctorPage() {
                 </div>
                 {checks && (
                     <>
-                        <Flex align="center" gap={12} className="mt-5 rounded-md border border-line bg-raised p-4">
+                        <Flex align="center" gap={12} className="mt-6 rounded-lg border border-line bg-raised p-4">
                             <Flex vertical className="min-w-0 flex-1" gap={2}>
                                 <Typography.Text strong className="text-heading">
                                     {healthy
@@ -60,8 +61,8 @@ export function SettingsDoctorPage() {
                                 strokeColor={healthy ? undefined : 'var(--ant-color-warning)'}
                             />
                         </Flex>
-                        <Divider />
-                        <div className="grid gap-4 md:grid-cols-2">
+                        <Divider className="my-6" />
+                        <div className="grid gap-3 md:grid-cols-2">
                             {checks.map((c) => (
                                 <CheckRow key={c.name} {...c} />
                             ))}

@@ -25,22 +25,26 @@ export function SettingsShell({ active, children }: { active: SettingsSection; c
         <div className="flex min-h-0 flex-1 flex-col">
             <AppHeader title="Settings" />
             <div className="flex min-h-0 w-full flex-1 flex-col px-6 py-6">
-                <p className="mb-6 max-w-2xl text-sm leading-relaxed text-subtle">
-                    Configure your knowledge base, model providers, and wiki sync destinations — or run the installation
-                    health checks.
-                </p>
+                <div className="mb-6">
+                    <p className="text-sm leading-relaxed text-subtle">
+                        Configure your knowledge base, model providers, and wiki sync destinations — or run the
+                        installation health checks.
+                    </p>
+                </div>
                 <div className="flex min-h-0 flex-1 gap-8">
-                    <nav className="w-52 shrink-0" aria-label="Settings sections">
-                        <Menu
-                            mode="inline"
-                            items={ITEMS}
-                            selectedKeys={[active]}
-                            onClick={({ key }) => navigateSegment('settings', key)}
-                            className="settings-menu"
-                            style={{ borderInlineEnd: 'none' }}
-                        />
+                    <nav className="w-56 shrink-0" aria-label="Settings sections">
+                        <div className="rounded-xl border border-line bg-surface p-2 shadow-card">
+                            <Menu
+                                mode="inline"
+                                items={ITEMS}
+                                selectedKeys={[active]}
+                                onClick={({ key }) => navigateSegment('settings', key)}
+                                className="settings-menu"
+                                style={{ borderInlineEnd: 'none', background: 'transparent' }}
+                            />
+                        </div>
                     </nav>
-                    <div className="mx-auto w-full max-w-3xl min-h-0 min-w-0 flex-1 overflow-y-auto px-1 pb-6">
+                    <div className="mx-auto w-full max-w-4xl min-h-0 min-w-0 flex-1 overflow-y-auto px-1 pb-6">
                         {children}
                     </div>
                 </div>

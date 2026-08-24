@@ -92,7 +92,7 @@ export function SyncConnectionCard({
 
             <Form form={form} layout="vertical" className="mt-4">
                 {isGit ? (
-                    <Form.Item label="Sync repository" name={['config', 'repo_url']}>
+                    <Form.Item label="Sync repository" name={['config', 'repo_url']} className="max-w-lg">
                         <Select
                             virtual={false}
                             placeholder="Choose a repository…"
@@ -103,7 +103,7 @@ export function SyncConnectionCard({
                     </Form.Item>
                 ) : (
                     nonSecret.map((f) => (
-                        <Form.Item key={f.key} label={f.label} name={['config', f.key]} className="mb-2">
+                        <Form.Item key={f.key} label={f.label} name={['config', f.key]} className="mb-2 max-w-lg">
                             <Input
                                 placeholder={f.label}
                                 onBlur={(e) => {
@@ -186,7 +186,7 @@ export function SyncConnectionCard({
                 }}
                 okText="Restore"
                 okButtonProps={{ danger: true, loading: restoring }}
-                destroyOnClose
+                destroyOnHidden
             >
                 <p className="mb-3 text-sm text-subtle">
                     The wiki is overwritten by the selected snapshot. A local backup of the current wiki is taken first,
