@@ -41,7 +41,9 @@ export const Provider = z.object({
     id: z.number(),
     name: z.string(),
     base_url: z.string(),
-    custom_headers: z.record(z.string(), z.string()).default({}),
+    // The server emits custom_headers as null for providers without any;
+    // catch (not just default) so a nil map still parses to {}.
+    custom_headers: z.record(z.string(), z.string()).catch({}),
     has_api_key: z.boolean(),
     model_count: z.number()
 })
