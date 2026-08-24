@@ -3,7 +3,7 @@ import { selectHealth, selectHealthLoading } from '../../store'
 import { useAppSelector } from '../../store/hooks'
 
 // HealthFooter is the bottom status bar: an antd status dot with a one-line
-// reason, and the app version on the right.
+// reason for the current health state, and the app version on the right.
 export function HealthFooter() {
     const health = useAppSelector(selectHealth)
     const loading = useAppSelector(selectHealthLoading)
@@ -29,7 +29,7 @@ export function HealthFooter() {
     return (
         <footer className="flex h-12 shrink-0 items-center justify-between gap-2 border-t border-line-soft px-4">
             <Badge status={status} text={<span className="truncate text-xs text-subtle">{label}</span>} />
-            <span className="shrink-0 text-xs text-faint">v{health?.version ?? '…'}</span>
+            <span className="shrink-0 text-xs text-faint">{health?.version ?? '…'}</span>
         </footer>
     )
 }

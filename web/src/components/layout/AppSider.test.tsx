@@ -66,7 +66,7 @@ describe('AppSider health footer', () => {
         const { store } = renderWithStore(<AppSider />)
         void store.dispatch(fetchHealth())
         expect(await screen.findByText('All systems go')).toBeInTheDocument()
-        expect(screen.getByText('v1.2.3')).toBeInTheDocument()
+        expect(screen.getByText('1.2.3')).toBeInTheDocument()
     })
 
     it('shows the missing-key state', async () => {
