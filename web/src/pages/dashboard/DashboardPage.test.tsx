@@ -78,9 +78,29 @@ describe('DashboardPage', () => {
         expect(screen.getByText('3 captures waiting')).toBeInTheDocument()
         // "Standup" appears in the resume strip and the Today timeline.
         expect(screen.getAllByText('Standup').length).toBeGreaterThanOrEqual(1)
-        expect(screen.getByText(/Wire the todos tile/)).toBeInTheDocument()
+        // The todo text appears in the Needs-attention row and the Todo list.
+        expect(screen.getAllByText(/Wire the todos tile/).length).toBeGreaterThan(0)
         expect(screen.getByText('links/bookmarks.md')).toBeInTheDocument()
         await waitFor(() => expect(mocks.get).toHaveBeenCalled()) // flush the conversations fetch
+    })
+
+    it('renders the recent notes, todo list, and storage widgets', async () => {
+        renderDashboard()
+        // Recent notes grid surfaces the newer note set.
+        expect(screen.getByText('Recent notes')).toBeInTheDocument()
+        expect(screen.getByText('Portkey gateway routing')).toBeInTheDocument()
+        expect(screen.getByText('Tailwind v4 tokens')).toBeInTheDocument()
+        // The todo checklist is interactive: checking strikes a row through.
+        expect(screen.getByText('Todo list')).toBeInTheDocument()
+        const checkbox = screen.getByRole('checkbox', { name: /Review the app-shell UI/ })
+        fireEvent.click(checkbox)
+        expect(checkbox).toBeChecked()
+        // Storage numbers render from the mock (antd splits "4.2" into
+        // separate integer/decimal spans, so match the statistic element).
+        expect(screen.getByText('Storage')).toBeInTheDocument()
+        expect(screen.getByText((_, element) => !!element && element.textContent === '4.2MB')).toBeInTheDocument()
+        expect(screen.getByText('Attachments')).toBeInTheDocument()
+        await waitFor(() => expect(mocks.get).toHaveBeenCalled())
     })
 
     it('renders the stat tiles from mock data', async () => {
@@ -150,7 +170,7 @@ describe('DashboardPage', () => {
         fireEvent.change(screen.getByRole('textbox', { name: 'Quick capture' }), {
             target: { value: 'Check the npm audit' }
         })
-        fireEvent.click(screen.getByRole('button', { name: /Capture/ }))
+        fireEvent.click(screen.getByRole('button', { name: /^Capture$/ }))
         expect(await screen.findByText('Captured to inbox/check-the-npm-audit.md (mock)')).toBeInTheDocument()
         await waitFor(() => expect(mocks.get).toHaveBeenCalled()) // flush the conversations fetch
     })

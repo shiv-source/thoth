@@ -106,3 +106,34 @@ export const mockStats = {
     openTodos: mockTodos.filter((t) => !t.done).length,
     lastSync: '2h ago'
 }
+
+// A wider recent-notes set for the "Recent notes" widget, distinct from the
+// three-note Continue strip so the two widgets don't repeat each other.
+export const mockRecentGrid = (): RecentNote[] => {
+    const hoursAgo = (h: number) => new Date(Date.now() - h * 3_600_000).toISOString()
+    return [
+        {
+            path: 'knowledge/portkey-gateway.md',
+            title: 'Portkey gateway routing',
+            kind: 'knowledge',
+            updatedAt: hoursAgo(1)
+        },
+        {
+            path: 'meetings/2026-08-24-sprint-review.md',
+            title: 'Sprint review',
+            kind: 'meeting',
+            updatedAt: hoursAgo(3)
+        },
+        { path: 'captures/quick-thought.md', title: 'Quick thought', kind: 'capture', updatedAt: hoursAgo(6) },
+        { path: 'links/graph-rag.md', title: 'Graph RAG papers', kind: 'link', updatedAt: hoursAgo(9) },
+        { path: 'knowledge/tailwind-v4.md', title: 'Tailwind v4 tokens', kind: 'knowledge', updatedAt: hoursAgo(20) },
+        { path: 'todos/TODO.md', title: 'Project todos', kind: 'capture', updatedAt: hoursAgo(30) }
+    ]
+}
+
+// Wiki storage numbers for the Storage widget (mock until a size endpoint).
+export const mockStorage = {
+    sizeMB: 4.2,
+    attachments: 24,
+    percent: 34
+}

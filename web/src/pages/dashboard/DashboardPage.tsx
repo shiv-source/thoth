@@ -22,18 +22,24 @@ import { ContinueCard } from '../../components/dashboard/ContinueCard'
 import { NeedsAttentionCard } from '../../components/dashboard/NeedsAttentionCard'
 import { TodayCard } from '../../components/dashboard/TodayCard'
 import { QuickCaptureCard } from '../../components/dashboard/QuickCaptureCard'
+import { RecentNotesCard } from '../../components/dashboard/RecentNotesCard'
 import { StatTile } from '../../components/dashboard/StatTile'
 import { TagsCard } from '../../components/dashboard/TagsCard'
+import { TodosCard } from '../../components/dashboard/TodosCard'
+import { WikiStorageCard } from '../../components/dashboard/WikiStorageCard'
 import {
     mockActivity,
     mockAttention,
     mockChatActivity,
     mockNotesByFolder,
     mockNotesByKind,
+    mockRecentGrid,
     mockRecentNotes,
     mockStats,
+    mockStorage,
     mockTags,
-    mockToday
+    mockToday,
+    mockTodos
 } from './dashboardMock'
 import { AppHeader } from '../../shared/AppHeader'
 import { SectionHeader } from '../../shared/SectionHeader'
@@ -139,7 +145,12 @@ export function DashboardPage({ onOpenSettings }: { onOpenSettings: () => void }
                             <NeedsAttentionCard items={mockAttention} onOpen={() => navigateView('notes')} />
                             <TodayCard events={mockToday} onOpen={openNote} />
                         </div>
-                        <TagsCard tags={mockTags} onOpen={() => navigateView('search')} />
+                        <RecentNotesCard notes={mockRecentGrid()} onOpen={openNote} />
+                        <div className="grid gap-4 md:grid-cols-3">
+                            <TagsCard tags={mockTags} onOpen={() => navigateView('search')} />
+                            <TodosCard todos={mockTodos} />
+                            <WikiStorageCard storage={mockStorage} />
+                        </div>
                     </div>
 
                     <SectionHeader>Insights</SectionHeader>
