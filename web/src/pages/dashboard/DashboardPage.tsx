@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { Button } from 'antd'
+import { App, Button } from 'antd'
 import {
     FileTextOutlined,
     InboxOutlined,
@@ -10,7 +10,7 @@ import {
     SearchOutlined
 } from '@ant-design/icons'
 import { navigate } from '../../hooks/useConversationRoute'
-import { navigateView } from '../../hooks/useView'
+import { navigateNote, navigateView } from '../../hooks/useView'
 import { fetchConversations, selectConversations } from '../../store'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import { ActivityChart } from '../../components/dashboard/ActivityChart'
@@ -18,24 +18,22 @@ import { ChatActivityChart } from '../../components/dashboard/ChatActivityChart'
 import { NotesByFolderChart } from '../../components/dashboard/NotesByFolderChart'
 import { NotesByKindChart } from '../../components/dashboard/NotesByKindChart'
 import { ChartCard } from '../../components/dashboard/ChartCard'
-import { InboxCard } from '../../components/dashboard/InboxCard'
-import { MeetingsCard } from '../../components/dashboard/MeetingsCard'
-import { RecentChatsCard } from '../../components/dashboard/RecentChatsCard'
-import { RecentNotesCard } from '../../components/dashboard/RecentNotesCard'
+import { ContinueCard } from '../../components/dashboard/ContinueCard'
+import { NeedsAttentionCard } from '../../components/dashboard/NeedsAttentionCard'
+import { TodayCard } from '../../components/dashboard/TodayCard'
+import { QuickCaptureCard } from '../../components/dashboard/QuickCaptureCard'
 import { StatTile } from '../../components/dashboard/StatTile'
 import { TagsCard } from '../../components/dashboard/TagsCard'
-import { TodosCard } from '../../components/dashboard/TodosCard'
 import {
     mockActivity,
+    mockAttention,
     mockChatActivity,
-    mockInbox,
-    mockMeetings,
     mockNotesByFolder,
     mockNotesByKind,
-    mockRecent,
+    mockRecentNotes,
     mockStats,
     mockTags,
-    mockTodos
+    mockToday
 } from './dashboardMock'
 import { AppHeader } from '../../shared/AppHeader'
 import { SectionHeader } from '../../shared/SectionHeader'
@@ -57,9 +55,11 @@ function todayLabel(): string {
 // actions, the Overview widget cards, and the Insights chart cards. Each
 // widget is its own component in components/dashboard; the page wires them to
 // the mock data (pages/dashboard/dashboardMock.ts) until the index endpoints
-// land.
+// land. The Overview is a priority lane: quick capture, a resume strip, the
+// needs-attention and today panels, then the tag cloud.
 export function DashboardPage({ onOpenSettings }: { onOpenSettings: () => void }) {
     const dispatch = useAppDispatch()
+    const { message } = App.useApp()
     const conversations = useAppSelector(selectConversations)
 
     useEffect(() => {
@@ -67,6 +67,24 @@ export function DashboardPage({ onOpenSettings }: { onOpenSettings: () => void }
     }, [dispatch])
 
     const recentChats = (conversations.list ?? []).slice(0, 3)
+
+    const openNote = (path: string) => {
+        if (path.startsWith('inbox/')) {
+            // inbox captures are not viewable notes yet — acknowledge the mock
+            message.info('Mock capture — the inbox viewer is on the roadmap')
+            return
+        }
+        navigateNote(path)
+    }
+
+    const capture = (text: string) => {
+        const slug = text
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/^-+|-+$/g, '')
+            .slice(0, 48)
+        message.success(`Captured to inbox/${slug || 'capture'}.md (mock)`)
+    }
 
     return (
         <div className="flex min-h-0 flex-1 flex-col">
@@ -109,12 +127,18 @@ export function DashboardPage({ onOpenSettings }: { onOpenSettings: () => void }
                     </div>
 
                     <SectionHeader>Overview</SectionHeader>
-                    <div className="grid gap-4 md:grid-cols-2">
-                        <InboxCard count={mockInbox.count} files={mockInbox.files} />
-                        <MeetingsCard meetings={mockMeetings} />
-                        <TodosCard todos={mockTodos} />
-                        <RecentNotesCard notes={mockRecent} />
-                        <RecentChatsCard chats={recentChats} onOpen={(id) => navigate(`/chat/${id}`)} />
+                    <div className="space-y-5">
+                        <QuickCaptureCard onCapture={capture} />
+                        <ContinueCard
+                            chats={recentChats}
+                            notes={mockRecentNotes()}
+                            onOpenChat={(id) => navigate(`/chat/${id}`)}
+                            onOpenNote={openNote}
+                        />
+                        <div className="grid gap-4 md:grid-cols-2">
+                            <NeedsAttentionCard items={mockAttention} onOpen={() => navigateView('notes')} />
+                            <TodayCard events={mockToday} onOpen={openNote} />
+                        </div>
                         <TagsCard tags={mockTags} onOpen={() => navigateView('search')} />
                     </div>
 

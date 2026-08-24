@@ -76,8 +76,9 @@ describe('DashboardPage', () => {
     it('renders the mock tiles with their dummy data', async () => {
         renderDashboard()
         expect(screen.getByText('3 captures waiting')).toBeInTheDocument()
-        expect(screen.getByText('Standup')).toBeInTheDocument()
-        expect(screen.getByText('Wire the todos tile to GET /api/todos')).toBeInTheDocument()
+        // "Standup" appears in the resume strip and the Today timeline.
+        expect(screen.getAllByText('Standup').length).toBeGreaterThanOrEqual(1)
+        expect(screen.getByText(/Wire the todos tile/)).toBeInTheDocument()
         expect(screen.getByText('links/bookmarks.md')).toBeInTheDocument()
         await waitFor(() => expect(mocks.get).toHaveBeenCalled()) // flush the conversations fetch
     })
@@ -87,8 +88,9 @@ describe('DashboardPage', () => {
         expect(screen.getByText('128')).toBeInTheDocument()
         expect(screen.getByText('2h ago')).toBeInTheDocument()
         expect(screen.getByText('Last sync')).toBeInTheDocument()
-        // "Open todos" appears twice: the stat tile label and the card title.
-        expect(screen.getAllByText('Open todos').length).toBeGreaterThanOrEqual(2)
+        // The KPI tile label and the "Needs attention" row both carry it.
+        expect(screen.getByText('Open todos')).toBeInTheDocument()
+        expect(screen.getByText('2 open todos')).toBeInTheDocument()
         // Flush the conversations fetch resolution inside act, so its store
         // update can't land after the test body (act() warning).
         await waitFor(() => expect(mocks.get).toHaveBeenCalled())
@@ -110,9 +112,9 @@ describe('DashboardPage', () => {
 
     it('renders the notes-by-kind legend with the series labels', async () => {
         renderDashboard()
-        expect(screen.getByText('Meetings')).toBeInTheDocument()
-        expect(screen.getByText('Knowledge')).toBeInTheDocument()
-        expect(screen.getByText('Links')).toBeInTheDocument()
+        expect(screen.getAllByText('Meetings').length).toBeGreaterThanOrEqual(1)
+        expect(screen.getAllByText('Knowledge').length).toBeGreaterThanOrEqual(1)
+        expect(screen.getAllByText('Links').length).toBeGreaterThanOrEqual(1)
         // "Captures" appears twice: the KPI tile label and the legend item.
         expect(screen.getAllByText('Captures').length).toBeGreaterThanOrEqual(2)
         await waitFor(() => expect(mocks.get).toHaveBeenCalled()) // flush the conversations fetch
@@ -126,13 +128,31 @@ describe('DashboardPage', () => {
         await waitFor(() => expect(mocks.get).toHaveBeenCalled()) // flush the conversations fetch
     })
 
-    it('shows real recent chats and navigates to the chat view on click', async () => {
+    it('shows real recent chats in the resume strip and navigates on click', async () => {
         renderDashboard()
         expect(await screen.findByText('Today chat')).toBeInTheDocument()
 
         window.history.pushState(null, '', '/dashboard')
         fireEvent.click(screen.getByText('Today chat'))
         expect(window.location.pathname).toBe('/chat/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1')
+    })
+
+    it('opens a recent note from the resume strip in the notes view', async () => {
+        renderDashboard()
+        window.history.pushState(null, '', '/dashboard')
+        fireEvent.click(screen.getByText('Renovate GitHub action'))
+        expect(window.location.pathname).toBe('/notes/knowledge/renovate-github-action.md')
+        await waitFor(() => expect(mocks.get).toHaveBeenCalled()) // flush the conversations fetch
+    })
+
+    it('captures quick-capture text into the inbox and toasts the path', async () => {
+        renderDashboard()
+        fireEvent.change(screen.getByRole('textbox', { name: 'Quick capture' }), {
+            target: { value: 'Check the npm audit' }
+        })
+        fireEvent.click(screen.getByRole('button', { name: /Capture/ }))
+        expect(await screen.findByText('Captured to inbox/check-the-npm-audit.md (mock)')).toBeInTheDocument()
+        await waitFor(() => expect(mocks.get).toHaveBeenCalled()) // flush the conversations fetch
     })
 
     it('routes the quick actions to their views', async () => {

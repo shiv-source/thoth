@@ -32,6 +32,7 @@ web/src/
 │                        #   CodeBlock, CopyButton, NotificationPanel/Toasts,
 │                        #   notifications, WikiPathInput
 ├── utils/chart.tsx       # Chart.js registration (side-effect import)
+├── utils/time.tsx         # relativeDate — "3 days ago" labels (conversations, dashboard)
 ├── theme.tsx             # the single antd ThemeConfig (blue primary, light-only)
 └── index.css            # Tailwind v4 @theme tokens bridging antd CSS vars
 ```
@@ -85,7 +86,11 @@ semantic tokens.
 | `SyncConnectionCard` | One connected destination: identity line, editable non-secret config fields (from the provider's descriptors — including the auto-sync `interval` and s3's `snapshot`/`retention`), the enabled `Switch`, push/disconnect/set-active actions, a Restore modal for s3/local connections (snapshot picker + overwrite warning — a local backup is taken first), and a compact recent-run history from `connection.push_history` with colored status glyphs |
 | `WikiPathInput` | The wiki path field: a `FolderOpenOutlined` prefix icon opens the `DirBrowserModal` directory picker; the value stays hand-editable at all times |
 | `DirBrowserModal` | Directory picker behind WikiPathInput: `Modal` backed by `GET /api/v1/fs/dirs` (enter a subdirectory, `Up` to the parent, OK reports the choice); loads the starting directory on open |
-| `DashboardPage` | Landing: greeting header, four KPI `StatTile`s, quick-action `Button`s, the **Overview** widget cards (`InboxCard`, `MeetingsCard`, `TodosCard`, `RecentNotesCard`, `RecentChatsCard`, `TagsCard`) and the **Insights** rows (`ChartCard` wrapping four Chart.js charts, blue palette), sections separated by the shared `SectionHeader` kicker. Mock data lives in `pages/dashboard/dashboardMock.tsx`, tagged with its issue until the index endpoints land |
+| `DashboardPage` | Landing: greeting header, four KPI `StatTile`s, quick-action `Button`s, the **Overview** widgets (`QuickCaptureCard`, `ContinueCard`, `NeedsAttentionCard`, `TodayCard`, `TagsCard`) and the **Insights** rows (`ChartCard` wrapping four Chart.js charts, blue palette), sections separated by the shared `SectionHeader` kicker. Mock data lives in `pages/dashboard/dashboardMock.tsx`, tagged with its issue until the index endpoints land |
+| `ContinueCard` | Overview "Continue where you left off": recent chats + recently touched notes merged into one recency-sorted resume `Listy` (antd `Avatar` kind tiles + `Tag` labels + relative dates), each row opening its chat or note; full-bleed hover rows |
+| `NeedsAttentionCard` | Overview "Needs attention": aggregate rows (waiting captures, open todos, sync debt) with tone-tinted antd `Avatar` tiles (warning/danger via antd css-var colors), each opening the notes view; full-bleed hover rows |
+| `TodayCard` | Overview "Today": antd `Timeline` (`title` = time, `content` = row) of meetings + captures with colored dots and `Tag` kind chips, each opening its note |
+| `QuickCaptureCard` | Overview "Quick capture": antd `Space.Compact` single-line capture input + primary button (Enter or click) that files into inbox/ via the page's toast (mock until the capture endpoint lands) |
 | `SectionHeader` | Page-section kicker — a small accent tick + uppercase micro-label (`Overview`, `Insights`), used to separate blocks on a page |
 | `StatTile` | KPI tile: tinted accent icon chip + label + large value + optional trend delta (a leading `+` tints the delta success) |
 | `ActivityChart` | Single-series mini bar chart (Chart.js): notes/day, last 7 days — blue palette with a vertical gradient fill and the shared light tooltip; canvas `role="img"` + aria-label; colors read from the CSS variables; the chart instance is destroyed on unmount |

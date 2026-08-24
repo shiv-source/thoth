@@ -1,17 +1,54 @@
+import type { RecentNote } from '../../components/dashboard/ContinueCard'
+import type { AttentionItem } from '../../components/dashboard/NeedsAttentionCard'
+import type { TodayEvent } from '../../components/dashboard/TodayCard'
+
 // Mock data backing the dashboard tiles until their endpoints land:
-//   - inbox count      → TODO(#17): GET /api/todos-style inbox endpoint
-//   - today's meetings → TODO: index-by-kind endpoint
-//   - recent notes     → TODO: index updated_at endpoint
-//   - tags             → TODO: index tags
-//   - stats + activity → TODO: index stats/counts endpoints
+//   - inbox count + quick capture → TODO(#17): GET /api/todos-style inbox endpoint
+//   - today's meetings + captures  → TODO: index-by-kind endpoint
+//   - recent notes                 → TODO: index updated_at endpoint
+//   - tags                         → TODO: index tags
+//   - stats + activity             → TODO: index stats/counts endpoints
 export const mockInbox = {
     count: 3,
     files: ['capture-01.md', 'capture-02.md', 'capture-03.md']
 }
 
-export const mockMeetings = [
-    { time: '09:30', title: 'Standup', path: 'meetings/2026-08-15-standup.md' },
-    { time: '14:00', title: 'Sprint review', path: 'meetings/2026-08-15-sprint-review.md' }
+// Attention rows for the "Needs attention" widget.
+export const mockAttention: AttentionItem[] = [
+    {
+        id: 'inbox',
+        title: '3 captures waiting',
+        detail: 'inbox/capture-01.md · inbox/capture-02.md · inbox/capture-03.md',
+        tone: 'warning',
+        kind: 'capture'
+    },
+    {
+        id: 'todos',
+        title: '2 open todos',
+        detail: 'Wire the todos tile · Review the app-shell UI',
+        tone: 'default',
+        kind: 'todo'
+    },
+    {
+        id: 'sync',
+        title: '1 unsynced change',
+        detail: 'knowledge/renovate-github-action.md not pushed',
+        tone: 'danger',
+        kind: 'sync'
+    }
+]
+
+// The "Today" timeline — meetings and captures share the day's schedule.
+export const mockToday: TodayEvent[] = [
+    { id: 'm-standup', time: '09:30', title: 'Standup', path: 'meetings/2026-08-15-standup.md', kind: 'meeting' },
+    {
+        id: 'm-review',
+        time: '14:00',
+        title: 'Sprint review',
+        path: 'meetings/2026-08-15-sprint-review.md',
+        kind: 'meeting'
+    },
+    { id: 'c-audit', time: '08:15', title: 'npm audit capture', path: 'inbox/capture-01.md', kind: 'capture' }
 ]
 
 export const mockTodos = [
@@ -20,11 +57,22 @@ export const mockTodos = [
     { text: 'Ship the persistent CLI pool', done: true }
 ]
 
-export const mockRecent = [
-    'links/bookmarks.md',
-    'knowledge/renovate-github-action.md',
-    'knowledge/angular-cli-reference.md'
-]
+// recentNotes builds its timestamps from the current time so the resume
+// strip stays anchored to "today" (like the chart day labels) and the
+// relative dates read correctly in tests and in real usage.
+export const mockRecentNotes = (): RecentNote[] => {
+    const hoursAgo = (h: number) => new Date(Date.now() - h * 3_600_000).toISOString()
+    return [
+        {
+            path: 'knowledge/renovate-github-action.md',
+            title: 'Renovate GitHub action',
+            kind: 'knowledge',
+            updatedAt: hoursAgo(2)
+        },
+        { path: 'links/bookmarks.md', title: 'Bookmarks', kind: 'link', updatedAt: hoursAgo(5) },
+        { path: 'meetings/2026-08-15-standup.md', title: 'Standup', kind: 'meeting', updatedAt: hoursAgo(26) }
+    ]
+}
 
 export const mockTags = ['go', 'react', 'typescript', 'agent', 'renovate', 'github-actions', 'angular']
 
