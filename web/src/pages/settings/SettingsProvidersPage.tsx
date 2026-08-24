@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { TableProps } from 'antd'
 import { App, Button, Card, Collapse, Empty, Flex, Form, Popconfirm, Tag, Typography } from 'antd'
-import { ApiOutlined, PlusOutlined } from '@ant-design/icons'
+import { ApiOutlined, DatabaseOutlined, PlusOutlined } from '@ant-design/icons'
 import type { LLMModel, ModelInput, Provider, ProviderInput } from '../../api/client'
 import {
     createModel,
@@ -19,6 +19,7 @@ import {
 } from '../../store'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import { CardTitle } from './components/CardTitle'
+import { FormSection } from './components/FormSection'
 import { ModelModal } from './components/ModelModal'
 import { ProviderHeader } from './components/ProviderHeader'
 import { ProviderModal, type ProviderFormValues } from './components/ProviderModal'
@@ -254,19 +255,28 @@ export function SettingsProvidersPage() {
                     </Button>
                 }
             >
-                <p className="mb-5 max-w-xl text-sm leading-relaxed text-subtle">
-                    Register the model providers the assistant can talk to, then add their models. Pick the default on
-                    the General tab.
-                </p>
-                {panelItems.length === 0 ? (
-                    <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No providers yet">
-                        <Button type="primary" onClick={openAddProvider}>
-                            Add your first provider
-                        </Button>
-                    </Empty>
-                ) : (
-                    <Collapse defaultActiveKey={[panelItems[0]!.key]} items={panelItems} />
-                )}
+                <FormSection
+                    icon={DatabaseOutlined}
+                    title="Provider catalog"
+                    description="Register the model providers the assistant can talk to, then add their models. Pick the default on the General tab."
+                >
+                    <div className="rounded-lg border border-line bg-raised p-4">
+                        {panelItems.length === 0 ? (
+                            <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No providers yet">
+                                <Button type="primary" onClick={openAddProvider}>
+                                    Add your first provider
+                                </Button>
+                            </Empty>
+                        ) : (
+                            <Collapse
+                                ghost
+                                className="settings-provider-collapse"
+                                defaultActiveKey={[panelItems[0]!.key]}
+                                items={panelItems}
+                            />
+                        )}
+                    </div>
+                </FormSection>
                 <ProviderModal
                     open={providerOpen}
                     editing={editingProvider}

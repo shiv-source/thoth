@@ -95,6 +95,13 @@
     font-weight: 600;
 }
 
+/* Providers catalog — the ghost Collapse drops antd's container/panel
+   borders, so re-add a hairline between provider rows so the list keeps
+   its scanability inside the section panel. */
+.settings-provider-collapse .ant-collapse-item + .ant-collapse-item {
+    border-top: 1px solid var(--ant-color-border-secondary);
+}
+
 @keyframes slide-in-right {
     from {
         transform: translateX(100%);
