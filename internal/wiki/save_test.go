@@ -163,6 +163,51 @@ func TestSaveErrors(t *testing.T) {
 	}
 }
 
+func TestSaveSourceURL(t *testing.T) {
+	root := t.TempDir()
+	w := New(root)
+	now := func() time.Time { return time.Date(2026, 8, 23, 12, 0, 0, 0, time.UTC) }
+	rel, err := w.Save(SaveOptions{
+		Folder:    "knowledge",
+		Title:     "Capture",
+		Body:      "> quote\n",
+		SourceURL: "https://example.com/page",
+		Now:       now,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	content, err := w.Read(rel)
+	if err != nil {
+		t.Fatal(err)
+	}
+	meta, _, err := ParseNote(content)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if meta.Source != "https://example.com/page" {
+		t.Fatalf("source = %q, want the URL", meta.Source)
+	}
+	if problems := Validate(rel, content); len(problems) > 0 {
+		t.Fatalf("saved note not valid: %+v", problems)
+	}
+}
+
+func TestSaveRejectsBadSourceURL(t *testing.T) {
+	root := t.TempDir()
+	w := New(root)
+	now := func() time.Time { return time.Now() }
+	for _, u := range []string{"not a url", "ftp://example.com/x", "javascript:alert(1)"} {
+		if _, err := w.Save(SaveOptions{Folder: "knowledge", Title: "x", Body: "b", SourceURL: u, Now: now}); err == nil {
+			t.Errorf("Save with source URL %q must fail", u)
+		}
+	}
+	// Empty source is fine — most notes have no provenance.
+	if _, err := w.Save(SaveOptions{Folder: "knowledge", Title: "x", Body: "b", Now: now}); err != nil {
+		t.Fatalf("Save without source must succeed: %v", err)
+	}
+}
+
 func TestSaveCreatesParentDirs(t *testing.T) {
 	root := t.TempDir()
 	w := New(root)

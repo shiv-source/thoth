@@ -37,11 +37,12 @@ func ValidFolder(folder string) error {
 
 // SaveOptions describes a note to promote into the wiki.
 type SaveOptions struct {
-	Folder string           // top-level folder (see ValidFolder); type derives from it
-	Title  string           // frontmatter title; empty derives from Body
-	Body   string           // the note's markdown body
-	Tags   []string         // optional frontmatter tags
-	Now    func() time.Time // clock for the frontmatter date; nil falls back to time.Now
+	Folder    string           // top-level folder (see ValidFolder); type derives from it
+	Title     string           // frontmatter title; empty derives from Body
+	Body      string           // the note's markdown body
+	Tags      []string         // optional frontmatter tags
+	SourceURL string           // optional capture provenance; http(s) only, emitted as source: frontmatter
+	Now       func() time.Time // clock for the frontmatter date; nil falls back to time.Now
 }
 
 // Save writes a new note into Folder/ and returns its wiki-relative path. It
@@ -52,6 +53,9 @@ type SaveOptions struct {
 // SafePath-bounded. A note saved here always parses and validates.
 func (w *Wiki) Save(o SaveOptions) (string, error) {
 	if err := ValidFolder(o.Folder); err != nil {
+		return "", err
+	}
+	if err := ValidSourceURL(o.SourceURL); err != nil {
 		return "", err
 	}
 	title := strings.TrimSpace(o.Title)
@@ -75,10 +79,11 @@ func (w *Wiki) Save(o SaveOptions) (string, error) {
 	}
 	rel := filepath.ToSlash(filepath.Join(o.Folder, base+".md"))
 	content := FormatNote(NoteMeta{
-		Title: title,
-		Date:  date,
-		Kind:  NoteType(o.Folder),
-		Tags:  o.Tags,
+		Title:  title,
+		Date:   date,
+		Kind:   NoteType(o.Folder),
+		Tags:   o.Tags,
+		Source: strings.TrimSpace(o.SourceURL),
 	}, o.Body)
 	if problems := Validate(rel, content); len(problems) > 0 {
 		return "", fmt.Errorf("save: %s: %s", problems[0].Rule, problems[0].Msg)

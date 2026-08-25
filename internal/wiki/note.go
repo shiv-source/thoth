@@ -12,12 +12,15 @@ import (
 
 // NoteMeta is a note's frontmatter as the wiki knows it. The note type has a
 // single canonical YAML key — `type` (what the rulebook and FormatNote write)
-// — with `kind` accepted as an alias; both map onto this field.
+// — with `kind` accepted as an alias; both map onto this field. Source is the
+// capture provenance (an http(s) URL): captures store it so a note always
+// links back to where it came from.
 type NoteMeta struct {
-	Title string
-	Date  string
-	Kind  string
-	Tags  []string
+	Title  string
+	Date   string
+	Kind   string
+	Tags   []string
+	Source string
 }
 
 // ParseNote splits YAML frontmatter from the body and validates the fields.
@@ -32,11 +35,12 @@ func ParseNote(content []byte) (NoteMeta, []byte, error) {
 		return meta, nil, err
 	}
 	var fm struct {
-		Title yaml.Node `yaml:"title"`
-		Date  yaml.Node `yaml:"date"`
-		Type  yaml.Node `yaml:"type"`
-		Kind  yaml.Node `yaml:"kind"`
-		Tags  yaml.Node `yaml:"tags"`
+		Title  yaml.Node `yaml:"title"`
+		Date   yaml.Node `yaml:"date"`
+		Type   yaml.Node `yaml:"type"`
+		Kind   yaml.Node `yaml:"kind"`
+		Tags   yaml.Node `yaml:"tags"`
+		Source yaml.Node `yaml:"source"`
 	}
 	if err := yaml.Unmarshal(raw, &fm); err != nil {
 		return meta, nil, fmt.Errorf("frontmatter: %w", err)
@@ -55,6 +59,9 @@ func ParseNote(content []byte) (NoteMeta, []byte, error) {
 	}
 	if meta.Tags, err = noteTags(fm.Tags); err != nil {
 		return meta, nil, fmt.Errorf("frontmatter: %w", err)
+	}
+	if meta.Source, err = scalarString(fm.Source); err != nil {
+		return meta, nil, fmt.Errorf("frontmatter: source: %w", err)
 	}
 	return meta, body, nil
 }
@@ -196,8 +203,8 @@ func noteTags(n yaml.Node) ([]string, error) {
 // canonical shape the rulebook prescribes (title, date, tags, type). It is the
 // write-side half of the note contract: FormatNote output always parses back
 // through ParseNote, so any note writer (dashboard, agent, terminal) produces
-// a note the whole wiki accepts. Empty optional fields and empty tag lists are
-// omitted; a trailing newline is guaranteed.
+// a note the whole wiki accepts. Empty optional fields, the capture source,
+// and empty tag lists are omitted; a trailing newline is guaranteed.
 func FormatNote(meta NoteMeta, body string) []byte {
 	var b strings.Builder
 	b.WriteString("---\n")
@@ -222,6 +229,11 @@ func FormatNote(meta NoteMeta, body string) []byte {
 	if meta.Kind != "" {
 		b.WriteString("type: ")
 		b.WriteString(yamlScalar(meta.Kind))
+		b.WriteString("\n")
+	}
+	if meta.Source != "" {
+		b.WriteString("source: ")
+		b.WriteString(yamlScalar(meta.Source))
 		b.WriteString("\n")
 	}
 	b.WriteString("---\n")

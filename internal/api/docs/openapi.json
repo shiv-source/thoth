@@ -1775,6 +1775,357 @@
           }
         }
       }
+    },
+    "/api/v1/capture": {
+      "post": {
+        "tags": [
+          "capture"
+        ],
+        "summary": "Capture into the wiki",
+        "description": "The unified write surface for the browser extension and the dashboard quick capture. `kind` selects the save path: `bookmark` appends a line to links/bookmarks.md (grouped by category, metadata only — never full-page text), `note`/`selection` file a note via wiki.Save with the source URL in frontmatter, `readlater` appends to links/read-later.md. 400 on an unknown kind or bad input; 409 when the URL is already saved (the body carries the existing file path for the \"open it\" UX).",
+        "operationId": "capture",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/captureRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Capture created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/captureResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Unknown kind, missing field, or unsafe folder/source URL",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/errorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "URL already saved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error",
+                    "path"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "url already saved"
+                    },
+                    "path": {
+                      "type": "string",
+                      "description": "The existing file (links/bookmarks.md or links/read-later.md)",
+                      "example": "links/bookmarks.md"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Filesystem failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/errorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/capture/check": {
+      "get": {
+        "tags": [
+          "capture"
+        ],
+        "summary": "Check whether a URL is already saved",
+        "description": "The cheap \"is this URL already in links/bookmarks.md?\" check the extension runs before bookmarking, so one click never creates a duplicate. Returns the existing file path when it is saved, for the \"already saved → open it\" state.",
+        "operationId": "captureCheck",
+        "parameters": [
+          {
+            "name": "url",
+            "in": "query",
+            "required": true,
+            "description": "http(s) URL to check",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Dedup answer",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "exists"
+                  ],
+                  "properties": {
+                    "exists": {
+                      "type": "boolean"
+                    },
+                    "path": {
+                      "type": "string",
+                      "description": "Present when exists is true"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing url or non-http(s) url",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/errorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Read failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/errorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/capture/inbox-count": {
+      "get": {
+        "tags": [
+          "capture"
+        ],
+        "summary": "Unfiled capture count",
+        "description": "How many notes sit in the inbox folder — the extension's toolbar badge source. One index query, never a filesystem walk.",
+        "operationId": "captureInboxCount",
+        "responses": {
+          "200": {
+            "description": "Inbox note count",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "count"
+                  ],
+                  "properties": {
+                    "count": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Index failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/errorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/capture/summarize": {
+      "post": {
+        "tags": [
+          "capture"
+        ],
+        "summary": "Summarize a page into a knowledge note",
+        "description": "Runs one assistant turn over the captured page text and promotes the summary to a knowledge/ note with the source URL in frontmatter — the extension's \"Ask Thoth to summarize this page\". 502 when the assistant produces no summary.",
+        "operationId": "summarizeCapture",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/summarizeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Summary note created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/captureResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing text or non-http(s) source URL",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/errorEnvelope"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "The assistant produced no summary",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/errorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/capture/read-later": {
+      "get": {
+        "tags": [
+          "capture"
+        ],
+        "summary": "List the read-later queue",
+        "description": "The dashboard's read-later triage surface: every queued link (title, url, reason) from links/read-later.md, in file order.",
+        "operationId": "captureReadLaterList",
+        "responses": {
+          "200": {
+            "description": "Queued items",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "items"
+                  ],
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "title",
+                          "url"
+                        ],
+                        "properties": {
+                          "title": {
+                            "type": "string"
+                          },
+                          "url": {
+                            "type": "string"
+                          },
+                          "reason": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Read failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/errorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "capture"
+        ],
+        "summary": "Remove a URL from the read-later queue",
+        "description": "Removes one read-later entry by URL. Idempotent: removing a URL that is not queued (or a queue that never existed) is a no-op, so triage can clear an item without racing a refresh.",
+        "operationId": "captureReadLaterDelete",
+        "parameters": [
+          {
+            "name": "url",
+            "in": "query",
+            "required": true,
+            "description": "The http(s) URL to remove",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Removed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "ok"
+                  ],
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing or non-http(s) url",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/errorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Write failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/errorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1788,6 +2139,92 @@
           "error": {
             "type": "string",
             "description": "Human-readable error message"
+          }
+        }
+      },
+      "captureRequest": {
+        "type": "object",
+        "required": [
+          "kind"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "bookmark",
+              "note",
+              "selection",
+              "readlater"
+            ]
+          },
+          "url": {
+            "type": "string",
+            "description": "Source URL — required for bookmark/readlater; optional (http(s) only) for note/selection"
+          },
+          "title": {
+            "type": "string",
+            "description": "Page/note title; empty derives from the text or the URL"
+          },
+          "text": {
+            "type": "string",
+            "description": "Note body (note/selection) or the one-click reason source"
+          },
+          "reason": {
+            "type": "string",
+            "description": "Optional one-line reason for bookmark/readlater lines"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "folder": {
+            "type": "string",
+            "description": "Target folder for note/selection; defaults to the first configured folder"
+          },
+          "category": {
+            "type": "string",
+            "description": "Bookmarks group heading; defaults to unfiled"
+          }
+        }
+      },
+      "captureResponse": {
+        "type": "object",
+        "required": [
+          "path",
+          "title",
+          "type"
+        ],
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "Wiki-relative path of the created file"
+          },
+          "title": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          }
+        }
+      },
+      "summarizeRequest": {
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "properties": {
+          "url": {
+            "type": "string",
+            "description": "Source URL, stored as source: frontmatter"
+          },
+          "title": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string",
+            "description": "The page content (or selection) to summarize"
           }
         }
       },
