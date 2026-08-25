@@ -47,6 +47,9 @@ export class ThothClient {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(input),
+            // The assistant turn can take a while; bound it so a hung provider
+            // cannot leave the popup waiting forever. The server also bounds it.
+            signal: AbortSignal.timeout(120_000),
         })
     }
 

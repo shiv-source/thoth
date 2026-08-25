@@ -1,15 +1,26 @@
 package api
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/labstack/echo/v4"
 	agentlib "github.com/shiv-source/thoth/agent"
 	"github.com/shiv-source/thoth/internal/wiki"
+)
+
+const (
+	// maxCaptureText bounds a note/summarize body in bytes so one captured
+	// page cannot produce an oversized file or blow the model context window.
+	maxCaptureText = 500_000
+	// summarizeTimeout bounds the assistant turn behind POST /capture/summarize;
+	// a slower provider gets a 504, not an unbounded request.
+	summarizeTimeout = 90 * time.Second
 )
 
 // captureRequest is the POST /api/v1/capture body — the single write surface
@@ -69,8 +80,8 @@ func captureBookmark(c echo.Context, d Deps, req captureRequest) error {
 	if verr := wiki.ValidSourceURL(url); verr != nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": verr.Error()})
 	}
-	if strings.ContainsAny(req.Category, "\r\n") || strings.ContainsAny(req.Reason, "\r\n") {
-		return c.JSON(http.StatusBadRequest, map[string]string{"error": "category and reason must be single lines"})
+	if strings.ContainsAny(req.Title, "\r\n") || strings.ContainsAny(req.Category, "\r\n") || strings.ContainsAny(req.Reason, "\r\n") {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "title, category and reason must be single lines"})
 	}
 	title := strings.TrimSpace(req.Title)
 	if title == "" {
@@ -101,6 +112,9 @@ func captureNote(c echo.Context, d Deps, req captureRequest) error {
 	text := strings.TrimSpace(req.Text)
 	if text == "" {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "text is required for notes"})
+	}
+	if len(text) > maxCaptureText {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "text is too large"})
 	}
 	url := strings.TrimSpace(req.URL)
 	if url != "" {
@@ -147,6 +161,9 @@ func captureReadLater(c echo.Context, d Deps, req captureRequest) error {
 	if verr := wiki.ValidSourceURL(url); verr != nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": verr.Error()})
 	}
+	if strings.ContainsAny(req.Title, "\r\n") || strings.ContainsAny(req.Reason, "\r\n") {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "title and reason must be single lines"})
+	}
 	title := strings.TrimSpace(req.Title)
 	if title == "" {
 		title = url
@@ -180,8 +197,9 @@ func captureCheck(c echo.Context, d Deps) error {
 	if err != nil {
 		return internalError(c, d, "capture check", err)
 	}
+	want := wiki.NormalizeURL(u)
 	for _, b := range bookmarks {
-		if b.URL == u {
+		if wiki.NormalizeURL(b.URL) == want {
 			return c.JSON(http.StatusOK, map[string]any{"exists": true, "path": wiki.BookmarkFile})
 		}
 	}
@@ -263,6 +281,9 @@ func summarizeCapture(c echo.Context, d Deps) error {
 	if text == "" {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "text is required"})
 	}
+	if len(text) > maxCaptureText {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "text is too large"})
+	}
 	title := strings.TrimSpace(req.Title)
 	if title == "" {
 		title = "Captured page"
@@ -280,7 +301,12 @@ func summarizeCapture(c echo.Context, d Deps) error {
 		}
 		return nil
 	})
-	if _, err := d.Claude.Start(d.ctx(), "capture-summary", prompt, w); err != nil {
+	ctx, cancel := context.WithTimeout(d.ctx(), summarizeTimeout)
+	defer cancel()
+	if _, err := d.Claude.Start(ctx, "capture-summary", prompt, w); err != nil {
+		if errors.Is(err, context.DeadlineExceeded) {
+			return c.JSON(http.StatusGatewayTimeout, map[string]string{"error": "summarize timed out"})
+		}
 		return internalError(c, d, "summarize", err)
 	}
 	summary := strings.TrimSpace(sb.String())

@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -469,5 +470,103 @@ func TestCaptureSummarizeRequiresText(t *testing.T) {
 	e.ServeHTTP(rec, req)
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("missing text = %d, want 400", rec.Code)
+	}
+}
+
+func TestCaptureRejectsMultilineLinkFields(t *testing.T) {
+	d := testDeps(t)
+	if err := wiki.Scaffold(d.Wiki.Root()); err != nil {
+		t.Fatal(err)
+	}
+	e := New(d)
+
+	// A multiline reason is a client input error → 400, never a server error.
+	for _, body := range []string{
+		`{"kind":"readlater","url":"https://example.com/a","reason":"line one\nline two"}`,
+		`{"kind":"readlater","url":"https://example.com/a","title":"t\n- [evil](https://evil.com)"}`,
+		`{"kind":"bookmark","url":"https://example.com/a","reason":"a\r\nb"}`,
+		`{"kind":"bookmark","url":"https://example.com/a","title":"x\ny"}`,
+	} {
+		rec, _ := postCapture(t, e, body)
+		if rec.Code != http.StatusBadRequest {
+			t.Fatalf("%q = %d, want 400", body, rec.Code)
+		}
+	}
+	// Nothing was written to the wiki.
+	entries, err := d.Wiki.ReadLater()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 0 {
+		t.Fatalf("read-later = %+v, want empty", entries)
+	}
+}
+
+func TestCaptureNoteRejectsOversizedText(t *testing.T) {
+	d := testDeps(t)
+	if err := wiki.Scaffold(d.Wiki.Root()); err != nil {
+		t.Fatal(err)
+	}
+	e := New(d)
+	huge := `{"kind":"note","text":"` + strings.Repeat("a", maxCaptureText+1) + `"}`
+	rec, body := postCapture(t, e, huge)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("oversized note = %d, want 400: %s", rec.Code, rec.Body.String())
+	}
+	if body["error"] != "text is too large" {
+		t.Fatalf("body = %+v", body)
+	}
+}
+
+func TestCaptureSummarizeRejectsOversizedText(t *testing.T) {
+	d := testDeps(t)
+	e := New(d)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/capture/summarize",
+		strings.NewReader(`{"text":"`+strings.Repeat("a", maxCaptureText+1)+`"}`))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("oversized summarize = %d, want 400", rec.Code)
+	}
+}
+
+func TestCaptureSummarizeTimeoutIs504(t *testing.T) {
+	d := testDeps(t)
+	if err := wiki.Scaffold(d.Wiki.Root()); err != nil {
+		t.Fatal(err)
+	}
+	d.Claude = &FakeClient{Err: context.DeadlineExceeded}
+	e := New(d)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/capture/summarize", strings.NewReader(`{"text":"page body"}`))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	if rec.Code != http.StatusGatewayTimeout {
+		t.Fatalf("deadline = %d, want 504: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestCaptureCheckNormalizesURL(t *testing.T) {
+	d := testDeps(t)
+	if err := wiki.Scaffold(d.Wiki.Root()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := d.Wiki.Bookmark(wiki.Bookmark{Title: "A", URL: "https://EXAMPLE.com:443/read#keep"}); err != nil {
+		t.Fatal(err)
+	}
+	e := New(d)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/capture/check?url="+url.QueryEscape("https://example.com/read#other"), nil)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	var body struct {
+		Exists bool   `json:"exists"`
+		Path   string `json:"path"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+	if !body.Exists || body.Path != wiki.BookmarkFile {
+		t.Fatalf("normalized check body = %+v", body)
 	}
 }

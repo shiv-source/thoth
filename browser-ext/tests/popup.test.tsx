@@ -167,4 +167,39 @@ describe('PopupApp', () => {
         fireEvent.click(screen.getByRole('button', { name: /^Save/ }))
         expect(await screen.findByText('Text is required')).toBeInTheDocument()
     })
+
+    it('does not silently fall back to a default port for a down custom URL', async () => {
+        stubServer({}) // every route is down
+        const { ext } = renderPopup()
+        // Let the mount's auto-discovery settle before editing the URL.
+        await screen.findByText(/Thoth is not running/)
+        const input = screen.getByLabelText('Server URL')
+        fireEvent.change(input, { target: { value: 'http://127.0.0.1:9999' } })
+        fireEvent.click(screen.getByRole('button', { name: 'Connect' }))
+        // The entered server is reported as down — not "Connected to 8333".
+        expect(await screen.findByText(/That server is not running/)).toBeInTheDocument()
+        expect(screen.queryByText(/Connected to/)).not.toBeInTheDocument()
+        expect(ext.permissionRequests).toEqual([])
+    })
+
+    it('clears a stored custom URL when the host permission grant is denied', async () => {
+        stubServer({})
+        const fake = fakeBrowserAPI()
+        fake.api.permissions!.request = async () => false
+        const storage = memoryStorage({ [BASE_URL_KEY]: 'http://192.168.1.5:8333' })
+        render(
+            <ConfigProvider theme={popupTheme}>
+                <PopupApp storage={storage} ext={fake.api} />
+            </ConfigProvider>
+        )
+        // Mount settles: the stored custom URL is probed (down), discovery is
+        // down too — "Thoth is not running".
+        await screen.findByText(/Thoth is not running/)
+        const input = screen.getByLabelText('Server URL')
+        fireEvent.change(input, { target: { value: 'http://192.168.1.5:8333' } })
+        fireEvent.click(screen.getByRole('button', { name: 'Connect' }))
+        expect(await screen.findByText(/Permission to reach/)).toBeInTheDocument()
+        // A denied host must not linger in storage.
+        await waitFor(() => expect(storage.data[BASE_URL_KEY]).toBeUndefined())
+    })
 })

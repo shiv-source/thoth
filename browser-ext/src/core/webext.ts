@@ -60,6 +60,11 @@ export interface BrowserAPI {
     commands?: {
         onCommand: { addListener(listener: (command: string) => void): void }
     }
+    permissions?: {
+        // request is the optional_host_permissions prompt — used to grant the
+        // extension CORS access to a custom server origin outside localhost.
+        request(permissions: { origins: string[] }): Promise<boolean>
+    }
 }
 
 const globalScope = globalThis as unknown as { browser?: BrowserAPI; chrome?: BrowserAPI }

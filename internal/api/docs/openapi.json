@@ -1806,7 +1806,7 @@
             }
           },
           "400": {
-            "description": "Unknown kind, missing field, or unsafe folder/source URL",
+            "description": "Unknown kind, missing/multiline/oversized field, or unsafe folder/source URL",
             "content": {
               "application/json": {
                 "schema": {
@@ -1988,7 +1988,7 @@
             }
           },
           "400": {
-            "description": "Missing text or non-http(s) source URL",
+            "description": "Missing/oversized text or non-http(s) source URL",
             "content": {
               "application/json": {
                 "schema": {
@@ -1999,6 +1999,16 @@
           },
           "502": {
             "description": "The assistant produced no summary",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/errorEnvelope"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "The assistant turn exceeded the timeout",
             "content": {
               "application/json": {
                 "schema": {

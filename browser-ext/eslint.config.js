@@ -11,7 +11,10 @@ export default tseslint.config(
         extends: [...tseslint.configs.recommendedTypeChecked],
         languageOptions: {
             globals: globals.browser,
-            parserOptions: { projectService: true },
+            // projectService auto-resolves the tsconfig; pin the root so a run
+            // that starts above this package (e.g. from the workspace root)
+            // cannot confuse it with web/'s tsconfig projects.
+            parserOptions: { projectService: true, tsconfigRootDir: import.meta.dirname },
         },
         rules: {
             '@typescript-eslint/no-explicit-any': 'error',

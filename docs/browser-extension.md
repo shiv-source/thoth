@@ -19,6 +19,8 @@ make ext-build
 
 The extension discovers the server by probing `http://127.0.0.1:8333` (`thoth serve`) then `:8334` (`make dev`). A custom base URL (set in the popup) overrides discovery. The server is auth-less localhost, and MV3 `host_permissions` let the extension `fetch` it directly — **no server CORS changes needed**.
 
+A custom URL on `127.0.0.1`/`localhost` needs nothing extra. A custom server on any other host requests a one-time `optional_host_permissions` grant the first time you connect (the default install stays localhost-only — nothing broad is requested up front). If a custom URL is unreachable, the popup says so instead of silently reconnecting to the default port — it never lies about where captures land.
+
 ### Context menus
 
 Right-click on any page:

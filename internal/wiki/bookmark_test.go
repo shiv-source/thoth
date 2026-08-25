@@ -2,9 +2,11 @@ package wiki
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -268,5 +270,137 @@ func TestBookmarkRejectsEscapingRoot(t *testing.T) {
 	}
 	if entries[0].URL != "https://example.com/x" {
 		t.Fatalf("entry = %+v", entries[0])
+	}
+}
+
+func TestBookmarkURLWithParensRoundTrips(t *testing.T) {
+	// A URL containing ")" (Wikipedia titles, …) must round-trip through the
+	// link line so dedup and the reader see the full URL, not a truncated one.
+	root := t.TempDir()
+	w := New(root)
+	url := "https://en.wikipedia.org/wiki/Go_(programming_language)"
+	if _, err := w.Bookmark(Bookmark{Title: "Go", URL: url}); err != nil {
+		t.Fatal(err)
+	}
+	// Re-saving the same URL is a duplicate — the escaped form parsed back.
+	if _, err := w.Bookmark(Bookmark{Title: "Go again", URL: url}); !errors.Is(err, ErrDuplicateBookmark) {
+		t.Fatalf("expected ErrDuplicateBookmark, got %v", err)
+	}
+	entries, err := w.Bookmarks()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 1 || entries[0].URL != url {
+		t.Fatalf("entries = %+v, want the full URL", entries)
+	}
+	content, err := w.Read(BookmarkFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The ")" is percent-encoded in the file (once) so the markdown line parses.
+	if strings.Count(string(content), "Go_(programming_language)") != 0 {
+		t.Fatalf("parenthesized URL must be percent-encoded in the file:\n%s", content)
+	}
+	if strings.Count(string(content), "%28") != 1 || strings.Count(string(content), "%29") != 1 {
+		t.Fatalf("URL should be encoded exactly once:\n%s", content)
+	}
+}
+
+func TestBookmarkTitleWithBracketsRoundTrips(t *testing.T) {
+	root := t.TempDir()
+	w := New(root)
+	title := "Go [1.22] notes]"
+	if _, err := w.Bookmark(Bookmark{Title: title, URL: "https://example.com/a"}); err != nil {
+		t.Fatal(err)
+	}
+	entries, err := w.Bookmarks()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if entries[0].Title != title {
+		t.Fatalf("title = %q, want %q", entries[0].Title, title)
+	}
+}
+
+func TestBookmarkDedupNormalizesURL(t *testing.T) {
+	root := t.TempDir()
+	w := New(root)
+	if _, err := w.Bookmark(Bookmark{Title: "A", URL: "https://EXAMPLE.com:443/read#section"}); err != nil {
+		t.Fatal(err)
+	}
+	// Default port, case, and fragment collapse; scheme and path stay distinct.
+	for _, dup := range []string{"https://example.com/read", "HTTPS://example.com/read#other"} {
+		if _, err := w.Bookmark(Bookmark{Title: "dup", URL: dup}); !errors.Is(err, ErrDuplicateBookmark) {
+			t.Fatalf("%q should dedup, got %v", dup, err)
+		}
+	}
+	if _, err := w.Bookmark(Bookmark{Title: "b", URL: "http://example.com/read"}); err != nil {
+		t.Fatalf("http and https are distinct resources, must not dedup: %v", err)
+	}
+	if _, err := w.Bookmark(Bookmark{Title: "c", URL: "https://example.com/read/"}); err != nil {
+		t.Fatalf("trailing slash is a distinct path, must not dedup: %v", err)
+	}
+}
+
+func TestRemoveReadLaterNormalizesURL(t *testing.T) {
+	root := t.TempDir()
+	w := New(root)
+	if _, err := w.AddReadLater(Bookmark{Title: "Long", URL: "https://example.com/long#keep"}); err != nil {
+		t.Fatal(err)
+	}
+	// Removing with a different fragment still matches.
+	if err := w.RemoveReadLater("https://example.com/long#different"); err != nil {
+		t.Fatal(err)
+	}
+	entries, err := w.ReadLater()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 0 {
+		t.Fatalf("after normalized removal = %+v, want empty", entries)
+	}
+}
+
+func TestBookmarkValidationRejectsMultilineTitle(t *testing.T) {
+	root := t.TempDir()
+	w := New(root)
+	b := Bookmark{Title: "line one\n- [evil](https://evil.com)", URL: "https://example.com/x"}
+	if _, err := w.Bookmark(b); err == nil {
+		t.Fatal("expected error for a multiline title")
+	}
+	if _, err := w.AddReadLater(b); err == nil {
+		t.Fatal("expected AddReadLater error for a multiline title")
+	}
+}
+
+func TestConcurrentBookmarksDoNotLoseWrites(t *testing.T) {
+	root := t.TempDir()
+	w := New(root)
+	const n = 8
+	urls := make([]string, n)
+	for i := range urls {
+		urls[i] = fmt.Sprintf("https://example.com/link/%d", i)
+	}
+	var wg sync.WaitGroup
+	errs := make([]error, n)
+	for i := 0; i < n; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			_, errs[i] = w.Bookmark(Bookmark{Title: fmt.Sprintf("Link %d", i), URL: urls[i]})
+		}(i)
+	}
+	wg.Wait()
+	for i, err := range errs {
+		if err != nil {
+			t.Fatalf("bookmark %d: %v", i, err)
+		}
+	}
+	entries, err := w.Bookmarks()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != n {
+		t.Fatalf("got %d entries, want %d (a lost update raced)", len(entries), n)
 	}
 }

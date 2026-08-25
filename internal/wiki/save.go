@@ -88,6 +88,11 @@ func (w *Wiki) Save(o SaveOptions) (string, error) {
 	if problems := Validate(rel, content); len(problems) > 0 {
 		return "", fmt.Errorf("save: %s: %s", problems[0].Rule, problems[0].Msg)
 	}
+	w.saveMu.Lock()
+	defer w.saveMu.Unlock()
+	// Two saves can derive the same slug (two quick captures, repeated
+	// promotion). Never silently overwrite — pick the next free -N suffix.
+	rel = w.nextFreeRel(rel)
 	full, err := SafePath(w.Root(), rel)
 	if err != nil {
 		return "", err
@@ -99,6 +104,31 @@ func (w *Wiki) Save(o SaveOptions) (string, error) {
 		return "", fmt.Errorf("save: write: %w", err)
 	}
 	return rel, nil
+}
+
+// nextFreeRel returns rel, or rel with a -N suffix, for the first path that
+// does not already exist under the wiki root. Callers hold saveMu so the
+// check-then-write is serialized.
+func (w *Wiki) nextFreeRel(rel string) string {
+	full, err := SafePath(w.Root(), rel)
+	if err != nil {
+		return rel
+	}
+	if _, err := os.Stat(full); errors.Is(err, os.ErrNotExist) {
+		return rel
+	}
+	ext := filepath.Ext(rel)
+	stem := strings.TrimSuffix(rel, ext)
+	for i := 2; ; i++ {
+		cand := fmt.Sprintf("%s-%d%s", stem, i, ext)
+		full, err := SafePath(w.Root(), cand)
+		if err != nil {
+			return rel
+		}
+		if _, err := os.Stat(full); errors.Is(err, os.ErrNotExist) {
+			return cand
+		}
+	}
 }
 
 // DefaultTitle derives a note title from a markdown body: the text of the

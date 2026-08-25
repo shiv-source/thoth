@@ -82,7 +82,7 @@ jobs:
               if printf '%s\n' "$files" | grep -Eq '^\.husky/|^scripts/|^Makefile$'; then
                 backend=true; frontend=true; ext=true
               fi
-              if printf '%s\n' "$files" | grep -Eq '(\.go$|^go\.(mod|sum)$|^\.golangci\.yml$)'; then
+              if printf '%s\n' "$files" | grep -Eq '(\.go$|^go\.(mod|sum)$|^\.golangci\.yml$|^internal/api/docs/)'; then
                 backend=true
               fi
               if printf '%s\n' "$files" | grep -Eq '^web/|^(package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|\.npmrc|\.prettierrc)$'; then

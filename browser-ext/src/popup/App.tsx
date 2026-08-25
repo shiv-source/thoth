@@ -3,7 +3,7 @@ import { Alert, Button, Checkbox, Input, Segmented, Select, Space, Typography } 
 import { LinkOutlined } from '@ant-design/icons'
 import { ThothClient, ThothError } from '../core/api'
 import { refreshBadge } from '../core/badge'
-import { BASE_URL_KEY, resolveBaseUrl, saveBaseUrl } from '../core/config'
+import { BASE_URL_KEY, connectBaseUrl, ensureHostPermission, resolveBaseUrl, saveBaseUrl } from '../core/config'
 import type { StorageLike } from '../core/config'
 import {
     BOOKMARK_CATEGORIES,
@@ -139,7 +139,21 @@ export function PopupApp({ storage, ext }: PopupAppProps) {
 
     const connect = useCallback(async () => {
         await saveBaseUrl(storage, baseUrlInput)
-        const found = await resolveBaseUrl(storage)
+        const granted = await ensureHostPermission(ext, baseUrlInput)
+        if (!granted) {
+            // Don't keep a stored URL the extension cannot reach — otherwise
+            // the next popup open would silently fall back to discovery.
+            await saveBaseUrl(storage, '')
+            setBaseUrl('')
+            setClient(null)
+            setStatus('down')
+            setStatusText('Permission to reach that server host was not granted')
+            return
+        }
+        // A custom URL that is unreachable stays unreachable — never silently
+        // fall back to the default port, or the status would lie about where
+        // captures land.
+        const found = await connectBaseUrl(baseUrlInput)
         if (found) {
             setBaseUrl(found)
             setClient(new ThothClient(found))
@@ -149,9 +163,13 @@ export function PopupApp({ storage, ext }: PopupAppProps) {
             setBaseUrl('')
             setClient(null)
             setStatus('down')
-            setStatusText('Thoth is not running — start it with `thoth serve`')
+            setStatusText(
+                baseUrlInput.trim()
+                    ? 'That server is not running — check the URL and start `thoth serve`'
+                    : 'Thoth is not running — start it with `thoth serve`'
+            )
         }
-    }, [storage, baseUrlInput])
+    }, [storage, ext, baseUrlInput])
 
     const discard = useCallback(async () => {
         await clearDraft(storage)

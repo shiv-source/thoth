@@ -31,6 +31,7 @@ export interface FakeAPI {
     scripted: number[]
     openedPopup: boolean
     alarmNames: string[]
+    permissionRequests: Array<{ origins: string[] }>
     fireInstalled(): Promise<void>
     fireStarted(): Promise<void>
     fireMenuClick(info: Partial<ContextMenuClickInfo>, tab?: Partial<TabInfo>): Promise<void>
@@ -53,6 +54,7 @@ export function fakeBrowserAPI(): FakeAPI {
     const tabsCreated: string[] = []
     const scripted: number[] = []
     const alarmNames: string[] = []
+    const permissionRequests: Array<{ origins: string[] }> = []
     let queried = false
     let openedPopup = false
 
@@ -104,6 +106,14 @@ export function fakeBrowserAPI(): FakeAPI {
         commands: {
             onCommand: { addListener: (fn) => void commandHandlers.push(fn) },
         },
+        permissions: {
+            // Requests are granted by default; tests override to simulate a
+            // denial. Every request is recorded for assertions.
+            request: async (perms): Promise<boolean> => {
+                permissionRequests.push(perms)
+                return true
+            },
+        },
     }
 
     return {
@@ -123,6 +133,7 @@ export function fakeBrowserAPI(): FakeAPI {
         },
         scripted,
         alarmNames,
+        permissionRequests,
         async fireInstalled() {
             for (const fn of installed) await Promise.resolve(fn())
         },

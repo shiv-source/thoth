@@ -220,3 +220,42 @@ func TestSaveCreatesParentDirs(t *testing.T) {
 		t.Fatalf("note file not created: %v", err)
 	}
 }
+
+func TestSaveDoesNotOverwriteOnSlugCollision(t *testing.T) {
+	root := t.TempDir()
+	w := New(root)
+	now := func() time.Time { return time.Date(2026, 8, 23, 0, 0, 0, 0, time.UTC) }
+	first, err := w.Save(SaveOptions{Folder: "inbox", Title: "Same Title", Body: "first", Now: now})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first != "inbox/same-title.md" {
+		t.Fatalf("first rel = %q", first)
+	}
+	second, err := w.Save(SaveOptions{Folder: "inbox", Title: "Same Title", Body: "second", Now: now})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if second != "inbox/same-title-2.md" {
+		t.Fatalf("second rel = %q, want inbox/same-title-2.md", second)
+	}
+	third, err := w.Save(SaveOptions{Folder: "inbox", Title: "Same Title", Body: "third", Now: now})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if third != "inbox/same-title-3.md" {
+		t.Fatalf("third rel = %q, want inbox/same-title-3.md", third)
+	}
+	// Both files exist and hold their own body — nothing was overwritten.
+	b1, err := w.Read(first)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b2, err := w.Read(second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(b1), "first") || !strings.Contains(string(b2), "second") {
+		t.Fatalf("collision overwrote a note: %q / %q", b1, b2)
+	}
+}

@@ -85,4 +85,19 @@ describe('ReadLaterCard', () => {
         fireEvent.click(screen.getByRole('button', { name: /Done Go Channels/ }))
         await waitFor(() => expect(mocks.delete).toHaveBeenCalled())
     })
+
+    it('keeps an item queued and toasts when clearing fails', async () => {
+        stubAPI(mocks, {
+            'GET /api/v1/capture/read-later': () => ({ items }),
+            'DELETE /api/v1/capture/read-later?url=https%3A%2F%2Fgo.dev%2Fblog%2Fchannels': () => {
+                throw new Error('network down')
+            }
+        })
+        renderWithStore(<ReadLaterCard />)
+        await screen.findByText('Go Channels')
+        fireEvent.click(screen.getByRole('button', { name: /Done Go Channels/ }))
+        expect(await screen.findByText('Could not update the queue')).toBeInTheDocument()
+        // Still queued — the row was not removed.
+        expect(screen.getByText('Go Channels')).toBeInTheDocument()
+    })
 })

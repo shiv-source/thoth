@@ -3,6 +3,7 @@ package wiki
 import (
 	"errors"
 	"fmt"
+	"net"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -49,9 +50,90 @@ type LinkEntry struct {
 	Reason   string
 }
 
-// linkLineRe matches a bookmarks line "- [title](url)…". The capture after
-// the URL is the optional " — reason" suffix.
-var linkLineRe = regexp.MustCompile(`^-\s+\[([^\]]*)\]\(([^)]+)\)(.*)$`)
+// linkLineRe matches a bookmarks line "- [title](url)…". The title may hold
+// backslash-escaped brackets (write-side escapeLinkText); the URL is either a
+// percent-encoded run (write-side encodeLinkURL) or the hand-edited <...>
+// angle-bracket form, so a URL containing ")" (Wikipedia titles, …) still
+// parses back verbatim. The capture after the URL is the optional " — reason"
+// suffix.
+var linkLineRe = regexp.MustCompile(`^-\s+\[((?:[^\]\\]|\\.)*)\]\((<[^>]*>|[^)]+)\)(.*)$`)
+
+// linkURLEncoder percent-encodes the characters that would break markdown link
+// parsing — "%" first so a pre-existing %XX sequence round-trips, then "(", ")"
+// and spaces. The stored line stays mostly readable; decodeLinkURL reverses it.
+var linkURLEncoder = strings.NewReplacer(`%`, `%25`, `(`, `%28`, `)`, `%29`, ` `, `%20`)
+
+// encodeLinkURL escapes a URL for embedding in a markdown link line. Callers
+// must decode before comparing (decodeLinkURL) so a ")" in the path does not
+// truncate the round-trip.
+func encodeLinkURL(u string) string {
+	return linkURLEncoder.Replace(u)
+}
+
+// decodeLinkURL restores a URL embedded by encodeLinkURL. The hand-edited
+// <...> angle-bracket form (raw, unencoded) is returned verbatim.
+func decodeLinkURL(u string) string {
+	u = strings.TrimSpace(u)
+	if strings.HasPrefix(u, "<") && strings.HasSuffix(u, ">") && len(u) >= 2 {
+		return u[1 : len(u)-1]
+	}
+	if d, err := url.PathUnescape(u); err == nil {
+		return d
+	}
+	return u
+}
+
+// escapeLinkText backslash-escapes the characters that would terminate or
+// mis-parse a markdown link's text ([, ], \); unescapeLinkText reverses it.
+func escapeLinkText(s string) string {
+	s = strings.ReplaceAll(s, `\`, `\\`)
+	s = strings.ReplaceAll(s, `[`, `\[`)
+	s = strings.ReplaceAll(s, `]`, `\]`)
+	return s
+}
+
+// unescapeLinkText reverses escapeLinkText: every backslash-prefixed character
+// is taken literally.
+func unescapeLinkText(s string) string {
+	var b strings.Builder
+	for i := 0; i < len(s); i++ {
+		if s[i] == '\\' && i+1 < len(s) {
+			i++
+		}
+		b.WriteByte(s[i])
+	}
+	return b.String()
+}
+
+// NormalizeURL canonicalizes a URL for dedup comparisons: lowercased scheme and
+// host, default ports stripped, and the fragment dropped. The path and query
+// are kept verbatim — http vs https, www vs bare, and "?utm=…" remain distinct
+// resources — so normalization only collapses the accidental duplicates (case,
+// "https://EXAMPLE.com:443/a#x" vs "https://example.com/a"). An unparseable
+// input is returned unchanged.
+func NormalizeURL(u string) string {
+	u = strings.TrimSpace(u)
+	if u == "" {
+		return u
+	}
+	parsed, err := url.Parse(u)
+	if err != nil || parsed.Host == "" {
+		return u
+	}
+	parsed.Scheme = strings.ToLower(parsed.Scheme)
+	host := strings.ToLower(parsed.Hostname())
+	if port := parsed.Port(); port != "" {
+		if (parsed.Scheme == "http" && port == "80") || (parsed.Scheme == "https" && port == "443") {
+			parsed.Host = host
+		} else {
+			parsed.Host = net.JoinHostPort(host, port)
+		}
+	} else {
+		parsed.Host = host
+	}
+	parsed.Fragment = ""
+	return parsed.String()
+}
 
 // Bookmark appends one line to the bookmarks master list (links/bookmarks.md),
 // grouped under its category heading in the rulebook format:
@@ -104,6 +186,8 @@ func (w *Wiki) ReadLater() ([]LinkEntry, error) {
 // existed (or no longer holds the URL) is a no-op, so the dashboard triage
 // can remove an item without racing its own refresh.
 func (w *Wiki) RemoveReadLater(url string) error {
+	w.linksMu.Lock()
+	defer w.linksMu.Unlock()
 	content, err := w.Read(ReadLaterFile)
 	if errors.Is(err, os.ErrNotExist) {
 		return nil
@@ -113,8 +197,9 @@ func (w *Wiki) RemoveReadLater(url string) error {
 	}
 	lines := splitLines(content)
 	out := lines[:0]
+	want := NormalizeURL(url)
 	for _, raw := range lines {
-		if m := linkLineRe.FindStringSubmatch(strings.TrimSpace(raw)); m != nil && strings.TrimSpace(m[2]) == url {
+		if m := linkLineRe.FindStringSubmatch(strings.TrimSpace(raw)); m != nil && NormalizeURL(decodeLinkURL(m[2])) == want {
 			continue
 		}
 		out = append(out, raw)
@@ -150,14 +235,14 @@ func ValidSourceURL(u string) error {
 	return nil
 }
 
-// validateLink validates the fields of a link entry: a non-empty title, an
-// absolute http(s) URL, and single-line category/reason.
+// validateLink validates the fields of a link entry: a non-empty single-line
+// title, an absolute http(s) URL, and single-line category/reason.
 func validateLink(b Bookmark) error {
 	if strings.TrimSpace(b.Title) == "" {
 		return errors.New("bookmark: title is required")
 	}
-	if strings.ContainsAny(b.Category, "\r\n") || strings.ContainsAny(b.Reason, "\r\n") {
-		return errors.New("bookmark: category and reason must be single lines")
+	if strings.ContainsAny(b.Title, "\r\n") || strings.ContainsAny(b.Category, "\r\n") || strings.ContainsAny(b.Reason, "\r\n") {
+		return errors.New("bookmark: title, category and reason must be single lines")
 	}
 	if strings.TrimSpace(b.URL) == "" {
 		return errors.New("bookmark: url is required")
@@ -170,6 +255,8 @@ func validateLink(b Bookmark) error {
 // is appended flat (the read-later queue). The write is atomic and
 // SafePath-bounded; the file is recreated when missing or empty.
 func (w *Wiki) appendLink(rel, title string, b Bookmark, grouped bool) error {
+	w.linksMu.Lock()
+	defer w.linksMu.Unlock()
 	full, err := SafePath(w.Root(), rel)
 	if err != nil {
 		return err
@@ -216,20 +303,24 @@ func freshLinkFile(title string) []string {
 }
 
 // bookmarkLine renders one link line in the rulebook format:
-// "- [title](url) — reason".
+// "- [title](url) — reason". The title and URL are escaped so any valid
+// input round-trips through linkLineRe/readLinks.
 func bookmarkLine(b Bookmark) string {
-	line := "- [" + strings.TrimSpace(b.Title) + "](" + strings.TrimSpace(b.URL) + ")"
+	line := "- [" + escapeLinkText(strings.TrimSpace(b.Title)) + "](" + encodeLinkURL(strings.TrimSpace(b.URL)) + ")"
 	if reason := strings.TrimSpace(b.Reason); reason != "" {
 		line += " — " + reason
 	}
 	return line
 }
 
-// urlSaved reports whether a link line in lines already carries url.
+// urlSaved reports whether a link line in lines already carries url, compared
+// after URL normalization so accidental duplicates (case, default port,
+// fragment) are caught too.
 func urlSaved(lines []string, url string) bool {
+	want := NormalizeURL(url)
 	for _, raw := range lines {
 		m := linkLineRe.FindStringSubmatch(strings.TrimSpace(raw))
-		if m != nil && strings.TrimSpace(m[2]) == url {
+		if m != nil && NormalizeURL(decodeLinkURL(m[2])) == want {
 			return true
 		}
 	}
@@ -296,8 +387,8 @@ func (w *Wiki) readLinks(rel string) ([]LinkEntry, error) {
 		reason := strings.TrimSpace(m[3])
 		reason = strings.TrimSpace(strings.TrimPrefix(reason, "—"))
 		out = append(out, LinkEntry{
-			Title:    strings.TrimSpace(m[1]),
-			URL:      strings.TrimSpace(m[2]),
+			Title:    unescapeLinkText(strings.TrimSpace(m[1])),
+			URL:      decodeLinkURL(m[2]),
 			Category: category,
 			Reason:   reason,
 		})

@@ -3,6 +3,11 @@ import type { CaptureInput, Draft } from './types'
 export const DEFAULT_CATEGORY = 'unfiled'
 export const BOOKMARK_CATEGORIES = ['reference', 'article', 'docs', 'reading', 'ideas', 'unfiled'] as const
 
+// MAX_CAPTURE_TEXT bounds a captured page/selection body in characters. The
+// server rejects larger bodies (maxCaptureText), so the extension truncates
+// before sending — a summarization never needs more than this.
+export const MAX_CAPTURE_TEXT = 500_000
+
 // The scaffold folders the popup offers before the server's settings arrive.
 export const DEFAULT_NOTE_FOLDERS = [
     'inbox',

@@ -11,6 +11,9 @@ export function ReadLaterCard() {
     const { message } = App.useApp()
     const [items, setItems] = useState<ReadLaterItem[]>([])
     const [loading, setLoading] = useState(false)
+    // busyUrl disables a row's triage buttons while its action is in flight so
+    // a double-click cannot double-submit.
+    const [busyUrl, setBusyUrl] = useState<string | null>(null)
 
     const refresh = useCallback(async () => {
         setLoading(true)
@@ -28,26 +31,46 @@ export function ReadLaterCard() {
         void refresh()
     }, [refresh])
 
-    const bookmark = async (item: ReadLaterItem) => {
+    const clear = async (item: ReadLaterItem): Promise<boolean> => {
         try {
-            await api.capture({ kind: 'bookmark', url: item.url, title: item.title, reason: item.reason })
-            message.success('Added to bookmarks')
-        } catch (err) {
-            if (isConflict(err)) {
-                message.info('Already in bookmarks')
-            } else {
-                message.error('Could not bookmark')
-                return // keep it queued on a network failure
-            }
+            await api.removeReadLater(item.url)
+            return true
+        } catch {
+            message.error('Could not update the queue')
+            return false
         }
-        await api.removeReadLater(item.url)
-        void refresh()
+    }
+
+    const bookmark = async (item: ReadLaterItem) => {
+        setBusyUrl(item.url)
+        try {
+            try {
+                await api.capture({ kind: 'bookmark', url: item.url, title: item.title, reason: item.reason })
+                message.success('Added to bookmarks')
+            } catch (err) {
+                if (isConflict(err)) {
+                    message.info('Already in bookmarks')
+                } else {
+                    message.error('Could not bookmark')
+                    return // keep it queued on a network failure
+                }
+            }
+            if (await clear(item)) void refresh()
+        } finally {
+            setBusyUrl(null)
+        }
     }
 
     const done = async (item: ReadLaterItem) => {
-        await api.removeReadLater(item.url)
-        message.success('Removed from read later')
-        void refresh()
+        setBusyUrl(item.url)
+        try {
+            if (await clear(item)) {
+                message.success('Removed from read later')
+                void refresh()
+            }
+        } finally {
+            setBusyUrl(null)
+        }
     }
 
     return (
@@ -74,13 +97,20 @@ export function ReadLaterCard() {
                                 )}
                             </Flex>
                             <Space size={4}>
-                                <Button size="small" onClick={() => void bookmark(item)}>
+                                <Button
+                                    size="small"
+                                    loading={busyUrl === item.url}
+                                    disabled={busyUrl !== null && busyUrl !== item.url}
+                                    onClick={() => void bookmark(item)}
+                                >
                                     Bookmark
                                 </Button>
                                 <Button
                                     size="small"
                                     aria-label={`Done ${item.title}`}
                                     icon={<CheckOutlined aria-hidden="true" />}
+                                    loading={busyUrl === item.url}
+                                    disabled={busyUrl !== null && busyUrl !== item.url}
                                     onClick={() => void done(item)}
                                 />
                             </Space>
