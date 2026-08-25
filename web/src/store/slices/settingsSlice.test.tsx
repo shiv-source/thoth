@@ -26,7 +26,8 @@ const saved: Settings = {
     wiki_path: '~/.thoth/wiki',
     wiki_folders: [],
     model: 'claude-sonnet-5',
-    context_injection: false
+    context_injection: false,
+    conversation_retention_days: 7
 }
 
 const llmModel: LLMModel = {

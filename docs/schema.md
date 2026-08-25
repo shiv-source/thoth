@@ -156,6 +156,7 @@ The app's user-facing settings, key/value. `config.toml` is deprecated — this 
 | `provider_<slug>_base_url` | — (absent) | Retired, same cutover as the api key above |
 | `sync_active_connection` | — (absent) | The connection id the agent's git tools and the Settings tab default to (a `sync_connections` row); absent means no active connection |
 | `context_injection` | — (absent) | Opt-in pre-search of the wiki into each chat turn's first prompt (`'true'`/`'false'`; absent/other = off). Answers start faster and skip the search/read tool round-trips, but change answer semantics, so they must opt in |
+| `conversation_retention_days` | — (absent → 7) | Chat-history auto-delete window in days; absent/unparseable falls back to `settings.DefaultRetentionDays` (7), a stored `0` disables auto-delete. The `internal/retention` scheduler purges conversations older than the window on an hourly sweep |
 
 ### `sync_providers` (migration `0012_sync_providers.sql`)
 

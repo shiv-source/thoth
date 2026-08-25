@@ -9,7 +9,8 @@ const current: Settings = {
     wiki_path: '~/.thoth/wiki',
     wiki_folders: ['inbox', 'meetings'],
     model: 'deepseek-v4-flash',
-    context_injection: false
+    context_injection: false,
+    conversation_retention_days: 7
 }
 
 describe('settingsBody', () => {

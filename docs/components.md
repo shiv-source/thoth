@@ -16,6 +16,7 @@ The Go backend is organized as small packages with one purpose each, communicati
 | `internal/assets` | Static data files served by the API (embedded) | `llm-providers.json` → `ModelOptions` (the llm_models seed) |
 | `internal/store` | Conversations, messages, and the llm_models registry (same db file) | `Store` |
 | `internal/sync` | The multi-provider sync engine: the driver seam (git/s3/local), the restore capability, and the auto-sync scheduler over `sync_providers`/`sync_connections` | `Service`, `Driver`, `Restorer`, `Scheduler` |
+| `internal/retention` | The chat-history retention scheduler: purges conversations older than the configured window (default 7 days, 0 disables) on a background tick, reading the setting each sweep | `Scheduler` |
 | `internal/api` | Echo server: routes, WS hub, handlers | `Deps`, `New`, `Hub` |
 | `internal/config` | Localhost bind constants (`127.0.0.1:8333`) + `ExpandHome` path helper | `DefaultHost`, `DefaultPort`, `ExpandHome` |
 | `internal/doctor` | Shared install checks (the `thoth doctor` CLI and the Settings → Doctor tab run the same suite) | `Check`, `Run` |
@@ -106,7 +107,7 @@ Owns the driver seam the API and the agent-tool wiring depend on, never a concre
 
 ## internal/cli
 
-`Execute()` builds the root Cobra command. `serve` is a thin orchestration function whose helpers (`thothDir`, `settleWikiPath`, `ensureWiki`, `openIndex`, `defaultModel`, `modelProvider`, `ensureModels`, `ensureSyncProviders`, `ensureLocalBackup`, `gitToolOptions`, `onSettingsSaved`, `serveUntilShutdown`) keep each step readable. `gitToolOptions` wires the agent's git tools to the live wiki root and the active git-kind sync connection (lazy `Guard`/`Auth`/`Identity`); `ensureWiki` git-inits a pre-existing-but-unversioned wiki via `wiki.EnsureGitRepo`. serve also starts the auto-sync scheduler (`syncsvc.NewScheduler`), which reports each result on the event bus. Details: [CLI](cli.md).
+`Execute()` builds the root Cobra command. `serve` is a thin orchestration function whose helpers (`thothDir`, `settleWikiPath`, `ensureWiki`, `openIndex`, `defaultModel`, `modelProvider`, `ensureModels`, `ensureSyncProviders`, `ensureLocalBackup`, `gitToolOptions`, `onSettingsSaved`, `serveUntilShutdown`) keep each step readable. `gitToolOptions` wires the agent's git tools to the live wiki root and the active git-kind sync connection (lazy `Guard`/`Auth`/`Identity`); `ensureWiki` git-inits a pre-existing-but-unversioned wiki via `wiki.EnsureGitRepo`. serve also starts the auto-sync scheduler (`syncsvc.NewScheduler`), which reports each result on the event bus, and the chat-retention scheduler (`retention.NewScheduler`), which purges conversations older than the configured window (default 7 days, 0 disables; re-read each sweep so a Settings change applies without restart). Details: [CLI](cli.md).
 
 ## internal/doctor
 
@@ -118,7 +119,7 @@ Owns the driver seam the API and the agent-tool wiring depend on, never a concre
 
 ## internal/settings
 
-`Repo` (`OpenRepo(path)`) owns the `settings` KV table — `wiki_path`, `wiki_folders`, `model`, `sync_active_connection` (the connection the git tools default to), `context_injection` — with `ProviderConfig(provider)`, the model→provider→credential resolution `serve` uses at boot, which reads the `providers` table by name. The legacy per-provider key helpers (`ProviderAPIKeyKey`/`ProviderBaseURLKey`) survive only as the read keys of the `0011` credential backfill. Sync state lives on `sync_connections` rows, not here. It deliberately runs no migrations and no WAL pragma: the doctor must never mutate a database it only reads. Details: [Schema](schema.md).
+`Repo` (`OpenRepo(path)`) owns the `settings` KV table — `wiki_path`, `wiki_folders`, `model`, `sync_active_connection` (the connection the git tools default to), `context_injection`, `conversation_retention_days` (the chat-history auto-delete window; `ConversationRetentionDays` falls back to `DefaultRetentionDays`, 0 disables — the `internal/retention` scheduler reads it) — with `ProviderConfig(provider)`, the model→provider→credential resolution `serve` uses at boot, which reads the `providers` table by name. The legacy per-provider key helpers (`ProviderAPIKeyKey`/`ProviderBaseURLKey`) survive only as the read keys of the `0011` credential backfill. Sync state lives on `sync_connections` rows, not here. It deliberately runs no migrations and no WAL pragma: the doctor must never mutate a database it only reads. Details: [Schema](schema.md).
 
 ## internal/api — sync
 

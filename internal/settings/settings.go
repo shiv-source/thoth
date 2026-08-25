@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 
 	_ "modernc.org/sqlite"
@@ -24,7 +25,15 @@ const (
 	// first prompt (off by default — it changes answer semantics, so users
 	// opt in).
 	KeyContextInjection = "context_injection"
+	// KeyConversationRetentionDays is the chat-history auto-delete window in
+	// days; absent/unparseable falls back to DefaultRetentionDays and a stored
+	// zero disables auto-delete.
+	KeyConversationRetentionDays = "conversation_retention_days"
 )
+
+// DefaultRetentionDays is the conversation auto-delete window a fresh install
+// runs with when the settings key is absent.
+const DefaultRetentionDays = 7
 
 // providerSlug reduces a provider name to the slug used in its settings
 // keys: lowercased with non-alphanumeric characters removed ("Z.AI" → "zai",
@@ -179,4 +188,20 @@ func (r *Repo) ContextInjection() (bool, error) {
 		return false, err
 	}
 	return value == "true", nil
+}
+
+// ConversationRetentionDays reports the chat-history auto-delete window in
+// days. Anything but a stored integer (absent key, unparseable) falls back to
+// DefaultRetentionDays, so a fresh install keeps the documented window without
+// a seed row; a stored zero disables auto-delete.
+func (r *Repo) ConversationRetentionDays() (int, error) {
+	value, _, err := r.Setting(KeyConversationRetentionDays)
+	if err != nil {
+		return DefaultRetentionDays, err
+	}
+	n, err := strconv.Atoi(value)
+	if err != nil {
+		return DefaultRetentionDays, nil
+	}
+	return n, nil
 }

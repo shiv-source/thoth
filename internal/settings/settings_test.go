@@ -257,6 +257,35 @@ func TestFoldersParsing(t *testing.T) {
 	}
 }
 
+func TestConversationRetentionDays(t *testing.T) {
+	r := openTestRepo(t)
+	// Absent key falls back to the documented default.
+	if days, err := r.ConversationRetentionDays(); err != nil || days != settings.DefaultRetentionDays {
+		t.Fatalf("absent retention = %d/%v, want %d/nil", days, err, settings.DefaultRetentionDays)
+	}
+	// A stored value round-trips.
+	if err := r.SetSetting(settings.KeyConversationRetentionDays, "30"); err != nil {
+		t.Fatal(err)
+	}
+	if days, err := r.ConversationRetentionDays(); err != nil || days != 30 {
+		t.Fatalf("stored retention = %d/%v, want 30/nil", days, err)
+	}
+	// Zero disables auto-delete.
+	if err := r.SetSetting(settings.KeyConversationRetentionDays, "0"); err != nil {
+		t.Fatal(err)
+	}
+	if days, err := r.ConversationRetentionDays(); err != nil || days != 0 {
+		t.Fatalf("zero retention = %d/%v, want 0/nil", days, err)
+	}
+	// Unparseable values fall back to the default rather than erroring.
+	if err := r.SetSetting(settings.KeyConversationRetentionDays, "garbage"); err != nil {
+		t.Fatal(err)
+	}
+	if days, err := r.ConversationRetentionDays(); err != nil || days != settings.DefaultRetentionDays {
+		t.Fatalf("garbage retention = %d/%v, want %d/nil", days, err, settings.DefaultRetentionDays)
+	}
+}
+
 func TestRepoClosedErrors(t *testing.T) {
 	r := openTestRepo(t)
 	if err := r.Close(); err != nil {
@@ -279,5 +308,8 @@ func TestRepoClosedErrors(t *testing.T) {
 	}
 	if _, err := r.ContextInjection(); err == nil {
 		t.Fatal("ContextInjection on closed repo must error")
+	}
+	if _, err := r.ConversationRetentionDays(); err == nil {
+		t.Fatal("ConversationRetentionDays on closed repo must error")
 	}
 }

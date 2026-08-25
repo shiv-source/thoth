@@ -2,6 +2,7 @@ package api
 
 import (
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/labstack/echo/v4"
@@ -14,10 +15,11 @@ import (
 // destinations through /api/sync/connections — neither carries per-provider
 // state here.
 type settingsDTO struct {
-	WikiPath         string   `json:"wiki_path"`
-	WikiFolders      []string `json:"wiki_folders"`
-	Model            string   `json:"model"`
-	ContextInjection bool     `json:"context_injection"`
+	WikiPath                  string   `json:"wiki_path"`
+	WikiFolders               []string `json:"wiki_folders"`
+	Model                     string   `json:"model"`
+	ContextInjection          bool     `json:"context_injection"`
+	ConversationRetentionDays int      `json:"conversation_retention_days"`
 }
 
 func getSettings(c echo.Context, d Deps) error {
@@ -40,9 +42,14 @@ func getSettings(c echo.Context, d Deps) error {
 	if err != nil {
 		return internalError(c, d, "read context_injection", err)
 	}
+	retentionDays, err := d.Settings.ConversationRetentionDays()
+	if err != nil {
+		return internalError(c, d, "read conversation_retention_days", err)
+	}
 	return c.JSON(http.StatusOK, settingsDTO{
 		WikiPath: wikiPath, WikiFolders: wikiFolders, Model: model,
-		ContextInjection: contextInjection,
+		ContextInjection:          contextInjection,
+		ConversationRetentionDays: retentionDays,
 	})
 }
 
@@ -53,6 +60,9 @@ func putSettings(c echo.Context, d Deps) error {
 	}
 	if next.WikiPath == "" {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "wiki_path is required"})
+	}
+	if next.ConversationRetentionDays < 0 {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "conversation_retention_days cannot be negative"})
 	}
 	// The callback runs before the writes so a wiki-path change starts
 	// rebuilding the index immediately; a failed write after a successful
@@ -74,6 +84,9 @@ func putSettings(c echo.Context, d Deps) error {
 	}
 	if err := d.Settings.SetSetting(settings.KeyContextInjection, boolString(next.ContextInjection)); err != nil {
 		return internalError(c, d, "set context_injection", err)
+	}
+	if err := d.Settings.SetSetting(settings.KeyConversationRetentionDays, strconv.Itoa(next.ConversationRetentionDays)); err != nil {
+		return internalError(c, d, "set conversation_retention_days", err)
 	}
 	return c.JSON(http.StatusOK, next)
 }

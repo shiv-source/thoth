@@ -25,6 +25,7 @@ import (
 	"github.com/shiv-source/thoth/internal/assets"
 	"github.com/shiv-source/thoth/internal/config"
 	"github.com/shiv-source/thoth/internal/index"
+	"github.com/shiv-source/thoth/internal/retention"
 	"github.com/shiv-source/thoth/internal/settings"
 	"github.com/shiv-source/thoth/internal/store"
 	syncsvc "github.com/shiv-source/thoth/internal/sync"
@@ -178,6 +179,14 @@ func runServe(cmd *cobra.Command, dev bool, noAPIDocs bool) error {
 		}
 	})
 	go syncScheduler.Start(ctx)
+
+	// The chat-retention scheduler deletes conversations older than the
+	// configured window (default 7 days) every hour. It reads the window from
+	// the settings table on each sweep, so a change in Settings → General
+	// applies within the hour without a restart. It stops on ctx, so no
+	// goroutine outlives serve.
+	retentionScheduler := retention.NewScheduler(st, stg, log)
+	go retentionScheduler.Start(ctx)
 
 	// The native agent host drives every turn — no CLI subprocess exists
 	// anywhere in the chat path. Model, provider config, wiki (tools +

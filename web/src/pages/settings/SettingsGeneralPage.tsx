@@ -1,6 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
-import { App, Button, Card, Divider, Flex, Form, Progress, Select, Switch, Upload } from 'antd'
-import { BookOutlined, DownloadOutlined, RobotOutlined, SettingOutlined, UploadOutlined } from '@ant-design/icons'
+import { App, Button, Card, Divider, Flex, Form, InputNumber, Progress, Select, Switch, Upload } from 'antd'
+import {
+    BookOutlined,
+    DownloadOutlined,
+    MessageOutlined,
+    RobotOutlined,
+    SettingOutlined,
+    UploadOutlined
+} from '@ant-design/icons'
 import { api } from '../../api/client'
 import { fetchModels, selectHealth, selectModelGroups, selectSettings } from '../../store'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
@@ -190,6 +197,26 @@ export function SettingsGeneralPage() {
                             >
                                 <Switch />
                             </Form.Item>
+                        </div>
+                    </FormSection>
+
+                    <Divider className="my-8!" />
+
+                    <FormSection
+                        icon={MessageOutlined}
+                        title="Chat history"
+                        description="Conversations older than the retention window are deleted automatically. Set to 0 to keep chats forever."
+                    >
+                        <div className="rounded-lg border border-line bg-raised p-5">
+                            <div className="max-w-lg">
+                                <Form.Item
+                                    label="Auto-delete conversations after (days)"
+                                    name="conversation_retention_days"
+                                    extra="Defaults to 7. A shorter window frees storage sooner; 0 keeps everything."
+                                >
+                                    <InputNumber min={0} className="w-40" />
+                                </Form.Item>
+                            </div>
                         </div>
                     </FormSection>
 
