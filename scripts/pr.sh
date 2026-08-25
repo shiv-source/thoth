@@ -235,6 +235,39 @@ derive_title() {
   echo "pr: title: $TITLE"
 }
 
+# fill_body <body_file> — pre-fills the template's ## Summary and
+# ## Files changed sections from the branch's commits and diff, so a
+# non-interactive run still ships a real description. The human/agent
+# completes the rest (Related issue, How verified, Notes). Leaves the
+# template's other sections untouched.
+fill_body() {
+  local body="$1" summary_file files_file
+  summary_file="$(mktemp -t pr-summary.XXXXXX)"
+  files_file="$(mktemp -t pr-files.XXXXXX)"
+  git log --format='%s' main..HEAD 2>/dev/null | sed -E 's/^[a-z]+(\([^)]*\))?: /- /' > "$summary_file" || true
+  git diff --name-only main...HEAD 2>/dev/null | sed 's/^/- /' > "$files_file" || true
+
+  awk -v sf="$summary_file" -v ff="$files_file" '
+    /^## Summary$/ {
+      print; print ""
+      while ((getline l < sf) > 0) print l
+      close(sf)
+      skip = 1; next
+    }
+    /^## Related issue$/ { if (skip) print ""; skip = 0; print; next }
+    /^## Files changed$/ {
+      print; print ""
+      while ((getline l < ff) > 0) print l
+      close(ff)
+      skip = 1; next
+    }
+    /^## How verified$/ { if (skip) print ""; skip = 0; print; next }
+    { if (!skip) print }
+  ' "$body" > "$body.tmp" && mv "$body.tmp" "$body"
+
+  rm -f "$summary_file" "$files_file"
+}
+
 push_and_open() {
   # make check runs fmt → golangci-lint --fix, which rewrites files —
   # pushing uncommitted autofixes would hand CI a different tree
@@ -254,6 +287,7 @@ push_and_open() {
     body_file="$(mktemp -t pr-body.XXXXXX)"
     trap "rm -f '$body_file'" EXIT
     cp .github/pull_request_template.md "$body_file"
+    fill_body "$body_file"
     if [ -t 0 ]; then
       "${EDITOR:-vi}" "$body_file" || die "editor failed"
     fi

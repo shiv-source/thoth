@@ -21,7 +21,7 @@ The GitHub issue(s) this PR addresses. `Closes #<n>` auto-closes the issue
 when the PR merges, e.g. `Closes #43`. Omit this section when there is no issue.
 -->
 
-Closes #<issue>
+<!-- `Closes #<n>` — set the issue number here, or delete this line when there is no issue. -->
 
 ## Files changed
 
