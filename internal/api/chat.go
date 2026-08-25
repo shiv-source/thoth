@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/labstack/echo/v4"
@@ -41,7 +42,8 @@ type serverMsg struct {
 	Message        string          `json:"message,omitempty"`
 	ConversationID string          `json:"conversation_id,omitempty"`
 	Changes        []wiki.Change   `json:"changes,omitempty"`
-	Usage          *agentlib.Usage `json:"usage,omitempty"` // turn_done only; nil when the provider reported none
+	Usage          *agentlib.Usage `json:"usage,omitempty"`         // turn_done only; nil when the provider reported none
+	DurationSecs   *float64        `json:"duration_secs,omitempty"` // turn_done only; full-precision seconds
 	// SyncResult is the sync_result frame payload (auto-sync notification).
 	SyncResult *syncResultFrame `json:"sync_result,omitempty"`
 }
@@ -362,12 +364,14 @@ func (h *Hub) runTurn(convID, prompt string, write func(serverMsg)) {
 
 	write(serverMsg{Type: "assistant_start"})
 	var sb strings.Builder
+	start := time.Now()
 	usage, err := h.client.Start(ctx, convID, prompt, h.turnWriter(&sb, write, convID))
+	secs := time.Since(start).Seconds()
 	if h.finishTurn(convID, t, err, write) {
 		return
 	}
-	h.persistTurn(convID, sb.String(), usage)
-	m := serverMsg{Type: "turn_done", ConversationID: convID, Usage: usagePtr(usage)}
+	h.persistTurn(convID, sb.String(), usage, secs)
+	m := serverMsg{Type: "turn_done", ConversationID: convID, Usage: usagePtr(usage), DurationSecs: &secs}
 	// Record before writing: once the client has seen this frame it may
 	// already be resuming, and the replay must include everything sent.
 	h.record(convID, m)
@@ -426,10 +430,11 @@ func (h *Hub) isCurrent(convID string, t *turn) bool {
 	return h.turns[convID] == t
 }
 
-// persistTurn stores a completed assistant answer with its token usage (no-op
-// when the turn produced no text — usage rides on the answer's row, so a
-// tool-only turn that stored nothing has no usage to persist either).
-func (h *Hub) persistTurn(convID, text string, usage agentlib.Usage) {
+// persistTurn stores a completed assistant answer with its token usage and
+// duration (no-op when the turn produced no text — usage and duration ride on
+// the answer's row, so a tool-only turn that stored nothing has neither to
+// persist either).
+func (h *Hub) persistTurn(convID, text string, usage agentlib.Usage, durationSecs float64) {
 	if text == "" {
 		return
 	}
@@ -442,7 +447,7 @@ func (h *Hub) persistTurn(convID, text string, usage agentlib.Usage) {
 			raw = string(b)
 		}
 	}
-	if err := h.store.AddMessage(convID, "assistant", text, raw); err != nil {
+	if err := h.store.AddMessage(convID, "assistant", text, store.MessageMeta{Usage: raw, DurationSecs: durationSecs}); err != nil {
 		h.log.Warn("persist assistant message", "err", err)
 	}
 }

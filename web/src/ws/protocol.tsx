@@ -31,7 +31,8 @@ export const serverMessageSchema = z.discriminatedUnion('type', [
     z.object({
         type: z.literal(ServerEvent.TurnDone),
         conversation_id: z.string().optional(),
-        usage: tokenUsageSchema.optional()
+        usage: tokenUsageSchema.optional(),
+        duration_secs: z.number().optional()
     }),
     z.object({
         type: z.literal(ServerEvent.WikiChanged),

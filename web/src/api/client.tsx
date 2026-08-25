@@ -179,7 +179,8 @@ const Message = z.object({
     role: z.enum(['user', 'assistant']),
     content: z.string(),
     created_at: z.string(),
-    usage: TokenUsage.optional()
+    usage: TokenUsage.optional(),
+    duration_secs: z.number().optional()
 })
 export type Message = z.infer<typeof Message>
 

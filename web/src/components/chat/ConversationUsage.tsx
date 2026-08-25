@@ -2,12 +2,11 @@ import { Fragment } from 'react'
 import type { TokenUsage } from '../../ws/protocol'
 import { UsageTokens } from './UsageTokens'
 
-// UsageLine renders a message's token breakdown as a muted line in the
-// assistant message header — input/output counts with directional icons, plus
-// cache counters when present. It renders nothing when usage is absent
-// (provider reported none, or an older server sent no usage field).
-export function UsageLine({ usage }: { usage: TokenUsage | null }) {
-    if (usage === null) return null
+// ConversationUsage renders the whole conversation's accumulated token usage —
+// total input/output across every assistant turn, plus cache counters when
+// present — as a muted line beside the composer's model chip. It renders
+// nothing when no turn reported usage.
+export function ConversationUsage({ usage }: { usage: TokenUsage }) {
     if (
         usage.input_tokens === 0 &&
         usage.output_tokens === 0 &&
@@ -17,7 +16,7 @@ export function UsageLine({ usage }: { usage: TokenUsage | null }) {
         return null
     }
     return (
-        <span className="inline-flex items-center gap-1.5 text-xs text-subtle" aria-label="Token usage">
+        <span className="inline-flex items-center gap-1.5 text-xs text-subtle" aria-label="Conversation token usage">
             <UsageTokens input={usage.input_tokens} output={usage.output_tokens} />
             {usage.cache_read_tokens > 0 && (
                 <Fragment>

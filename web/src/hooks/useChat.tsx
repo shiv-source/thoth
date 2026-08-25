@@ -10,7 +10,6 @@ import {
     resetChat,
     selectConversationId,
     selectLastTool,
-    selectLastUsage,
     selectMessages,
     selectStreaming,
     selectThinking,
@@ -23,7 +22,7 @@ import {
 import { useAppDispatch, useAppSelector } from '../store/hooks'
 import type { ChatMessage } from '../store/slices/chatSlice'
 import { ChatSocket } from '../ws/chat'
-import type { ServerMessage, TokenUsage } from '../ws/protocol'
+import type { ServerMessage } from '../ws/protocol'
 import { ServerEvent } from '../ws/events'
 
 export type { ChatMessage }
@@ -39,7 +38,6 @@ export function useChat(socket: ChatSocket | null) {
     const lastTool = useAppSelector(selectLastTool)
     const thinking = useAppSelector(selectThinking)
     const thinkingText = useAppSelector(selectThinkingText)
-    const lastUsage = useAppSelector(selectLastUsage)
 
     const send = useCallback(
         (text: string) => {
@@ -72,7 +70,13 @@ export function useChat(socket: ChatSocket | null) {
                 case ServerEvent.TurnDone:
                     // The server sends the conversation id on every finished turn; keep
                     // it so a reconnect can resume this conversation.
-                    dispatch(turnDone({ conversationId: m.conversation_id ?? null, usage: m.usage }))
+                    dispatch(
+                        turnDone({
+                            conversationId: m.conversation_id ?? null,
+                            usage: m.usage,
+                            durationSecs: m.duration_secs
+                        })
+                    )
                     break
                 case ServerEvent.WikiChanged:
                     // The watcher saw wiki files change: the tree is stale,
@@ -102,11 +106,10 @@ export function useChat(socket: ChatSocket | null) {
 
     // load replaces the whole conversation with history fetched from the server.
     // Local only — the caller pins the server side via socket.open(conversationId).
-    // usage restores the last completed turn's token footer, when the persisted
-    // assistant message carries one.
+    // Per-message usage rides on the assistant messages from persisted history.
     const load = useCallback(
-        (msgs: ChatMessage[], convId: string, usage?: TokenUsage) => {
-            dispatch(loadChat({ messages: msgs, conversationId: convId, usage }))
+        (msgs: ChatMessage[], convId: string) => {
+            dispatch(loadChat({ messages: msgs, conversationId: convId }))
         },
         [dispatch]
     )
@@ -130,7 +133,6 @@ export function useChat(socket: ChatSocket | null) {
         lastTool,
         thinking,
         thinkingText,
-        lastUsage,
         send,
         cancel,
         load,

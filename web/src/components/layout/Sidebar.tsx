@@ -1,5 +1,5 @@
 import { Button, Layout } from 'antd'
-import { PlusOutlined } from '@ant-design/icons'
+import { MessageOutlined } from '@ant-design/icons'
 import { navigate } from '../../hooks/useConversationRoute'
 import { ChatsList } from './ChatsList'
 
@@ -17,7 +17,7 @@ export function Sidebar() {
                     <Button
                         type="primary"
                         block
-                        icon={<PlusOutlined aria-hidden="true" />}
+                        icon={<MessageOutlined aria-hidden="true" />}
                         onClick={() => navigate('/chat')}
                     >
                         New chat

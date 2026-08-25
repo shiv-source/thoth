@@ -1,17 +1,21 @@
 import { useState } from 'react'
 import { Button, Input } from 'antd'
 import { SendOutlined } from '@ant-design/icons'
+import { ConversationUsage } from './ConversationUsage'
+import type { TokenUsage } from '../../ws/protocol'
 
 export function Composer({
     onSend,
     onCancel,
     streaming,
-    model
+    model,
+    usage
 }: {
     onSend: (text: string) => void
     onCancel: () => void
     streaming: boolean
     model?: string
+    usage?: TokenUsage
 }) {
     // The draft is deliberately local state, not Redux: dispatching on
     // every keystroke would re-render the store tree for no benefit.
@@ -66,12 +70,15 @@ export function Composer({
             </div>
             <div className="mt-2 flex items-center justify-between gap-3 px-1">
                 <span className="text-xs text-faint">Enter to send · Shift+Enter for a new line</span>
-                {model && (
-                    <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-line bg-surface px-2 py-0.5 text-xs text-subtle">
-                        <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-success" />
-                        {model}
-                    </span>
-                )}
+                <span className="flex shrink-0 items-center gap-3">
+                    {usage && <ConversationUsage usage={usage} />}
+                    {model && (
+                        <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-line bg-surface px-2 py-0.5 text-xs text-subtle">
+                            <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-success" />
+                            {model}
+                        </span>
+                    )}
+                </span>
             </div>
         </form>
     )

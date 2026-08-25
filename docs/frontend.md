@@ -24,7 +24,7 @@ web/src/
 │   └── setup/           #   SetupPage
 ├── components/          # feature components, grouped by owner page
 │   ├── layout/          #   AppSider, Sidebar, DevBanner
-│   ├── chat/            #   Composer, MessageItem, UsageLine
+│   ├── chat/            #   Composer, MessageItem, UsageLine, UsageTokens, ConversationUsage
 │   ├── dashboard/       #   charts + useThemeColors
 │   ├── notes/           #   NoteViewer, WikiTree
 │   └── search/          #   SearchPanel
@@ -65,7 +65,9 @@ semantic tokens.
 | `Sidebar` | Chat view's history column (antd `Layout.Sider`): "New chat" primary button + the day-grouped conversation list (`ChatsList`) || `ChatsList` | The day-grouped conversation history (one antd `List` per Today/Yesterday/Previous 7 days/Older), re-fetched on URL change, active item kept in view; deletes via text button + antd Tooltip, toasts via `App.useApp().message` |
 | `ChatPage` | Owns the socket lifecycle (created in an effect, closed on unmount); compact `StatusPill` chips for connection/thinking/tool status (replacing full-width banners); the brand-hero `ChatEmptyState` with suggested prompts when empty; message list + scroll; toasts via `App.useApp().message` |
 | `Composer` | antd `Input.TextArea autoSize` (Enter = send, Shift+Enter = newline) + primary Send / Stop buttons in a two-row bar with a hint line and a model chip (default model from the settings slice) — sending while streaming supersedes the turn; the draft is deliberately local state |
-| `MessageItem` | Memoized row: user bubble vs assistant (react-markdown + GFM) with streaming caret; 2xl bubbles with a soft shadow on assistant rows; antd Tooltip + CopyButton for the copy action; assistant rows lead with the `AssistantIcon` avatar; a `SaveAsNote` button on completed assistant rows promotes the answer into a wiki note |
+| `MessageItem` | Memoized row: user bubble vs assistant (react-markdown + GFM) with streaming caret; 2xl bubbles with a soft shadow on assistant rows; completed assistant rows lead with a header bar (turn `durationSecs` + `UsageLine` token breakdown left; Tooltip'd `CopyButton` + `SaveAsNote` right); assistant rows lead with the `AssistantIcon` avatar |
+| `UsageTokens` | The shared in/out token motif: a down arrow (`input tokens`) and up arrow (`output tokens`) beside comma-grouped `tabular-nums` counts, separated by a middot; used by `UsageLine` and `ConversationUsage` |
+| `ConversationUsage` | Muted line in the composer's bottom row, just left of the model chip: the whole conversation's accumulated token usage (`selectTotalUsage`, `UsageTokens` counts, cache counters when non-zero); hidden while nothing reports usage |
 | `SaveAsNote` | The chat "Save as note" action: a Tooltip'd save Button on assistant messages opens a `Modal` with a folder `Select` (configured folders from the settings slice, defaulting to the first; `virtual={false}` for jsdom-compatible tests); saving calls `api.saveNote` (`POST /api/v1/notes`), toasts the created path via the notifications slice, and refetches the wiki tree |
 | `AssistantIcon` | The small `LogoMark` brand tile (the owl) shown left of every assistant message, tying the assistant to the product |
 | `ChatEmptyState` | The empty-conversation hero: `Logo` lockup, "Ask anything" headline, and suggested-prompt chips that send a conversation directly |

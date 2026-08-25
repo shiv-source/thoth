@@ -4,17 +4,23 @@ import type { TokenUsage } from '../../ws/protocol'
 import { UsageLine } from './UsageLine'
 
 describe('UsageLine', () => {
-    it('renders the input/output counts when usage is present', () => {
+    it('renders the input/output counts with directional icons when usage is present', () => {
         const usage: TokenUsage = { input_tokens: 120, output_tokens: 45, cache_read_tokens: 0, cache_write_tokens: 0 }
         render(<UsageLine usage={usage} />)
-        expect(screen.getByText('120 in · 45 out')).toBeInTheDocument()
         expect(screen.getByLabelText('Token usage')).toBeInTheDocument()
+        expect(screen.getByLabelText('input tokens')).toBeInTheDocument()
+        expect(screen.getByLabelText('output tokens')).toBeInTheDocument()
+        expect(screen.getByText('120')).toBeInTheDocument()
+        expect(screen.getByText('45')).toBeInTheDocument()
     })
 
     it('appends cache counters only when non-zero', () => {
         const usage: TokenUsage = { input_tokens: 10, output_tokens: 4, cache_read_tokens: 5, cache_write_tokens: 3 }
         render(<UsageLine usage={usage} />)
-        expect(screen.getByText('10 in · 4 out · 5 cache read · 3 cache write')).toBeInTheDocument()
+        expect(screen.getByText('10')).toBeInTheDocument()
+        expect(screen.getByText('4')).toBeInTheDocument()
+        expect(screen.getByText('5 cache read')).toBeInTheDocument()
+        expect(screen.getByText('3 cache write')).toBeInTheDocument()
     })
 
     it('renders nothing when usage is absent', () => {

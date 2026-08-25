@@ -27,6 +27,17 @@ type Message struct {
 	// "cache_write_tokens":N}); nil on user messages and rows written before
 	// usage was tracked.
 	Usage json.RawMessage `json:"usage,omitempty"`
+	// DurationSecs is the assistant turn's wall-clock seconds, kept at full
+	// precision (the UI formats it); nil on user messages and rows written
+	// before duration was tracked.
+	DurationSecs *float64 `json:"duration_secs,omitempty"`
+}
+
+// MessageMeta is the optional telemetry for one message row: the assistant
+// turn's token breakdown (raw JSON) and its wall-clock duration.
+type MessageMeta struct {
+	Usage        string
+	DurationSecs float64
 }
 
 type Store struct {
@@ -125,17 +136,23 @@ func (s *Store) DeleteConversation(convID string) error {
 	return nil
 }
 
-// AddMessage inserts a message. The optional usage is a raw JSON token
-// breakdown carried by the turn's assistant message (see Message.Usage); it is
-// stored as NULL when absent.
-func (s *Store) AddMessage(convID, role, content string, usage ...string) error {
+// AddMessage inserts a message. The optional meta carries the turn's telemetry
+// (usage JSON + duration seconds) for the assistant message that ended the
+// turn; both are stored as NULL when absent (user messages, older rows).
+func (s *Store) AddMessage(convID, role, content string, meta ...MessageMeta) error {
 	var usageVal any
-	if len(usage) > 0 && usage[0] != "" {
-		usageVal = usage[0]
+	var durationVal any
+	if len(meta) > 0 {
+		if meta[0].Usage != "" {
+			usageVal = meta[0].Usage
+		}
+		if meta[0].DurationSecs > 0 {
+			durationVal = meta[0].DurationSecs
+		}
 	}
 	_, err := s.db.Exec(
-		`INSERT INTO messages(conversation_id, role, content, usage, created_at) VALUES (?, ?, ?, ?, ?)`,
-		convID, role, content, usageVal, time.Now().UTC().Format(time.RFC3339))
+		`INSERT INTO messages(conversation_id, role, content, usage, duration_secs, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
+		convID, role, content, usageVal, durationVal, time.Now().UTC().Format(time.RFC3339))
 	if err != nil {
 		return fmt.Errorf("add message: %w", err)
 	}
@@ -169,7 +186,7 @@ func (s *Store) ListConversations() ([]Conversation, error) {
 // Messages returns the messages of a conversation in insertion order.
 func (s *Store) Messages(convID string) ([]Message, error) {
 	rows, err := s.db.Query(
-		`SELECT id, conversation_id, role, content, created_at, usage FROM messages WHERE conversation_id = ? ORDER BY id ASC`,
+		`SELECT id, conversation_id, role, content, created_at, usage, duration_secs FROM messages WHERE conversation_id = ? ORDER BY id ASC`,
 		convID)
 	if err != nil {
 		return nil, fmt.Errorf("list messages: %w", err)
@@ -180,7 +197,8 @@ func (s *Store) Messages(convID string) ([]Message, error) {
 		var m Message
 		var created string
 		var usage sql.NullString
-		if err := rows.Scan(&m.ID, &m.ConversationID, &m.Role, &m.Content, &created, &usage); err != nil {
+		var duration sql.NullFloat64
+		if err := rows.Scan(&m.ID, &m.ConversationID, &m.Role, &m.Content, &created, &usage, &duration); err != nil {
 			return nil, fmt.Errorf("scan message: %w", err)
 		}
 		if t, err := time.Parse(time.RFC3339, created); err == nil {
@@ -188,6 +206,9 @@ func (s *Store) Messages(convID string) ([]Message, error) {
 		}
 		if usage.Valid && usage.String != "" {
 			m.Usage = json.RawMessage(usage.String)
+		}
+		if duration.Valid {
+			m.DurationSecs = &duration.Float64
 		}
 		out = append(out, m)
 	}

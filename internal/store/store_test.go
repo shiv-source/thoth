@@ -242,8 +242,8 @@ func TestFreshOpenRunsAllMigrations(t *testing.T) {
 	if err := s.db.QueryRow(`PRAGMA user_version`).Scan(&v); err != nil {
 		t.Fatal(err)
 	}
-	if v != 15 {
-		t.Fatalf("user_version = %d, want 15 (one migration per table, plus the last_attempt_at column and provider_headers)", v)
+	if v != 16 {
+		t.Fatalf("user_version = %d, want 16 (one migration per table, plus the last_attempt_at, provider_headers, and duration_secs columns)", v)
 	}
 	// The settings seed lands with the migrations.
 	var wikiPath string
@@ -286,7 +286,7 @@ func TestMessageUsageRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 	const usage = `{"input_tokens":10,"output_tokens":4,"cache_read_tokens":5,"cache_write_tokens":3}`
-	if err := s.AddMessage(id, "assistant", "answer", usage); err != nil {
+	if err := s.AddMessage(id, "assistant", "answer", MessageMeta{Usage: usage, DurationSecs: 12.5}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -299,6 +299,42 @@ func TestMessageUsageRoundTrip(t *testing.T) {
 	}
 	if string(msgs[1].Usage) != usage {
 		t.Fatalf("assistant usage = %s, want %s", msgs[1].Usage, usage)
+	}
+	if msgs[1].DurationSecs == nil || *msgs[1].DurationSecs != 12.5 {
+		t.Fatalf("assistant duration = %v, want 12.5", msgs[1].DurationSecs)
+	}
+	if msgs[0].DurationSecs != nil {
+		t.Fatalf("user message has duration %v, want none", msgs[0].DurationSecs)
+	}
+}
+
+func TestMessageDurationRoundTrip(t *testing.T) {
+	s, err := Open(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = s.Close() })
+
+	id, err := s.CreateConversation("duration")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.AddMessage(id, "user", "question"); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.AddMessage(id, "assistant", "answer", MessageMeta{DurationSecs: 7.25}); err != nil {
+		t.Fatal(err)
+	}
+
+	msgs, err := s.Messages(id)
+	if err != nil || len(msgs) != 2 {
+		t.Fatalf("Messages: %v %+v", err, msgs)
+	}
+	if msgs[0].DurationSecs != nil {
+		t.Fatalf("user message has duration %v, want none", msgs[0].DurationSecs)
+	}
+	if msgs[1].DurationSecs == nil || *msgs[1].DurationSecs != 7.25 {
+		t.Fatalf("assistant duration = %v, want 7.25", msgs[1].DurationSecs)
 	}
 }
 
