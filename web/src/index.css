@@ -110,6 +110,16 @@
     margin-bottom: 0;
 }
 
+/* Wiki tree — DirectoryTree's content wrapper defaults to flex:auto with
+   min-width:auto, so a long filename stretches the row instead of wrapping
+   (breaking the folder column). Constrain it so the truncate span in
+   TreeNodeLabel ellipsizes; the full name is available on hover via the
+   leaf's Tooltip. */
+.wiki-tree .ant-tree-node-content-wrapper {
+    min-width: 0;
+    overflow: hidden;
+}
+
 @keyframes slide-in-right {
     from {
         transform: translateX(100%);
