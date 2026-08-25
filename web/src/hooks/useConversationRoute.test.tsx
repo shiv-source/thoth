@@ -1,7 +1,7 @@
 import { act, renderHook } from '@testing-library/react'
 import { useCallback, useState } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { api, type TokenUsage } from '../api/client'
+import { api } from '../api/client'
 import type { ChatSocket } from '../ws/chat'
 import type { ChatMessage } from './useChat'
 import { useConversationRoute } from './useConversationRoute'
@@ -29,8 +29,8 @@ function renderRoute(initialId: string | null = null) {
     const utils = renderHook(() => {
         const [conv, setConv] = useState(initialId)
         const loadImpl = useCallback(
-            (msgs: ChatMessage[], cid: string, usage?: TokenUsage) => {
-                load(msgs, cid, usage)
+            (msgs: ChatMessage[], cid: string) => {
+                load(msgs, cid)
                 setConv(cid)
             },
             [load]
@@ -60,12 +60,12 @@ describe('useConversationRoute', () => {
 
         await flush()
         expect(getConversation).toHaveBeenCalledWith(ID_A)
-        expect(load).toHaveBeenCalledWith([{ role: 'user', content: 'hi' }], ID_A, undefined)
+        expect(load).toHaveBeenCalledWith([{ role: 'user', content: 'hi' }], ID_A)
         expect(open).toHaveBeenCalledWith(ID_A)
         expect(window.location.pathname).toBe(`/chat/${ID_A}`)
     })
 
-    it('passes the persisted last-message usage to load', async () => {
+    it('passes per-message usage and duration to load', async () => {
         window.history.pushState(null, '', `/chat/${ID_A}`)
         getConversation.mockResolvedValue({
             conversation: {} as never,
@@ -76,18 +76,24 @@ describe('useConversationRoute', () => {
                     role: 'assistant' as const,
                     content: 'answer',
                     created_at: '2026-08-15T00:00:00Z',
-                    usage: { input_tokens: 8, output_tokens: 2, cache_read_tokens: 0, cache_write_tokens: 0 }
+                    usage: { input_tokens: 8, output_tokens: 2, cache_read_tokens: 0, cache_write_tokens: 0 },
+                    duration_secs: 5
                 }
             ]
         })
         const { load } = renderRoute()
         await flush()
-        expect(load).toHaveBeenCalledWith([{ role: 'assistant', content: 'answer' }], ID_A, {
-            input_tokens: 8,
-            output_tokens: 2,
-            cache_read_tokens: 0,
-            cache_write_tokens: 0
-        })
+        expect(load).toHaveBeenCalledWith(
+            [
+                {
+                    role: 'assistant',
+                    content: 'answer',
+                    usage: { input_tokens: 8, output_tokens: 2, cache_read_tokens: 0, cache_write_tokens: 0 },
+                    durationSecs: 5
+                }
+            ],
+            ID_A
+        )
     })
 
     it('stays a fresh chat on the root path', async () => {
@@ -136,7 +142,7 @@ describe('useConversationRoute', () => {
         await flush()
 
         expect(getConversation).toHaveBeenCalledWith(ID_B)
-        expect(load).toHaveBeenCalledWith([{ role: 'user', content: 'back' }], ID_B, undefined)
+        expect(load).toHaveBeenCalledWith([{ role: 'user', content: 'back' }], ID_B)
         expect(window.location.pathname).toBe(`/chat/${ID_B}`)
     })
 })

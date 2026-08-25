@@ -425,6 +425,59 @@ func TestChatTurnDoneCarriesUsage(t *testing.T) {
 	}
 }
 
+func TestChatTurnDoneCarriesDuration(t *testing.T) {
+	d := testDeps(t)
+	d.Claude = &FakeClient{
+		Script: []agentlib.Event{
+			{Type: agentlib.EventDelta, Text: "answer"},
+			{Type: agentlib.EventDone},
+		},
+	}
+	e := New(d)
+
+	conn, _, err := websocket.DefaultDialer.Dial(wsURL(t, e), nil)
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	defer func() { _ = conn.Close() }()
+
+	if err := conn.WriteJSON(map[string]string{"type": "send", "text": "hello"}); err != nil {
+		t.Fatal(err)
+	}
+	var frameDur float64
+	for {
+		m := readMsg(t, conn)
+		if m["type"] != "turn_done" {
+			continue
+		}
+		d, ok := m["duration_secs"].(float64)
+		if !ok {
+			t.Fatalf("turn_done missing duration_secs: %+v", m)
+		}
+		frameDur = d
+		break
+	}
+	if frameDur < 0 {
+		t.Fatalf("duration_secs = %v, want a non-negative value", frameDur)
+	}
+
+	// The assistant message row carries the same duration.
+	convs, err := d.Store.ListConversations()
+	if err != nil || len(convs) != 1 {
+		t.Fatalf("conversation not persisted: %v %+v", err, convs)
+	}
+	msgs, err := d.Store.Messages(convs[0].ID)
+	if err != nil || len(msgs) != 2 {
+		t.Fatalf("messages not persisted: %v %+v", err, msgs)
+	}
+	if msgs[1].DurationSecs == nil || *msgs[1].DurationSecs != frameDur {
+		t.Fatalf("persisted duration %v does not match turn_done %v", msgs[1].DurationSecs, frameDur)
+	}
+	if msgs[0].DurationSecs != nil {
+		t.Fatalf("user message carries duration %v, want none", msgs[0].DurationSecs)
+	}
+}
+
 func TestChatTurnDoneOmitsEmptyUsage(t *testing.T) {
 	d := testDeps(t)
 	d.Claude = &FakeClient{Script: []agentlib.Event{{Type: agentlib.EventDone}}}

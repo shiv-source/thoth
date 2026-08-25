@@ -82,7 +82,7 @@ describe('ChatPage', () => {
         await waitFor(() => expect(mocks.get).toHaveBeenCalledWith('/api/v1/conversations'))
     })
 
-    it('shows token usage under the last message when turn_done carries it', () => {
+    it('shows token usage in the message header and conversation total when turn_done carries it', () => {
         renderPanel()
         act(() => FakeWS.instances[0]!.open())
         const emit = (frame: object) => act(() => FakeWS.instances[0]!.onmessage?.({ data: JSON.stringify(frame) }))
@@ -93,10 +93,11 @@ describe('ChatPage', () => {
             conversation_id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1',
             usage: { input_tokens: 10, output_tokens: 4, cache_read_tokens: 5, cache_write_tokens: 0 }
         })
-        expect(screen.getByText('10 in · 4 out · 5 cache read')).toBeInTheDocument()
+        expect(screen.getByLabelText('Token usage')).toBeInTheDocument()
+        expect(screen.getByLabelText('Conversation token usage')).toBeInTheDocument()
     })
 
-    it('renders no usage line when turn_done carries none', () => {
+    it('renders no usage when turn_done carries none', () => {
         renderPanel()
         act(() => FakeWS.instances[0]!.open())
         const emit = (frame: object) => act(() => FakeWS.instances[0]!.onmessage?.({ data: JSON.stringify(frame) }))
@@ -104,6 +105,35 @@ describe('ChatPage', () => {
         emit({ type: 'assistant_delta', text: 'the answer' })
         emit({ type: 'turn_done', conversation_id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1' })
         expect(screen.queryByLabelText('Token usage')).not.toBeInTheDocument()
+        expect(screen.queryByLabelText('Conversation token usage')).not.toBeInTheDocument()
+    })
+
+    it('totals input/output tokens across turns in the composer row', () => {
+        renderPanel()
+        act(() => FakeWS.instances[0]!.open())
+        const emit = (frame: object) => act(() => FakeWS.instances[0]!.onmessage?.({ data: JSON.stringify(frame) }))
+
+        emit({ type: 'assistant_start' })
+        emit({ type: 'assistant_delta', text: 'first' })
+        emit({
+            type: 'turn_done',
+            conversation_id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1',
+            usage: { input_tokens: 10, output_tokens: 4, cache_read_tokens: 5, cache_write_tokens: 0 }
+        })
+        emit({ type: 'assistant_start' })
+        emit({ type: 'assistant_delta', text: 'second' })
+        emit({
+            type: 'turn_done',
+            conversation_id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1',
+            usage: { input_tokens: 30, output_tokens: 7, cache_read_tokens: 0, cache_write_tokens: 2 }
+        })
+
+        const total = screen.getByLabelText('Conversation token usage')
+        expect(total).toHaveTextContent('40')
+        expect(total).toHaveTextContent('11')
+        expect(total).toHaveTextContent('5 cache read')
+        expect(total).toHaveTextContent('2 cache write')
+        expect(total).not.toHaveTextContent('Total')
     })
 })
 

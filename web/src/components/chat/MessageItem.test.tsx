@@ -44,6 +44,54 @@ describe('MessageItem copy', () => {
     })
 })
 
+describe('MessageItem header', () => {
+    it('renders duration, token usage and actions in the assistant header', () => {
+        renderWithStore(
+            <MessageItem
+                message={{
+                    role: 'assistant',
+                    content: 'answer',
+                    usage: { input_tokens: 120, output_tokens: 45, cache_read_tokens: 0, cache_write_tokens: 0 },
+                    durationSecs: 14.256
+                }}
+            />
+        )
+
+        expect(screen.getByText('14.26s')).toBeInTheDocument()
+        expect(screen.getByLabelText('Token usage')).toBeInTheDocument()
+        expect(screen.getByLabelText('input tokens')).toBeInTheDocument()
+        expect(screen.getByLabelText('output tokens')).toBeInTheDocument()
+        expect(screen.getByText('120')).toBeInTheDocument()
+        expect(screen.getByText('45')).toBeInTheDocument()
+        expect(screen.getByRole('button', { name: 'Copy message' })).toBeInTheDocument()
+        expect(screen.getByRole('button', { name: 'Save as note' })).toBeInTheDocument()
+    })
+
+    it('trims trailing zeros from the duration', () => {
+        renderWithStore(
+            <MessageItem
+                message={{
+                    role: 'assistant',
+                    content: 'answer',
+                    durationSecs: 12.5
+                }}
+            />
+        )
+
+        expect(screen.getByText('12.5s')).toBeInTheDocument()
+        expect(screen.queryByText('12.50s')).not.toBeInTheDocument()
+    })
+
+    it('shows the actions header without duration or usage when the message has none', () => {
+        renderWithStore(<MessageItem message={{ role: 'assistant', content: 'no counters' }} />)
+
+        expect(screen.queryByLabelText('Turn duration')).not.toBeInTheDocument()
+        expect(screen.queryByLabelText('Token usage')).not.toBeInTheDocument()
+        expect(screen.getByRole('button', { name: 'Copy message' })).toBeInTheDocument()
+        expect(screen.getByRole('button', { name: 'Save as note' })).toBeInTheDocument()
+    })
+})
+
 describe('MessageItem note chips', () => {
     it('renders cited note paths as clickable chips and plain code unchanged', () => {
         const onOpenNote = vi.fn()

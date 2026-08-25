@@ -2,13 +2,19 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { App, Flex } from 'antd'
 import { useChat } from '../../hooks/useChat'
 import { useConversationRoute } from '../../hooks/useConversationRoute'
-import { fetchConversations, fetchSettings, selectConnectionStatus, selectSettings, setStatus } from '../../store'
+import {
+    fetchConversations,
+    fetchSettings,
+    selectConnectionStatus,
+    selectSettings,
+    selectTotalUsage,
+    setStatus
+} from '../../store'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import { ChatSocket } from '../../ws/chat'
 import { Composer } from '../../components/chat/Composer'
 import { MessageItem } from '../../components/chat/MessageItem'
 import { AppHeader } from '../../shared/AppHeader'
-import { UsageLine } from '../../components/chat/UsageLine'
 import { ChatEmptyState } from '../../components/chat/ChatEmptyState'
 import { StatusPill } from '../../components/chat/StatusPill'
 
@@ -30,22 +36,12 @@ export function ChatPage({
     // The connection status lives in the store so the whole app can react to
     // it; the socket only reports changes.
     const status = useAppSelector(selectConnectionStatus)
-    const {
-        messages,
-        streaming,
-        lastTool,
-        thinking,
-        thinkingText,
-        conversationId,
-        lastUsage,
-        send,
-        cancel,
-        load,
-        reset
-    } = useChat(socket)
+    const { messages, streaming, lastTool, thinking, thinkingText, conversationId, send, cancel, load, reset } =
+        useChat(socket)
     const { message } = App.useApp()
     const endRef = useRef<HTMLDivElement>(null)
     const settings = useAppSelector(selectSettings)
+    const totalUsage = useAppSelector(selectTotalUsage)
     const model = settings.data?.model ?? ''
 
     // The composer's model chip reads the default model; settings load on
@@ -128,11 +124,10 @@ export function ChatPage({
                             onOpenNote={onOpenNote}
                         />
                     ))}
-                    {lastUsage !== null && <UsageLine usage={lastUsage} />}
                     <div ref={endRef} />
                 </Flex>
             </div>
-            <Composer onSend={send} onCancel={cancel} streaming={streaming} model={model} />
+            <Composer onSend={send} onCancel={cancel} streaming={streaming} model={model} usage={totalUsage} />
         </div>
     )
 }

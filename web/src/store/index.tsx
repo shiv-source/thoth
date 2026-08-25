@@ -78,7 +78,7 @@ export {
     selectLastTool,
     selectThinking,
     selectThinkingText,
-    selectLastUsage
+    selectTotalUsage
 } from './slices/chatSlice'
 export { setStatus, selectConnectionStatus } from './slices/connectionSlice'
 export {

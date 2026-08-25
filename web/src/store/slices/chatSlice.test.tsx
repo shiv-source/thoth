@@ -9,11 +9,11 @@ import {
     resetChat,
     selectConversationId,
     selectLastTool,
-    selectLastUsage,
     selectMessages,
     selectStreaming,
     selectThinking,
     selectThinkingText,
+    selectTotalUsage,
     stopStreaming,
     toolActivity,
     turnDone,
@@ -33,7 +33,6 @@ describe('chatSlice', () => {
         expect(selectLastTool(store.getState())).toBeNull()
         expect(selectThinking(store.getState())).toBe(false)
         expect(selectThinkingText(store.getState())).toBe('')
-        expect(selectLastUsage(store.getState())).toBeNull()
     })
 
     it('pushes the user message and starts streaming on send', () => {
@@ -98,26 +97,35 @@ describe('chatSlice', () => {
         expect(selectConversationId(store.getState())).toBe('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1')
     })
 
-    it('records token usage from turn_done and clears it on a new send', () => {
+    it('attaches token usage and duration to the assistant message on turn_done', () => {
+        store.dispatch(userMessage('hi'))
+        store.dispatch(assistantDelta('answer'))
         store.dispatch(
             turnDone({
                 conversationId: null,
-                usage: { input_tokens: 10, output_tokens: 4, cache_read_tokens: 5, cache_write_tokens: 3 }
+                usage: { input_tokens: 10, output_tokens: 4, cache_read_tokens: 5, cache_write_tokens: 3 },
+                durationSecs: 12
             })
         )
-        expect(selectLastUsage(store.getState())).toEqual({
-            input_tokens: 10,
-            output_tokens: 4,
-            cache_read_tokens: 5,
-            cache_write_tokens: 3
-        })
-        store.dispatch(userMessage('next question'))
-        expect(selectLastUsage(store.getState())).toBeNull()
+        expect(selectMessages(store.getState())).toEqual([
+            { role: 'user', content: 'hi' },
+            {
+                role: 'assistant',
+                content: 'answer',
+                usage: { input_tokens: 10, output_tokens: 4, cache_read_tokens: 5, cache_write_tokens: 3 },
+                durationSecs: 12
+            }
+        ])
     })
 
-    it('stays null when turn_done carries no usage', () => {
+    it('leaves no usage or duration when turn_done carries none', () => {
+        store.dispatch(userMessage('hi'))
+        store.dispatch(assistantDelta('answer'))
         store.dispatch(turnDone({ conversationId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1' }))
-        expect(selectLastUsage(store.getState())).toBeNull()
+        expect(selectMessages(store.getState())).toEqual([
+            { role: 'user', content: 'hi' },
+            { role: 'assistant', content: 'answer' }
+        ])
     })
 
     it('surfaces error frames as a visible assistant message', () => {
@@ -168,23 +176,30 @@ describe('chatSlice', () => {
         expect(selectStreaming(store.getState())).toBe(false)
     })
 
-    it('restores lastUsage when loaded history carries it', () => {
+    it('restores per-message usage and duration when loaded history carries it', () => {
         store.dispatch(
             loadChat({
                 messages: [
                     { role: 'user', content: 'q' },
-                    { role: 'assistant', content: 'a' }
+                    {
+                        role: 'assistant',
+                        content: 'a',
+                        usage: { input_tokens: 10, output_tokens: 4, cache_read_tokens: 0, cache_write_tokens: 0 },
+                        durationSecs: 9
+                    }
                 ],
-                conversationId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1',
-                usage: { input_tokens: 10, output_tokens: 4, cache_read_tokens: 0, cache_write_tokens: 0 }
+                conversationId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1'
             })
         )
-        expect(selectLastUsage(store.getState())).toEqual({
-            input_tokens: 10,
-            output_tokens: 4,
-            cache_read_tokens: 0,
-            cache_write_tokens: 0
-        })
+        expect(selectMessages(store.getState())).toEqual([
+            { role: 'user', content: 'q' },
+            {
+                role: 'assistant',
+                content: 'a',
+                usage: { input_tokens: 10, output_tokens: 4, cache_read_tokens: 0, cache_write_tokens: 0 },
+                durationSecs: 9
+            }
+        ])
     })
 
     it('stops streaming on cancel', () => {
@@ -203,5 +218,42 @@ describe('chatSlice', () => {
         expect(selectConversationId(store.getState())).toBeNull()
         expect(selectStreaming(store.getState())).toBe(false)
         expect(selectLastTool(store.getState())).toBeNull()
+    })
+
+    it('sums total input/output tokens across assistant messages', () => {
+        store.dispatch(userMessage('q1'))
+        store.dispatch(assistantDelta('a1'))
+        store.dispatch(
+            turnDone({
+                conversationId: null,
+                usage: { input_tokens: 10, output_tokens: 4, cache_read_tokens: 5, cache_write_tokens: 0 }
+            })
+        )
+        store.dispatch(userMessage('q2'))
+        store.dispatch(assistantDelta('a2'))
+        store.dispatch(
+            turnDone({
+                conversationId: null,
+                usage: { input_tokens: 30, output_tokens: 7, cache_read_tokens: 0, cache_write_tokens: 2 }
+            })
+        )
+        expect(selectTotalUsage(store.getState())).toEqual({
+            input_tokens: 40,
+            output_tokens: 11,
+            cache_read_tokens: 5,
+            cache_write_tokens: 2
+        })
+    })
+
+    it('reports zero totals when no turn carried usage', () => {
+        store.dispatch(userMessage('hi'))
+        store.dispatch(assistantDelta('answer'))
+        store.dispatch(turnDone({ conversationId: null }))
+        expect(selectTotalUsage(store.getState())).toEqual({
+            input_tokens: 0,
+            output_tokens: 0,
+            cache_read_tokens: 0,
+            cache_write_tokens: 0
+        })
     })
 })

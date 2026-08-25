@@ -36,16 +36,18 @@ The REST surface is documented as an OpenAPI 3.x specification — the single so
 
 The chat runs over a single WebSocket per browser tab. The protocol is small and typed on both sides — the server frame types and the client `ChatSocket` share a schema, with frame names centralized in one constants module.
 
-> **Note:** the WS frames are unchanged from the old CLI-driven design — the supersede/cancel semantics and resume replay are identical; only what happens server-side behind the frames changed (an in-process agent turn instead of a spawned CLI process). The one addition is an optional `usage` object on `turn_done` (token telemetry) — it is `omitempty` and ignored by older clients, so the protocol stays backward compatible.
+> **Note:** the WS frames are unchanged from the old CLI-driven design — the supersede/cancel semantics and resume replay are identical; only what happens server-side behind the frames changed (an in-process agent turn instead of a spawned CLI process). The additions are an optional `usage` object and an optional `duration_secs` on `turn_done` (token + latency telemetry) — both `omitempty` and ignored by older clients, so the protocol stays backward compatible.
 
 ### Frames
 
 | Direction | Frames |
 |---|---|
 | client → server | `{"type":"send","text":…}` · `{"type":"cancel"}` · `{"type":"resume","conversation_id":…}` · `{"type":"open","conversation_id":…}` · `{"type":"new_chat"}` · `{"type":"presence","active":bool}` |
-| server → client | `assistant_start` · `assistant_thinking {text}` · `assistant_delta {text}` · `tool_activity {tool, detail}` · `turn_done {conversation_id, usage?}` · `wiki_changed {changes:[{op,path}]}` · `sync_result {sync_result:{connection_id, name, ok, error?}}` · `error {message}` |
+| server → client | `assistant_start` · `assistant_thinking {text}` · `assistant_delta {text}` · `tool_activity {tool, detail}` · `turn_done {conversation_id, usage?, duration_secs?}` · `wiki_changed {changes:[{op,path}]}` · `sync_result {sync_result:{connection_id, name, ok, error?}}` · `error {message}` |
 
 `usage` (optional, `turn_done` only) is the turn's token breakdown: `{input_tokens, output_tokens, cache_read_tokens, cache_write_tokens}`. Providers that report none (or older servers) omit the field entirely.
+
+`duration_secs` (optional, `turn_done` only) is the whole turn's wall-clock seconds at full precision (e.g. `12.34`), persisted with the assistant message and served back on `GET /api/v1/conversations/:id` as each message's `duration_secs`. The header of every assistant reply shows it next to the token usage, formatted to two decimal places.
 
 ### Turn lifecycle
 
@@ -66,7 +68,7 @@ sequenceDiagram
     NA->>W: write_file (when saving)
     NA-->>Go: turn done
     Go->>Go: persist assistant msg
-    Go->>UI: turn_done {conversation_id, usage?}
+    Go->>UI: turn_done {conversation_id, usage?, duration_secs?}
     Note over W,Go: fsnotify reindexes + publishes to the event bus within ~200ms
     Go->>UI: "wiki_changed {changes} (broadcast — UI refetches the tree)"
     Note over UI: GET /api/v1/wiki/tree

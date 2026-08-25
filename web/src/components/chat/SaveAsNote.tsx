@@ -53,15 +53,13 @@ export function SaveAsNote({ content }: { content: string }) {
     return (
         <>
             <Tooltip title="Save as note">
-                <span className="absolute right-8 top-2">
-                    <Button
-                        type="text"
-                        size="small"
-                        aria-label="Save as note"
-                        icon={<SaveOutlined aria-hidden="true" />}
-                        onClick={openModal}
-                    />
-                </span>
+                <Button
+                    type="text"
+                    size="small"
+                    aria-label="Save as note"
+                    icon={<SaveOutlined aria-hidden="true" />}
+                    onClick={openModal}
+                />
             </Tooltip>
             <Modal
                 title="Save as note"
