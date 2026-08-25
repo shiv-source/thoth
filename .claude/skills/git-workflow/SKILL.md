@@ -39,9 +39,9 @@ description: >-
 5. Stage only what the change needs: no secrets, no generated dirs (bin/, web/dist/, internal/webui/dist/, node_modules/, *.db).
 
 ### 3. Open a PR
-1. **Preferred — deliver with `./scripts/pr.sh`** from the feature branch: it runs the whole flow in one command — sync with main, branch-name validation, label derivation (validated against references/labels.md), `make check` (`--no-check` skips), CodeGraph sync, push, and `gh pr create` with the template. `--title` overrides the derived title; repeat `--area <label>` to add areas. pr.sh pre-fills the template's `## Summary` (from the branch's commit subjects) and `## Files changed` (from `main...HEAD`), so a non-interactive run still ships a real description.
+1. **Preferred — deliver with `./scripts/pr.sh`** from the feature branch: it runs the whole flow in one command — sync with main, branch-name validation, label derivation (validated against references/labels.md), `make check` (`--no-check` skips), CodeGraph sync, push, and `gh pr create` with the template. `--title` overrides the derived title; repeat `--area <label>` to add areas.
 2. Manual fallback — push, then `gh pr create --title "<type>(<scope>): <summary>" --label <type> --label <area>… --template .github/pull_request_template.md`.
-3. Complete the body (pr.sh fills Summary + Files changed; you finish the rest): Related issue — set `Closes #<n>` to the issue number or delete the line when there's no issue; How verified — check only what actually ran; Notes — optional. Non-interactive runs skip `$EDITOR`, so edit afterward with `gh pr edit <n>`.
+3. **Write the body** per .github/pull_request_template.md — Summary (what changed and why), Related issue (`Closes #<n>` set to the number, or delete the line when there is no issue), Files changed, How verified (only what actually ran), Notes. pr.sh opens `$EDITOR` on the body when run interactively; a non-interactive (agent) run skips it, so complete the body afterward with `gh pr edit <n>`.
 4. ci-pr quality gates run automatically; final-gate must pass before the human merges — don't hand off a red PR.
 
 ### 4. Label issues and PRs
