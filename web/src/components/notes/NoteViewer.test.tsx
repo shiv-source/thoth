@@ -18,13 +18,29 @@ describe('NoteViewer', () => {
     beforeEach(() => {
         vi.clearAllMocks()
         stubAPI(mocks, {
-            'GET /api/v1/notes?path=knowledge%2Fnote.md': () => ({ path: 'knowledge/note.md', content: '# Hello\n\nbody' })
+            'GET /api/v1/notes?path=knowledge%2Fnote.md': () => ({
+                path: 'knowledge/note.md',
+                content: '# Hello\n\nbody'
+            })
         })
     })
 
     it('renders the note content', async () => {
         renderViewer()
         expect(await screen.findByText('Hello')).toBeInTheDocument()
+    })
+
+    it('strips the YAML frontmatter so it never renders as content', async () => {
+        stubAPI(mocks, {
+            'GET /api/v1/notes?path=knowledge%2Fnote.md': () => ({
+                path: 'knowledge/note.md',
+                content: '---\ntitle: Hello\ndate: 2026-08-24\ntags: [git]\ntype: knowledge\n---\nBody text here'
+            })
+        })
+        renderViewer()
+        expect(await screen.findByText('Body text here')).toBeInTheDocument()
+        expect(screen.queryByText('title: Hello')).not.toBeInTheDocument()
+        expect(screen.queryByText(/type: knowledge/)).not.toBeInTheDocument()
     })
 
     it('fills its container (no fixed drawer — the inline reader is the only mode)', async () => {
