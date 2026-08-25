@@ -29,8 +29,9 @@ export function ModelModal({
             onCancel={onCancel}
             onOk={() => void onOk()}
             destroyOnHidden
+            okText="Save"
         >
-            <Form form={form} layout="vertical" className="mt-4">
+            <Form form={form} layout="vertical" className="mt-4!">
                 <Form.Item label="Value" name="value" rules={[{ required: true, message: 'Value is required' }]}>
                     <Input placeholder="my-model" />
                 </Form.Item>

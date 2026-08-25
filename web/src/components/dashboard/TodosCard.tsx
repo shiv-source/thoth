@@ -1,50 +1,38 @@
-import { Card, Listy, Progress } from 'antd'
+import { useState } from 'react'
+import { Badge, Card, Checkbox } from 'antd'
 
-// Todo is one row of the open-todos widget.
+// Todo is one row of the todos list — the text and whether it's done. Until
+// the todos endpoint lands, toggling is local state only.
 export interface Todo {
     text: string
     done: boolean
 }
 
-// TodosCard is the Overview "Open todos" widget: the checklist with a
-// done-progress bar underneath.
+// TodosCard is the Overview "Todo list" widget: the open todos as a
+// checkable checklist with a count badge. Checking a row strikes it through.
 export function TodosCard({ todos }: { todos: Todo[] }) {
-    const done = todos.filter((t) => t.done).length
+    const [items, setItems] = useState(todos)
+    const open = items.filter((t) => !t.done).length
+
+    const toggle = (index: number) =>
+        setItems((prev) => prev.map((t, i) => (i === index ? { ...t, done: !t.done } : t)))
 
     return (
-        <Card size="small" title="Open todos">
-            <Listy
-                items={todos}
-                rowKey={(t) => t.text}
-                className="divide-y divide-line"
-                classNames={{ item: 'p-0!' }}
-                itemRender={(t) => (
-                    <div
-                        className={`flex items-center py-1 text-sm ${t.done ? 'text-subtle line-through' : 'text-ink'}`}
-                    >
-                        <span
-                            aria-hidden="true"
-                            className={`mr-2.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border text-[10px] ${
-                                t.done ? 'border-accent bg-accent text-accent-ink' : 'border-line bg-app'
-                            }`}
-                        >
-                            {t.done ? '✓' : ''}
-                        </span>
-                        {t.text}
-                    </div>
-                )}
-            />
-            <div className="mt-3 flex items-center gap-2">
-                <Progress
-                    percent={todos.length === 0 ? 0 : Math.round((done / todos.length) * 100)}
-                    size="small"
-                    className="flex-1"
-                />
-                <span className="shrink-0 text-xs text-subtle">
-                    {done} of {todos.length} done
-                </span>
-            </div>
-            <p className="mt-3 text-xs text-subtle">mock data (#17)</p>
+        <Card size="small" title="Todo list" extra={<Badge count={open} color="var(--ant-color-fill-secondary)" />}>
+            {items.length === 0 ? (
+                <p className="py-2 text-sm text-subtle">Nothing on the list — nice.</p>
+            ) : (
+                <ul className="flex flex-col gap-1">
+                    {items.map((t, i) => (
+                        <li key={t.text}>
+                            <Checkbox checked={t.done} onChange={() => toggle(i)} className="w-full">
+                                <span className={t.done ? 'text-faint line-through' : 'text-ink'}>{t.text}</span>
+                            </Checkbox>
+                        </li>
+                    ))}
+                </ul>
+            )}
+            <p className="mt-3 text-xs text-subtle">mock data — todos/TODO.md</p>
         </Card>
     )
 }

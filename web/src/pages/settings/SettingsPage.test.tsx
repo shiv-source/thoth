@@ -2,6 +2,7 @@ import { act, fireEvent, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { SettingsPage } from './SettingsPage'
+import { SettingsProvidersPage } from './SettingsProvidersPage'
 import { fetchHealth } from '../../store'
 import { renderWithStore } from '../../test/renderWithStore'
 
@@ -146,6 +147,14 @@ function renderSettings() {
     return renderWithStore(<SettingsPage />)
 }
 
+// Providers-tab tests render the sub-page directly: mounting the full
+// SettingsPage adds a General-page antd Form render and a menu navigation
+// click to every test, which is what pushed these tests onto (and past) the
+// 15s cap under v8 coverage on the shared 2-core CI runner.
+function renderProviders() {
+    return renderWithStore(<SettingsProvidersPage />)
+}
+
 // The dev banner's data: health carries dev + commit, and the server-side
 // wiki default (the settings hint reads it from the API, not from a
 // hardcoded string).
@@ -272,13 +281,12 @@ describe('SettingsPage', () => {
             }
         })
 
-        renderSettings()
-        await userEvent.click(await screen.findByRole('menuitem', { name: 'Providers' }))
-        await userEvent.click(await screen.findByRole('button', { name: /Add provider/ }))
+        renderProviders()
+        await userEvent.click(await screen.findByText('Add provider'))
         await userEvent.type(await screen.findByLabelText('Name'), 'DeepSeek')
         await userEvent.type(screen.getByLabelText('Base URL'), 'https://api.deepseek.com')
         await userEvent.type(screen.getByLabelText('API key'), 'ds-secret')
-        await userEvent.click(screen.getByRole('button', { name: 'OK' }))
+        await userEvent.click(screen.getByText('Save'))
 
         expect(await screen.findByText('Provider added')).toBeInTheDocument()
         expect(await screen.findByText('DeepSeek')).toBeInTheDocument()
@@ -301,17 +309,16 @@ describe('SettingsPage', () => {
             }
         })
 
-        renderSettings()
-        await userEvent.click(await screen.findByRole('menuitem', { name: 'Providers' }))
-        await userEvent.click(await screen.findByRole('button', { name: /Add provider/ }))
+        renderProviders()
+        await userEvent.click(await screen.findByText('Add provider'))
         await userEvent.type(await screen.findByLabelText('Name'), 'Anthropic')
-        await userEvent.click(screen.getByRole('button', { name: 'Add header' }))
+        await userEvent.click(screen.getByText('Add header'))
         await userEvent.type(screen.getByPlaceholderText('x-portkey-provider'), 'x-portkey-provider')
         await userEvent.type(screen.getByPlaceholderText('anthropic'), 'anthropic')
-        await userEvent.click(screen.getByRole('button', { name: 'Add header' }))
+        await userEvent.click(screen.getByText('Add header'))
         await userEvent.type(screen.getAllByPlaceholderText('x-portkey-provider')[1]!, 'x-portkey-api-key')
         await userEvent.type(screen.getAllByPlaceholderText('anthropic')[1]!, 'gateway-secret')
-        await userEvent.click(screen.getByRole('button', { name: 'OK' }))
+        await userEvent.click(screen.getByText('Save'))
 
         expect(await screen.findByText('Provider added')).toBeInTheDocument()
         const body = JSON.stringify(lastBody('post', '/api/v1/providers'))
@@ -335,14 +342,15 @@ describe('SettingsPage', () => {
             'PUT /api/v1/providers/1': () => ({ ...seeded, base_url: 'https://api.deepseek.com/v1' })
         })
 
-        renderSettings()
-        await userEvent.click(await screen.findByRole('menuitem', { name: 'Providers' }))
+        renderProviders()
         expect(await screen.findByText('DeepSeek')).toBeInTheDocument()
-        await userEvent.click(await screen.findByRole('button', { name: 'Edit DeepSeek' }))
+        // The edit button is icon-only (aria-label, no text); the label query
+        // avoids role-name computation, which hangs under jsdom + v8 coverage.
+        await userEvent.click(await screen.findByLabelText('Edit DeepSeek'))
         const baseURL = await screen.findByLabelText('Base URL')
         await userEvent.clear(baseURL)
         await userEvent.type(baseURL, 'https://api.deepseek.com/v1')
-        await userEvent.click(screen.getByRole('button', { name: 'OK' }))
+        await userEvent.click(screen.getByText('Save'))
 
         expect(await screen.findByText('Provider updated')).toBeInTheDocument()
         // The api key is write-only: a blank edit sends no key and the base
@@ -473,8 +481,7 @@ describe('SettingsPage Providers tab', () => {
             }
         })
 
-        renderSettings()
-        await userEvent.click(await screen.findByRole('menuitem', { name: 'Providers' }))
+        renderProviders()
         // The single provider's panel is open by default; its header names
         // it and counts its models, and the table lists the model with its
         // tag rendered as a chip.
@@ -483,12 +490,12 @@ describe('SettingsPage Providers tab', () => {
         expect(screen.getByText('1 model')).toBeInTheDocument()
         expect(screen.getByText('test')).toBeInTheDocument()
 
-        await userEvent.click(screen.getByRole('button', { name: 'Add model' }))
+        await userEvent.click(screen.getByText('Add model'))
         await userEvent.type(await screen.findByLabelText('Value'), 'new-model')
         await userEvent.type(screen.getByLabelText('Name'), 'New Model')
         // Adding from a provider panel pre-fills the provider select, so the
         // POST carries that provider's id.
-        await userEvent.click(screen.getByRole('button', { name: 'OK' }))
+        await userEvent.click(screen.getByText('Save'))
 
         expect(await screen.findByText('New Model')).toBeInTheDocument()
         const body = JSON.stringify(lastBody('post', '/api/v1/models'))
@@ -508,15 +515,14 @@ describe('SettingsPage Providers tab', () => {
             }
         })
 
-        renderSettings()
-        await userEvent.click(await screen.findByRole('menuitem', { name: 'Providers' }))
+        renderProviders()
         // byText, not byRole: role-name computation hangs under jsdom for
         // buttons inside the antd Table.
         await userEvent.click(await screen.findByText('Edit'))
         const name = await screen.findByLabelText('Name')
         await userEvent.clear(name)
         await userEvent.type(name, 'Renamed')
-        await userEvent.click(screen.getByRole('button', { name: 'OK' }))
+        await userEvent.click(screen.getByText('Save'))
 
         expect(await screen.findByText('Renamed')).toBeInTheDocument()
         expect(JSON.stringify(lastBody('put', '/api/v1/models/1'))).toContain('Renamed')
@@ -534,8 +540,7 @@ describe('SettingsPage Providers tab', () => {
             }
         })
 
-        renderSettings()
-        await userEvent.click(await screen.findByRole('menuitem', { name: 'Providers' }))
+        renderProviders()
         expect(await screen.findByText('My Model')).toBeInTheDocument()
         await userEvent.click(await screen.findByText('Delete'))
         await userEvent.click(await screen.findByText('OK'))
@@ -551,8 +556,7 @@ describe('SettingsPage Providers tab', () => {
             'GET /api/v1/providers': () => ({ providers: [] })
         })
 
-        renderSettings()
-        await userEvent.click(await screen.findByRole('menuitem', { name: 'Providers' }))
+        renderProviders()
         expect(await screen.findByText('No providers yet')).toBeInTheDocument()
         // The empty-state CTA opens the add-provider modal.
         await userEvent.click(await screen.findByText('Add your first provider'))
@@ -571,11 +575,13 @@ describe('SettingsPage Providers tab', () => {
             }
         })
 
-        renderSettings()
-        await userEvent.click(await screen.findByRole('menuitem', { name: 'Providers' }))
+        renderProviders()
         expect(await screen.findByText('Doomed')).toBeInTheDocument()
-        await userEvent.click(await screen.findByRole('button', { name: 'Delete Doomed' }))
-        await userEvent.click(await screen.findByRole('button', { name: 'OK' }))
+        // The delete button is icon-only (aria-label); the Popconfirm OK is
+        // text. Label/text queries avoid role-name computation, which hangs
+        // under jsdom + v8 coverage.
+        await userEvent.click(await screen.findByLabelText('Delete Doomed'))
+        await userEvent.click(await screen.findByText('OK'))
 
         expect(await screen.findByText('Provider deleted')).toBeInTheDocument()
         expect(mocks.delete.mock.calls.some(([u]) => u === '/api/v1/providers/7')).toBe(true)
@@ -602,7 +608,9 @@ describe('SettingsPage Sync tab', () => {
         expect(await screen.findByText('Octo Cat')).toBeInTheDocument()
         expect(await screen.findByText('octo/wiki')).toBeInTheDocument()
         expect(screen.getByText('Last synced 2026-08-23')).toBeInTheDocument()
-        expect(screen.getByText('Local backup')).toBeInTheDocument()
+        // The provider's name appears on its destination card and in the
+        // always-visible sync provider catalog.
+        expect(screen.getAllByText('Local backup').length).toBeGreaterThan(0)
         expect(screen.getAllByText('Protected').length).toBeGreaterThan(0)
     })
 

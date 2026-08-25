@@ -30,9 +30,9 @@ type modelGroup struct {
 }
 
 // models returns the llm_models table grouped by provider, seeded from
-// assets/models.json on first boot and edited by the user afterwards. The
-// settings model key stores the chosen value and is enforced via --model at
-// boot.
+// assets/llm-providers.json on first boot and edited by the user afterwards.
+// The settings model key stores the chosen value and is enforced via --model
+// at boot.
 func models(c echo.Context, d Deps) error {
 	list, err := d.Store.ListModels()
 	if err != nil {

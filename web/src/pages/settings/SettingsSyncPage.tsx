@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { App, Alert, Card, Collapse, Divider, Flex, Spin } from 'antd'
+import { App, Alert, Card, Divider, Spin } from 'antd'
 import { ApiOutlined, CloudServerOutlined } from '@ant-design/icons'
 import type { Connection, SyncProvider } from '../../api/client'
 import { EmptyState } from '../../shared/EmptyState'
@@ -27,7 +27,7 @@ import {
 } from '../../store'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import { CardTitle } from './components/CardTitle'
-import { SectionHeading } from './components/SectionHeading'
+import { FormSection } from './components/FormSection'
 import { SyncConnectForm } from './components/SyncConnectForm'
 import { SyncConnectionCard } from './components/SyncConnectionCard'
 import { SyncProviderEditor } from './components/SyncProviderEditor'
@@ -152,76 +152,76 @@ export function SettingsSyncPage() {
     return (
         <SettingsShell active="sync">
             <Card title={<CardTitle icon={CloudServerOutlined}>Sync destinations</CardTitle>}>
-                <SectionHeading icon={ApiOutlined}>Connected destinations</SectionHeading>
-                {loading ? (
-                    <Flex justify="center" className="py-10">
-                        <Spin />
-                    </Flex>
-                ) : connections.length === 0 ? (
-                    <EmptyState
-                        icon={<CloudServerOutlined aria-hidden="true" />}
-                        title="No destinations connected yet — connect one below"
+                <FormSection
+                    icon={ApiOutlined}
+                    title="Connected destinations"
+                    description="The destinations the wiki is pushed to. Each card owns its target fields and actions."
+                >
+                    {loading ? (
+                        <div className="flex justify-center py-10">
+                            <Spin />
+                        </div>
+                    ) : connections.length === 0 ? (
+                        <EmptyState
+                            icon={<CloudServerOutlined aria-hidden="true" />}
+                            title="No destinations connected yet — connect one below"
+                        />
+                    ) : (
+                        <div className="grid gap-4">
+                            {connections.map((c) => {
+                                const provider = providerById(c.provider_id)
+                                if (!provider) return null
+                                return (
+                                    <ConnectionRow
+                                        key={c.id}
+                                        connection={c}
+                                        provider={provider}
+                                        pushing={pushing}
+                                        restoring={restoring}
+                                        onPush={() => void push(c.id)}
+                                        onRestore={(key) => void restore(c.id, key)}
+                                        onDisconnect={() => {
+                                            void dispatch(disconnectSync(c.id)).then(
+                                                () => void message.success('Disconnected')
+                                            )
+                                        }}
+                                        onSetActive={() => void dispatch(setActiveSync(c.id))}
+                                        onUpdate={(input) => void dispatch(updateSyncConnection({ id: c.id, input }))}
+                                    />
+                                )
+                            })}
+                        </div>
+                    )}
+                </FormSection>
+
+                <Divider className="my-8!" />
+                <FormSection
+                    icon={ApiOutlined}
+                    title="Connect a destination"
+                    description="Pick a provider, fill its credentials, and name the connection."
+                >
+                    <SyncConnectForm
+                        providers={providers}
+                        connecting={connecting}
+                        error={error}
+                        onConnect={(i) => void connect(i)}
                     />
-                ) : (
-                    <div className="grid gap-4">
-                        {connections.map((c) => {
-                            const provider = providerById(c.provider_id)
-                            if (!provider) return null
-                            return (
-                                <ConnectionRow
-                                    key={c.id}
-                                    connection={c}
-                                    provider={provider}
-                                    pushing={pushing}
-                                    restoring={restoring}
-                                    onPush={() => void push(c.id)}
-                                    onRestore={(key) => void restore(c.id, key)}
-                                    onDisconnect={() => {
-                                        void dispatch(disconnectSync(c.id)).then(
-                                            () => void message.success('Disconnected')
-                                        )
-                                    }}
-                                    onSetActive={() => void dispatch(setActiveSync(c.id))}
-                                    onUpdate={(input) => void dispatch(updateSyncConnection({ id: c.id, input }))}
-                                />
-                            )
-                        })}
-                    </div>
-                )}
+                </FormSection>
 
-                <Divider />
-                <SectionHeading icon={ApiOutlined}>Connect a destination</SectionHeading>
-                <SyncConnectForm
-                    providers={providers}
-                    connecting={connecting}
-                    error={error}
-                    onConnect={(i) => void connect(i)}
-                />
-
-                <Divider />
-                <SectionHeading icon={ApiOutlined}>Sync providers</SectionHeading>
-                <Collapse
-                    ghost
-                    items={[
-                        {
-                            key: 'providers',
-                            label: 'Manage the provider catalog (built-ins + your custom providers)',
-                            children: (
-                                <SyncProviderEditor
-                                    providers={providers}
-                                    onCreate={(input) =>
-                                        void dispatch(createSyncProvider(input)).catch(
-                                            () => void message.error('Could not add the provider')
-                                        )
-                                    }
-                                    onDelete={(id) => void dispatch(deleteSyncProvider(id))}
-                                />
+                <Divider className="my-8!" />
+                <FormSection icon={ApiOutlined} title="Sync providers">
+                    <SyncProviderEditor
+                        providers={providers}
+                        onCreate={(input) =>
+                            void dispatch(createSyncProvider(input)).catch(
+                                () => void message.error('Could not add the provider')
                             )
                         }
-                    ]}
-                />
+                        onDelete={(id) => void dispatch(deleteSyncProvider(id))}
+                    />
+                </FormSection>
 
-                {error && <Alert type="error" showIcon title={error} className="mt-4" />}
+                {error && <Alert type="error" showIcon title={error} className="mt-4!" />}
             </Card>
         </SettingsShell>
     )

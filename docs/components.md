@@ -13,7 +13,7 @@ The Go backend is organized as small packages with one purpose each, communicati
 | `internal/agent/tools` | The wiki-specific agent tools: note authoring, todos, inbox, memory, tags, tree, recents — built on the `agent/tools` FS seam and the `internal/wiki` note contract | `WriteNote`, `ReadNote`, `ListTree`, `GetTodos`, `Remember` |
 | `internal/wiki` | The file contract: scaffolding, parsing, path safety, tree | `Scaffold`, `ParseNote`, `SafePath`, `Wiki`, `Rulebook` |
 | `internal/index` | SQLite + FTS5 + watcher | `Index`, `Sync`, `Watch`, `Search` |
-| `internal/assets` | Static data files served by the API (embedded) | `models.json` → `ModelOptions` (the llm_models seed) |
+| `internal/assets` | Static data files served by the API (embedded) | `llm-providers.json` → `ModelOptions` (the llm_models seed) |
 | `internal/store` | Conversations, messages, and the llm_models registry (same db file) | `Store` |
 | `internal/sync` | The multi-provider sync engine: the driver seam (git/s3/local), the restore capability, and the auto-sync scheduler over `sync_providers`/`sync_connections` | `Service`, `Driver`, `Restorer`, `Scheduler` |
 | `internal/api` | Echo server: routes, WS hub, handlers | `Deps`, `New`, `Hub` |

@@ -1,6 +1,6 @@
 import { Alert, Empty, Skeleton } from 'antd'
 import { Markdown } from '../../shared/Markdown'
-import { noteUrl } from './notePaths'
+import { noteUrl, stripFrontmatter } from './notePaths'
 
 // NoteBody renders the viewer's content area: markdown notes render through
 // Markdown (loading/error states included), image attachments inline, and any
@@ -25,7 +25,7 @@ export function NoteBody({
             <>
                 {loading && <Skeleton active paragraph={{ rows: 6 }} />}
                 {error && <Alert type="error" showIcon title={error} />}
-                {content && <Markdown>{content}</Markdown>}
+                {content && <Markdown>{stripFrontmatter(content)}</Markdown>}
             </>
         )
     }

@@ -37,7 +37,7 @@ const modelSelect = `
 	LEFT JOIN providers p ON p.id = m.provider_id`
 
 // ListModels returns every model in insertion (id) order, which keeps the
-// seeded models.json order stable in the picker.
+// seeded llm-providers.json order stable in the picker.
 func (s *Store) ListModels() ([]LLMModel, error) {
 	rows, err := s.db.Query(modelSelect + ` ORDER BY m.id ASC`)
 	if err != nil {

@@ -70,6 +70,16 @@
     box-shadow: var(--ant-box-shadow-tertiary);
 }
 
+/* Settings cards — a roomier header separates the title from the body,
+   and form labels carry the enterprise label weight. */
+.ant-card-head {
+    padding-block: 14px;
+}
+.ant-form-item .ant-form-item-label > label {
+    font-weight: 500;
+    color: var(--ant-color-text-heading);
+}
+
 /* Settings rail — the sub-page menu in SettingsShell. antd v6 Menu tokens
    (theme.ts) cover item colors but not the active pill's background/weight,
    so it's scoped here. */
@@ -83,6 +93,31 @@
 .settings-menu .ant-menu-item-selected {
     background: var(--ant-color-primary-bg);
     font-weight: 600;
+}
+
+/* Providers catalog — the ghost Collapse drops antd's container/panel
+   borders, so each provider renders as its own card: bordered, rounded,
+   with breathing room between rows so the list reads as separate units. */
+.settings-provider-collapse .ant-collapse-item {
+    border: 1px solid var(--ant-color-border);
+    border-radius: 10px;
+    margin-bottom: 10px;
+    overflow: hidden;
+    background: var(--ant-color-bg-container);
+    box-shadow: var(--ant-box-shadow-tertiary);
+}
+.settings-provider-collapse .ant-collapse-item:last-child {
+    margin-bottom: 0;
+}
+
+/* Wiki tree — DirectoryTree's content wrapper defaults to flex:auto with
+   min-width:auto, so a long filename stretches the row instead of wrapping
+   (breaking the folder column). Constrain it so the truncate span in
+   TreeNodeLabel ellipsizes; the full name is available on hover via the
+   leaf's Tooltip. */
+.wiki-tree .ant-tree-node-content-wrapper {
+    min-width: 0;
+    overflow: hidden;
 }
 
 @keyframes slide-in-right {

@@ -18,10 +18,12 @@ export function TreeNodeLabel({
 }) {
     if (isLeaf) {
         return (
-            <span className="inline-flex items-center gap-1.5">
-                <FileTextOutlined aria-hidden="true" className="text-subtle" />
-                <span>{title}</span>
-            </span>
+            <Tooltip title={title}>
+                <span className="inline-flex w-full min-w-0 items-center gap-1.5">
+                    <FileTextOutlined aria-hidden="true" className="shrink-0 text-subtle" />
+                    <span className="min-w-0 flex-1 truncate">{title}</span>
+                </span>
+            </Tooltip>
         )
     }
     if (error) {

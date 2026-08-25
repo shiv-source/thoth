@@ -597,7 +597,7 @@
           "settings"
         ],
         "summary": "List models grouped by provider",
-        "description": "Returns the llm_models table grouped by provider (providers sorted A\u2192Z, models in seed order), seeded from internal/assets/models.json on first boot and user-editable afterwards.",
+        "description": "Returns the llm_models table grouped by provider (providers sorted A\u2192Z, models in seed order), seeded from internal/assets/llm-providers.json on first boot and user-editable afterwards.",
         "operationId": "listModels",
         "responses": {
           "200": {

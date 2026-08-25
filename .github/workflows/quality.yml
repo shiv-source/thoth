@@ -171,7 +171,11 @@ jobs:
     needs: [changes]
     if: needs.changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # The heavy SettingsPage suite runs ~2x slower under v8 coverage on the
+    # 2-core shared runner and its teardown can intermittently stall (issue
+    # #166's race, escalating to a hang); 10m was too tight — the job timed
+    # out before vitest wrote the coverage summary and the gate failed.
+    timeout-minutes: 30
     outputs:
       web_coverage: ${{ steps.cover.outputs.web_coverage }}
       web_coverage_floor: ${{ steps.cover.outputs.web_coverage_floor }}

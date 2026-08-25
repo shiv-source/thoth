@@ -90,9 +90,9 @@ export function SyncConnectionCard({
                 />
             </Flex>
 
-            <Form form={form} layout="vertical" className="mt-4">
+            <Form form={form} layout="vertical" className="mt-4!">
                 {isGit ? (
-                    <Form.Item label="Sync repository" name={['config', 'repo_url']}>
+                    <Form.Item label="Sync repository" name={['config', 'repo_url']} className="max-w-lg">
                         <Select
                             virtual={false}
                             placeholder="Choose a repository…"
@@ -103,7 +103,7 @@ export function SyncConnectionCard({
                     </Form.Item>
                 ) : (
                     nonSecret.map((f) => (
-                        <Form.Item key={f.key} label={f.label} name={['config', f.key]} className="mb-2">
+                        <Form.Item key={f.key} label={f.label} name={['config', f.key]} className="mb-2! max-w-lg">
                             <Input
                                 placeholder={f.label}
                                 onBlur={(e) => {
@@ -118,15 +118,15 @@ export function SyncConnectionCard({
             </Form>
 
             {connection.last_error !== '' && (
-                <Alert type="error" showIcon title={connection.last_error} className="mb-3" />
+                <Alert type="error" showIcon title={connection.last_error} className="mb-3!" />
             )}
             {connection.push_history.length > 0 && (
                 <div className="mb-3 text-xs text-subtle">
-                    <Flex gap={6} align="center" className="mb-1">
+                    <Flex gap={6} align="center" className="mb-1!">
                         <HistoryOutlined aria-hidden="true" />
                         <span className="font-medium text-faint">Recent runs</span>
                     </Flex>
-                    <ul className="space-y-0.5 pl-1">
+                    <ul className="flex flex-col gap-0.5 pl-1">
                         {connection.push_history.slice(0, 5).map((h, i) => (
                             <li key={i} className="flex items-baseline gap-1.5">
                                 <span aria-hidden="true" className={h.ok ? 'text-success' : 'text-error'}>
@@ -139,7 +139,7 @@ export function SyncConnectionCard({
                     </ul>
                 </div>
             )}
-            <Divider className="my-3" />
+            <Divider className="my-3!" />
             <Flex gap={8} justify="end" align="center">
                 <span className="mr-auto text-xs text-subtle">
                     {connection.last_synced_at !== ''
@@ -186,7 +186,7 @@ export function SyncConnectionCard({
                 }}
                 okText="Restore"
                 okButtonProps={{ danger: true, loading: restoring }}
-                destroyOnClose
+                destroyOnHidden
             >
                 <p className="mb-3 text-sm text-subtle">
                     The wiki is overwritten by the selected snapshot. A local backup of the current wiki is taken first,

@@ -102,6 +102,7 @@ export function WikiTree({ openPath, onOpenNote }: { openPath: string | null; on
 
     return (
         <Tree.DirectoryTree
+            className="wiki-tree"
             treeData={treeData}
             titleRender={renderTitle}
             switcherIcon={renderSwitcher}

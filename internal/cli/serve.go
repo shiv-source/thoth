@@ -311,11 +311,11 @@ func settleWikiPath(stg *settings.Repo, dev bool, dir string) (string, error) {
 	return resolved, nil
 }
 
-// ensureModels seeds llm_models from assets/models.json whenever the table
-// is empty, so every startup self-heals an empty registry (fresh install,
-// deleted database, or a user who removed every model). A table with rows —
-// even just one user-added model — is never overwritten. models.json stays
-// the single source for the built-in list.
+// ensureModels seeds llm_models from assets/llm-providers.json whenever the
+// table is empty, so every startup self-heals an empty registry (fresh
+// install, deleted database, or a user who removed every model). A table with
+// rows — even just one user-added model — is never overwritten.
+// llm-providers.json stays the single source for the built-in list.
 func ensureModels(st *store.Store) error {
 	models, err := st.ListModels()
 	if err != nil {

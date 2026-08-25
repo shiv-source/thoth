@@ -20,7 +20,7 @@ export function NotificationRow({
 }) {
     return (
         <div className="flex items-start px-3 py-2">
-            <Badge dot={!read} offset={[-2, 4]} className="mr-2 shrink-0">
+            <Badge dot={!read} offset={[-2, 4]} className="mr-2! shrink-0">
                 <NotificationIcon kind={kind} />
             </Badge>
             <div className="min-w-0 flex-1">
