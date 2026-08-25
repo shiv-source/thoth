@@ -16,6 +16,7 @@ internal/webui/dist/
 .codegraph/
 docs-site/build/
 docs-site/.docusaurus/
+browser-ext/dist/
 
 # local debugging dumps
 stream-dump.json
@@ -23,3 +24,6 @@ stream-dump.json
 # air: hot-reload tmp dir (.air.toml)
 tmp/
 docs/specs/
+browser-ext/test-results/
+browser-ext/playwright-report/
+browser-ext/.playwright/

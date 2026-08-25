@@ -13,6 +13,37 @@ export type Note = z.infer<typeof Note>
 const SaveNoteResponse = z.object({ path: z.string(), title: z.string(), type: z.string() })
 export type SaveNoteResponse = z.infer<typeof SaveNoteResponse>
 
+// CaptureResponse is the unified capture endpoint's reply — the same shape as
+// SaveNoteResponse: the created file's wiki-relative path plus the derived
+// title/type.
+const CaptureResponse = z.object({ path: z.string(), title: z.string(), type: z.string() })
+export type CaptureResponse = z.infer<typeof CaptureResponse>
+
+// ReadLaterItem is one queued link from links/read-later.md, as served by the
+// read-later triage endpoint.
+const ReadLaterItem = z.object({ title: z.string(), url: z.string(), reason: z.string() })
+export type ReadLaterItem = z.infer<typeof ReadLaterItem>
+
+// isConflict reports whether err is a 409 conflict from the API (e.g. a
+// bookmark whose URL is already saved).
+export function isConflict(err: unknown): boolean {
+    return axios.isAxiosError(err) && err.response?.status === 409
+}
+
+// CaptureInput is the POST /api/v1/capture body — the single write surface for
+// the browser extension and the dashboard quick capture. kind selects the save
+// path; the remaining fields are per-kind inputs.
+export type CaptureInput = {
+    kind: 'bookmark' | 'note' | 'selection' | 'readlater'
+    url?: string
+    title?: string
+    text?: string
+    reason?: string
+    tags?: string[]
+    folder?: string
+    category?: string
+}
+
 type TreeNodeShape = {
     name: string
     path: string
@@ -237,6 +268,19 @@ export const api = {
     saveNote: async (input: { content: string; folder?: string }): Promise<SaveNoteResponse> => {
         const res = await http.post('/api/v1/notes', input)
         return parseBody(res, SaveNoteResponse)
+    },
+    // capture files a bookmark, note/selection, or read-later through the
+    // unified capture endpoint — the same rulebook save paths the assistant
+    // uses, fronted by the browser extension and the dashboard quick capture.
+    capture: async (input: CaptureInput): Promise<CaptureResponse> => {
+        const res = await http.post('/api/v1/capture', input)
+        return parseBody(res, CaptureResponse)
+    },
+    // readLater lists the read-later queue (the dashboard triage widget).
+    readLater: () => get('/api/v1/capture/read-later', z.object({ items: z.array(ReadLaterItem) })),
+    // removeReadLater clears one URL from the queue; idempotent server-side.
+    removeReadLater: async (url: string): Promise<void> => {
+        await http.delete(`/api/v1/capture/read-later?url=${encodeURIComponent(url)}`)
     },
     tree: () => get('/api/v1/wiki/tree', z.object({ nodes: z.array(TreeNodeSchema) })),
     settings: () => get('/api/v1/settings', Settings),

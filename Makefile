@@ -173,6 +173,40 @@ web-cover: ## frontend coverage with the CI gate (thresholds in web/vite.config.
 web-cover:
 	pnpm test:coverage
 
+# -----------------------------------------------------------------------------
+# Browser extension (browser-ext/) — build & quality gates
+# -----------------------------------------------------------------------------
+
+ext-build: ## build the unpacked Chrome + Firefox extension packages into browser-ext/dist
+.PHONY: ext-build
+ext-build:
+	pnpm --filter thoth-ext build
+
+ext-test: ## browser extension unit tests
+.PHONY: ext-test
+ext-test:
+	pnpm --filter thoth-ext test
+
+ext-typecheck: ## browser extension typecheck
+.PHONY: ext-typecheck
+ext-typecheck:
+	pnpm --filter thoth-ext typecheck
+
+ext-lint: ## browser extension lint
+.PHONY: ext-lint
+ext-lint:
+	pnpm --filter thoth-ext lint
+
+ext-check: ## all browser extension quality gates (lint, typecheck, test, build)
+.PHONY: ext-check
+ext-check: ext-lint ext-typecheck ext-test ext-build
+
+# Playwright e2e needs its browser installed once: pnpm exec playwright install chromium
+ext-e2e: ## browser extension Playwright e2e (loads the built extension in Chromium against the mock capture server)
+.PHONY: ext-e2e
+ext-e2e:
+	pnpm --filter thoth-ext e2e
+
 tools-test: ## .github/actions JS suites + scripts/ smoke tests
 .PHONY: tools-test
 tools-test:
@@ -180,7 +214,7 @@ tools-test:
 	node --test .github/actions/ci-report/test/*.test.mjs
 	./scripts/pr_test.sh
 
-check: fmt lint race cover web-test web-cover tools-test build ## everything CI runs, locally
+check: fmt lint race cover web-test web-cover ext-check ext-e2e tools-test build ## everything CI runs, locally
 .PHONY: check
 
 # -----------------------------------------------------------------------------

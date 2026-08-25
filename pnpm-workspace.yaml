@@ -1,10 +1,13 @@
 packages:
   - web
   - docs-site
-# Docusaurus's bundler needs @swc/core and core-js postinstall scripts to work.
+  - browser-ext
+# Docusaurus's bundler needs @swc/core and core-js postinstall scripts to work;
+# esbuild's postinstall installs/verifies its platform binary (the ext's bundler).
 allowBuilds:
   '@swc/core': true
   core-js: true
+  esbuild: true
 # Force patched versions for transitive dev dependencies (docs-site toolchain).
 overrides:
   serialize-javascript: 7.1.0
