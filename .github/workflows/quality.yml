@@ -52,6 +52,7 @@ jobs:
     outputs:
       backend: ${{ steps.diff.outputs.backend }}
       frontend: ${{ steps.diff.outputs.frontend }}
+      ext: ${{ steps.diff.outputs.ext }}
       issue_labels: ${{ steps.diff.outputs.issue_labels }}
       ci_report: ${{ steps.diff.outputs.ci_report }}
       docs: ${{ steps.diff.outputs.docs }}
@@ -67,25 +68,28 @@ jobs:
           head="${{ github.event.pull_request.head.sha }}"
 
           # Push and manual runs are not PRs: run every gate.
-          backend=true; frontend=true; issue_labels=true; ci_report=true; docs=true
+          backend=true; frontend=true; ext=true; issue_labels=true; ci_report=true; docs=true
           if [ -n "$base" ] && [ -n "$head" ]; then
             files="$(git diff --name-only "$base...$head")"
-            backend=false; frontend=false; issue_labels=false; ci_report=false; docs=false
+            backend=false; frontend=false; ext=false; issue_labels=false; ci_report=false; docs=false
             if [ -n "$files" ]; then
               # Tooling/config that a gate depends on counts as that area.
               if printf '%s\n' "$files" | grep -Eq '^\.github/(workflows|actions)/' \
                 && ! printf '%s\n' "$files" | grep -Eq '^\.github/actions/issue-labels/' \
                 && ! printf '%s\n' "$files" | grep -Eq '^\.github/actions/ci-report/'; then
-                backend=true; frontend=true
+                backend=true; frontend=true; ext=true
               fi
               if printf '%s\n' "$files" | grep -Eq '^\.husky/|^scripts/|^Makefile$'; then
-                backend=true; frontend=true
+                backend=true; frontend=true; ext=true
               fi
-              if printf '%s\n' "$files" | grep -Eq '(\.go$|^go\.(mod|sum)$|^\.golangci\.yml$)'; then
+              if printf '%s\n' "$files" | grep -Eq '(\.go$|^go\.(mod|sum)$|^\.golangci\.yml$|^internal/api/docs/)'; then
                 backend=true
               fi
               if printf '%s\n' "$files" | grep -Eq '^web/|^(package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|\.npmrc|\.prettierrc)$'; then
-                frontend=true
+                frontend=true; ext=true
+              fi
+              if printf '%s\n' "$files" | grep -Eq '^browser-ext/'; then
+                ext=true
               fi
               if printf '%s\n' "$files" | grep -Eq '^docs-site/|^docs/'; then
                 docs=true
@@ -98,10 +102,11 @@ jobs:
               fi
             fi
           fi
-          echo "backend=$backend frontend=$frontend issue_labels=$issue_labels ci_report=$ci_report docs=$docs"
+          echo "backend=$backend frontend=$frontend ext=$ext issue_labels=$issue_labels ci_report=$ci_report docs=$docs"
           {
             echo "backend=$backend"
             echo "frontend=$frontend"
+            echo "ext=$ext"
             echo "issue_labels=$issue_labels"
             echo "ci_report=$ci_report"
             echo "docs=$docs"
@@ -266,6 +271,40 @@ jobs:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-web
       - run: pnpm exec tsc --noEmit
+
+  ext-check:
+    needs: [changes]
+    if: needs.changes.outputs.ext == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: browser-ext
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-web
+      - run: pnpm --filter thoth-ext lint
+      - run: pnpm --filter thoth-ext typecheck
+      - run: pnpm --filter thoth-ext test
+      - run: pnpm --filter thoth-ext build
+
+  # Loads the built MV3 extension into Chromium and drives the React popup
+  # end to end (bookmark, quick note, dedup, read-later) against the mock
+  # capture server — the Phase 2 e2e from issue #176.
+  ext-e2e:
+    needs: [changes]
+    if: needs.changes.outputs.ext == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: browser-ext
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-web
+      - name: install playwright chromium
+        run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm --filter thoth-ext e2e
 
   issue-labels-test:
     needs: [changes]

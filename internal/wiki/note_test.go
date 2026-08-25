@@ -263,6 +263,33 @@ func TestFormatNoteRoundTrip(t *testing.T) {
 	}
 }
 
+func TestFormatNoteSourceRoundTrip(t *testing.T) {
+	// Capture provenance round-trips: FormatNote emits source:, ParseNote reads
+	// it back, and the field is omitted when empty.
+	meta := NoteMeta{Title: "Quoted article", Kind: "knowledge", Source: "https://example.com/article"}
+	content := FormatNote(meta, "> the quote\n")
+	got, _, err := ParseNote(content)
+	if err != nil {
+		t.Fatalf("ParseNote of source note: %v\n%s", err, content)
+	}
+	if got.Source != "https://example.com/article" {
+		t.Fatalf("source round-trip = %+v", got)
+	}
+	if !strings.Contains(string(content), "source: https://example.com/article\n") {
+		t.Fatalf("source line missing:\n%s", content)
+	}
+
+	plain := FormatNote(NoteMeta{Title: "Bare"}, "body\n")
+	if strings.Contains(string(plain), "source:") {
+		t.Fatalf("empty source must be omitted:\n%s", plain)
+	}
+
+	// A non-string source fails loudly instead of being indexed silently.
+	if _, _, err := ParseNote([]byte("---\ntitle: X\nsource: [https://a, https://b]\n---\nbody\n")); err == nil {
+		t.Fatal("expected error for list source")
+	}
+}
+
 func TestFormatNoteOmitsEmptyFieldsAndGuaranteesNewline(t *testing.T) {
 	content := FormatNote(NoteMeta{Title: "Bare"}, "body")
 	want := "---\ntitle: Bare\n---\nbody\n"

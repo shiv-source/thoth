@@ -165,14 +165,25 @@ describe('DashboardPage', () => {
         await waitFor(() => expect(mocks.get).toHaveBeenCalled()) // flush the conversations fetch
     })
 
-    it('captures quick-capture text into the inbox and toasts the path', async () => {
+    it('captures quick-capture text into the inbox, toasts, and opens the note', async () => {
+        mocks.post.mockResolvedValue({
+            data: { path: 'inbox/check-the-npm-audit.md', title: 'Check the npm audit', type: 'inbox' }
+        })
         renderDashboard()
         fireEvent.change(screen.getByRole('textbox', { name: 'Quick capture' }), {
             target: { value: 'Check the npm audit' }
         })
         fireEvent.click(screen.getByRole('button', { name: /^Capture$/ }))
-        expect(await screen.findByText('Captured to inbox/check-the-npm-audit.md (mock)')).toBeInTheDocument()
-        await waitFor(() => expect(mocks.get).toHaveBeenCalled()) // flush the conversations fetch
+        expect(await screen.findByText('Captured to inbox/check-the-npm-audit.md')).toBeInTheDocument()
+        await waitFor(() =>
+            expect(mocks.post).toHaveBeenCalledWith('/api/v1/capture', {
+                kind: 'note',
+                text: 'Check the npm audit',
+                folder: 'inbox'
+            })
+        )
+        // The saved note opens in the Notes view, closing the capture loop.
+        expect(window.location.pathname).toBe('/notes/inbox/check-the-npm-audit.md')
     })
 
     it('routes the quick actions to their views', async () => {

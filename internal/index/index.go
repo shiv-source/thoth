@@ -97,11 +97,26 @@ func del(db dbLike, path string) error {
 // to clear a whole subtree at once. LIKE wildcards in the prefix (a directory
 // named "50%" or "a_b") are escaped so only literal matches are removed.
 func (ix *Index) DeletePrefix(prefix string) error {
-	escaped := strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`).Replace(prefix)
-	if _, err := ix.db.Exec(`DELETE FROM notes WHERE path = ? OR path LIKE ? ESCAPE '\'`, prefix, escaped+"/%"); err != nil {
+	if _, err := ix.db.Exec(`DELETE FROM notes WHERE path = ? OR path LIKE ? ESCAPE '\'`, prefix, likeEscape(prefix)+"/%"); err != nil {
 		return fmt.Errorf("index delete prefix %s: %w", prefix, err)
 	}
 	return nil
+}
+
+// CountByPrefix returns the number of indexed notes whose path is at or under
+// prefix + "/". It backs the capture inbox-count endpoint: the extension's
+// toolbar badge is one cheap index query, never a filesystem walk.
+func (ix *Index) CountByPrefix(prefix string) (int, error) {
+	var n int
+	if err := ix.db.QueryRow(`SELECT COUNT(*) FROM notes WHERE path LIKE ? ESCAPE '\'`, likeEscape(prefix)+"/%").Scan(&n); err != nil {
+		return 0, fmt.Errorf("index count %s: %w", prefix, err)
+	}
+	return n, nil
+}
+
+// likeEscape escapes LIKE wildcards so a prefix matches literally.
+func likeEscape(s string) string {
+	return strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`).Replace(s)
 }
 
 func (ix *Index) Search(q string, limit int) ([]Result, error) {

@@ -39,6 +39,7 @@ Follow the full walkthrough in [Getting started](getting-started.md), or jump in
 | [What's new](whats-new.md) | Recent changes, newest first |
 | [Getting started](getting-started.md) | Install, first run, first conversation |
 | [Using Thoth](using-thoth.md) | Dashboard tour, chat, search, settings, GitHub sync, best practices |
+| [Browser extension](browser-extension.md) | Capture bookmarks, selections, and quick notes from Chrome/Firefox |
 | [Migrating to Thoth Agent](thoth-agent.md) | Why the built-in assistant replaced the Claude Code CLI, and what changed |
 | [Architecture](architecture.md) | System design, the two layers, data contract, diagrams |
 | [Knowledge base](knowledge-base.md) | The wiki directory: layout, conventions, the rulebook |

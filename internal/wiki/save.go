@@ -37,11 +37,12 @@ func ValidFolder(folder string) error {
 
 // SaveOptions describes a note to promote into the wiki.
 type SaveOptions struct {
-	Folder string           // top-level folder (see ValidFolder); type derives from it
-	Title  string           // frontmatter title; empty derives from Body
-	Body   string           // the note's markdown body
-	Tags   []string         // optional frontmatter tags
-	Now    func() time.Time // clock for the frontmatter date; nil falls back to time.Now
+	Folder    string           // top-level folder (see ValidFolder); type derives from it
+	Title     string           // frontmatter title; empty derives from Body
+	Body      string           // the note's markdown body
+	Tags      []string         // optional frontmatter tags
+	SourceURL string           // optional capture provenance; http(s) only, emitted as source: frontmatter
+	Now       func() time.Time // clock for the frontmatter date; nil falls back to time.Now
 }
 
 // Save writes a new note into Folder/ and returns its wiki-relative path. It
@@ -52,6 +53,9 @@ type SaveOptions struct {
 // SafePath-bounded. A note saved here always parses and validates.
 func (w *Wiki) Save(o SaveOptions) (string, error) {
 	if err := ValidFolder(o.Folder); err != nil {
+		return "", err
+	}
+	if err := ValidSourceURL(o.SourceURL); err != nil {
 		return "", err
 	}
 	title := strings.TrimSpace(o.Title)
@@ -75,14 +79,20 @@ func (w *Wiki) Save(o SaveOptions) (string, error) {
 	}
 	rel := filepath.ToSlash(filepath.Join(o.Folder, base+".md"))
 	content := FormatNote(NoteMeta{
-		Title: title,
-		Date:  date,
-		Kind:  NoteType(o.Folder),
-		Tags:  o.Tags,
+		Title:  title,
+		Date:   date,
+		Kind:   NoteType(o.Folder),
+		Tags:   o.Tags,
+		Source: strings.TrimSpace(o.SourceURL),
 	}, o.Body)
 	if problems := Validate(rel, content); len(problems) > 0 {
 		return "", fmt.Errorf("save: %s: %s", problems[0].Rule, problems[0].Msg)
 	}
+	w.saveMu.Lock()
+	defer w.saveMu.Unlock()
+	// Two saves can derive the same slug (two quick captures, repeated
+	// promotion). Never silently overwrite — pick the next free -N suffix.
+	rel = w.nextFreeRel(rel)
 	full, err := SafePath(w.Root(), rel)
 	if err != nil {
 		return "", err
@@ -96,9 +106,36 @@ func (w *Wiki) Save(o SaveOptions) (string, error) {
 	return rel, nil
 }
 
+// nextFreeRel returns rel, or rel with a -N suffix, for the first path that
+// does not already exist under the wiki root. Callers hold saveMu so the
+// check-then-write is serialized.
+func (w *Wiki) nextFreeRel(rel string) string {
+	full, err := SafePath(w.Root(), rel)
+	if err != nil {
+		return rel
+	}
+	if _, err := os.Stat(full); errors.Is(err, os.ErrNotExist) {
+		return rel
+	}
+	ext := filepath.Ext(rel)
+	stem := strings.TrimSuffix(rel, ext)
+	for i := 2; ; i++ {
+		cand := fmt.Sprintf("%s-%d%s", stem, i, ext)
+		full, err := SafePath(w.Root(), cand)
+		if err != nil {
+			return rel
+		}
+		if _, err := os.Stat(full); errors.Is(err, os.ErrNotExist) {
+			return cand
+		}
+	}
+}
+
 // DefaultTitle derives a note title from a markdown body: the text of the
-// first ATX heading (# …), else the first non-empty line. It is the promotion
-// default, so an answer that opens with a heading files under that heading.
+// first ATX heading (# …), else the first non-empty line, with heading and
+// blockquote markers stripped. It is the promotion default, so an answer that
+// opens with a heading files under that heading, and a captured selection
+// (whose body is a blockquote) files under its first quoted line.
 func DefaultTitle(body string) string {
 	for _, line := range strings.Split(body, "\n") {
 		t := strings.TrimSpace(line)
@@ -109,6 +146,12 @@ func DefaultTitle(body string) string {
 			t = strings.TrimSpace(strings.TrimLeft(t, "#"))
 			if t == "" {
 				continue // bare "#" line — keep scanning for real text
+			}
+		}
+		if strings.HasPrefix(t, ">") {
+			t = strings.TrimSpace(strings.TrimPrefix(t, ">"))
+			if t == "" {
+				continue // bare ">" line — keep scanning for real text
 			}
 		}
 		return t

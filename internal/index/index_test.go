@@ -171,6 +171,52 @@ func TestDeletePrefixRemovesSubtree(t *testing.T) {
 	}
 }
 
+func TestCountByPrefix(t *testing.T) {
+	ix := openTest(t)
+	now := time.Now()
+	notes := []Note{
+		{Path: "inbox/a.md", Title: "A", Kind: "inbox", Body: "one", UpdatedAt: now},
+		{Path: "inbox/sub/b.md", Title: "B", Kind: "inbox", Body: "two", UpdatedAt: now},
+		{Path: "knowledge/c.md", Title: "C", Kind: "knowledge", Body: "kept out", UpdatedAt: now},
+	}
+	for _, n := range notes {
+		if err := ix.Upsert(n); err != nil {
+			t.Fatal(err)
+		}
+	}
+	n, err := ix.CountByPrefix("inbox")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != 2 {
+		t.Fatalf("inbox count = %d, want 2", n)
+	}
+	n, err = ix.CountByPrefix("knowledge")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != 1 {
+		t.Fatalf("knowledge count = %d, want 1", n)
+	}
+	n, err = ix.CountByPrefix("none")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != 0 {
+		t.Fatalf("missing prefix count = %d, want 0", n)
+	}
+}
+
+func TestCountByPrefixClosedIndex(t *testing.T) {
+	ix := openTest(t)
+	if err := ix.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ix.CountByPrefix("inbox"); err == nil {
+		t.Fatal("expected error on a closed index")
+	}
+}
+
 func TestUpsertOverwrites(t *testing.T) {
 	ix := openTest(t)
 	n := Note{Path: "knowledge/go.md", Title: "Go", Kind: "knowledge", Body: "v1", UpdatedAt: time.Now()}

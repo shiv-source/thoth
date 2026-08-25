@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { App, Button } from 'antd'
+import { Button } from 'antd'
 import {
     FileTextOutlined,
     InboxOutlined,
@@ -22,6 +22,7 @@ import { ContinueCard } from '../../components/dashboard/ContinueCard'
 import { NeedsAttentionCard } from '../../components/dashboard/NeedsAttentionCard'
 import { TodayCard } from '../../components/dashboard/TodayCard'
 import { QuickCaptureCard } from '../../components/dashboard/QuickCaptureCard'
+import { ReadLaterCard } from '../../components/dashboard/ReadLaterCard'
 import { RecentNotesCard } from '../../components/dashboard/RecentNotesCard'
 import { StatTile } from '../../components/dashboard/StatTile'
 import { TagsCard } from '../../components/dashboard/TagsCard'
@@ -65,7 +66,6 @@ function todayLabel(): string {
 // needs-attention and today panels, then the tag cloud.
 export function DashboardPage({ onOpenSettings }: { onOpenSettings: () => void }) {
     const dispatch = useAppDispatch()
-    const { message } = App.useApp()
     const conversations = useAppSelector(selectConversations)
 
     useEffect(() => {
@@ -75,21 +75,7 @@ export function DashboardPage({ onOpenSettings }: { onOpenSettings: () => void }
     const recentChats = (conversations.list ?? []).slice(0, 3)
 
     const openNote = (path: string) => {
-        if (path.startsWith('inbox/')) {
-            // inbox captures are not viewable notes yet — acknowledge the mock
-            message.info('Mock capture — the inbox viewer is on the roadmap')
-            return
-        }
         navigateNote(path)
-    }
-
-    const capture = (text: string) => {
-        const slug = text
-            .toLowerCase()
-            .replace(/[^a-z0-9]+/g, '-')
-            .replace(/^-+|-+$/g, '')
-            .slice(0, 48)
-        message.success(`Captured to inbox/${slug || 'capture'}.md (mock)`)
     }
 
     return (
@@ -134,7 +120,8 @@ export function DashboardPage({ onOpenSettings }: { onOpenSettings: () => void }
 
                     <SectionHeader>Overview</SectionHeader>
                     <div className="flex flex-col gap-5">
-                        <QuickCaptureCard onCapture={capture} />
+                        <QuickCaptureCard onCaptured={openNote} />
+                        <ReadLaterCard />
                         <ContinueCard
                             chats={recentChats}
                             notes={mockRecentNotes()}

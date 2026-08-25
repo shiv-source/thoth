@@ -163,6 +163,51 @@ func TestSaveErrors(t *testing.T) {
 	}
 }
 
+func TestSaveSourceURL(t *testing.T) {
+	root := t.TempDir()
+	w := New(root)
+	now := func() time.Time { return time.Date(2026, 8, 23, 12, 0, 0, 0, time.UTC) }
+	rel, err := w.Save(SaveOptions{
+		Folder:    "knowledge",
+		Title:     "Capture",
+		Body:      "> quote\n",
+		SourceURL: "https://example.com/page",
+		Now:       now,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	content, err := w.Read(rel)
+	if err != nil {
+		t.Fatal(err)
+	}
+	meta, _, err := ParseNote(content)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if meta.Source != "https://example.com/page" {
+		t.Fatalf("source = %q, want the URL", meta.Source)
+	}
+	if problems := Validate(rel, content); len(problems) > 0 {
+		t.Fatalf("saved note not valid: %+v", problems)
+	}
+}
+
+func TestSaveRejectsBadSourceURL(t *testing.T) {
+	root := t.TempDir()
+	w := New(root)
+	now := func() time.Time { return time.Now() }
+	for _, u := range []string{"not a url", "ftp://example.com/x", "javascript:alert(1)"} {
+		if _, err := w.Save(SaveOptions{Folder: "knowledge", Title: "x", Body: "b", SourceURL: u, Now: now}); err == nil {
+			t.Errorf("Save with source URL %q must fail", u)
+		}
+	}
+	// Empty source is fine — most notes have no provenance.
+	if _, err := w.Save(SaveOptions{Folder: "knowledge", Title: "x", Body: "b", Now: now}); err != nil {
+		t.Fatalf("Save without source must succeed: %v", err)
+	}
+}
+
 func TestSaveCreatesParentDirs(t *testing.T) {
 	root := t.TempDir()
 	w := New(root)
@@ -173,5 +218,55 @@ func TestSaveCreatesParentDirs(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(rel))); err != nil {
 		t.Fatalf("note file not created: %v", err)
+	}
+}
+
+func TestDefaultTitleStripsBlockquote(t *testing.T) {
+	// A captured selection's body is a blockquote; the derived title must not
+	// inherit the ">" marker.
+	if got := DefaultTitle("> Welcome to the docs\n\n> — [Source](https://example.com)"); got != "Welcome to the docs" {
+		t.Fatalf("DefaultTitle = %q, want %q", got, "Welcome to the docs")
+	}
+	if got := DefaultTitle("> just a marker"); got != "just a marker" {
+		t.Fatalf("DefaultTitle = %q", got)
+	}
+}
+
+func TestSaveDoesNotOverwriteOnSlugCollision(t *testing.T) {
+	root := t.TempDir()
+	w := New(root)
+	now := func() time.Time { return time.Date(2026, 8, 23, 0, 0, 0, 0, time.UTC) }
+	first, err := w.Save(SaveOptions{Folder: "inbox", Title: "Same Title", Body: "first", Now: now})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first != "inbox/same-title.md" {
+		t.Fatalf("first rel = %q", first)
+	}
+	second, err := w.Save(SaveOptions{Folder: "inbox", Title: "Same Title", Body: "second", Now: now})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if second != "inbox/same-title-2.md" {
+		t.Fatalf("second rel = %q, want inbox/same-title-2.md", second)
+	}
+	third, err := w.Save(SaveOptions{Folder: "inbox", Title: "Same Title", Body: "third", Now: now})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if third != "inbox/same-title-3.md" {
+		t.Fatalf("third rel = %q, want inbox/same-title-3.md", third)
+	}
+	// Both files exist and hold their own body — nothing was overwritten.
+	b1, err := w.Read(first)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b2, err := w.Read(second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(b1), "first") || !strings.Contains(string(b2), "second") {
+		t.Fatalf("collision overwrote a note: %q / %q", b1, b2)
 	}
 }

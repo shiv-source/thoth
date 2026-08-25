@@ -108,6 +108,13 @@ func Indexable(rel string) bool {
 type Wiki struct {
 	mu   sync.RWMutex
 	root string
+	// linksMu serializes the link-file read-modify-write cycles (bookmarks,
+	// read-later) so two concurrent captures cannot both pass the dedup check
+	// and lose one write. Distinct from mu, which guards the root pointer.
+	linksMu sync.Mutex
+	// saveMu serializes Save's slug-collision check-then-write so concurrent
+	// saves to the same derived filename pick distinct -N suffixes.
+	saveMu sync.Mutex
 }
 
 func New(root string) *Wiki { return &Wiki{root: root} }

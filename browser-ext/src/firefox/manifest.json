@@ -1,0 +1,35 @@
+{
+  "manifest_version": 3,
+  "name": "Thoth Capture",
+  "version": "0.1.0",
+  "description": "Capture bookmarks, selections, and quick notes into your local Thoth wiki.",
+  "permissions": ["contextMenus", "activeTab", "scripting", "storage", "alarms"],
+  "host_permissions": ["http://127.0.0.1:*/*", "http://localhost:*/*"],
+  "optional_host_permissions": ["http://*/*", "https://*/*"],
+  "background": {
+    "scripts": ["background.js"]
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Thoth Capture"
+  },
+  "commands": {
+    "capture-page": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+K"
+      },
+      "description": "Capture the current page to Thoth"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "thoth-capture@thoth.local",
+      "strict_min_version": "115.0"
+    }
+  }
+}
