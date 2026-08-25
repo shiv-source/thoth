@@ -19,8 +19,8 @@ internal/
     tools/                wiki-specific (note, notes, ops, tree, discover)
   api/                    Echo; chat.go = WS (/ws), server.go = wiring, one handler file per domain
   cli/                    Cobra: root, serve, init, version, doctor
-  wiki/                   file contract: ParseNote, SafePath, Tree, Rulebook
-  index/                  SQLite WAL + FTS5 + watcher (derived)
+  wiki/                   file contract: ParseNote, SafePath, Tree, Rulebook, Save/Bookmark (capture + links lists)
+  index/                  SQLite WAL + FTS5 + watcher (derived); CountByPrefix backs the capture inbox badge
   store/                  conversations/messages + providers + llm_models + sync_providers + connections + sync_push_history; migrations 0001–0013
   settings/ config/ doctor/ webui/          (see docs/components.md)
   sync/                   multi-provider sync engine: git/s3/local drivers + restore capability + auto-sync scheduler over sync_providers + sync_connections
@@ -29,6 +29,7 @@ internal/
 web/src/                  React 19 · TS strict · antd 6 · pnpm
   app/ App.tsx · api/ client.tsx (axios+zod) · ws/ chat/protocol/events
   hooks/ store/slices/ pages/ components/ shared/ test/   (one slice per feature)
+browser-ext/              MV3 Chrome+Firefox capture extension: src/core = shared logic (api, server discovery, menus, badge, draft), src/{chrome,firefox} = thin manifests+entries, src/popup = React+antd draft form; dist/ is gitignored (make ext-build)
 docs/                     index.md hub; docs-site/ renders (never forked)
 .claude/skills/           go, react, git-workflow, code-quality, code-rules
 scripts/                  pr, lib-codegraph, main-guard, token-guard
@@ -43,7 +44,9 @@ make build        # bin/thoth · make release VERSION=vX.Y.Z # 5 cross-compile t
 make check        # everything CI enforces, locally
 make doctor       # diagnose the local setup
 make docs-dev     # Docusaurus dev server · make docs-build # production build
+make ext-build    # browser extension → browser-ext/dist/{chrome,firefox}
 pnpm dev|test|typecheck|lint|format   # pnpm only, never npm
+pnpm --filter thoth-ext <cmd>         # extension: lint|typecheck|test|build
 go test ./internal/<pkg>/ -run TestX -v   # focused while iterating; full suite before commit
 ```
 

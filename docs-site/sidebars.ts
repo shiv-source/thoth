@@ -15,7 +15,7 @@ const sidebars: SidebarsConfig = {
       type: 'category',
       label: 'Using Thoth',
       collapsed: false,
-      items: ['using-thoth'],
+      items: ['using-thoth', 'browser-extension'],
     },
     {
       type: 'category',
