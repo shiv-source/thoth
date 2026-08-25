@@ -24,7 +24,7 @@ description: >-
 - web/src/test/ — mockAxios, fakeWS, renderWithStore, setup
 - web/src/theme.tsx — the single antd ThemeConfig (blue primary, light-only)
 - web/src/index.css — Tailwind v4 @theme tokens bridging antd's CSS variables
-- File naming: `.tsx` only in `web/src` — every source file is `.tsx`, JSX or not (components, hooks, helpers, slices, client, theme, test doubles). No `.ts` files under `web/src` (workflow 1a)
+- references/patterns.md — the cross-cutting conventions (file structure, antd, tokens, state placement, routing, test doubles)
 
 ## The antd MCP (check it before writing UI)
 
@@ -51,85 +51,63 @@ tokens with `@theme inline`, never `:root`), and antd 6.6 deprecates
 ## Workflows
 
 ### 1. Add a component
-1. Check the antd MCP for the component you need; prefer antd components over custom markup
-2. One component per file in web/src/components/<Name>.tsx; icons from @ant-design/icons (aria-hidden on decorative icons — antd icons default to role="img" + aria-label)
-3. Style with semantic tokens (bg-surface, text-ink, border-line) — no raw hex (see references/patterns.md)
-4. Co-locate the test <Name>.test.tsx using the renderWithStore/mockAxios doubles (renderWithStore wraps antd App, so App.useApp().message works)
-5. Toasts use App.useApp().message — never a custom toast system
-6. Update docs/frontend.md's component table AND references/components.md in the same commit
-
-### 1a. File structure & naming rules
-- **One component per file** — exactly one component per `.tsx` file. A second component — however small, even a page-local footer, avatar, or toast — gets its own file, never a second component in the same file. Pure helpers/types that a component alone uses may share its file (e.g. `groupByDay`, `sectionFromSegment`); helpers used by several files live in a module. Never pile several unrelated components or long helper chains into one file; split before a file outgrows its intent (code-rules skill modular rule). A page like Settings is a dispatcher + one file per sub-page + shared components, never a 1000-line monolith.
-- **`.tsx` only** — every source file under `web/src` is `.tsx`, JSX or not: components, pages, hooks, helpers, slices, client, theme, and test doubles. There are no `.ts` files in `web/src` (a pure-logic file like `chartDays` is `chartDays.tsx`).
-- **PascalCase files for components** (`ChatPage.tsx`), camelCase for logic files (`useSettingsForm.tsx`, `settingsBody.tsx`). Match the name of what the file exports.
-- **Named exports** — `export function <Name>()`, never `export default` (consistent imports, refactor-safe).
-- **Types with props** — every component declares its props inline in the signature or as a local `type Props`, explicitly typed, no `any` (TS strict + eslint). Derive shared wire types from zod schemas (`z.infer`), never hand-duplicate.
-- **Hooks** — `useX` named export in web/src/hooks/ (or co-located with its page), each `useEffect` subscription/timer with a cleanup (code-rules skill memory rule). Pure helpers used by several files live in a module, not inside a component.
-- **Component roles** — `pages/` = route-level views, `components/` = feature components grouped by owner, `shared/` = cross-cutting primitives, `hooks/` = reusable hooks, `store/slices/` = one slice per feature. Add a component where it belongs; don't grow a page into a grab-bag.
-
-### 1b. React code-quality rules
-- **Small functions/components** — target ≤ 40 lines; at ~60 split into named helpers (what, not how). Few props (≤ 3 ideal); 4+ → group into a typed object (code-rules skill).
-- **No speculative abstraction** — KISS/YAGNI: build what's asked, prefer antd + existing patterns over a new abstraction or dependency.
-- **DRY via imports, not copy-paste** — shared logic (form save, status banners, credential fields) becomes a shared hook/component; never paste the same block into several pages (a pasted block is a divergence bug).
-- **State discipline** — component-local state stays local (`useState`/`useMemo`); only shared/screen-spanning state goes to a Redux slice; antd Form values stay in rc-field-form (seed via `setFieldsValue`); toasts via `App.useApp().message`; routing rides the URL (patterns.md §State placement).
-- **Keys & idempotence** — stable `key`s on lists (row ids, not indexes); `useMemo`/`useEffect` deps complete and minimal; no `setInterval` without `clearInterval`; every effect has a cleanup.
-- **Accessibility** — decorative icons get `aria-hidden="true"`; interactive elements carry labels (input `label`, button text); semantic roles where antd doesn't provide them.
-- **One convention, one place** — a shared rule (e.g. the settings save payload merge) lives in exactly one helper and everything imports it (code-rules skill DRY invariant).
+1. Check the antd MCP for the component you need; prefer antd components over custom markup.
+2. One component per file in web/src/components/<Name>.tsx; icons from @ant-design/icons (aria-hidden on decorative icons). File & naming rules: references/patterns.md § File structure — one component per file, `.tsx` only, PascalCase files, named exports, explicit props, no `any`.
+3. Style with semantic tokens (bg-surface, text-ink, border-line) — no raw hex (references/patterns.md).
+4. Co-locate the test <Name>.test.tsx using the renderWithStore/mockAxios doubles (renderWithStore wraps antd App, so App.useApp().message works).
+5. Toasts use App.useApp().message — never a custom toast system.
+6. Update docs/frontend.md's component table in the same commit.
 
 ### 2. Add a Redux slice
-1. Create web/src/store/slices/<name>Slice.tsx — actions, selectors, thunks co-located
-2. Wire it in web/src/store/index.tsx (makeStore)
-3. Use the typed hooks (useAppDispatch/useAppSelector from store/hooks.tsx) — never bare useDispatch/useSelector
-4. Only shared or screen-spanning state lives in the store; component-local state stays in hooks/components (docs/frontend.md)
-5. Co-locate the slice test; update references/store.md in the same commit
+1. Create web/src/store/slices/<name>Slice.tsx — actions, selectors, thunks co-located.
+2. Wire it in web/src/store/index.tsx (makeStore).
+3. Use the typed hooks (useAppDispatch/useAppSelector from store/hooks.tsx) — never bare useDispatch/useSelector.
+4. Only shared or screen-spanning state lives in the store; component-local state stays in hooks/components (docs/frontend.md §State).
+5. Co-locate the slice test.
 
 ### 3. Add a hook
-1. New file web/src/hooks/useX.tsx, exported as a named function
-2. Every useEffect subscription/timer/socket gets a cleanup that runs on unmount (code-rules skill memory rule)
-3. Co-locate the test; update references/hooks.md + docs/frontend.md in the same commit
+1. New file web/src/hooks/useX.tsx, exported as a named function.
+2. Every useEffect subscription/timer/socket gets a cleanup that runs on unmount (code-rules skill memory rule).
+3. Co-locate the test.
 
 ### 4. Wire an API call
-1. Add or extend the endpoint in web/src/api/client.tsx with a zod schema — validation at the boundary, zero any (code-rules skill invariant)
-2. Server side must match: use the `go` skill for internal/api; DTOs on both sides
-3. Test with mockAxios — assert the parsed payload, not the transport
-4. Update docs/api.md in the same commit
+1. Add or extend the endpoint in web/src/api/client.tsx with a zod schema — validation at the boundary, zero any.
+2. Server side must match: use the `go` skill for internal/api; DTOs on both sides.
+3. Test with mockAxios — assert the parsed payload, not the transport.
+4. Update docs/api.md in the same commit.
 
 ### 5. Test a component/slice
-1. Use the doubles in web/src/test/ (mockAxios, fakeWS, renderWithStore, setup) — never hand-rolled mocks of the app itself
-2. Assert real outcomes: what renders, what's dispatched, what the user sees
-3. Run: pnpm test (Vitest) — pnpm only, never npm
-4. Every behavior change ships with a test (code-rules skill)
+1. Use the doubles in web/src/test/ (mockAxios, fakeWS, renderWithStore, setup) — never hand-rolled mocks of the app itself.
+2. Assert real outcomes: what renders, what's dispatched, what the user sees.
+3. Run: pnpm test (Vitest) — pnpm only, never npm.
+4. Every behavior change ships with a test (code-rules skill).
 
 ### 6. Touch the WS client
-1. CHANGE BOTH SIDES: web/src/ws/chat.tsx (client types) AND internal/api/chat.go (server frames) — they must match
-2. Frames: send/cancel/resume/open/new_chat out; assistant_*/tool_activity/turn_done/error in (docs/api.md)
-3. Reconnect behavior: exactly once after 1 s, resume from onopen — changing it changes chat recovery semantics
-4. Test with fakeWS; update docs/api.md in the same commit
+1. CHANGE BOTH SIDES: web/src/ws/chat.tsx (client types) AND internal/api/chat.go (server frames) — they must match (code-rules skill § Invariants).
+2. Frames: send/cancel/resume/open/new_chat out; assistant_*/tool_activity/turn_done/error in (docs/api.md).
+3. Reconnect behavior: exactly once after 1 s, resume from onopen — changing it changes chat recovery semantics.
+4. Test with fakeWS; update docs/api.md in the same commit.
 
 ### 7. Bump a frontend dependency
-1. `pnpm add <pkg>@latest` from the repo root (workspace proxies) — pnpm only, never npm; never hand-edit versions in web/package.json
-2. The root pnpm-lock.yaml is committed — CI verifies the bump
-3. Run `pnpm typecheck && pnpm lint && pnpm test`, then `make web` to re-sync the embed
-4. If a framework version changed, web/package.json is authoritative — the version lives there, not in CLAUDE.md
+1. `pnpm add <pkg>@latest` from the repo root (workspace proxies) — pnpm only, never npm; never hand-edit versions in web/package.json.
+2. The root pnpm-lock.yaml is committed — CI verifies the bump.
+3. Run `pnpm typecheck && pnpm lint && pnpm test`, then `make web` to re-sync the embed.
 
 ## Gotchas
-- pnpm only — never npm; the workspace lockfile (root pnpm-lock.yaml) is committed
-- TS strict, zero any — eslint enforces; zod at the API boundary
-- Every file under web/src is `.tsx` — no `.ts` source files (workflow 1a)
-- make web is REQUIRED before go build/test — frontend changes don't reach the binary without it
-- WS is chat + server-push transport (`wiki_changed` frames); REST for everything else
-- Light theme only — no dark mode; colors flow from the antd tokens in web/src/theme.tsx
-- Every useEffect has cleanup; no setInterval without clearInterval
+- pnpm only — never npm; the workspace lockfile (root pnpm-lock.yaml) is committed.
+- TS strict, zero any — eslint enforces; zod at the API boundary.
+- Every file under web/src is `.tsx` — no `.ts` source files.
+- make web is REQUIRED before go build/test — frontend changes don't reach the binary without it.
+- Light theme only — no dark mode; colors flow from the antd tokens in web/src/theme.tsx.
+- Every useEffect has cleanup; no setInterval without clearInterval.
 
 ## Canonical docs
 - docs/frontend.md — structure, components, hooks, state, design system
 - docs/api.md — REST endpoints + WS protocol (both sides)
-- docs/architecture.md — the two layers
-- references/patterns.md — file structure, state placement, tokens, routing
+- references/patterns.md — the cross-cutting conventions
 
 ## Maintenance
 Derived view — after a behavior change, update this skill + docs/ in the
-same commit. Stale if: a workflow's file
-paths stop resolving, docs/frontend.md gains a component this skill's
-workflow list doesn't mention, or the file-structure/naming rules (1a)
-stop matching how pages/components are laid out.
+same commit. Stale if a workflow's file paths stop resolving, docs/frontend.md
+gains a component/hook/store entry this skill doesn't reference, or the
+file-structure rules stop matching how pages and components are laid out.

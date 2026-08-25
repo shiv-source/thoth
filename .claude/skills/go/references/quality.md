@@ -1,7 +1,7 @@
 # Quality gates — how this repo verifies work
 
 ## make check — everything CI enforces, locally
-`make check` runs, in order: fmt, lint, race, cover, web-test, build.
+`make check` runs, in order: fmt, lint, race, cover, web-test, web-cover, tools-test, build.
 CI (.github/ workflows) runs: vet → race → `make cover` (the 90% gate) → lint →
 5 cross-compiles → frontend.
 
@@ -30,12 +30,12 @@ CI (.github/ workflows) runs: vet → race → `make cover` (the 90% gate) → l
 - Conventional commits on a branch; PRs land via human squash-merge; ci-pr gates every PR to main
 - Never commit to main directly (code-rules skill repo rules)
 
-## Style rules (source: CLAUDE.md — the single home)
+## Style rules (source: code-rules skill § Code Rules — the single home)
 - %w error wrapping; structured slog with lowercase keys; no panics in library code
 - Small functions (≤40 lines), ≤3 params, fail fast at the boundary
 - Every behavior change ships with a test
 
-Canonical: docs/development.md · CLAUDE.md
+Canonical: docs/development.md · code-rules skill § Code Rules
 
 Stale if: the Makefile gains or loses check targets, the coverage floor
 changes, or the CI workflow order (.github/) changes.

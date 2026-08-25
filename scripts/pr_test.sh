@@ -1,10 +1,8 @@
 #!/usr/bin/env bash
-# pr_test.sh — smoke test for scripts/pr.sh's bare-clone-layout sync.
-# Builds a throwaway bare-clone container, runs pr.sh from inside a feature
-# worktree with gh + a git call-logger in PATH, and asserts the sync step
-# uses `git fetch origin` (not `git switch main`, which is impossible when
-# main is checked out in its sibling worktree). Also checks the normal-clone
-# path still syncs via switch + pull.
+# pr_test.sh — smoke test for scripts/pr.sh's main-sync step.
+# Builds a throwaway clone, runs pr.sh from a feature branch with gh + a git
+# call-logger in PATH, and asserts the sync step uses `git switch main` +
+# `git pull` (never `git fetch origin`).
 # Run: ./scripts/pr_test.sh
 set -euo pipefail
 
@@ -60,39 +58,18 @@ exit 0
 SHIM
 chmod +x "$WORK/bin/git" "$WORK/bin/gh"
 
-# Seed a src repo with the scripts + labels + PR template committed, so the
-# throwaway worktrees carry everything pr.sh needs.
+# Seed a src repo with the scripts + labels + PR template committed.
 mkdir -p "$WORK/src"
 git -C "$WORK/src" init -q
 mkdir -p "$WORK/src/scripts" "$WORK/src/.claude/skills/git-workflow/references" "$WORK/src/.github"
-cp "$ROOT/scripts/git-worktree.sh" "$ROOT/scripts/lib-worktree.sh" "$ROOT/scripts/lib-codegraph.sh" "$ROOT/scripts/pr.sh" "$WORK/src/scripts/"
+cp "$ROOT/scripts/lib-codegraph.sh" "$ROOT/scripts/pr.sh" "$WORK/src/scripts/"
 cp "$ROOT/.claude/skills/git-workflow/references/labels.md" "$WORK/src/.claude/skills/git-workflow/references/labels.md"
 cp "$ROOT/.github/pull_request_template.md" "$WORK/src/.github/pull_request_template.md"
 git -C "$WORK/src" add -A
 git -C "$WORK/src" commit -q -m seed
 git -C "$WORK/src" branch -M main
 
-# Bare-clone container: .bare clone + .git gitfile at the root, main checked
-# out in its own sibling worktree, then a feature worktree via the committed
-# git-worktree.sh.
-git clone -q --bare "$WORK/src" "$WORK/wt/.bare"
-cd "$WORK/wt"
-echo "gitdir: ./.bare" > .git
-git config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"
-git fetch -q origin
-git remote set-head origin -a >/dev/null 2>&1 || true
-git worktree add -q main >/dev/null 2>&1
-"$WORK/wt/main/scripts/git-worktree.sh" new feat/test/demo >/dev/null 2>&1
-
-# 1. Bare-clone layout: sync must fetch origin, never switch to main.
-check "bare layout syncs via fetch, never switch main" bash -c "
-  cd '$WORK/wt/feat-test-demo' &&
-  GIT_SHIM_LOG='$WORK/calls-bare.log' PATH='$WORK/bin:$PATH' '$WORK/wt/feat-test-demo/scripts/pr.sh' --no-check &&
-  grep -qx 'fetch origin' '$WORK/calls-bare.log' &&
-  ! grep -qx 'switch main' '$WORK/calls-bare.log'
-"
-
-# 2. Normal clone: sync still switches to main and pulls.
+# Normal clone: sync switches to main and pulls.
 git clone -q "$WORK/src" "$WORK/normal"
 git -C "$WORK/normal" checkout -q -b feat/test/guide
 check "normal layout syncs via switch main + pull" bash -c "

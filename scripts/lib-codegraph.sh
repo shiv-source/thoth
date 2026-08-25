@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # lib-codegraph.sh — shared CodeGraph helpers for the repo scripts. Source-only;
-# nothing here runs on load. Consumers: git-worktree.sh, pr.sh.
+# nothing here runs on load. Consumers: .husky/pre-commit, .husky/post-checkout, pr.sh.
 #
-# Both helpers are best-effort by design: a missing or failing codegraph must
-# never block a git operation — the worktree/PR flows carry on without an
-# updated index (the same stance git-worktree.sh took when it inlined init).
+# All helpers are best-effort by design: a missing or failing codegraph must
+# never block a git operation — the hooks and PR flow carry on without an
+# updated index.
 
 # codegraph_available reports whether the codegraph CLI is on PATH.
 codegraph_available() {
@@ -13,7 +13,7 @@ codegraph_available() {
 
 # codegraph_init builds a fresh index in dir (mirrors `codegraph init`).
 # Prints a skip note and returns 0 when codegraph is missing or the init
-# fails, so creating a worktree is never blocked by indexing.
+# fails, so a git operation is never blocked by indexing.
 codegraph_init() {
   local dir="$1"
   if ! codegraph_available; then
@@ -42,7 +42,20 @@ codegraph_sync() {
     return 0
   fi
   echo "codegraph: syncing index ($db)"
-  codegraph sync "$dir" || {
+  codegraph sync -q "$dir" || {
     echo "codegraph: sync failed for $dir — continuing without it" >&2
   }
+}
+
+# codegraph_ensure brings dir's index up to date: builds it when no index
+# exists yet, otherwise syncs. Used by the git hooks (pre-commit,
+# post-checkout) so the graph is generated and kept fresh. Best-effort —
+# a missing or failing codegraph never blocks the hook.
+codegraph_ensure() {
+  local dir="${1:-.}"
+  if [ -e "$dir/.codegraph/codegraph.db" ]; then
+    codegraph_sync "$dir"
+  else
+    codegraph_init "$dir"
+  fi
 }

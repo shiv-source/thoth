@@ -178,7 +178,6 @@ tools-test: ## .github/actions JS suites + scripts/ smoke tests
 tools-test:
 	node --test .github/actions/issue-labels/test/*.test.mjs
 	node --test .github/actions/ci-report/test/*.test.mjs
-	./scripts/git-worktree_test.sh
 	./scripts/pr_test.sh
 
 check: fmt lint race cover web-test web-cover tools-test build ## everything CI runs, locally

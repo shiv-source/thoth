@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# main-guard.sh — block commits directly on main.
+# main-guard.sh — block commits directly on main (or a detached HEAD).
 # Wired into .husky/pre-commit. Enforces code-rules skill § Repo rules ("never
 # commit to it directly") — changes live on <type>/<scope>/<slug> branches
 # and land via reviewed PRs that a human squash-merges (git-workflow skill
@@ -11,9 +11,12 @@ cd "$(dirname "$0")/.."
 
 branch="$(git branch --show-current)"
 
+if [ -z "$branch" ]; then
+  echo "main-guard: refusing commit on a detached HEAD — changes live on branches (code-rules skill § Repo rules): git switch -c <type>/<scope>/<slug>" >&2
+  exit 1
+fi
+
 if [ "$branch" = "main" ]; then
   echo "main-guard: refusing commit on main — changes live on branches (code-rules skill § Repo rules): git switch -c <type>/<scope>/<slug>" >&2
   exit 1
 fi
-
-exit 0
