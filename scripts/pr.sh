@@ -277,6 +277,23 @@ main() {
       --no-check) NO_CHECK=1 ;;
       --title) [ -n "${2:-}" ] || die "--title needs a value"; TITLE_OVERRIDE="$2"; shift ;;
       --area) [ -n "${2:-}" ] || die "--area needs a value"; AREA_EXTRA="$AREA_EXTRA $2"; shift ;;
+      -h|--help)
+        cat <<'EOF'
+pr.sh — one command for the whole Thoth contribute flow.
+
+Usage: ./scripts/pr.sh [--no-check] [--title <title>] [--area <label>]…
+
+  --no-check        skip `make check` locally (CI still runs the gates)
+  --title <title>   override the PR title (default: derived from branch + commits)
+  --area <label>    add an area label (repeatable; valid areas: references/labels.md)
+  -h, --help        show this help and exit
+
+Runs, from an existing branch: preflight → sync with main → branch-name check →
+label derivation → make check → push → gh pr create. A session never merges —
+the human merges (git-workflow skill workflow 6).
+EOF
+        exit 0
+        ;;
       *) die "unknown argument '$1' — usage: pr.sh [--no-check] [--title <title>] [--area <label>]…" ;;
     esac
     shift
