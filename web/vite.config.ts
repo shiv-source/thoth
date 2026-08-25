@@ -18,10 +18,13 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: './src/test/setup.tsx',
-    // Async UI tests (fakeWS-backed settings/chat flows) run slower under the
-    // v8 coverage instrumentation on shared CI runners; give them headroom
-    // past vitest's 5s default so the cap doesn't flake.
-    testTimeout: 15000,
+    // Async UI tests (fakeWS-backed settings/chat flows, the heavy
+    // SettingsPage suite) run slower under the v8 coverage instrumentation on
+    // shared CI runners; give them headroom past vitest's 5s default so the
+    // cap doesn't flake. SettingsPage tests measure ~2x slower under
+    // coverage + CPU contention and have been seen to cross 15s (timing out
+    // the whole file, which writes no coverage and fails the frontend gate).
+    testTimeout: 30000,
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json-summary'],
