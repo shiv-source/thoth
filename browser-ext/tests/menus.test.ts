@@ -23,9 +23,9 @@ describe('draftForMenu', () => {
         expect(draft).toEqual({ kind: 'bookmark', url: 'https://example.com/a', title: 'A page' })
     })
 
-    it('captures a selection with the quote text', () => {
+    it('captures a selection with the quote text, a derived title, and the domain tag', () => {
         const draft = draftForMenu(MENU_SELECTION, { url: 'https://example.com/a', title: 'A' }, 'the quote')
-        expect(draft).toEqual({ kind: 'selection', url: 'https://example.com/a', title: 'A', text: 'the quote' })
+        expect(draft).toEqual({ kind: 'selection', url: 'https://example.com/a', title: 'the quote', text: 'the quote', tags: ['example'] })
     })
 
     it('starts a read-later draft', () => {
@@ -33,9 +33,9 @@ describe('draftForMenu', () => {
         expect(draft?.kind).toBe('readlater')
     })
 
-    it('starts a summarize draft without page text (grabbed later)', () => {
-        const draft = draftForMenu(MENU_SUMMARIZE, { url: 'https://example.com/a', title: 'A' })
-        expect(draft).toEqual({ kind: 'summarize', url: 'https://example.com/a', title: 'A', text: '' })
+    it('starts a summarize draft without page text (grabbed later), tagged with the source domain', () => {
+        const draft = draftForMenu(MENU_SUMMARIZE, { url: 'https://turborepo.dev/docs', title: 'Docs' })
+        expect(draft).toEqual({ kind: 'summarize', url: 'https://turborepo.dev/docs', title: 'Docs', text: '', tags: ['turborepo'] })
     })
 
     it('returns null for an unknown menu id', () => {

@@ -14,6 +14,25 @@ export interface StorageLike {
 // discovers across the default ports (8333 then 8334).
 export const BASE_URL_KEY = 'thoth:baseUrl'
 
+// LAST_CATEGORY_KEY remembers the last bookmark category the user picked, so a
+// new bookmark defaults to it instead of always landing in "unfiled". A
+// behavior-based default adapts to how the user files; guessing from the URL
+// (which we never read) would misfire as often as it helps.
+export const LAST_CATEGORY_KEY = 'thoth:lastCategory'
+
+// loadLastCategory returns the remembered bookmark category, or null when
+// there is none yet (first use).
+export async function loadLastCategory(store: StorageLike): Promise<string | null> {
+    const raw = await store.get(LAST_CATEGORY_KEY)
+    return raw || null
+}
+
+// saveLastCategory persists the category used for a bookmark save so the next
+// capture defaults to it.
+export async function saveLastCategory(store: StorageLike, category: string): Promise<void> {
+    await store.set(LAST_CATEGORY_KEY, category)
+}
+
 export function normalizeBaseUrl(raw: string): string {
     return raw.trim().replace(/\/+$/, '')
 }

@@ -1,5 +1,14 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { connectBaseUrl, ensureHostPermission, resolveBaseUrl, saveBaseUrl, BASE_URL_KEY } from '../src/core/config'
+import {
+    connectBaseUrl,
+    ensureHostPermission,
+    loadLastCategory,
+    resolveBaseUrl,
+    saveBaseUrl,
+    saveLastCategory,
+    BASE_URL_KEY,
+    LAST_CATEGORY_KEY,
+} from '../src/core/config'
 import { DEFAULT_BASE_URLS, discoverBaseUrl, probeServer } from '../src/core/server'
 import type { BrowserAPI } from '../src/core/webext'
 import { memoryStorage } from './fakes'
@@ -117,5 +126,15 @@ describe('ensureHostPermission', () => {
 
     it('returns true for empty input (auto-discovery on localhost)', async () => {
         await expect(ensureHostPermission({} as BrowserAPI, '')).resolves.toBe(true)
+    })
+})
+
+describe('last bookmark category', () => {
+    it('round-trips the last-used category and reports none before first use', async () => {
+        const store = memoryStorage()
+        expect(await loadLastCategory(store)).toBeNull()
+        await saveLastCategory(store, 'docs')
+        expect(await loadLastCategory(store)).toBe('docs')
+        expect(store.data[LAST_CATEGORY_KEY]).toBe('docs')
     })
 })

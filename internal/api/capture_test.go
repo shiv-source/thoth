@@ -547,6 +547,43 @@ func TestCaptureSummarizeTimeoutIs504(t *testing.T) {
 	}
 }
 
+func TestCaptureSummarizeWritesTags(t *testing.T) {
+	d := testDeps(t)
+	if err := wiki.Scaffold(d.Wiki.Root()); err != nil {
+		t.Fatal(err)
+	}
+	d.Claude = &FakeClient{Script: []agentlib.Event{
+		{Type: agentlib.EventDelta, Text: "A summary."},
+		{Type: agentlib.EventDone},
+	}}
+	e := New(d)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/capture/summarize",
+		strings.NewReader(`{"url":"https://turborepo.dev/docs","title":"Docs","text":"page","tags":["turborepo"]}`))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("summarize status %d: %s", rec.Code, rec.Body.String())
+	}
+	var sum struct {
+		Path string `json:"path"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &sum); err != nil {
+		t.Fatal(err)
+	}
+	content, err := d.Wiki.Read(sum.Path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	meta, _, perr := wiki.ParseNote(content)
+	if perr != nil {
+		t.Fatal(perr)
+	}
+	if len(meta.Tags) != 1 || meta.Tags[0] != "turborepo" {
+		t.Fatalf("summary tags = %v, want [turborepo]", meta.Tags)
+	}
+}
+
 func TestCaptureCheckNormalizesURL(t *testing.T) {
 	d := testDeps(t)
 	if err := wiki.Scaffold(d.Wiki.Root()); err != nil {

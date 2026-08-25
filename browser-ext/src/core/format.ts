@@ -8,6 +8,49 @@ export const BOOKMARK_CATEGORIES = ['reference', 'article', 'docs', 'reading', '
 // before sending — a summarization never needs more than this.
 export const MAX_CAPTURE_TEXT = 500_000
 
+// MAX_TITLE is the cap for derived capture titles (mirrors the store's 60-rune
+// title cap); a longer first sentence is cut at the word boundary.
+const MAX_TITLE = 60
+
+// selectionTitle derives a note title from a captured selection: the first
+// sentence-bearing line (real content, not a nav label or heading fragment),
+// stripped of markdown heading/blockquote markers, capped at MAX_TITLE. A
+// selection inheriting the page's generic title ("Introduction") is far less
+// identifiable than its own first sentence.
+export function selectionTitle(text: string): string {
+    const cleaned = text
+        .split(/\r?\n/)
+        .map((line) => line.replace(/^#{1,6}\s+/, '').replace(/^>\s?/, '').trim())
+        .filter((line) => line.length > 0)
+    if (cleaned.length === 0) return ''
+    const pick = cleaned.find((line) => /[.!?]/.test(line)) ?? cleaned[0]!
+    const end = pick.search(/[.!?](?=\s|$)/)
+    const title = end >= 0 ? pick.slice(0, end + 1) : pick
+    return title.length > MAX_TITLE ? title.slice(0, MAX_TITLE).trimEnd() : title
+}
+
+// sourceTag derives a consistent capture tag from a source URL's bare host
+// (https://turborepo.dev/docs → "turborepo"), so every capture from the same
+// site stays grouped and searchable. Returns undefined when the URL has no
+// usable host.
+const COMMON_TLDS = new Set([
+    'com', 'org', 'net', 'io', 'dev', 'co', 'uk', 'app', 'site', 'info', 'xyz', 'tv', 'me', 'us',
+    'ca', 'au', 'in', 'de', 'fr', 'jp', 'ru', 'github', 'gitlab', 'md', 'ai', 'so', 'tech',
+    'online', 'blog', 'shop', 'store', 'cloud'
+])
+
+export function sourceTag(sourceUrl: string): string | undefined {
+    try {
+        const host = new URL(sourceUrl).hostname.toLowerCase().replace(/^www\./, '')
+        const labels = host.split('.').filter(Boolean)
+        while (labels.length > 1 && COMMON_TLDS.has(labels[labels.length - 1]!)) labels.pop()
+        const tag = labels[labels.length - 1]
+        return tag && tag.length > 0 ? tag : undefined
+    } catch {
+        return undefined
+    }
+}
+
 // The scaffold folders the popup offers before the server's settings arrive.
 export const DEFAULT_NOTE_FOLDERS = [
     'inbox',

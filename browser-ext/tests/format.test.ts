@@ -6,9 +6,53 @@ import {
     openNoteUrl,
     parseTags,
     sanitizeSingleLine,
+    selectionTitle,
     selectionToBody,
+    sourceTag,
 } from '../src/core/format'
 import type { Draft } from '../src/core/types'
+
+describe('selectionTitle', () => {
+    it('derives a title from the first sentence-bearing line', () => {
+        expect(selectionTitle('Welcome to the Turborepo documentation! What is Turborepo?')).toBe(
+            'Welcome to the Turborepo documentation!'
+        )
+    })
+
+    it('skips nav/heading fragments to prefer real content', () => {
+        expect(selectionTitle('Introduction\nCopy page\nWelcome to the docs!\nMore here.')).toBe(
+            'Welcome to the docs!'
+        )
+    })
+
+    it('strips markdown heading and blockquote markers', () => {
+        expect(selectionTitle('## What is Turborepo?\n\nTurborepo is a build system.')).toBe('What is Turborepo?')
+        expect(selectionTitle('> A quoted line\n\n> More')).toBe('A quoted line')
+    })
+
+    it('falls back to the first non-empty line and caps long titles', () => {
+        expect(selectionTitle('Key Concepts')).toBe('Key Concepts')
+        const long = 'x'.repeat(200)
+        expect(selectionTitle(long).length).toBeLessThanOrEqual(60)
+        expect(selectionTitle('')).toBe('')
+        expect(selectionTitle('  \n\n  ')).toBe('')
+    })
+})
+
+describe('sourceTag', () => {
+    it('derives the bare host label from common domains', () => {
+        expect(sourceTag('https://turborepo.dev/docs')).toBe('turborepo')
+        expect(sourceTag('https://www.example.com/a')).toBe('example')
+        expect(sourceTag('https://docs.google.com/a')).toBe('google')
+        expect(sourceTag('https://en.wikipedia.org/wiki/Go')).toBe('wikipedia')
+        expect(sourceTag('https://example.co.uk/a')).toBe('example')
+    })
+
+    it('returns undefined for unusable hosts', () => {
+        expect(sourceTag('')).toBeUndefined()
+        expect(sourceTag('not a url')).toBeUndefined()
+    })
+})
 
 describe('selectionToBody', () => {
     it('renders the quote in a blockquote with a source attribution', () => {

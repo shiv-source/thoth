@@ -254,11 +254,14 @@ func captureInboxCount(c echo.Context, d Deps) error {
 
 // summarizeRequest is the POST /api/v1/capture/summarize body: the page to
 // condense. Text is the page content (or selection); the assistant writes the
-// summary as a knowledge note carrying the source URL in frontmatter.
+// summary as a knowledge note carrying the source URL in frontmatter. Tags
+// are optional frontmatter tags (the extension sends the source-domain tag so
+// a summary's metadata stays consistent with other captures).
 type summarizeRequest struct {
-	URL   string `json:"url"`
-	Title string `json:"title"`
-	Text  string `json:"text"`
+	URL   string   `json:"url"`
+	Title string   `json:"title"`
+	Text  string   `json:"text"`
+	Tags  []string `json:"tags"`
 }
 
 // summarizeCapture runs one assistant turn over the captured page text and
@@ -319,6 +322,7 @@ func summarizeCapture(c echo.Context, d Deps) error {
 		Title:     noteTitle,
 		Body:      summary,
 		SourceURL: url,
+		Tags:      req.Tags,
 	})
 	if err != nil {
 		return internalError(c, d, "summarize save", err)

@@ -2235,6 +2235,13 @@
           "text": {
             "type": "string",
             "description": "The page content (or selection) to summarize"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Optional frontmatter tags (the extension sends the source-domain tag for metadata consistency)"
           }
         }
       },

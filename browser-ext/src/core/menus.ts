@@ -1,3 +1,4 @@
+import { selectionTitle, sourceTag } from './format'
 import type { Draft } from './types'
 import type { BrowserAPI } from './webext'
 
@@ -22,19 +23,31 @@ export async function registerMenus(api: BrowserAPI): Promise<void> {
 }
 
 // draftForMenu maps a context-menu click to the pending capture draft. A
-// selection click produces a selection draft (the quote); everything else is
-// metadata-only — full-page text is captured only on the explicit summarize
-// action or the popup's "include full page text" toggle (issue #176 #7).
+// selection click produces a selection draft whose title is derived from the
+// quote (not the page's generic title) and tagged with the source domain;
+// everything else is metadata-only — full-page text is captured only on the
+// explicit summarize action or the popup's "include full page text" toggle
+// (issue #176 #7).
 export function draftForMenu(menuId: string, page: MenuPageInfo, selectionText?: string): Draft | null {
     switch (menuId) {
         case MENU_BOOKMARK:
             return { kind: 'bookmark', url: page.url, title: page.title || page.url }
         case MENU_READLATER:
             return { kind: 'readlater', url: page.url, title: page.title || page.url }
-        case MENU_SELECTION:
-            return { kind: 'selection', url: page.url, title: page.title || page.url, text: selectionText ?? '' }
-        case MENU_SUMMARIZE:
-            return { kind: 'summarize', url: page.url, title: page.title || page.url, text: '' }
+        case MENU_SELECTION: {
+            const tag = sourceTag(page.url)
+            return {
+                kind: 'selection',
+                url: page.url,
+                title: selectionTitle(selectionText ?? '') || page.title || page.url,
+                text: selectionText ?? '',
+                tags: tag ? [tag] : undefined,
+            }
+        }
+        case MENU_SUMMARIZE: {
+            const tag = sourceTag(page.url)
+            return { kind: 'summarize', url: page.url, title: page.title || page.url, text: '', tags: tag ? [tag] : undefined }
+        }
         default:
             return null
     }

@@ -26,9 +26,9 @@ A custom URL on `127.0.0.1`/`localhost` needs nothing extra. A custom server on 
 Right-click on any page:
 
 - **Bookmark page to Thoth** — metadata only (title/URL/reason), appended to `links/bookmarks.md` grouped by category
-- **Save selection to Thoth** — the quote saved as a note with the page URL in `source:` frontmatter
+- **Save selection to Thoth** — the quote saved as a note with the page URL in `source:` frontmatter; the note title is derived from the quote's first sentence (not the page's generic title) and the capture is auto-tagged with the source domain, so every capture from a site stays grouped
 - **Add to Thoth read later** — appended to the `links/read-later.md` queue
-- **Ask Thoth to summarize this page** — the assistant summarizes the page text into a `knowledge/` note with `source:`
+- **Ask Thoth to summarize this page** — the assistant summarizes the page text into a `knowledge/` note with `source:` and the source-domain tag
 
 A click stores a **draft** and opens the popup prefilled for review — the draft step keeps the wiki free of inbox garbage. If the URL is already saved, the popup shows **"Already saved → open it"** instead of writing a duplicate.
 
@@ -37,7 +37,8 @@ A click stores a **draft** and opens the popup prefilled for review — the draf
 - **Server status** — connected / "Thoth is not running — start it with `thoth serve`"
 - **Kind tabs** — Note, Bookmark, Read later, Summarize
 - **Editable fields** — title, URL, text, reason, category, folder, tags
-- **Include full page text** — off by default; ticking it captures the whole page as a `knowledge/` note instead of a bookmark line
+- **Bookmark category** — the popup remembers the last category you used and defaults to it (falling back to `unfiled` on first use); it never guesses from the URL, and it's always editable before saving
+- **Include full page text** — off by default; ticking it captures the whole page as a `knowledge/` note (with the source-domain tag) instead of a bookmark line
 
 After any save, an **Open in Thoth** link opens the dashboard at the saved note.
 

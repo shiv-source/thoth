@@ -221,6 +221,17 @@ func TestSaveCreatesParentDirs(t *testing.T) {
 	}
 }
 
+func TestDefaultTitleStripsBlockquote(t *testing.T) {
+	// A captured selection's body is a blockquote; the derived title must not
+	// inherit the ">" marker.
+	if got := DefaultTitle("> Welcome to the docs\n\n> — [Source](https://example.com)"); got != "Welcome to the docs" {
+		t.Fatalf("DefaultTitle = %q, want %q", got, "Welcome to the docs")
+	}
+	if got := DefaultTitle("> just a marker"); got != "just a marker" {
+		t.Fatalf("DefaultTitle = %q", got)
+	}
+}
+
 func TestSaveDoesNotOverwriteOnSlugCollision(t *testing.T) {
 	root := t.TempDir()
 	w := New(root)

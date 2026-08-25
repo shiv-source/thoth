@@ -132,8 +132,10 @@ func (w *Wiki) nextFreeRel(rel string) string {
 }
 
 // DefaultTitle derives a note title from a markdown body: the text of the
-// first ATX heading (# …), else the first non-empty line. It is the promotion
-// default, so an answer that opens with a heading files under that heading.
+// first ATX heading (# …), else the first non-empty line, with heading and
+// blockquote markers stripped. It is the promotion default, so an answer that
+// opens with a heading files under that heading, and a captured selection
+// (whose body is a blockquote) files under its first quoted line.
 func DefaultTitle(body string) string {
 	for _, line := range strings.Split(body, "\n") {
 		t := strings.TrimSpace(line)
@@ -144,6 +146,12 @@ func DefaultTitle(body string) string {
 			t = strings.TrimSpace(strings.TrimLeft(t, "#"))
 			if t == "" {
 				continue // bare "#" line — keep scanning for real text
+			}
+		}
+		if strings.HasPrefix(t, ">") {
+			t = strings.TrimSpace(strings.TrimPrefix(t, ">"))
+			if t == "" {
+				continue // bare ">" line — keep scanning for real text
 			}
 		}
 		return t

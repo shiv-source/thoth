@@ -42,7 +42,7 @@ export class ThothClient {
         return body.count
     }
 
-    async summarize(input: { url: string; title: string; text: string }): Promise<CaptureResponse> {
+    async summarize(input: { url: string; title: string; text: string; tags?: string[] }): Promise<CaptureResponse> {
         return this.request<CaptureResponse>('/api/v1/capture/summarize', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },

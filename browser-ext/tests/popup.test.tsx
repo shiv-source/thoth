@@ -168,6 +168,80 @@ describe('PopupApp', () => {
         expect(await screen.findByText('Text is required')).toBeInTheDocument()
     })
 
+    it('saves a selection draft with its derived title and domain tag', async () => {
+        stubServer({
+            '/api/v1/health': { status: 'ok' },
+            '/api/v1/settings': settingsBody,
+            '/api/v1/capture': { path: 'inbox/welcome.md', title: 'Welcome to the Turborepo documentation!', type: 'inbox' },
+        })
+        const storage = memoryStorage({
+            'thoth:draft': JSON.stringify({
+                kind: 'selection',
+                url: 'https://turborepo.dev/docs',
+                title: 'Welcome to the Turborepo documentation!',
+                text: 'Welcome to the Turborepo documentation! What is Turborepo?',
+                tags: ['turborepo'],
+            }),
+        })
+        renderPopup(storage)
+        await screen.findByLabelText('Text')
+        fireEvent.click(screen.getByRole('button', { name: /^Save/ }))
+        expect(await screen.findByText('Saved to inbox/welcome.md')).toBeInTheDocument()
+        const postCall = vi
+            .mocked(fetch)
+            .mock.calls.find(([u]) => (u as string) === 'http://127.0.0.1:8333/api/v1/capture')
+        const body = JSON.parse((postCall?.[1] as { body?: string } | undefined)?.body ?? '{}') as {
+            title: string
+            tags: string[]
+        }
+        expect(body.title).toBe('Welcome to the Turborepo documentation!')
+        expect(body.tags).toEqual(['turborepo'])
+    })
+
+    it('defaults a bookmark save to the stored last-used category', async () => {
+        stubServer({
+            '/api/v1/health': { status: 'ok' },
+            '/api/v1/settings': settingsBody,
+            '/api/v1/capture/check': { exists: false },
+            '/api/v1/capture': { path: 'links/bookmarks.md', title: 'Go Docs', type: 'bookmark' },
+        })
+        const storage = memoryStorage({
+            [BASE_URL_KEY]: 'http://127.0.0.1:8333',
+            'thoth:lastCategory': 'docs',
+            'thoth:draft': JSON.stringify({ kind: 'bookmark', url: 'https://go.dev/doc', title: 'Go Docs' }),
+        })
+        renderPopup(storage)
+        await screen.findByLabelText('URL')
+        fireEvent.click(screen.getByRole('button', { name: /^Save/ }))
+        expect(await screen.findByText('Saved to links/bookmarks.md')).toBeInTheDocument()
+        const postCall = vi
+            .mocked(fetch)
+            .mock.calls.find(([u]) => (u as string) === 'http://127.0.0.1:8333/api/v1/capture')
+        const body = JSON.parse((postCall?.[1] as { body?: string } | undefined)?.body ?? '{}') as {
+            category: string
+        }
+        expect(body.category).toBe('docs')
+    })
+
+    it('remembers the category used for a bookmark save', async () => {
+        stubServer({
+            '/api/v1/health': { status: 'ok' },
+            '/api/v1/settings': settingsBody,
+            '/api/v1/capture/check': { exists: false },
+            '/api/v1/capture': { path: 'links/bookmarks.md', title: 'Go Docs', type: 'bookmark' },
+        })
+        const storage = memoryStorage({ [BASE_URL_KEY]: 'http://127.0.0.1:8333' })
+        renderPopup(storage)
+        await screen.findByLabelText('Text')
+        fireEvent.click(screen.getByText('Bookmark'))
+        await userEvent.type(screen.getByLabelText('URL'), 'https://go.dev/doc')
+        fireEvent.click(screen.getByRole('button', { name: /^Save/ }))
+        expect(await screen.findByText('Saved to links/bookmarks.md')).toBeInTheDocument()
+        // The category the save used (the 'unfiled' default here) is remembered
+        // for the next capture.
+        await waitFor(() => expect(storage.data['thoth:lastCategory']).toBe('unfiled'))
+    })
+
     it('does not silently fall back to a default port for a down custom URL', async () => {
         stubServer({}) // every route is down
         const { ext } = renderPopup()

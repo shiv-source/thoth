@@ -3,7 +3,7 @@ import { Alert, Button, Checkbox, Input, Segmented, Select, Space, Typography } 
 import { LinkOutlined } from '@ant-design/icons'
 import { ThothClient, ThothError } from '../core/api'
 import { refreshBadge } from '../core/badge'
-import { BASE_URL_KEY, connectBaseUrl, ensureHostPermission, resolveBaseUrl, saveBaseUrl } from '../core/config'
+import { BASE_URL_KEY, connectBaseUrl, ensureHostPermission, loadLastCategory, resolveBaseUrl, saveBaseUrl, saveLastCategory } from '../core/config'
 import type { StorageLike } from '../core/config'
 import {
     BOOKMARK_CATEGORIES,
@@ -15,6 +15,7 @@ import {
     parseTags,
     sanitizeSingleLine,
     selectionToBody,
+    sourceTag,
 } from '../core/format'
 import { capturePageText } from '../core/page'
 import { clearDraft, loadDraft } from '../core/storage'
@@ -100,14 +101,21 @@ export function PopupApp({ storage, ext }: PopupAppProps) {
                 setStatusText('Thoth is not running — start it with `thoth serve`')
             }
             const draft = await loadDraft(storage)
-            if (cancelled || !draft) return
+            if (cancelled) return
+            // The bookmark category defaults to the last one used (never guess
+            // from the URL); "unfiled" is the very-first-use fallback.
+            const lastCategory = (await loadLastCategory(storage)) ?? DEFAULT_CATEGORY
+            if (!draft) {
+                setCategory(lastCategory)
+                return
+            }
             setKind(draft.kind)
             setTitle(draft.title ?? '')
             setUrl(draft.url ?? '')
             setReason(draft.reason ?? '')
             setTags(draft.tags?.join(', ') ?? '')
             setIncludeFullPage(draft.includePageText ?? false)
-            setCategory(draft.category ?? DEFAULT_CATEGORY)
+            setCategory(draft.category ?? lastCategory)
             if (draft.folder) setFolder(draft.folder)
             setText(
                 draft.kind === 'selection'
@@ -226,20 +234,27 @@ export function PopupApp({ storage, ext }: PopupAppProps) {
             let res: CaptureResponse
             if (kind === 'bookmark' && includeFullPage) {
                 // Full-page text only on explicit action: a knowledge note
-                // with the source URL instead of a bookmark line (#7).
+                // with the source URL instead of a bookmark line (#7). It
+                // carries the source-domain tag for metadata consistency.
                 const pageText = await getActivePageText(ext)
+                const tag = sourceTag(urlTrimmed)
                 res = await client.capture({
                     kind: 'note',
                     url: urlTrimmed,
                     title: title.trim(),
                     text: pageText,
                     folder: 'knowledge',
-                    tags: draft.tags,
+                    tags: tag ? [tag] : [],
                 })
             } else if (kind === 'summarize') {
-                res = await client.summarize({ url: urlTrimmed, title: title.trim(), text: textTrimmed })
+                res = await client.summarize({ url: urlTrimmed, title: title.trim(), text: textTrimmed, tags: draft.tags })
             } else {
                 res = await client.capture(draftToCapture(draft))
+            }
+            // A real bookmark save (not the full-page knowledge variant) sets
+            // the remembered category for the next capture.
+            if (kind === 'bookmark' && !includeFullPage) {
+                await saveLastCategory(storage, category)
             }
             await clearDraft(storage)
             await refreshBadge(ext, client)
