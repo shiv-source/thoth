@@ -30,7 +30,7 @@ web/src/                  React 19 · TS strict · antd 6 · pnpm
   hooks/ store/slices/ pages/ components/ shared/ test/   (one slice per feature)
 docs/                     index.md hub; docs-site/ renders (never forked)
 .claude/skills/           go, react, git-workflow, code-quality, code-rules
-scripts/                  pr, git-worktree, lib-worktree, lib-codegraph, main-guard, token-guard
+scripts/                  pr, lib-codegraph, main-guard, token-guard
 ```
 
 ## Commands

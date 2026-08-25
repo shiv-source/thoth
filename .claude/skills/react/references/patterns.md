@@ -47,7 +47,7 @@
 - In: assistant_start, assistant_thinking {text}, assistant_delta {text}, tool_activity {tool, detail}, turn_done {conversation_id}, error {message}
 - Reconnects exactly once after 1 s, sending resume from onopen so the turn re-syncs
 - open pins the server-side conversation and never becomes the reconnect-resume id
-- Server message types in internal/api/chat.go must match web/src/ws/chat.tsx — CHANGE BOTH SIDES
+- Server message types in internal/api/chat.go must match web/src/ws/chat.tsx — CHANGE BOTH SIDES (code-rules skill § Invariants)
 - canonical: web/src/ws/chat.tsx · docs/api.md §WebSocket chat
 
 ## Test doubles (web/src/test)

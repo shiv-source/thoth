@@ -12,6 +12,12 @@
 #   PostToolUse Read → "$CLAUDE_PROJECT_DIR/scripts/token-guard.sh" record
 set -u
 
+# No hook JSON on stdin (manual invocation) — nothing to do. Without this,
+# `cat` would block forever waiting for input outside the hook context.
+if [ -t 0 ]; then
+  exit 0
+fi
+
 input="$(cat)"
 session_id="$(printf '%s' "$input" | sed -n 's/.*"session_id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
 path="$(printf '%s' "$input" | sed -n 's/.*"file_path"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"

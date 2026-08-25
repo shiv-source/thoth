@@ -1,6 +1,6 @@
 <!--
 Conventions:
-- Title: conventional commit (`feat:`, `fix:`, `ci:`, `docs:`, `refactor:`, `test:`, `chore:`)
+- Title: conventional commit (`feat:`, `fix:`, `perf:`, `ci:`, `docs:`, `refactor:`, `test:`, `chore:`)
 - `ci-pr` runs the quality gates; `final-gate` posts its report as a comment and must pass before merging
 - Never commit secrets or generated files (`web/dist/`, `internal/webui/dist/`, `*.db`)
 -->
@@ -21,7 +21,7 @@ The GitHub issue(s) this PR addresses. `Closes #<n>` auto-closes the issue
 when the PR merges, e.g. `Closes #43`. Omit this section when there is no issue.
 -->
 
-Closes #<issue>
+<!-- `Closes #<n>` — set the issue number here, or delete this line when there is no issue. -->
 
 ## Files changed
 

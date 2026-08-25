@@ -20,24 +20,17 @@ make dev       # Vite HMR + Go server together (http://127.0.0.1:8333)
 
 1. **Assigned an issue/feature/bug? Decide where to work first.** When asked
    to work on a specific issue, feature, or bug, don't branch blindly —
-   confirm the target first: work in the current worktree/branch, or create a
-   new one? Reuse the branch/worktree if one already exists
-   (`./scripts/git-worktree.sh list` in the bare-clone layout, `git branch`
-   in a standard clone); otherwise create one per step 2.
+   confirm the target first: work in the current branch, or create a new one
+   (`git branch` shows what exists) per step 2. Never branch or start digging
+   before the issue is read and the target is confirmed.
 2. **Never commit to `main`.** `main` is always deployable; changes live on
-   `<type>/<scope>/<slug>` branches and land via reviewed PRs. Create the
-   branch per your clone layout:
-   - Bare-clone layout (a container dir holding a hidden `.bare` + a `.git`
-     gitfile, worktrees as siblings)? `git switch main` is impossible —
-     `main` is checked out in its own sibling worktree — so use
-     `./scripts/git-worktree.sh`: `git fetch origin` then
-     `./scripts/git-worktree.sh new <type>/<scope>/<slug>`.
-   - Standard clone:
-     ```sh
-     git switch main && git pull --ff-only && git switch -c <type>/<scope>/<slug>
-     ```
-   `./scripts/pr.sh` detects the bare-clone layout and syncs via `git fetch
-   origin` too.
+   `<type>/<scope>/<slug>` branches and land via reviewed PRs. Sync and
+   create the branch:
+   ```sh
+   git switch main && git pull --ff-only && git switch -c <type>/<scope>/<slug>
+   ```
+   `./scripts/pr.sh` runs this sync plus the whole PR flow (step 4) in one
+   command.
 3. **Conventional commits** — `<type>(<scope>): <summary>`; prefixes: `feat:`, `fix:`, `perf:`, `chore:`, `docs:`, `refactor:`, `test:`, `ci:` (`perf` maps to the `performance` type label).
 4. **Open a PR** using the template — conventional title, a summary that gives the full picture (bullets when it helps), files changed, and the verification checklist. The `ci-pr` quality gates run automatically; `final-gate` posts its report as a comment and must pass before merging.
 5. **Squash-merge** PRs unless the commit history is meaningful.
@@ -45,7 +38,7 @@ make dev       # Vite HMR + Go server together (http://127.0.0.1:8333)
 
 ## Before you push
 
-The pre-commit hook runs automatically: it refreshes the CodeGraph index (best-effort — a missing or failing `codegraph` never blocks a commit), refuses commits made directly on `main` (changes land via branches and reviewed PRs), `lint-staged` applies `eslint --fix` + prettier to staged `web/src` files and `golangci-lint --fix` to staged Go files; Go commits additionally gate on `go vet ./...`, `golangci-lint run`, and `go test ./...`. Formatting and autofixes happen for you — but the gate fails on anything a linter cannot fix, by design.
+The pre-commit hook runs automatically: it generates/refreshes the CodeGraph index (best-effort — a missing or failing `codegraph` never blocks a commit), refuses commits made directly on `main` (changes land via branches and reviewed PRs), `lint-staged` applies `eslint --fix` + prettier to staged `web/src` files and `golangci-lint --fix` to staged Go files; Go commits additionally gate on `go vet ./...`, `golangci-lint run`, and `go test ./...`. Formatting and autofixes happen for you — but the gate fails on anything a linter cannot fix, by design.
 
 Before opening a PR, run what CI enforces, locally:
 

@@ -6,9 +6,7 @@
 # preflight → sync with main → branch-name check →
 # label derivation (parsed from references/labels.md) → make check → push →
 # gh pr create with the template. The steps in the skill remain
-# authoritative when run by hand. In the bare-clone layout
-# (scripts/git-worktree.sh) sync skips `git switch main` — main is checked
-# out in its sibling worktree — and fetches origin instead.
+# authoritative when run by hand.
 #
 # A session never merges — the human merges (git-workflow skill workflow 6).
 # Limitation: the branch itself is not rebased onto main, only main is
@@ -16,10 +14,6 @@
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
-
-# find_container (bare-clone layout detection) lives in the shared lib.
-# shellcheck source=./lib-worktree.sh
-source "$(dirname "$0")/lib-worktree.sh"
 
 # codegraph_sync (the pre-push index refresh) lives in the shared lib too.
 # shellcheck source=./lib-codegraph.sh
@@ -109,15 +103,6 @@ preflight() {
 }
 
 sync_main() {
-  # Bare-clone layout (scripts/git-worktree.sh): main is checked out in the
-  # sibling main worktree, so `git switch main` is impossible. `git fetch
-  # origin` updates the shared refs instead — git-worktree.sh `new` bases on
-  # origin/main, so a fetched origin/main is the worktree-layout sync.
-  if find_container >/dev/null; then
-    git fetch origin || die "git fetch origin failed — check remote state"
-    echo "pr: bare-clone layout — synced origin/main via git fetch (main stays in its sibling worktree)"
-    return
-  fi
   if ! git switch main; then
     die "switching to main failed — resolve or stash the differing files first"
   fi
@@ -211,8 +196,7 @@ run_checks() {
 # codegraph_sync (lib-codegraph.sh) refreshes the CodeGraph index so the PR
 # reflects the branch's final tree (post make-check) before the push.
 # Best-effort and only when an index already exists — a missing or failing
-# codegraph must never block the PR (the same stance git-worktree.sh takes on
-# init).
+# codegraph must never block the PR.
 
 # Newest-first commit subjects on the branch relative to main; picks the
 # first whose type matches the branch (type+scope match wins over
@@ -265,7 +249,8 @@ push_and_open() {
   else
     # gh's --template only works interactively — pre-fill the template into
     # a temp body file (editor on it when stdin is a TTY) and pass
-    # --body-file, which works in both modes
+    # --body-file, which works in both modes. The body itself is left for
+    # the agent/human to write per the template (git-workflow skill § 3).
     local body_file
     body_file="$(mktemp -t pr-body.XXXXXX)"
     trap "rm -f '$body_file'" EXIT

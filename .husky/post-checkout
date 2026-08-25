@@ -1,0 +1,11 @@
+#!/bin/sh
+set -e
+
+# Refresh the CodeGraph index right after a branch checkout/switch so the
+# graph always reflects the checked-out tree. Best-effort (lib-codegraph.sh) —
+# a missing or failing codegraph never blocks the checkout.
+# $3 = 1 for a branch checkout (git switch/checkout), 0 for a file checkout.
+[ "${3:-0}" = "1" ] || exit 0
+
+. scripts/lib-codegraph.sh
+codegraph_ensure
