@@ -64,7 +64,8 @@ const settings = {
     wiki_path: '~/.thoth/wiki',
     wiki_folders: [] as string[],
     model: '',
-    context_injection: false
+    context_injection: false,
+    conversation_retention_days: 7
 }
 
 const githubProvider = {
@@ -260,6 +261,25 @@ describe('SettingsPage', () => {
         await userEvent.click(screen.getByRole('button', { name: /Save/ }))
         await waitFor(() => expect(screen.getByText(/Saved ✓/)).toBeInTheDocument())
         expect(lastBody('put', '/api/v1/settings')).toMatchObject({ model: 'deepseek-v4-flash' })
+    })
+
+    it('saves the conversation retention window', async () => {
+        stubAPI({
+            'GET /api/v1/settings': getSettings,
+            'PUT /api/v1/settings': () => ({ ...settings })
+        })
+
+        renderSettings()
+        const retention = await screen.findByRole('spinbutton', {
+            name: 'Auto-delete conversations after (days)'
+        })
+        // Seeded from the server default once settings load.
+        await waitFor(() => expect(retention).toHaveValue('7'))
+        await userEvent.clear(retention)
+        await userEvent.type(retention, '30')
+        await userEvent.click(screen.getByRole('button', { name: /Save/ }))
+        await waitFor(() => expect(screen.getByText(/Saved ✓/)).toBeInTheDocument())
+        expect(lastBody('put', '/api/v1/settings')).toMatchObject({ conversation_retention_days: 30 })
     })
 
     it('adds a provider with its credentials', async () => {

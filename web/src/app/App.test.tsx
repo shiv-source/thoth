@@ -58,7 +58,8 @@ const settings = {
     wiki_path: '~/.thoth/wiki',
     wiki_folders: [] as string[],
     model: '',
-    context_injection: false
+    context_injection: false,
+    conversation_retention_days: 7
 }
 
 describe('App setup gating', () => {

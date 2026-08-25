@@ -136,6 +136,36 @@ func (s *Store) DeleteConversation(convID string) error {
 	return nil
 }
 
+// DeleteConversationsBefore removes every conversation created before cutoff
+// (and its messages) in one transaction, returning how many conversations were
+// deleted. It is the retention sweep's delete path; messages go first so a
+// future PRAGMA foreign_keys=ON stays satisfied, mirroring DeleteConversation.
+func (s *Store) DeleteConversationsBefore(cutoff time.Time) (int64, error) {
+	cut := cutoff.UTC().Format(time.RFC3339)
+	tx, err := s.db.Begin()
+	if err != nil {
+		return 0, fmt.Errorf("begin delete old conversations: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }() // no-op after Commit
+	if _, err := tx.Exec(
+		`DELETE FROM messages WHERE conversation_id IN (SELECT id FROM conversations WHERE created_at < ?)`,
+		cut); err != nil {
+		return 0, fmt.Errorf("delete old messages: %w", err)
+	}
+	res, err := tx.Exec(`DELETE FROM conversations WHERE created_at < ?`, cut)
+	if err != nil {
+		return 0, fmt.Errorf("delete old conversations: %w", err)
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return 0, fmt.Errorf("count deleted conversations: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return 0, fmt.Errorf("commit delete old conversations: %w", err)
+	}
+	return n, nil
+}
+
 // AddMessage inserts a message. The optional meta carries the turn's telemetry
 // (usage JSON + duration seconds) for the assistant message that ended the
 // turn; both are stored as NULL when absent (user messages, older rows).

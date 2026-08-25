@@ -183,6 +183,42 @@ func TestSettingsWikiFoldersRoundTrip(t *testing.T) {
 	}
 }
 
+func TestSettingsConversationRetentionDays(t *testing.T) {
+	d := testDeps(t)
+	e := New(d)
+
+	// Seeded: no stored key, so the documented default is reported.
+	if got := getSettingsReq(t, e); got.ConversationRetentionDays != settings.DefaultRetentionDays {
+		t.Fatalf("seeded retention = %d, want %d", got.ConversationRetentionDays, settings.DefaultRetentionDays)
+	}
+
+	rec := putSettingsReq(t, e, `{"wiki_path":"/tmp/wiki","conversation_retention_days":30}`)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("PUT status %d: %s", rec.Code, rec.Body.String())
+	}
+	if got := getSettingsReq(t, e); got.ConversationRetentionDays != 30 {
+		t.Fatalf("stored retention = %d, want 30", got.ConversationRetentionDays)
+	}
+	if v, _, err := d.Settings.Setting(settings.KeyConversationRetentionDays); err != nil || v != "30" {
+		t.Fatalf("stored key = %q/%v, want 30/nil", v, err)
+	}
+
+	// Zero disables auto-delete.
+	rec = putSettingsReq(t, e, `{"wiki_path":"/tmp/wiki","conversation_retention_days":0}`)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("zero PUT status %d: %s", rec.Code, rec.Body.String())
+	}
+	if got := getSettingsReq(t, e); got.ConversationRetentionDays != 0 {
+		t.Fatalf("disabled retention = %d, want 0", got.ConversationRetentionDays)
+	}
+
+	// Negative values are rejected at the boundary.
+	rec = putSettingsReq(t, e, `{"wiki_path":"/tmp/wiki","conversation_retention_days":-1}`)
+	if rec.Code != http.StatusBadRequest || !strings.Contains(rec.Body.String(), "conversation_retention_days cannot be negative") {
+		t.Fatalf("negative retention: %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
 func TestConversationsEndpoints(t *testing.T) {
 	d := testDeps(t)
 	e := New(d)

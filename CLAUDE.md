@@ -24,6 +24,7 @@ internal/
   store/                  conversations/messages + providers + llm_models + sync_providers + connections + sync_push_history; migrations 0001–0013
   settings/ config/ doctor/ webui/          (see docs/components.md)
   sync/                   multi-provider sync engine: git/s3/local drivers + restore capability + auto-sync scheduler over sync_providers + sync_connections
+  retention/              chat-history retention scheduler: purges conversations older than the configured window (default 7d, 0 disables)
   github/                 GitHub REST client (identity + repos) — consumed by the sync git driver
 web/src/                  React 19 · TS strict · antd 6 · pnpm
   app/ App.tsx · api/ client.tsx (axios+zod) · ws/ chat/protocol/events

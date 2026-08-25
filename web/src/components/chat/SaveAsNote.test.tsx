@@ -19,7 +19,8 @@ describe('SaveAsNote', () => {
                 providers: {},
                 repo_url: '',
                 sync_enabled: false,
-                context_injection: false
+                context_injection: false,
+                conversation_retention_days: 7
             })
         })
     })
@@ -36,7 +37,8 @@ describe('SaveAsNote', () => {
                 providers: {},
                 repo_url: '',
                 sync_enabled: false,
-                context_injection: false
+                context_injection: false,
+                conversation_retention_days: 7
             }),
             'POST /api/v1/notes': () => ({ path: 'inbox/the-answer.md', title: 'The Answer', type: 'inbox' }),
             'GET /api/v1/wiki/tree': () => ({ nodes: [] })
@@ -67,7 +69,8 @@ describe('SaveAsNote', () => {
                 providers: {},
                 repo_url: '',
                 sync_enabled: false,
-                context_injection: false
+                context_injection: false,
+                conversation_retention_days: 7
             }),
             'POST /api/v1/notes': () => ({ path: 'journal/j.md', title: 'J', type: 'journal' }),
             'GET /api/v1/wiki/tree': () => ({ nodes: [] })
@@ -100,7 +103,8 @@ describe('SaveAsNote', () => {
                 providers: {},
                 repo_url: '',
                 sync_enabled: false,
-                context_injection: false
+                context_injection: false,
+                conversation_retention_days: 7
             })
         })
         mocks.post.mockRejectedValue(new Error('boom'))

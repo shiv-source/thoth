@@ -59,7 +59,8 @@ export const Settings = z.object({
     wiki_path: z.string(),
     wiki_folders: z.array(z.string()),
     model: z.string(),
-    context_injection: z.boolean()
+    context_injection: z.boolean(),
+    conversation_retention_days: z.number()
 })
 export type Settings = z.infer<typeof Settings>
 

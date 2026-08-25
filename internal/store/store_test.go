@@ -4,6 +4,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -370,6 +371,63 @@ func TestDeleteConversation(t *testing.T) {
 	// Idempotent.
 	if err := s.DeleteConversation(id); err != nil {
 		t.Fatalf("second delete: %v", err)
+	}
+}
+
+func TestDeleteConversationsBefore(t *testing.T) {
+	s, err := Open(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = s.Close() })
+
+	// Seed three conversations with explicit timestamps (created_at is stored
+	// as RFC3339 text) so the retention boundary is deterministic.
+	for _, row := range []struct {
+		id, title, created string
+	}{
+		{"old", "old", "2026-01-01T10:00:00Z"},
+		{"border", "border", "2026-02-01T10:00:00Z"},
+		{"fresh", "fresh", "2026-03-01T10:00:00Z"},
+	} {
+		if _, err := s.db.Exec(
+			`INSERT INTO conversations(id, title, created_at) VALUES (?, ?, ?)`,
+			row.id, row.title, row.created); err != nil {
+			t.Fatalf("seed conversation %s: %v", row.id, err)
+		}
+	}
+	if err := s.AddMessage("old", "user", "expired"); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.AddMessage("fresh", "user", "kept"); err != nil {
+		t.Fatal(err)
+	}
+
+	// A cutoff of 2026-02-01 00:00:00Z falls before "border", so only "old"
+	// (created 2026-01-01) is strictly older.
+	cutoff, err := time.Parse(time.RFC3339, "2026-02-01T00:00:00Z")
+	if err != nil {
+		t.Fatal(err)
+	}
+	n, err := s.DeleteConversationsBefore(cutoff)
+	if err != nil || n != 1 {
+		t.Fatalf("DeleteConversationsBefore = %d/%v, want 1/nil", n, err)
+	}
+	convs, err := s.ListConversations()
+	if err != nil || len(convs) != 2 {
+		t.Fatalf("after purge: %v %+v", err, convs)
+	}
+	// The expired conversation's messages go with it; the fresh ones stay.
+	if msgs, err := s.Messages("old"); err != nil || len(msgs) != 0 {
+		t.Fatalf("old messages not deleted: %v %+v", err, msgs)
+	}
+	if msgs, err := s.Messages("fresh"); err != nil || len(msgs) != 1 {
+		t.Fatalf("fresh messages not kept: %v %+v", err, msgs)
+	}
+	// A no-op sweep (same cutoff: nothing left is older than it) returns zero.
+	n, err = s.DeleteConversationsBefore(cutoff)
+	if err != nil || n != 0 {
+		t.Fatalf("no-op sweep = %d/%v, want 0/nil", n, err)
 	}
 }
 
