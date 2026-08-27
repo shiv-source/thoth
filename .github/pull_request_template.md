@@ -1,7 +1,7 @@
 <!--
 Conventions:
 - Title: conventional commit (`feat:`, `fix:`, `perf:`, `ci:`, `docs:`, `refactor:`, `test:`, `chore:`)
-- `ci-pr` runs the quality gates; `final-gate` posts its report as a comment and must pass before merging
+- CI runs the golden-path quality gates; the `final-gate` check posts its report as a PR comment and must pass before merging
 - Never commit secrets or generated files (`web/dist/`, `internal/webui/dist/`, `*.db`)
 -->
 

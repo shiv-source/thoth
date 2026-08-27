@@ -1,8 +1,8 @@
 name: issue-labels
 # Auto-apply the three-tier issue labels (type, priority, areas) from the
-# form answers the reporter selected. Add-only: the action never removes a
-# label, so labels a human adds afterwards survive. Blank issues have no form
-# sections to read and are left untouched.
+# issue form answers. Add-only: the action never removes a label. The bundled
+# golden-path default config matches thoth's form headings; to customize, pass
+# a repo-local config via the golden-path issue-labels workflow `config` input.
 on:
   issues:
     types: [opened, edited]
@@ -13,10 +13,4 @@ permissions:
 
 jobs:
   apply:
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@v7
-      - uses: ./.github/actions/issue-labels
-        with:
-          token: ${{ github.token }}
+    uses: shiv-source/golden-path/.github/workflows/issue-labels.yaml@main

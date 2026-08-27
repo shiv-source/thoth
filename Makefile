@@ -207,11 +207,9 @@ ext-e2e: ## browser extension Playwright e2e (loads the built extension in Chrom
 ext-e2e:
 	pnpm --filter thoth-ext e2e
 
-tools-test: ## .github/actions JS suites + scripts/ smoke tests
+tools-test: ## scripts/ smoke tests
 .PHONY: tools-test
 tools-test:
-	node --test .github/actions/issue-labels/test/*.test.mjs
-	node --test .github/actions/ci-report/test/*.test.mjs
 	./scripts/pr_test.sh
 
 check: fmt lint race cover web-test web-cover ext-check ext-e2e tools-test build ## everything CI runs, locally

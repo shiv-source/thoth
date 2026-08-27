@@ -1,0 +1,41 @@
+name: e2e
+# Browser-extension Playwright e2e (thoth-specific — not part of the
+# golden-path orchestrator). Loads the built MV3 extension into Chromium and
+# drives the React popup end to end against the mock capture server. Skips
+# unless browser-ext (or its workspace config) changed.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  ext-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: detect browser-ext changes
+        id: changed
+        uses: shiv-source/golden-path/.github/actions/changed-files@main
+        with:
+          paths: '["browser-ext/**","package.json","pnpm-lock.yaml","pnpm-workspace.yaml"]'
+      - uses: shiv-source/golden-path/.github/actions/setup-node@main
+        if: steps.changed.outputs.changed == 'true'
+        with:
+          node-version: '24'
+          package-manager: pnpm
+          working-directory: .
+      - name: install playwright chromium
+        if: steps.changed.outputs.changed == 'true'
+        working-directory: browser-ext
+        run: pnpm exec playwright install --with-deps chromium
+      - name: e2e
+        if: steps.changed.outputs.changed == 'true'
+        working-directory: browser-ext
+        run: pnpm --filter thoth-ext e2e
