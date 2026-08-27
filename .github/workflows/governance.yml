@@ -1,0 +1,22 @@
+name: governance
+# Repo-hygiene automations consolidated into the golden-path governance
+# umbrella: PR auto-assignment, issue-form labels, stale issue/PR management,
+# and Dependabot auto-merge. The bundled actions no-op gracefully on events
+# they don't apply to (e.g. pr-assignee on an issues event), so one workflow
+# can carry every trigger. All four are enabled by default; disable any with
+# the governance workflow's inputs (e.g. with: dependency-update: false).
+on:
+  pull_request:
+    branches: [main, master]
+  issues:
+    types: [opened, edited]
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  governance:
+    uses: shiv-source/golden-path/.github/workflows/governance.yaml@main
