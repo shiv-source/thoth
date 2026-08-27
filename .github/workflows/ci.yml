@@ -1,9 +1,10 @@
 name: ci
-# Consolidated CI for push, PR, and manual runs. All gates (Go + the two Node
-# targets + security/secret-scan/codespell/actionlint) are configured in
-# .github/golden-path.yaml and driven by the golden-path-ci reusable workflow;
-# thoth maintains no CI logic of its own. The aggregate is a single required
-# check, and the gate report is posted/upserted on PRs.
+# Consolidated CI for push, PR, and manual runs. All gates (Go + the Node
+# targets web / browser-ext / docs-site + security/secret-scan/codespell/
+# actionlint) are configured in .github/golden-path.yaml and driven by the
+# golden-path-ci reusable workflow; thoth maintains no CI logic of its own. The
+# aggregate is a single required check, and the gate report is posted/upserted
+# on PRs.
 on:
   push:
     branches: [main, master]
