@@ -17,6 +17,14 @@ permissions:
 
 jobs:
   golden-path:
+    # Grant the permissions the nested jobs request (security-scan needs
+    # security-events: write; the final-gate needs issues/pull-requests for the
+    # PR comment). Reusable-workflow permissions can only be maintained.
+    permissions:
+      contents: read
+      security-events: write
+      issues: write
+      pull-requests: write
     uses: shiv-source/golden-path/.github/workflows/golden-path-ci.yaml@main
     with:
       config-path: .github/golden-path.yaml

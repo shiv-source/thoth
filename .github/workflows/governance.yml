@@ -19,4 +19,10 @@ permissions:
 
 jobs:
   governance:
+    # Grant the union of permissions the nested automation jobs request
+    # (reusable-workflow permissions can only be maintained, not elevated).
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
     uses: shiv-source/golden-path/.github/workflows/governance.yaml@main
