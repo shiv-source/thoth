@@ -102,6 +102,11 @@ secret-scan:
 
 codespell:
     enabled: true
+    # Skip lockfiles + the vendored swagger-ui bundles (minified third-party JS
+    # that codespell would otherwise flag hundreds of times).
+    skip: '.git,node_modules,dist,build,vendor,package-lock.json,pnpm-lock.yaml,*.lock,*.sum,*swagger-ui*'
+    # afterAll (test API), unparseable, keep-alives (SSE) are intentional.
+    ignore-words-file: .codespellignore
 
 actionlint:
     enabled: true
