@@ -94,7 +94,10 @@ security-scan:
     enabled: true
     # Build the embedded frontend before CodeQL so its Go autobuild succeeds.
     setup-command: 'corepack enable && corepack prepare pnpm@11.7.0 --activate && make web'
-    language: ''
+    # Pin to a single language: codeql-action's build-mode only supports one
+    # language per job, and this polyglot repo (Go + embedded JS + Actions)
+    # would otherwise need incompatible build modes (Go=autobuild, JS=none).
+    language: go
 
 secret-scan:
     enabled: true
