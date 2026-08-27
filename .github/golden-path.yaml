@@ -1,0 +1,105 @@
+version: 2
+
+# Thoth is a Go backend with an embedded React frontend (web/) plus a browser
+# extension (browser-ext/). Each entry below is one CI gate; golden-path-ci
+# runs them all and aggregates into a single required check.
+go:
+    - name: backend
+      working-directory: .
+      go-version-file: go.mod
+      # Build the embedded frontend (internal/webui/dist) — required by the
+      # webui tests. corepack pins pnpm to the version docs/development.md
+      # requires (lockfile is v9).
+      setup-command: 'corepack enable && corepack prepare pnpm@11.7.0 --activate && make web'
+      # Mirrors the Makefile's COVER_PKGS scope.
+      test-args: '-race -failfast -coverprofile=coverage.out ./agent/... ./internal/... ./cmd/...'
+      coverage-floor: 90
+      cross-compile:
+          enabled: true
+      change-detection:
+          enabled: true
+          paths:
+              - '**/*.go'
+              - go.mod
+              - go.sum
+              - .golangci.yml
+              - '.github/'
+              - 'web/**'
+              - package.json
+              - pnpm-lock.yaml
+              - pnpm-workspace.yaml
+      lint:
+          golangci-lint-version: v2.12.2
+          config: .golangci.yml
+          timeout: 5m
+          args: ''
+
+node:
+    - name: web
+      working-directory: .
+      node-version: '24'
+      package-manager: pnpm
+      shard-count: 1
+      lint-command: pnpm run lint
+      typecheck-command: pnpm run typecheck
+      test-command: pnpm run test
+      build-command: pnpm run build
+      coverage-command: pnpm run test:coverage
+      coverage-floor: 90
+      coverage-summary-path: web/coverage/coverage-summary.json
+      change-detection:
+          enabled: true
+          paths:
+              - 'web/**'
+              - package.json
+              - pnpm-lock.yaml
+              - pnpm-workspace.yaml
+    - name: browser-ext
+      working-directory: .
+      node-version: '24'
+      package-manager: pnpm
+      shard-count: 1
+      lint-command: pnpm --filter thoth-ext lint
+      typecheck-command: pnpm --filter thoth-ext typecheck
+      test-command: pnpm --filter thoth-ext test
+      build-command: pnpm --filter thoth-ext build
+      change-detection:
+          enabled: true
+          paths:
+              - 'browser-ext/**'
+              - package.json
+              - pnpm-lock.yaml
+              - pnpm-workspace.yaml
+    - name: docs-site
+      working-directory: .
+      node-version: '24'
+      package-manager: pnpm
+      shard-count: 1
+      # docs-site has no lint or test scripts — typecheck (tsc) and build
+      # (docusaurus build) are the real gates.
+      lint-command: 'true'
+      typecheck-command: pnpm --filter thoth-docs typecheck
+      test-command: 'true'
+      build-command: pnpm --filter thoth-docs build
+      change-detection:
+          enabled: true
+          paths:
+              - 'docs-site/**'
+              - 'docs/**'
+              - package.json
+              - pnpm-lock.yaml
+              - pnpm-workspace.yaml
+
+security-scan:
+    enabled: true
+    language: ''
+
+secret-scan:
+    enabled: true
+    tool: betterleaks
+
+codespell:
+    enabled: true
+
+actionlint:
+    enabled: true
