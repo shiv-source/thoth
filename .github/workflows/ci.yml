@@ -73,9 +73,9 @@ jobs:
       change-paths: '["browser-ext/**","package.json","pnpm-lock.yaml","pnpm-workspace.yaml"]'
 
   security:
+    # CodeQL auto-detects the repo languages (security-scan's language input
+    # is optional); Gitleaks runs the secret scan.
     uses: shiv-source/golden-path/.github/workflows/security-scan.yaml@main
-    with:
-      language: go
     secrets: inherit
 
   secret-scan:
