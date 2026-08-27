@@ -92,6 +92,8 @@ node:
 
 security-scan:
     enabled: true
+    # Build the embedded frontend before CodeQL so its Go autobuild succeeds.
+    setup-command: 'corepack enable && corepack prepare pnpm@11.7.0 --activate && make web'
     language: ''
 
 secret-scan:
