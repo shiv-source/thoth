@@ -1,0 +1,34 @@
+name: docs
+# Docusaurus docs-site build (thoth-specific — consumes docs/ directly). Runs
+# when docs-site/ or docs/ changed; otherwise the job skips.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: detect docs changes
+        id: changed
+        uses: shiv-source/golden-path/.github/actions/changed-files@main
+        with:
+          paths: '["docs-site/**","docs/**"]'
+      - uses: shiv-source/golden-path/.github/actions/setup-node@main
+        if: steps.changed.outputs.changed == 'true'
+        with:
+          node-version: '24'
+          package-manager: pnpm
+          working-directory: .
+      - name: build docs site
+        if: steps.changed.outputs.changed == 'true'
+        run: pnpm docs:build

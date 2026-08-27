@@ -32,7 +32,7 @@ make dev       # Vite HMR + Go server together (http://127.0.0.1:8333)
    `./scripts/pr.sh` runs this sync plus the whole PR flow (step 4) in one
    command.
 3. **Conventional commits** — `<type>(<scope>): <summary>`; prefixes: `feat:`, `fix:`, `perf:`, `chore:`, `docs:`, `refactor:`, `test:`, `ci:` (`perf` maps to the `performance` type label).
-4. **Open a PR** using the template — conventional title, a summary that gives the full picture (bullets when it helps), files changed, and the verification checklist. The `ci-pr` quality gates run automatically; `final-gate` posts its report as a comment and must pass before merging.
+4. **Open a PR** using the template — conventional title, a summary that gives the full picture (bullets when it helps), files changed, and the verification checklist. The golden-path CI gates run automatically; the `final-gate` check posts its report as a comment and must pass before merging.
 5. **Squash-merge** PRs unless the commit history is meaningful.
 6. **Every PR is reviewed.** Large or cross-package changes go through a design doc in `docs/specs/` (untracked working docs — never committed) *before* implementation.
 

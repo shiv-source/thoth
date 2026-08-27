@@ -1,108 +1,111 @@
 name: ci
+# Consolidated CI for push, PR, and manual runs. The gates are the golden-path
+# reusable workflows (one job per gate) so thoth never maintains its own CI
+# copies. The final-gate aggregates every gate into a single required check
+# and posts the rich report as a PR comment.
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
 
+# Top-level permissions flow to the called reusable workflows (they can only
+# downgrade, never elevate) — security-scan needs security-events: write.
 permissions:
   contents: read
-  actions: read
-  pull-requests: write
+  security-events: write
 
 jobs:
-  # All quality gates, shared verbatim with the PR workflow.
-  quality:
-    uses: ./.github/workflows/quality.yml
-
-  build-linux:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    needs: [quality]
-    steps:
-      - uses: actions/checkout@v7
-      - uses: ./.github/actions/setup-go-web
-      - name: build linux targets
-        shell: bash
-        run: |
-          GOOS=linux GOARCH=amd64 go build -o /tmp/thoth-linux-amd64 ./cmd/thoth
-          GOOS=linux GOARCH=arm64 go build -o /tmp/thoth-linux-arm64 ./cmd/thoth
-
-  build-darwin:
-    runs-on: macos-latest
-    timeout-minutes: 10
-    needs: [quality]
-    steps:
-      - uses: actions/checkout@v7
-      - uses: ./.github/actions/setup-go-web
-      - name: build darwin targets
-        shell: bash
-        run: |
-          GOOS=darwin GOARCH=amd64 go build -o /tmp/thoth-darwin-amd64 ./cmd/thoth
-          GOOS=darwin GOARCH=arm64 go build -o /tmp/thoth-darwin-arm64 ./cmd/thoth
-
-  build-windows:
-    runs-on: windows-latest
-    timeout-minutes: 10
-    needs: [quality]
-    steps:
-      - uses: actions/checkout@v7
-      - uses: ./.github/actions/setup-go-web
-      - name: build windows target
-        shell: bash
-        run: |
-          GOOS=windows GOARCH=amd64 go build -o /tmp/thoth-windows-amd64.exe ./cmd/thoth
-
-  frontend-build:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    needs: [quality]
-    defaults:
-      run:
-        working-directory: web
-    steps:
-      - uses: actions/checkout@v7
-      - uses: ./.github/actions/setup-web
-      - run: pnpm run build
-
-  # Builds the Docusaurus docs site only when docs-site/ changed in this push;
-  # otherwise the job skips (docs/ content is rendered by the same site, and a
-  # docs-only change still needs the site to compile — see quality.yml docs-build).
-  docs-build:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    needs: [quality]
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-      - name: skip unless docs-site changed
-        id: changes
-        shell: bash
-        run: |
-          base="${{ github.event.before }}"
-          changed=false
-          if [ -z "$base" ] || [ "$base" = "0000000000000000000000000000000000000000" ]; then
-            changed=true
-          elif git diff --name-only "$base...${{ github.sha }}" | grep -q '^docs-site/'; then
-            changed=true
-          fi
-          echo "changed=$changed" >> "$GITHUB_OUTPUT"
-      - uses: ./.github/actions/setup-web
-        if: steps.changes.outputs.changed == 'true'
-      - run: pnpm --filter thoth-docs build
-        if: steps.changes.outputs.changed == 'true'
-
-  # Single required check for branch protection — see final-gate.yml.
-  final-gate:
-    needs: [quality, frontend-build, docs-build, build-linux, build-darwin, build-windows]
-    if: always()
-    uses: ./.github/workflows/final-gate.yml
+  # Go backend: lint (golangci-lint), test with coverage gate, cross-compile
+  # builds. setup-command builds the embedded frontend (internal/webui/dist),
+  # which the webui tests require, and test-args mirrors the Makefile's
+  # COVER_PKGS scope.
+  go:
+    uses: shiv-source/golden-path/.github/workflows/build-test-go.yaml@main
     with:
-      wrapper: final-gate
-      coverage: ${{ needs.quality.outputs.coverage }}
-      coverage-floor: ${{ needs.quality.outputs.coverage_floor }}
-      coverage-covered: ${{ needs.quality.outputs.coverage_covered }}
-      coverage-total: ${{ needs.quality.outputs.coverage_total }}
-      web-coverage: ${{ needs.quality.outputs.web_coverage }}
-      web-coverage-floor: ${{ needs.quality.outputs.web_coverage_floor }}
-      web-coverage-covered: ${{ needs.quality.outputs.web_coverage_covered }}
-      web-coverage-total: ${{ needs.quality.outputs.web_coverage_total }}
+      go-version-file: go.mod
+      working-directory: .
+      coverage-floor: 90
+      cross-compile: true
+      change-detection: true
+      change-paths: '["**/*.go","go.mod","go.sum",".golangci.yml",".github/","web/**","package.json","pnpm-lock.yaml","pnpm-workspace.yaml"]'
+      golangci-lint-version: v2.12.2
+      golangci-lint-config: .golangci.yml
+      golangci-lint-timeout: 5m
+      # Build the embedded frontend (internal/webui/dist) — required by the
+      # webui tests. corepack pins pnpm to the version docs/development.md
+      # requires (lockfile is v9).
+      setup-command: 'corepack enable && corepack prepare pnpm@11.7.0 --activate && make web'
+      test-args: '-race -failfast -coverprofile=coverage.out ./agent/... ./internal/... ./cmd/...'
+
+  # Frontend (web/): lint, typecheck, build, and a coverage-gated test run.
+  web:
+    uses: shiv-source/golden-path/.github/workflows/build-test-node.yaml@main
+    with:
+      working-directory: .
+      node-version: '24'
+      package-manager: pnpm
+      shard-count: 1
+      lint-command: pnpm run lint
+      typecheck-command: pnpm run typecheck
+      test-command: pnpm run test
+      build-command: pnpm run build
+      coverage-command: pnpm run test:coverage
+      coverage-floor: 90
+      coverage-summary-path: web/coverage/coverage-summary.json
+      change-detection: true
+      change-paths: '["web/**","package.json","pnpm-lock.yaml","pnpm-workspace.yaml"]'
+
+  # Browser extension (browser-ext/): lint, typecheck, test, build.
+  ext:
+    uses: shiv-source/golden-path/.github/workflows/build-test-node.yaml@main
+    with:
+      working-directory: .
+      node-version: '24'
+      package-manager: pnpm
+      shard-count: 1
+      lint-command: pnpm --filter thoth-ext lint
+      typecheck-command: pnpm --filter thoth-ext typecheck
+      test-command: pnpm --filter thoth-ext test
+      build-command: pnpm --filter thoth-ext build
+      change-detection: true
+      change-paths: '["browser-ext/**","package.json","pnpm-lock.yaml","pnpm-workspace.yaml"]'
+
+  security:
+    # CodeQL auto-detects the repo languages (security-scan's language input
+    # is optional); Gitleaks runs the secret scan.
+    uses: shiv-source/golden-path/.github/workflows/security-scan.yaml@main
+    secrets: inherit
+
+  secret-scan:
+    uses: shiv-source/golden-path/.github/workflows/secret-scan-betterleaks.yaml@main
+    secrets: inherit
+
+  codespell:
+    uses: shiv-source/golden-path/.github/workflows/codespell.yaml@main
+
+  actionlint:
+    uses: shiv-source/golden-path/.github/workflows/actionlint.yaml@main
+
+  # Single required check for branch protection: aggregates every gate, renders
+  # the coverage + job report, and upserts the PR comment. Skipped gates (from
+  # change detection) count as passing.
+  final-gate:
+    needs: [go, web, ext, security, secret-scan, codespell, actionlint]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+    steps:
+      - uses: shiv-source/golden-path/.github/actions/final-gate@main
+        with:
+          results: ${{ format('go={0} web={1} ext={2} security={3} secret-scan={4} codespell={5} actionlint={6}', needs.go.result, needs.web.result, needs.ext.result, needs.security.result, needs.secret-scan.result, needs.codespell.result, needs.actionlint.result) }}
+          coverage: ${{ needs.go.outputs.coverage }}
+          coverage-floor: ${{ needs.go.outputs.coverage_floor }}
+          web-coverage: ${{ needs.web.outputs.coverage }}
+          web-coverage-floor: ${{ needs.web.outputs.coverage_floor }}
+          pr-comment: true
