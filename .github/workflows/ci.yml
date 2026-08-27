@@ -1,111 +1,32 @@
 name: ci
-# Consolidated CI for push, PR, and manual runs. The gates are the golden-path
-# reusable workflows (one job per gate) so thoth never maintains its own CI
-# copies. The final-gate aggregates every gate into a single required check
-# and posts the rich report as a PR comment.
+# Consolidated CI for push, PR, and manual runs. All gates (Go + the Node
+# targets web / browser-ext / docs-site + security/secret-scan/codespell/
+# actionlint) are configured in .github/golden-path.yaml and driven by the
+# golden-path-ci reusable workflow; thoth maintains no CI logic of its own. The
+# aggregate is a single required check, and the gate report is posted/upserted
+# on PRs.
 on:
   push:
-    branches: [main]
+    branches: [main, master]
   pull_request:
-    branches: [main]
+    branches: [main, master]
   workflow_dispatch:
 
-# Top-level permissions flow to the called reusable workflows (they can only
-# downgrade, never elevate) — security-scan needs security-events: write.
 permissions:
   contents: read
-  security-events: write
 
 jobs:
-  # Go backend: lint (golangci-lint), test with coverage gate, cross-compile
-  # builds. setup-command builds the embedded frontend (internal/webui/dist),
-  # which the webui tests require, and test-args mirrors the Makefile's
-  # COVER_PKGS scope.
-  go:
-    uses: shiv-source/golden-path/.github/workflows/build-test-go.yaml@main
-    with:
-      go-version-file: go.mod
-      working-directory: .
-      coverage-floor: 90
-      cross-compile: true
-      change-detection: true
-      change-paths: '["**/*.go","go.mod","go.sum",".golangci.yml",".github/","web/**","package.json","pnpm-lock.yaml","pnpm-workspace.yaml"]'
-      golangci-lint-version: v2.12.2
-      golangci-lint-config: .golangci.yml
-      golangci-lint-timeout: 5m
-      # Build the embedded frontend (internal/webui/dist) — required by the
-      # webui tests. corepack pins pnpm to the version docs/development.md
-      # requires (lockfile is v9).
-      setup-command: 'corepack enable && corepack prepare pnpm@11.7.0 --activate && make web'
-      test-args: '-race -failfast -coverprofile=coverage.out ./agent/... ./internal/... ./cmd/...'
-
-  # Frontend (web/): lint, typecheck, build, and a coverage-gated test run.
-  web:
-    uses: shiv-source/golden-path/.github/workflows/build-test-node.yaml@main
-    with:
-      working-directory: .
-      node-version: '24'
-      package-manager: pnpm
-      shard-count: 1
-      lint-command: pnpm run lint
-      typecheck-command: pnpm run typecheck
-      test-command: pnpm run test
-      build-command: pnpm run build
-      coverage-command: pnpm run test:coverage
-      coverage-floor: 90
-      coverage-summary-path: web/coverage/coverage-summary.json
-      change-detection: true
-      change-paths: '["web/**","package.json","pnpm-lock.yaml","pnpm-workspace.yaml"]'
-
-  # Browser extension (browser-ext/): lint, typecheck, test, build.
-  ext:
-    uses: shiv-source/golden-path/.github/workflows/build-test-node.yaml@main
-    with:
-      working-directory: .
-      node-version: '24'
-      package-manager: pnpm
-      shard-count: 1
-      lint-command: pnpm --filter thoth-ext lint
-      typecheck-command: pnpm --filter thoth-ext typecheck
-      test-command: pnpm --filter thoth-ext test
-      build-command: pnpm --filter thoth-ext build
-      change-detection: true
-      change-paths: '["browser-ext/**","package.json","pnpm-lock.yaml","pnpm-workspace.yaml"]'
-
-  security:
-    # CodeQL auto-detects the repo languages (security-scan's language input
-    # is optional); Gitleaks runs the secret scan.
-    uses: shiv-source/golden-path/.github/workflows/security-scan.yaml@main
-    secrets: inherit
-
-  secret-scan:
-    uses: shiv-source/golden-path/.github/workflows/secret-scan-betterleaks.yaml@main
-    secrets: inherit
-
-  codespell:
-    uses: shiv-source/golden-path/.github/workflows/codespell.yaml@main
-
-  actionlint:
-    uses: shiv-source/golden-path/.github/workflows/actionlint.yaml@main
-
-  # Single required check for branch protection: aggregates every gate, renders
-  # the coverage + job report, and upserts the PR comment. Skipped gates (from
-  # change detection) count as passing.
-  final-gate:
-    needs: [go, web, ext, security, secret-scan, codespell, actionlint]
-    if: always()
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
+  golden-path:
+    # Grant the permissions the nested jobs request (security-scan needs
+    # security-events: write; the final-gate needs issues/pull-requests for the
+    # PR comment). Reusable-workflow permissions can only be maintained.
     permissions:
       contents: read
+      security-events: write
       issues: write
       pull-requests: write
-    steps:
-      - uses: shiv-source/golden-path/.github/actions/final-gate@main
-        with:
-          results: ${{ format('go={0} web={1} ext={2} security={3} secret-scan={4} codespell={5} actionlint={6}', needs.go.result, needs.web.result, needs.ext.result, needs.security.result, needs.secret-scan.result, needs.codespell.result, needs.actionlint.result) }}
-          coverage: ${{ needs.go.outputs.coverage }}
-          coverage-floor: ${{ needs.go.outputs.coverage_floor }}
-          web-coverage: ${{ needs.web.outputs.coverage }}
-          web-coverage-floor: ${{ needs.web.outputs.coverage_floor }}
-          pr-comment: true
+    uses: shiv-source/golden-path/.github/workflows/golden-path-ci.yaml@main
+    with:
+      config-path: .github/golden-path.yaml
+      pr-comment: true
+    secrets: inherit
